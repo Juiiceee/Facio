@@ -1,5 +1,16 @@
 import Foundation
 
+// MARK: - Mode de paiement
+
+enum PaymentMode: String, Codable, CaseIterable, Identifiable {
+    case aucun = "Aucun"
+    case virement = "Virement"
+    case crypto = "Crypto"
+
+    var id: String { rawValue }
+    var label: String { rawValue }
+}
+
 // MARK: - Type de document
 
 enum DocumentType: String, Codable, CaseIterable, Identifiable {

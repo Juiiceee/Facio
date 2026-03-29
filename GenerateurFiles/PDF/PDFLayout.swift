@@ -10,45 +10,54 @@ struct PDFLayout {
     static let pageRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
 
     // MARK: - Marges
-    static let marginLeft: CGFloat = 50
-    static let marginRight: CGFloat = 50
-    static let marginTop: CGFloat = 50
-    static let marginBottom: CGFloat = 50
+    static let marginLeft: CGFloat = 40
+    static let marginRight: CGFloat = 40
+    static let marginTop: CGFloat = 30
+    static let marginBottom: CGFloat = 30
     static let contentWidth: CGFloat = pageWidth - marginLeft - marginRight
 
-    // MARK: - Header
-    static let headerHeight: CGFloat = 80
-    static let headerColor = NSColor(red: 0.33, green: 0.54, blue: 0.19, alpha: 1.0)
-
     // MARK: - Tableau
-    static let tableHeaderHeight: CGFloat = 30
-    static let tableRowHeight: CGFloat = 25
-    static let tableHeaderColor = NSColor(red: 0.33, green: 0.54, blue: 0.19, alpha: 1.0)
-    static let tableAlternateColor = NSColor(red: 0.95, green: 0.97, blue: 0.93, alpha: 1.0)
+    static let tableHeaderHeight: CGFloat = 28
+    static let tableRowHeight: CGFloat = 24
 
     // Colonnes du tableau (proportions)
-    static let colDesignation: CGFloat = 0.35
+    static let colDesignation: CGFloat = 0.40
     static let colQuantite: CGFloat = 0.15
     static let colPrix: CGFloat = 0.15
-    static let colTotal: CGFloat = 0.20
+    static let colTotal: CGFloat = 0.15
     static let colTVA: CGFloat = 0.15
 
-    // MARK: - Polices
-    static let fontTitle = NSFont.systemFont(ofSize: 22, weight: .bold)
-    static let fontSubtitle = NSFont.systemFont(ofSize: 12, weight: .medium)
-    static let fontBody = NSFont.systemFont(ofSize: 10, weight: .regular)
-    static let fontBodyBold = NSFont.systemFont(ofSize: 10, weight: .bold)
-    static let fontSmall = NSFont.systemFont(ofSize: 8, weight: .regular)
-    static let fontTableHeader = NSFont.systemFont(ofSize: 9, weight: .bold)
-    static let fontTotalTTC = NSFont.systemFont(ofSize: 13, weight: .bold)
-    static let fontSection = NSFont.systemFont(ofSize: 11, weight: .semibold)
+    // MARK: - Polices (Helvetica / sans-serif)
+    static let fontTitle = NSFont(name: "Helvetica-Bold", size: 18) ?? NSFont.systemFont(ofSize: 18, weight: .bold)
+    static let fontBody = NSFont(name: "Helvetica", size: 10) ?? NSFont.systemFont(ofSize: 10)
+    static let fontBodyBold = NSFont(name: "Helvetica-Bold", size: 10) ?? NSFont.systemFont(ofSize: 10, weight: .bold)
+    static let fontBodyItalic = NSFont(name: "Helvetica-Oblique", size: 10) ?? NSFont.systemFont(ofSize: 10)
+    static let fontBodyBoldItalic = NSFont(name: "Helvetica-BoldOblique", size: 11) ?? NSFont.systemFont(ofSize: 11, weight: .bold)
+    static let fontSmall = NSFont(name: "Helvetica", size: 9) ?? NSFont.systemFont(ofSize: 9)
+    static let fontSmallBold = NSFont(name: "Helvetica-Bold", size: 9) ?? NSFont.systemFont(ofSize: 9, weight: .bold)
+    static let fontTableHeader = NSFont(name: "Helvetica-Bold", size: 9) ?? NSFont.systemFont(ofSize: 9, weight: .bold)
+    static let fontTotalTTC = NSFont(name: "Helvetica-BoldOblique", size: 12) ?? NSFont.systemFont(ofSize: 12, weight: .bold)
+    static let fontSection = NSFont(name: "Helvetica-Bold", size: 10) ?? NSFont.systemFont(ofSize: 10, weight: .semibold)
+    static let fontClient = NSFont(name: "Helvetica-Bold", size: 11) ?? NSFont.systemFont(ofSize: 11, weight: .bold)
 
-    // MARK: - Couleurs texte
-    static let textBlack = NSColor.black
+    // MARK: - Couleurs
+    /// Vert principal (en-tetes tableau, bordures, accents)
+    static let greenPrimary = NSColor(red: 0.42, green: 0.56, blue: 0.23, alpha: 1.0) // #6B8E3A
+    /// Vert fonce (texte DESTINATAIRE, accents forts)
+    static let greenDark = NSColor(red: 0.36, green: 0.43, blue: 0.18, alpha: 1.0) // #5B6E2D
+    /// Vert clair pour alternance
+    static let greenLight = NSColor(red: 0.95, green: 0.97, blue: 0.93, alpha: 1.0)
+    /// Texte principal
+    static let textBlack = NSColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0) // #1A1A1A
     static let textWhite = NSColor.white
-    static let textGray = NSColor.darkGray
+    static let textGray = NSColor(red: 0.35, green: 0.35, blue: 0.35, alpha: 1.0)
     static let textLightGray = NSColor.gray
 
-    // MARK: - Seuil pour nouvelle page
-    static let newPageThreshold: CGFloat = pageHeight - marginBottom - 120
+    // MARK: - Logo colors
+    static let logoGreenOlive = NSColor(red: 0.55, green: 0.62, blue: 0.24, alpha: 0.85)   // #8B9E3C
+    static let logoYellow = NSColor(red: 0.77, green: 0.66, blue: 0.22, alpha: 0.85)        // #C4A839
+    static let logoPurple = NSColor(red: 0.48, green: 0.37, blue: 0.65, alpha: 0.85)        // #7B5EA7
+    static let logoGreenDark = NSColor(red: 0.35, green: 0.48, blue: 0.17, alpha: 0.85)     // #5A7A2B
+    static let logoGreenMed = NSColor(red: 0.45, green: 0.55, blue: 0.20, alpha: 0.80)
+    static let logoYellowLight = NSColor(red: 0.82, green: 0.72, blue: 0.30, alpha: 0.75)
 }
