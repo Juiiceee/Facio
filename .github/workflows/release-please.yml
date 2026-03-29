@@ -1,0 +1,78 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          release-type: simple
+          package-name: GenerateurFiles
+
+  build:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.0"
+
+      - name: Build .app
+        run: |
+          VERSION="${{ needs.release-please.outputs.version }}"
+          ./scripts/build-app.sh "$VERSION"
+
+      - name: Create DMG
+        run: |
+          VERSION="${{ needs.release-please.outputs.version }}"
+          DMG_NAME="GenerateurFiles-${VERSION}.dmg"
+
+          # Creer un dossier temporaire pour le DMG
+          mkdir -p dmg-staging
+          cp -r dist/GenerateurFiles.app dmg-staging/
+
+          # Creer un lien symbolique vers Applications
+          ln -s /Applications dmg-staging/Applications
+
+          # Creer le DMG
+          hdiutil create -volname "GenerateurFiles" \
+            -srcfolder dmg-staging \
+            -ov -format UDZO \
+            "dist/${DMG_NAME}"
+
+          rm -rf dmg-staging
+          echo "DMG_NAME=${DMG_NAME}" >> $GITHUB_ENV
+
+      - name: Upload to Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.release-please.outputs.version }}"
+          TAG="${{ needs.release-please.outputs.tag_name }}"
+
+          # Upload le .app en zip
+          cd dist
+          zip -r "GenerateurFiles-${VERSION}-mac.zip" GenerateurFiles.app
+          cd ..
+
+          gh release upload "$TAG" \
+            "dist/GenerateurFiles-${VERSION}-mac.zip" \
+            "dist/${DMG_NAME}" \
+            --clobber

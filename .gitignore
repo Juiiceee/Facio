@@ -15,4 +15,6 @@ DerivedData/
 *~
 
 # App data
+dist/
 *.app
+*.dmg
