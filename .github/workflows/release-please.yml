@@ -40,17 +40,13 @@ jobs:
       - name: Create DMG
         run: |
           VERSION="${{ needs.release-please.outputs.version }}"
-          DMG_NAME="GenerateurFiles-${VERSION}.dmg"
+          DMG_NAME="Facio-${VERSION}.dmg"
 
-          # Creer un dossier temporaire pour le DMG
           mkdir -p dmg-staging
-          cp -r dist/GenerateurFiles.app dmg-staging/
-
-          # Creer un lien symbolique vers Applications
+          cp -r dist/Facio.app dmg-staging/
           ln -s /Applications dmg-staging/Applications
 
-          # Creer le DMG
-          hdiutil create -volname "GenerateurFiles" \
+          hdiutil create -volname "Facio" \
             -srcfolder dmg-staging \
             -ov -format UDZO \
             "dist/${DMG_NAME}"
@@ -65,12 +61,11 @@ jobs:
           VERSION="${{ needs.release-please.outputs.version }}"
           TAG="${{ needs.release-please.outputs.tag_name }}"
 
-          # Upload le .app en zip
           cd dist
-          zip -r "GenerateurFiles-${VERSION}-mac.zip" GenerateurFiles.app
+          zip -r "Facio-${VERSION}-mac.zip" Facio.app
           cd ..
 
           gh release upload "$TAG" \
-            "dist/GenerateurFiles-${VERSION}-mac.zip" \
+            "dist/Facio-${VERSION}-mac.zip" \
             "dist/${DMG_NAME}" \
             --clobber

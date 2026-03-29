@@ -22,7 +22,7 @@ final class DataStore {
 
     private var storageDirectory: URL {
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        return appSupport.appendingPathComponent("GenerateurFiles", isDirectory: true)
+        return appSupport.appendingPathComponent("Facio", isDirectory: true)
     }
 
     private var documentsFileURL: URL {

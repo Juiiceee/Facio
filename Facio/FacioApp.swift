@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 
 @main
-struct GenerateurFilesApp: App {
+struct FacioApp: App {
     @State private var dataStore = DataStore()
 
     init() {
