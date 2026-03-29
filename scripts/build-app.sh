@@ -12,7 +12,7 @@ echo "=== Building ${APP_NAME} v${VERSION} ==="
 
 # 1. Build en release
 echo "[1/4] Compilation en mode release..."
-swift build -c release --arch arm64 2>&1
+swift build -c release 2>&1
 
 EXECUTABLE="${BUILD_DIR}/${APP_NAME}"
 if [ ! -f "$EXECUTABLE" ]; then

@@ -2,25 +2,23 @@ import SwiftUI
 
 extension Color {
     // MARK: - Couleurs principales de l'app
+    // Note: static var au lieu de static let pour eviter un crash du compilateur Swift 6.0.x en release
 
-    /// Vert principal (barre de titre, en-tête tableau)
-    static let appPrimary = Color(red: 0.33, green: 0.54, blue: 0.19)
+    /// Vert principal (barre de titre, en-tete tableau)
+    static var appPrimary: Color { Color(red: 0.33, green: 0.54, blue: 0.19) }
 
-    /// Vert clair pour les lignes alternées du tableau
-    static let appPrimaryLight = Color(red: 0.33, green: 0.54, blue: 0.19).opacity(0.08)
+    /// Vert clair pour les lignes alternees du tableau
+    static var appPrimaryLight: Color { Color(red: 0.33, green: 0.54, blue: 0.19).opacity(0.08) }
 
     /// Fond de la sidebar
-    static let sidebarBackground = Color(nsColor: .controlBackgroundColor)
-
-    /// Couleur de texte secondaire
-    static let textSecondary = Color.secondary
+    static var sidebarBackground: Color { Color(nsColor: .controlBackgroundColor) }
 
     // MARK: - Couleurs de statut
 
-    static let statusBrouillon = Color.gray
-    static let statusEnvoyee = Color.orange
-    static let statusPayee = Color.green
-    static let statusAnnulee = Color.red
+    static var statusBrouillon: Color { .gray }
+    static var statusEnvoyee: Color { .orange }
+    static var statusPayee: Color { .green }
+    static var statusAnnulee: Color { .red }
 
     static func statusColor(for status: DocumentStatus) -> Color {
         switch status {
