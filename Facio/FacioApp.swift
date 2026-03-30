@@ -4,9 +4,11 @@ import AppKit
 @main
 struct FacioApp: App {
     @State private var dataStore = DataStore()
+    @State private var syncService = SyncService()
+    @State private var authService = AuthService()
+    @State private var networkMonitor = NetworkMonitor()
 
     init() {
-        // Activer l'app en tant qu'app GUI (necessaire pour swift run)
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
@@ -15,7 +17,34 @@ struct FacioApp: App {
         WindowGroup {
             ContentView()
                 .environment(dataStore)
+                .environment(syncService)
+                .environment(authService)
+                .environment(networkMonitor)
                 .frame(minWidth: 1100, minHeight: 650)
+                .onAppear {
+                    dataStore.syncService = syncService
+                    syncService.authService = authService
+
+                    Task {
+                        // 1. Si sync activee, s'assurer qu'on est authentifie
+                        if SyncConfig.isEnabled {
+                            if authService.isAuthenticated {
+                                // Refresh le token
+                                await authService.refreshSession()
+                            } else {
+                                // Premiere fois : auth anonyme automatique
+                                await authService.signInAnonymously()
+                            }
+                            // 2. Sync
+                            await syncService.fullSync(dataStore: dataStore)
+                        }
+                    }
+                }
+                .onChange(of: networkMonitor.isConnected) { _, isConnected in
+                    if isConnected && SyncConfig.isEnabled {
+                        Task { await syncService.pushAllDirty() }
+                    }
+                }
         }
         .windowStyle(.titleBar)
         .defaultSize(width: 1200, height: 800)
@@ -23,6 +52,8 @@ struct FacioApp: App {
         Settings {
             SettingsView()
                 .environment(dataStore)
+                .environment(syncService)
+                .environment(authService)
         }
     }
 }
