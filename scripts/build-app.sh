@@ -2,9 +2,9 @@
 set -e
 
 # === Configuration ===
-APP_NAME="GenerateurFiles"
+APP_NAME="Facio"
 VERSION="${1:-1.0.0}"
-BUNDLE_ID="com.juiceeedev.generateurfiles"
+BUNDLE_ID="com.juiceeedev.facio"
 BUILD_DIR=".build/release"
 APP_DIR="dist/${APP_NAME}.app"
 
@@ -39,7 +39,7 @@ cat > "$APP_DIR/Contents/Info.plist" << PLIST
     <key>CFBundleName</key>
     <string>${APP_NAME}</string>
     <key>CFBundleDisplayName</key>
-    <string>Generateur Files</string>
+    <string>Facio</string>
     <key>CFBundleIdentifier</key>
     <string>${BUNDLE_ID}</string>
     <key>CFBundleVersion</key>
@@ -60,13 +60,27 @@ cat > "$APP_DIR/Contents/Info.plist" << PLIST
     <true/>
     <key>NSSupportsSuddenTermination</key>
     <false/>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.business</string>
 </dict>
 </plist>
 PLIST
 
-# 5. Creer PkgInfo
+# 5. Copier l'icone
+if [ -f "Facio/Resources/AppIcon.icns" ]; then
+    cp "Facio/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+    echo "    Icone copiee."
+else
+    echo "    Pas d'icone trouvee, generation..."
+    swift scripts/generate-icon.swift 2>&1 || true
+    if [ -f "Facio/Resources/AppIcon.icns" ]; then
+        cp "Facio/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+    fi
+fi
+
+# 6. Creer PkgInfo
 echo -n "APPL????" > "$APP_DIR/Contents/PkgInfo"
 
 echo "[4/4] Termine !"

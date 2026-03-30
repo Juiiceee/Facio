@@ -18,7 +18,7 @@ macOS SwiftUI app (Swift 6.0, macOS 15+) built with Swift Package Manager. Gener
 
 ### Data Flow
 
-`GenerateurFilesApp` creates a `DataStore` (singleton `@Observable`) and injects it via `.environment()`. All views read/write through `DataStore`. Persistence is JSON files in `~/Library/Application Support/GenerateurFiles/` (documents.json, clients.json, company.json).
+`FacioApp` creates a `DataStore` (singleton `@Observable`) and injects it via `.environment()`. All views read/write through `DataStore`. Persistence is JSON files in `~/Library/Application Support/Facio/` (documents.json, clients.json, company.json).
 
 ### Key Architectural Decisions
 

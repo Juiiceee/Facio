@@ -2,12 +2,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "GenerateurFiles",
+    name: "Facio",
     platforms: [.macOS(.v15)],
     targets: [
         .executableTarget(
-            name: "GenerateurFiles",
-            path: "GenerateurFiles"
+            name: "Facio",
+            path: "Facio",
+            exclude: ["Resources/AppIcon.icns"]
         )
     ]
 )
