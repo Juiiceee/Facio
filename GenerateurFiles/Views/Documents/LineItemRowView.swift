@@ -8,27 +8,37 @@ struct LineItemRowView: View {
 
     private static let tvaRates: [Decimal] = [0, 5.5, 10, 20]
 
-    private var ligneIndex: Int? {
+    /// Acces securise a la ligne — retourne nil si supprimee
+    private var ligne: LineItem? {
+        document.lignes.first(where: { $0.id == ligneId })
+    }
+
+    /// Index securise — recalcule a chaque acces
+    private func safeIndex() -> Int? {
         document.lignes.firstIndex(where: { $0.id == ligneId })
     }
 
     var body: some View {
-        if let index = ligneIndex {
+        if let currentLigne = ligne {
             HStack(spacing: 8) {
                 // Designation
                 TextField("Designation", text: Binding(
-                    get: { document.lignes[index].designation },
-                    set: { document.lignes[index].designation = $0; onUpdate() }
+                    get: { document.lignes.first(where: { $0.id == ligneId })?.designation ?? "" },
+                    set: { newVal in
+                        if let i = safeIndex() { document.lignes[i].designation = newVal; onUpdate() }
+                    }
                 ))
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: .infinity)
 
-                // Quantite (String pour supporter les decimales)
+                // Quantite
                 DecimalField(
                     placeholder: "Qte",
                     value: Binding(
-                        get: { document.lignes[index].quantite },
-                        set: { document.lignes[index].quantite = $0; onUpdate() }
+                        get: { document.lignes.first(where: { $0.id == ligneId })?.quantite ?? 0 },
+                        set: { newVal in
+                            if let i = safeIndex() { document.lignes[i].quantite = newVal; onUpdate() }
+                        }
                     )
                 )
                 .frame(width: 80)
@@ -37,16 +47,20 @@ struct LineItemRowView: View {
                 DecimalField(
                     placeholder: "Prix",
                     value: Binding(
-                        get: { document.lignes[index].prixUnitaire },
-                        set: { document.lignes[index].prixUnitaire = $0; onUpdate() }
+                        get: { document.lignes.first(where: { $0.id == ligneId })?.prixUnitaire ?? 0 },
+                        set: { newVal in
+                            if let i = safeIndex() { document.lignes[i].prixUnitaire = newVal; onUpdate() }
+                        }
                     )
                 )
                 .frame(width: 110)
 
                 // TVA
                 Picker("TVA", selection: Binding(
-                    get: { document.lignes[index].tauxTVA },
-                    set: { document.lignes[index].tauxTVA = $0; onUpdate() }
+                    get: { document.lignes.first(where: { $0.id == ligneId })?.tauxTVA ?? 0 },
+                    set: { newVal in
+                        if let i = safeIndex() { document.lignes[i].tauxTVA = newVal; onUpdate() }
+                    }
                 )) {
                     ForEach(Self.tvaRates, id: \.self) { rate in
                         Text("\(NSDecimalNumber(decimal: rate))%").tag(rate)
@@ -56,7 +70,7 @@ struct LineItemRowView: View {
                 .frame(width: 80)
 
                 // Total (lecture seule)
-                Text(document.lignes[index].totalLigne.formatted2Decimals)
+                Text(currentLigne.totalLigne.formatted2Decimals)
                     .font(.body.monospacedDigit())
                     .frame(width: 110, alignment: .trailing)
 
@@ -92,7 +106,6 @@ struct DecimalField: View {
             }
             .onChange(of: isFocused) {
                 if !isFocused {
-                    // Quand on quitte le champ, convertir le texte en Decimal
                     let cleaned = text.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)
                     if let parsed = Decimal(string: cleaned) {
                         value = parsed

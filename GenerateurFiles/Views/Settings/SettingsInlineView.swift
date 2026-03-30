@@ -22,6 +22,7 @@ struct SettingsInlineView: View {
                 Label("Entreprise", systemImage: "building.2").tag(0)
                 Label("Paiement", systemImage: "creditcard").tag(1)
                 Label("Valeurs par defaut", systemImage: "slider.horizontal.3").tag(2)
+                Label("Prestations", systemImage: "star").tag(3)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, 24)
@@ -38,6 +39,8 @@ struct SettingsInlineView: View {
                     PaymentSettingsView()
                 case 2:
                     DefaultsSettingsView()
+                case 3:
+                    PrestationsSettingsView()
                 default:
                     EmptyView()
                 }

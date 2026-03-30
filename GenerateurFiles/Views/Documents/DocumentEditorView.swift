@@ -166,28 +166,42 @@ struct DocumentEditorView: View {
         }
     }
 
-    // MARK: - Devise
+    // MARK: - Devise & Mode de paiement
 
     private var deviseSection: some View {
-        GroupBox("Devise") {
-            HStack(spacing: 24) {
-                CurrencyPicker(selection: Binding(
-                    get: { document.currency },
-                    set: { document.currency = $0; dataStore.save() }
-                ))
+        GroupBox("Devise & Paiement") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 24) {
+                    CurrencyPicker(selection: Binding(
+                        get: { document.currency },
+                        set: { document.currency = $0; dataStore.save() }
+                    ))
 
-                if document.currency.requiresBlockchain {
-                    let compatibles = Blockchain.compatibleBlockchains(for: document.currency)
-                    Picker("Blockchain", selection: Binding(
-                        get: { document.blockchain },
-                        set: { document.blockchain = $0; dataStore.save() }
+                    Picker("Paiement", selection: Binding(
+                        get: { document.paymentMode },
+                        set: { document.paymentMode = $0; dataStore.save() }
                     )) {
-                        Text("Aucune").tag(Blockchain?.none)
-                        ForEach(compatibles) { chain in
-                            Text(chain.label).tag(Blockchain?.some(chain))
+                        ForEach(PaymentMode.allCases) { mode in
+                            Text(mode.label).tag(mode)
                         }
                     }
-                    .frame(maxWidth: 200)
+                    .frame(maxWidth: 150)
+                }
+
+                if document.paymentMode == .crypto {
+                    HStack(spacing: 16) {
+                        let compatibles = Blockchain.compatibleBlockchains(for: document.currency)
+                        Picker("Blockchain", selection: Binding(
+                            get: { document.blockchain },
+                            set: { document.blockchain = $0; dataStore.save() }
+                        )) {
+                            Text("Aucune").tag(Blockchain?.none)
+                            ForEach(compatibles) { chain in
+                                Text(chain.label).tag(Blockchain?.some(chain))
+                            }
+                        }
+                        .frame(maxWidth: 200)
+                    }
                 }
             }
             .padding(8)
@@ -318,20 +332,54 @@ struct DocumentEditorView: View {
     }
 
     private var ajouterLigneButton: some View {
-        Button {
-            let ligne = LineItem(
-                designation: "",
-                quantite: 1,
-                prixUnitaire: 0,
-                tauxTVA: 20,
-                ordre: document.lignes.count
-            )
-            document.ajouterLigne(ligne)
-            dataStore.save()
-        } label: {
-            Label("Ajouter une ligne", systemImage: "plus.circle")
+        HStack(spacing: 12) {
+            Button {
+                let ligne = LineItem(
+                    designation: "",
+                    quantite: 1,
+                    prixUnitaire: 0,
+                    tauxTVA: company.tauxTVAParDefaut,
+                    ordre: document.lignes.count
+                )
+                document.ajouterLigne(ligne)
+                dataStore.save()
+            } label: {
+                Label("Ajouter une ligne vide", systemImage: "plus.circle")
+            }
+            .buttonStyle(.borderless)
+
+            if !company.prestations.isEmpty {
+                Menu {
+                    ForEach(company.prestations) { preset in
+                        Button {
+                            ajouterPrestation(preset)
+                        } label: {
+                            HStack {
+                                Text(preset.designation)
+                                Spacer()
+                                Text("\(NSDecimalNumber(decimal: preset.prixUnitaire))€/u")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } label: {
+                    Label("Prestation favorite", systemImage: "star.fill")
+                }
+                .menuStyle(.borderlessButton)
+            }
         }
-        .buttonStyle(.borderless)
+    }
+
+    private func ajouterPrestation(_ preset: DesignationPreset) {
+        let ligne = LineItem(
+            designation: preset.designation,
+            quantite: 1,
+            prixUnitaire: preset.prixUnitaire,
+            tauxTVA: preset.tauxTVA,
+            ordre: document.lignes.count
+        )
+        document.ajouterLigne(ligne)
+        dataStore.save()
     }
 
     // MARK: - Totaux
@@ -340,52 +388,17 @@ struct DocumentEditorView: View {
         TotalsView(document: document)
     }
 
-    // MARK: - Info paiement (IBAN ou wallet selon devise)
+    // MARK: - Info paiement
 
+    @ViewBuilder
     private var paiementInfoSection: some View {
-        GroupBox("Mode de paiement") {
-            VStack(alignment: .leading, spacing: 8) {
-                if document.currency.isCrypto {
-                    // Crypto
-                    if let chain = document.blockchain {
-                        HStack {
-                            Label("Reseau", systemImage: "link")
-                                .foregroundStyle(.secondary)
-                            Text(chain.label)
-                                .fontWeight(.medium)
-                        }
-                        if let wallet = company.wallet(pour: chain) {
-                            HStack {
-                                Label("Wallet", systemImage: "wallet.pass")
-                                    .foregroundStyle(.secondary)
-                                Text(wallet.address)
-                                    .font(.system(.caption, design: .monospaced))
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                                    .textSelection(.enabled)
-                            }
-                        } else {
-                            HStack {
-                                Image(systemName: "exclamationmark.triangle")
-                                    .foregroundStyle(.orange)
-                                Text("Aucun wallet configure pour \(chain.label)")
-                                    .foregroundStyle(.orange)
-                                Text("(voir Parametres)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                .font(.caption)
-                            }
-                        }
-                    } else {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle")
-                                .foregroundStyle(.orange)
-                            Text("Selectionnez un reseau dans la section Devise")
-                                .foregroundStyle(.orange)
-                        }
-                    }
-                } else {
-                    // Fiat (EUR / USD)
+        switch document.paymentMode {
+        case .aucun:
+            EmptyView()
+
+        case .virement:
+            GroupBox("Paiement — Virement bancaire") {
+                VStack(alignment: .leading, spacing: 8) {
                     if !company.iban.isEmpty {
                         HStack {
                             Label("IBAN", systemImage: "building.columns")
@@ -413,17 +426,53 @@ struct DocumentEditorView: View {
                         HStack {
                             Image(systemName: "exclamationmark.triangle")
                                 .foregroundStyle(.orange)
-                            Text("Aucun IBAN configure")
+                            Text("Aucun IBAN configure (voir Parametres > Paiement)")
                                 .foregroundStyle(.orange)
-                            Button("Configurer") {
-                                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                            }
-                            .font(.caption)
                         }
                     }
                 }
+                .padding(8)
             }
-            .padding(8)
+
+        case .crypto:
+            GroupBox("Paiement — Crypto") {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let chain = document.blockchain {
+                        HStack {
+                            Label("Reseau", systemImage: "link")
+                                .foregroundStyle(.secondary)
+                            Text(chain.label)
+                                .fontWeight(.medium)
+                        }
+                        if let wallet = company.wallet(pour: chain) {
+                            HStack {
+                                Label("Wallet", systemImage: "wallet.pass")
+                                    .foregroundStyle(.secondary)
+                                Text(wallet.address)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .textSelection(.enabled)
+                            }
+                        } else {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundStyle(.orange)
+                                Text("Aucun wallet configure pour \(chain.label) (voir Parametres > Paiement)")
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                    } else {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle")
+                                .foregroundStyle(.orange)
+                            Text("Selectionnez un reseau dans la section Devise & Paiement")
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                }
+                .padding(8)
+            }
         }
     }
 

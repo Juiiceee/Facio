@@ -11,6 +11,7 @@ final class Document: Identifiable, Codable, Hashable {
     var statusRawValue: String = "Brouillon"
     var currencyRawValue: String = "EUR"
     var blockchainRawValue: String?
+    var paymentModeRawValue: String = "Aucun"
 
     // Client embarque (copie figee)
     var clientNom: String = ""
@@ -53,6 +54,11 @@ final class Document: Identifiable, Codable, Hashable {
     var currency: CurrencyType {
         get { CurrencyType(rawValue: currencyRawValue) ?? .eur }
         set { currencyRawValue = newValue.rawValue }
+    }
+
+    var paymentMode: PaymentMode {
+        get { PaymentMode(rawValue: paymentModeRawValue) ?? .aucun }
+        set { paymentModeRawValue = newValue.rawValue }
     }
 
     var blockchain: Blockchain? {
@@ -168,7 +174,7 @@ final class Document: Identifiable, Codable, Hashable {
 
     enum CodingKeys: String, CodingKey {
         case id, typeRawValue, number, dateCreation, dateEcheance, statusRawValue
-        case currencyRawValue, blockchainRawValue
+        case currencyRawValue, blockchainRawValue, paymentModeRawValue
         case clientNom, clientAdresse, clientCodePostal, clientVille
         case lignes, transactionSignatures
         case createdAt, updatedAt, notes
@@ -184,6 +190,7 @@ final class Document: Identifiable, Codable, Hashable {
         statusRawValue = try container.decode(String.self, forKey: .statusRawValue)
         currencyRawValue = try container.decode(String.self, forKey: .currencyRawValue)
         blockchainRawValue = try container.decodeIfPresent(String.self, forKey: .blockchainRawValue)
+        paymentModeRawValue = (try? container.decode(String.self, forKey: .paymentModeRawValue)) ?? "Aucun"
         clientNom = try container.decode(String.self, forKey: .clientNom)
         clientAdresse = try container.decode(String.self, forKey: .clientAdresse)
         clientCodePostal = try container.decode(String.self, forKey: .clientCodePostal)
@@ -205,6 +212,7 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encode(statusRawValue, forKey: .statusRawValue)
         try container.encode(currencyRawValue, forKey: .currencyRawValue)
         try container.encodeIfPresent(blockchainRawValue, forKey: .blockchainRawValue)
+        try container.encode(paymentModeRawValue, forKey: .paymentModeRawValue)
         try container.encode(clientNom, forKey: .clientNom)
         try container.encode(clientAdresse, forKey: .clientAdresse)
         try container.encode(clientCodePostal, forKey: .clientCodePostal)

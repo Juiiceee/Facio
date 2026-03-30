@@ -31,32 +31,8 @@ struct PaymentSettingsView: View {
                         .italic()
                 }
 
-                ForEach(Array(company.wallets.enumerated()), id: \.element.id) { index, wallet in
-                    HStack(spacing: 12) {
-                        Picker("Blockchain", selection: Binding(
-                            get: { company.wallets[index].blockchain },
-                            set: { company.wallets[index].blockchain = $0; dataStore.save() }
-                        )) {
-                            ForEach(Blockchain.allCases) { chain in
-                                Text(chain.label).tag(chain)
-                            }
-                        }
-                        .labelsHidden()
-                        .frame(width: 130)
-
-                        TextField("Adresse", text: Binding(
-                            get: { company.wallets[index].address },
-                            set: { company.wallets[index].address = $0; dataStore.save() }
-                        ))
-
-                        Button {
-                            removeWallet(wallet)
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .foregroundStyle(.red)
-                        }
-                        .buttonStyle(.plain)
-                    }
+                ForEach(company.wallets) { wallet in
+                    WalletRow(walletId: wallet.id, company: company, dataStore: dataStore)
                 }
 
                 Button {
@@ -74,9 +50,50 @@ struct PaymentSettingsView: View {
         company.wallets.append(entry)
         dataStore.save()
     }
+}
 
-    private func removeWallet(_ wallet: WalletEntry) {
-        company.wallets.removeAll { $0.id == wallet.id }
-        dataStore.save()
+/// Ligne wallet avec acces securise par ID (pas par index)
+private struct WalletRow: View {
+    let walletId: UUID
+    let company: CompanyInfo
+    let dataStore: DataStore
+
+    private func safeIndex() -> Int? {
+        company.wallets.firstIndex(where: { $0.id == walletId })
+    }
+
+    var body: some View {
+        if let wallet = company.wallets.first(where: { $0.id == walletId }) {
+            HStack(spacing: 12) {
+                Picker("Blockchain", selection: Binding(
+                    get: { company.wallets.first(where: { $0.id == walletId })?.blockchain ?? .solana },
+                    set: { newVal in
+                        if let i = safeIndex() { company.wallets[i].blockchain = newVal; dataStore.save() }
+                    }
+                )) {
+                    ForEach(Blockchain.allCases) { chain in
+                        Text(chain.label).tag(chain)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 130)
+
+                TextField("Adresse", text: Binding(
+                    get: { company.wallets.first(where: { $0.id == walletId })?.address ?? "" },
+                    set: { newVal in
+                        if let i = safeIndex() { company.wallets[i].address = newVal; dataStore.save() }
+                    }
+                ))
+
+                Button {
+                    company.wallets.removeAll { $0.id == walletId }
+                    dataStore.save()
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 }

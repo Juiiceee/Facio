@@ -1,6 +1,22 @@
 import Foundation
 import Observation
 
+// MARK: - Prestation favorite (designation pre-enregistree)
+
+struct DesignationPreset: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var designation: String = ""
+    var prixUnitaire: Decimal = 0
+    var tauxTVA: Decimal = 0
+
+    init(designation: String = "", prixUnitaire: Decimal = 0, tauxTVA: Decimal = 0) {
+        self.id = UUID()
+        self.designation = designation
+        self.prixUnitaire = prixUnitaire
+        self.tauxTVA = tauxTVA
+    }
+}
+
 // MARK: - Entree Wallet
 
 struct WalletEntry: Identifiable, Codable, Hashable {
@@ -41,6 +57,9 @@ final class CompanyInfo: Identifiable, Codable {
 
     // Wallets crypto (modulaire)
     var wallets: [WalletEntry] = []
+
+    // Prestations favorites
+    var prestations: [DesignationPreset] = []
 
     // Valeurs par defaut
     var tauxTVAParDefaut: Decimal = 0
@@ -84,7 +103,7 @@ final class CompanyInfo: Identifiable, Codable {
 
     enum CodingKeys: String, CodingKey {
         case id, nom, adresse, codePostal, ville, siret, telephone, email, logoData
-        case iban, bic, titulaireCompte, wallets
+        case iban, bic, titulaireCompte, wallets, prestations
         case tauxTVAParDefaut, delaiPaiementJours, deviseParDefautRawValue, blockchainParDefautRawValue
     }
 
@@ -103,6 +122,7 @@ final class CompanyInfo: Identifiable, Codable {
         bic = try container.decode(String.self, forKey: .bic)
         titulaireCompte = try container.decode(String.self, forKey: .titulaireCompte)
         wallets = try container.decode([WalletEntry].self, forKey: .wallets)
+        prestations = (try? container.decode([DesignationPreset].self, forKey: .prestations)) ?? []
         tauxTVAParDefaut = try container.decode(Decimal.self, forKey: .tauxTVAParDefaut)
         delaiPaiementJours = try container.decode(Int.self, forKey: .delaiPaiementJours)
         deviseParDefautRawValue = try container.decode(String.self, forKey: .deviseParDefautRawValue)
@@ -124,6 +144,7 @@ final class CompanyInfo: Identifiable, Codable {
         try container.encode(bic, forKey: .bic)
         try container.encode(titulaireCompte, forKey: .titulaireCompte)
         try container.encode(wallets, forKey: .wallets)
+        try container.encode(prestations, forKey: .prestations)
         try container.encode(tauxTVAParDefaut, forKey: .tauxTVAParDefaut)
         try container.encode(delaiPaiementJours, forKey: .delaiPaiementJours)
         try container.encode(deviseParDefautRawValue, forKey: .deviseParDefautRawValue)
