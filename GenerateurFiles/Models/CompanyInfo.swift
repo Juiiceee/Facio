@@ -1,0 +1,132 @@
+import Foundation
+import Observation
+
+// MARK: - Entree Wallet
+
+struct WalletEntry: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var blockchainRawValue: String = "Solana"
+    var address: String = ""
+
+    var blockchain: Blockchain {
+        get { Blockchain(rawValue: blockchainRawValue) ?? .solana }
+        set { blockchainRawValue = newValue.rawValue }
+    }
+
+    init(blockchain: Blockchain = .solana, address: String = "") {
+        self.id = UUID()
+        self.blockchainRawValue = blockchain.rawValue
+        self.address = address
+    }
+}
+
+// MARK: - Infos Entreprise (singleton)
+
+@Observable
+final class CompanyInfo: Identifiable, Codable {
+    var id: UUID = UUID()
+    var nom: String = ""
+    var adresse: String = ""
+    var codePostal: String = ""
+    var ville: String = ""
+    var siret: String = ""
+    var telephone: String = ""
+    var email: String = ""
+    var logoData: Data?
+
+    // Paiement fiat
+    var iban: String = ""
+    var bic: String = ""
+    var titulaireCompte: String = ""
+
+    // Wallets crypto (modulaire)
+    var wallets: [WalletEntry] = []
+
+    // Valeurs par defaut
+    var tauxTVAParDefaut: Decimal = 0
+    var delaiPaiementJours: Int = 30
+    var deviseParDefautRawValue: String = "USDC"
+    var blockchainParDefautRawValue: String? = "Solana"
+
+    var deviseParDefaut: CurrencyType {
+        get { CurrencyType(rawValue: deviseParDefautRawValue) ?? .eur }
+        set { deviseParDefautRawValue = newValue.rawValue }
+    }
+
+    var blockchainParDefaut: Blockchain? {
+        get {
+            guard let raw = blockchainParDefautRawValue else { return nil }
+            return Blockchain(rawValue: raw)
+        }
+        set { blockchainParDefautRawValue = newValue?.rawValue }
+    }
+
+    init() {
+        self.id = UUID()
+    }
+
+    /// Recupere le wallet pour un reseau donne
+    func wallet(pour blockchain: Blockchain) -> WalletEntry? {
+        wallets.first { $0.blockchain == blockchain }
+    }
+
+    /// Ajoute ou met a jour un wallet
+    func setWallet(blockchain: Blockchain, address: String) {
+        if let index = wallets.firstIndex(where: { $0.blockchain == blockchain }) {
+            wallets[index].address = address
+        } else {
+            let entry = WalletEntry(blockchain: blockchain, address: address)
+            wallets.append(entry)
+        }
+    }
+
+    // MARK: - Codable
+
+    enum CodingKeys: String, CodingKey {
+        case id, nom, adresse, codePostal, ville, siret, telephone, email, logoData
+        case iban, bic, titulaireCompte, wallets
+        case tauxTVAParDefaut, delaiPaiementJours, deviseParDefautRawValue, blockchainParDefautRawValue
+    }
+
+    required init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        nom = try container.decode(String.self, forKey: .nom)
+        adresse = try container.decode(String.self, forKey: .adresse)
+        codePostal = try container.decode(String.self, forKey: .codePostal)
+        ville = try container.decode(String.self, forKey: .ville)
+        siret = try container.decode(String.self, forKey: .siret)
+        telephone = try container.decode(String.self, forKey: .telephone)
+        email = try container.decode(String.self, forKey: .email)
+        logoData = try container.decodeIfPresent(Data.self, forKey: .logoData)
+        iban = try container.decode(String.self, forKey: .iban)
+        bic = try container.decode(String.self, forKey: .bic)
+        titulaireCompte = try container.decode(String.self, forKey: .titulaireCompte)
+        wallets = try container.decode([WalletEntry].self, forKey: .wallets)
+        tauxTVAParDefaut = try container.decode(Decimal.self, forKey: .tauxTVAParDefaut)
+        delaiPaiementJours = try container.decode(Int.self, forKey: .delaiPaiementJours)
+        deviseParDefautRawValue = try container.decode(String.self, forKey: .deviseParDefautRawValue)
+        blockchainParDefautRawValue = try container.decodeIfPresent(String.self, forKey: .blockchainParDefautRawValue)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(nom, forKey: .nom)
+        try container.encode(adresse, forKey: .adresse)
+        try container.encode(codePostal, forKey: .codePostal)
+        try container.encode(ville, forKey: .ville)
+        try container.encode(siret, forKey: .siret)
+        try container.encode(telephone, forKey: .telephone)
+        try container.encode(email, forKey: .email)
+        try container.encodeIfPresent(logoData, forKey: .logoData)
+        try container.encode(iban, forKey: .iban)
+        try container.encode(bic, forKey: .bic)
+        try container.encode(titulaireCompte, forKey: .titulaireCompte)
+        try container.encode(wallets, forKey: .wallets)
+        try container.encode(tauxTVAParDefaut, forKey: .tauxTVAParDefaut)
+        try container.encode(delaiPaiementJours, forKey: .delaiPaiementJours)
+        try container.encode(deviseParDefautRawValue, forKey: .deviseParDefautRawValue)
+        try container.encodeIfPresent(blockchainParDefautRawValue, forKey: .blockchainParDefautRawValue)
+    }
+}

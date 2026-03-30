@@ -1,0 +1,68 @@
+import SwiftUI
+
+struct TotalsView: View {
+    let document: Document
+
+    /// Ventilation TVA par taux
+    private var tvaBreakdown: [(rate: Decimal, amount: Decimal)] {
+        var grouped: [Decimal: Decimal] = [:]
+        for ligne in document.lignes {
+            let key = ligne.tauxTVA
+            grouped[key, default: 0] += ligne.montantTVA
+        }
+        return grouped
+            .filter { $0.value != 0 }
+            .map { (rate: $0.key, amount: $0.value) }
+            .sorted { $0.rate < $1.rate }
+    }
+
+    var body: some View {
+        HStack {
+            Spacer()
+
+            GroupBox {
+                VStack(alignment: .trailing, spacing: 8) {
+                    totalRow(label: "Total HT", value: document.currency.format(document.totalHT), isDetail: false)
+
+                    // Ventilation TVA
+                    if tvaBreakdown.count > 1 {
+                        ForEach(tvaBreakdown, id: \.rate) { entry in
+                            totalRow(
+                                label: "TVA \(entry.rate as NSDecimalNumber)%",
+                                value: document.currency.format(entry.amount),
+                                isDetail: true
+                            )
+                        }
+                    }
+
+                    totalRow(label: "Total TVA", value: document.currency.format(document.totalTVA), isDetail: false)
+
+                    Divider()
+
+                    HStack {
+                        Text("Total TTC")
+                            .font(.headline)
+                        Spacer()
+                        Text(document.totalFormatted)
+                            .font(.title3.monospacedDigit())
+                            .fontWeight(.bold)
+                    }
+                }
+                .padding(8)
+            }
+            .frame(maxWidth: 350)
+        }
+    }
+
+    private func totalRow(label: String, value: String, isDetail: Bool) -> some View {
+        HStack {
+            Text(label)
+                .font(isDetail ? Font.caption : Font.body)
+                .foregroundStyle(isDetail ? .secondary : .primary)
+            Spacer()
+            Text(value)
+                .font(isDetail ? Font.caption.monospacedDigit() : Font.body.monospacedDigit())
+                .foregroundStyle(isDetail ? .secondary : .primary)
+        }
+    }
+}
