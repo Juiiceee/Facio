@@ -7,6 +7,7 @@ struct FacioApp: App {
     @State private var syncService = SyncService()
     @State private var authService = AuthService()
     @State private var networkMonitor = NetworkMonitor()
+    @State private var showFirstLaunch = false
 
     init() {
         NSApplication.shared.setActivationPolicy(.regular)
@@ -21,7 +22,17 @@ struct FacioApp: App {
                 .environment(authService)
                 .environment(networkMonitor)
                 .frame(minWidth: 1100, minHeight: 650)
+                .alert("Bienvenue sur Facio !", isPresented: $showFirstLaunch) {
+                    Button("Compris") {
+                        UserDefaults.standard.set(true, forKey: "facio_has_launched")
+                    }
+                } message: {
+                    Text("Vous pouvez supprimer le fichier DMG de vos telechargements, Facio est installe.")
+                }
                 .onAppear {
+                    if !UserDefaults.standard.bool(forKey: "facio_has_launched") {
+                        showFirstLaunch = true
+                    }
                     dataStore.syncService = syncService
                     syncService.authService = authService
 
