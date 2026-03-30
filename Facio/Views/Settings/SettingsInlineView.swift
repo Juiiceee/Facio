@@ -25,6 +25,7 @@ struct SettingsInlineView: View {
                 Label("Valeurs par defaut", systemImage: "slider.horizontal.3").tag(2)
                 Label("Prestations", systemImage: "star").tag(3)
                 Label("Synchronisation", systemImage: "arrow.triangle.2.circlepath").tag(4)
+                Label("A propos", systemImage: "info.circle").tag(5)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, 24)
@@ -39,6 +40,7 @@ struct SettingsInlineView: View {
                 case 2: DefaultsSettingsView()
                 case 3: PrestationsSettingsView()
                 case 4: SyncSettingsView(syncService: syncService, authService: authService)
+                case 5: AboutSettingsView()
                 default: EmptyView()
                 }
             }
