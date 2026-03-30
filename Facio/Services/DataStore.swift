@@ -171,4 +171,14 @@ final class DataStore: Sendable {
     func companyUpdated() {
         saveCompany()
     }
+
+    // MARK: - Reset
+
+    func resetAll() {
+        documents = []
+        clients = []
+        companyInfo = CompanyInfo()
+        timesheets = []
+        save()
+    }
 }
