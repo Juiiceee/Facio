@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.3.0...Facio-v1.4.0) (2026-03-30)
+
+
+### Nouvelles fonctionnalites
+
+* add first launch alert to FacioApp ([8ce310d](https://github.com/Juiiceee/Facio/commit/8ce310dfa196ff9f085f630f7fc464c993712bb3))
+* add reset functionality to DataStore and update SettingsInlineView ([f7692d9](https://github.com/Juiiceee/Facio/commit/f7692d964fd483a43feda71f23694e411575559b))
+
+
+### Documentation
+
+* update README with macOS app launch instructions ([5dd9629](https://github.com/Juiiceee/Facio/commit/5dd96297a2eda9feeb13a0490be18a6d8a76cc54))
+
 ## [1.3.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.2.0...Facio-v1.3.0) (2026-03-30)
 
 
