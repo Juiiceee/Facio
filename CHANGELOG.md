@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.2.0...Facio-v1.3.0) (2026-03-30)
+
+
+### Nouvelles fonctionnalites
+
+* add timesheet management functionality to DataStore and UI ([b2fce1d](https://github.com/Juiiceee/Facio/commit/b2fce1d2d4f3adff78b1dc9a74e1e3b2caaee613))
+* display weekly cost in TimesheetEditorView ([06e500c](https://github.com/Juiiceee/Facio/commit/06e500c0233586bde370e7a16b422c8848b1f417))
+* integrate sync and authentication services into FacioApp and DataStore ([db1fa36](https://github.com/Juiiceee/Facio/commit/db1fa3627f8d702918cefea3ee63f502bd00c5ff))
+
 ## [1.2.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.1.0...Facio-v1.2.0) (2026-03-30)
 
 
