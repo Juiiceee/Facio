@@ -87,6 +87,13 @@ struct TimesheetEditorView: View {
                                 .foregroundStyle(.orange)
                                 .fontWeight(.medium)
                         }
+                        Divider().frame(height: 14)
+                        let coutSemaine = week.heuresNormales(seuil: seuil) * timesheet.tauxNormal
+                            + week.heuresSupplementaires(seuil: seuil) * timesheet.tauxSupplementaire
+                        Text(coutSemaine.formatted2Decimals)
+                            .font(.subheadline.monospacedDigit())
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.green)
                     }
                 }
 
