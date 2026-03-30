@@ -6,6 +6,7 @@ final class DataStore {
     var documents: [Document] = []
     var clients: [ClientInfo] = []
     var companyInfo: CompanyInfo = CompanyInfo()
+    var timesheets: [TimesheetPeriod] = []
 
     private let fileManager = FileManager.default
     private let encoder: JSONEncoder = {
@@ -35,6 +36,10 @@ final class DataStore {
 
     private var companyFileURL: URL {
         storageDirectory.appendingPathComponent("company.json")
+    }
+
+    private var timesheetsFileURL: URL {
+        storageDirectory.appendingPathComponent("timesheets.json")
     }
 
     init() {
@@ -67,6 +72,11 @@ final class DataStore {
         if let data = try? Data(contentsOf: companyFileURL) {
             companyInfo = (try? decoder.decode(CompanyInfo.self, from: data)) ?? CompanyInfo()
         }
+
+        // Timesheets
+        if let data = try? Data(contentsOf: timesheetsFileURL) {
+            timesheets = (try? decoder.decode([TimesheetPeriod].self, from: data)) ?? []
+        }
     }
 
     // MARK: - Save
@@ -87,6 +97,11 @@ final class DataStore {
         // Company
         if let data = try? encoder.encode(companyInfo) {
             try? data.write(to: companyFileURL, options: .atomic)
+        }
+
+        // Timesheets
+        if let data = try? encoder.encode(timesheets) {
+            try? data.write(to: timesheetsFileURL, options: .atomic)
         }
     }
 
@@ -121,6 +136,18 @@ final class DataStore {
 
     /// Call after modifying a client's properties to persist changes
     func clientUpdated() {
+        save()
+    }
+
+    // MARK: - Timesheet CRUD
+
+    func addTimesheet(_ ts: TimesheetPeriod) {
+        timesheets.append(ts)
+        save()
+    }
+
+    func deleteTimesheet(_ ts: TimesheetPeriod) {
+        timesheets.removeAll { $0.id == ts.id }
         save()
     }
 

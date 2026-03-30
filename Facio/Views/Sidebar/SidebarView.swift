@@ -6,6 +6,7 @@ enum SidebarSection: String, Hashable, Identifiable {
     case factures
     case devis
     case clients
+    case heures
     case dashboard
     case parametres
 
@@ -16,6 +17,7 @@ enum SidebarSection: String, Hashable, Identifiable {
         case .factures: return "Factures"
         case .devis: return "Devis"
         case .clients: return "Clients"
+        case .heures: return "Suivi des heures"
         case .dashboard: return "Tableau de bord"
         case .parametres: return "Parametres"
         }
@@ -26,6 +28,7 @@ enum SidebarSection: String, Hashable, Identifiable {
         case .factures: return "doc.text"
         case .devis: return "doc.text.magnifyingglass"
         case .clients: return "person.2"
+        case .heures: return "clock"
         case .dashboard: return "chart.bar"
         case .parametres: return "gearshape"
         }
@@ -50,6 +53,9 @@ struct SidebarView: View {
             Section("Gestion") {
                 Label(SidebarSection.clients.label, systemImage: SidebarSection.clients.icon)
                     .tag(SidebarSection.clients)
+
+                Label(SidebarSection.heures.label, systemImage: SidebarSection.heures.icon)
+                    .tag(SidebarSection.heures)
 
                 Label(SidebarSection.dashboard.label, systemImage: SidebarSection.dashboard.icon)
                     .tag(SidebarSection.dashboard)
