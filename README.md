@@ -19,6 +19,12 @@ Application macOS native pour creer et gerer des factures et devis professionnel
 
 Telecharger le `.dmg` depuis la [page Releases](https://github.com/Juiiceee/Facio/releases), ouvrir et glisser Facio dans Applications.
 
+> **Note :** L'app n'est pas signee avec un certificat Apple Developer. Au premier lancement macOS peut la bloquer. Pour l'ouvrir :
+> ```bash
+> xattr -cr /Applications/Facio.app
+> ```
+> Ou : clic droit sur Facio.app → **Ouvrir** (au lieu de double-clic).
+
 ### Depuis les sources
 
 ```bash
