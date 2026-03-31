@@ -3,9 +3,23 @@ import SwiftUI
 struct TimesheetListView: View {
     @Binding var selectedTimesheetId: UUID?
     @Environment(DataStore.self) private var dataStore
+    @State private var showNewPeriod = false
+    @State private var selectedMois: Int = Calendar.current.component(.month, from: Date())
+    @State private var selectedAnnee: Int = Calendar.current.component(.year, from: Date())
 
     private var timesheets: [TimesheetPeriod] {
         dataStore.timesheets.sorted { ($0.annee, $0.mois) > ($1.annee, $1.mois) }
+    }
+
+    private static let moisLabels: [String] = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "fr_FR")
+        return f.monthSymbols.map { $0.capitalized }
+    }()
+
+    /// Verifie si une periode existe deja pour ce mois/annee
+    private func periodeExiste(mois: Int, annee: Int) -> Bool {
+        dataStore.timesheets.contains { $0.mois == mois && $0.annee == annee }
     }
 
     var body: some View {
@@ -31,9 +45,17 @@ struct TimesheetListView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    creerPeriode()
+                    // Reset au mois courant a chaque ouverture
+                    let cal = Calendar.current
+                    let now = Date()
+                    selectedMois = cal.component(.month, from: now)
+                    selectedAnnee = cal.component(.year, from: now)
+                    showNewPeriod = true
                 } label: {
                     Label("Nouvelle periode", systemImage: "plus")
+                }
+                .popover(isPresented: $showNewPeriod) {
+                    newPeriodPopover
                 }
             }
         }
@@ -48,12 +70,60 @@ struct TimesheetListView: View {
         }
     }
 
-    private func creerPeriode() {
-        let cal = Calendar.current
-        let now = Date()
-        let mois = cal.component(.month, from: now)
-        let annee = cal.component(.year, from: now)
+    // MARK: - Popover nouvelle periode
 
+    private var newPeriodPopover: some View {
+        VStack(spacing: 16) {
+            Text("Nouvelle periode")
+                .font(.headline)
+
+            HStack(spacing: 12) {
+                Picker("Mois", selection: $selectedMois) {
+                    ForEach(1...12, id: \.self) { m in
+                        Text(Self.moisLabels[m - 1]).tag(m)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 140)
+
+                Picker("Annee", selection: $selectedAnnee) {
+                    ForEach((selectedAnnee - 2)...(selectedAnnee + 1), id: \.self) { y in
+                        Text(String(y)).tag(y)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 80)
+            }
+
+            if periodeExiste(mois: selectedMois, annee: selectedAnnee) {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                    Text("Cette periode existe deja")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                }
+            }
+
+            HStack(spacing: 12) {
+                Button("Annuler") {
+                    showNewPeriod = false
+                }
+                .buttonStyle(.bordered)
+
+                Button("Creer") {
+                    creerPeriode(mois: selectedMois, annee: selectedAnnee)
+                    showNewPeriod = false
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(periodeExiste(mois: selectedMois, annee: selectedAnnee))
+            }
+        }
+        .padding(20)
+        .frame(width: 300)
+    }
+
+    private func creerPeriode(mois: Int, annee: Int) {
         let ts = TimesheetPeriod(mois: mois, annee: annee)
 
         // Copier les taux depuis la derniere periode
