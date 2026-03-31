@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.2](https://github.com/Juiiceee/Facio/compare/Facio-v1.4.1...Facio-v1.4.2) (2026-03-31)
+
+
+### Corrections de bugs
+
+* **security:** inject Supabase secrets at build time via CI ([9345591](https://github.com/Juiiceee/Facio/commit/9345591e0a53d66baab7a3adb4dda89ee026707a))
+* **security:** move Supabase credentials out of source code ([0e5b7d0](https://github.com/Juiiceee/Facio/commit/0e5b7d089c8b0fabd047ae8b22aba4f6da8f2dee))
+
 ## [1.4.1](https://github.com/Juiiceee/Facio/compare/Facio-v1.4.0...Facio-v1.4.1) (2026-03-31)
 
 
