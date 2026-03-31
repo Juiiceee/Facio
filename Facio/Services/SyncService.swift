@@ -206,6 +206,7 @@ final class SyncService: Sendable {
                 "client_code_postal": doc.clientCodePostal,
                 "client_ville": doc.clientVille,
                 "notes": doc.notes,
+                "selected_wallet_id": doc.selectedWalletId?.uuidString as Any,
                 "created_at": ISO8601DateFormatter().string(from: doc.createdAt),
                 "updated_at": ISO8601DateFormatter().string(from: doc.updatedAt),
             ]
@@ -300,6 +301,7 @@ final class SyncService: Sendable {
             "telephone": company.telephone,
             "email": company.email,
             "logo_data": logoBase64,
+            "nom_banque": company.nomBanque,
             "iban": company.iban,
             "bic": company.bic,
             "titulaire_compte": company.titulaireCompte,
@@ -321,6 +323,7 @@ final class SyncService: Sendable {
                     "company_id": company.id.uuidString,
                     "blockchain_raw_value": w.blockchainRawValue,
                     "address": w.address,
+                    "label": w.label,
                 ]
             }
             guard await supabaseBatchInsert(table: "wallets", rows: wallets) else { return false }
@@ -434,6 +437,7 @@ final class SyncService: Sendable {
             doc.clientCodePostal = json["client_code_postal"] as? String ?? ""
             doc.clientVille = json["client_ville"] as? String ?? ""
             doc.notes = json["notes"] as? String ?? ""
+            doc.selectedWalletId = (json["selected_wallet_id"] as? String).flatMap { UUID(uuidString: $0) }
             doc.createdAt = parseDate(json["created_at"]) ?? Date()
             doc.updatedAt = parseDate(json["updated_at"]) ?? Date()
 
@@ -516,6 +520,7 @@ final class SyncService: Sendable {
         if let logoB64 = json["logo_data"] as? String, !logoB64.isEmpty {
             company.logoData = Data(base64Encoded: logoB64)
         }
+        company.nomBanque = json["nom_banque"] as? String ?? ""
         company.iban = json["iban"] as? String ?? ""
         company.bic = json["bic"] as? String ?? ""
         company.titulaireCompte = json["titulaire_compte"] as? String ?? ""
@@ -532,7 +537,8 @@ final class SyncService: Sendable {
                 guard let wId = (w["id"] as? String).flatMap({ UUID(uuidString: $0) }) else { return nil }
                 var wallet = WalletEntry(
                     blockchain: Blockchain(rawValue: w["blockchain_raw_value"] as? String ?? "Solana") ?? .solana,
-                    address: w["address"] as? String ?? ""
+                    address: w["address"] as? String ?? "",
+                    label: w["label"] as? String ?? ""
                 )
                 wallet.id = wId
                 return wallet

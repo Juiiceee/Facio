@@ -244,6 +244,28 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         annee = try c.decode(Int.self, forKey: .annee)
         semaines = try c.decode([TimesheetWeek].self, forKey: .semaines)
         createdAt = try c.decode(Date.self, forKey: .createdAt)
+
+        // Reparer les semaines si le timesheet a ete tronque
+        let expected = TimesheetPeriod.genererSemaines(mois: mois, annee: annee)
+        if semaines.count < expected.count {
+            // Creer un index dateString -> heures des jours deja saisis
+            var heuresParDate: [String: Decimal] = [:]
+            for w in semaines {
+                for j in w.jours where j.heures != 0 {
+                    heuresParDate[j.dateString] = j.heures
+                }
+            }
+            // Remettre les heures dans les semaines regenerees
+            var fixed = expected
+            for wi in fixed.indices {
+                for ji in fixed[wi].jours.indices {
+                    if let h = heuresParDate[fixed[wi].jours[ji].dateString] {
+                        fixed[wi].jours[ji].heures = h
+                    }
+                }
+            }
+            semaines = fixed
+        }
         updatedAt = (try? c.decode(Date.self, forKey: .updatedAt)) ?? createdAt
         tauxNormal = try c.decode(Decimal.self, forKey: .tauxNormal)
         tauxSupplementaire = try c.decode(Decimal.self, forKey: .tauxSupplementaire)
