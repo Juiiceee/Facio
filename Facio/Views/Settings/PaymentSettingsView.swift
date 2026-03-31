@@ -15,6 +15,14 @@ struct PaymentSettingsView: View {
                     Label("Paiement Fiat", systemImage: "building.columns")
                         .font(.headline)
 
+                    settingsRow("Nom de la banque") {
+                        TextField("Ex: Boursorama, BNP, Revolut...", text: Binding(
+                            get: { company.nomBanque },
+                            set: { company.nomBanque = $0; dataStore.save() }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                    }
+
                     settingsRow("IBAN") {
                         TextField("FR76 0000 0000 0000 0000 0000 000", text: Binding(
                             get: { company.iban },
@@ -104,19 +112,39 @@ private struct WalletRow: View {
 
     var body: some View {
         if company.wallets.contains(where: { $0.id == walletId }) {
-            HStack(spacing: 12) {
-                Picker("Blockchain", selection: Binding(
-                    get: { company.wallets.first(where: { $0.id == walletId })?.blockchain ?? .solana },
-                    set: { newVal in
-                        if let i = safeIndex() { company.wallets[i].blockchain = newVal; dataStore.save() }
+            VStack(spacing: 8) {
+                HStack(spacing: 12) {
+                    Picker("Blockchain", selection: Binding(
+                        get: { company.wallets.first(where: { $0.id == walletId })?.blockchain ?? .solana },
+                        set: { newVal in
+                            if let i = safeIndex() { company.wallets[i].blockchain = newVal; dataStore.save() }
+                        }
+                    )) {
+                        ForEach(Blockchain.allCases) { chain in
+                            Text(chain.label).tag(chain)
+                        }
                     }
-                )) {
-                    ForEach(Blockchain.allCases) { chain in
-                        Text(chain.label).tag(chain)
+                    .labelsHidden()
+                    .frame(width: 130)
+
+                    TextField("Nom (ex: Phantom, Ledger...)", text: Binding(
+                        get: { company.wallets.first(where: { $0.id == walletId })?.label ?? "" },
+                        set: { newVal in
+                            if let i = safeIndex() { company.wallets[i].label = newVal; dataStore.save() }
+                        }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 200)
+
+                    Button {
+                        company.wallets.removeAll { $0.id == walletId }
+                        dataStore.save()
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundStyle(.red)
                     }
+                    .buttonStyle(.plain)
                 }
-                .labelsHidden()
-                .frame(width: 130)
 
                 TextField("Adresse du wallet", text: Binding(
                     get: { company.wallets.first(where: { $0.id == walletId })?.address ?? "" },
@@ -125,16 +153,10 @@ private struct WalletRow: View {
                     }
                 ))
                 .textFieldStyle(.roundedBorder)
-
-                Button {
-                    company.wallets.removeAll { $0.id == walletId }
-                    dataStore.save()
-                } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .foregroundStyle(.red)
-                }
-                .buttonStyle(.plain)
             }
+            .padding(10)
+            .background(.quaternary.opacity(0.3))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
     }
 }

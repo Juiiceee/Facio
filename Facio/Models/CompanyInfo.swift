@@ -21,6 +21,7 @@ struct DesignationPreset: Identifiable, Codable, Hashable {
 
 struct WalletEntry: Identifiable, Codable, Hashable {
     var id: UUID = UUID()
+    var label: String = ""
     var blockchainRawValue: String = "Solana"
     var address: String = ""
 
@@ -29,8 +30,9 @@ struct WalletEntry: Identifiable, Codable, Hashable {
         set { blockchainRawValue = newValue.rawValue }
     }
 
-    init(blockchain: Blockchain = .solana, address: String = "") {
+    init(blockchain: Blockchain = .solana, address: String = "", label: String = "") {
         self.id = UUID()
+        self.label = label
         self.blockchainRawValue = blockchain.rawValue
         self.address = address
     }
@@ -51,6 +53,7 @@ final class CompanyInfo: Identifiable, Codable {
     var logoData: Data?
 
     // Paiement fiat
+    var nomBanque: String = ""
     var iban: String = ""
     var bic: String = ""
     var titulaireCompte: String = ""
@@ -104,7 +107,7 @@ final class CompanyInfo: Identifiable, Codable {
 
     enum CodingKeys: String, CodingKey {
         case id, nom, adresse, codePostal, ville, siret, telephone, email, logoData
-        case iban, bic, titulaireCompte, wallets, prestations
+        case nomBanque, iban, bic, titulaireCompte, wallets, prestations
         case tauxTVAParDefaut, delaiPaiementJours, deviseParDefautRawValue, blockchainParDefautRawValue
         case updatedAt
     }
@@ -120,6 +123,7 @@ final class CompanyInfo: Identifiable, Codable {
         telephone = try container.decode(String.self, forKey: .telephone)
         email = try container.decode(String.self, forKey: .email)
         logoData = try container.decodeIfPresent(Data.self, forKey: .logoData)
+        nomBanque = (try? container.decode(String.self, forKey: .nomBanque)) ?? ""
         iban = try container.decode(String.self, forKey: .iban)
         bic = try container.decode(String.self, forKey: .bic)
         titulaireCompte = try container.decode(String.self, forKey: .titulaireCompte)
@@ -143,6 +147,7 @@ final class CompanyInfo: Identifiable, Codable {
         try container.encode(telephone, forKey: .telephone)
         try container.encode(email, forKey: .email)
         try container.encodeIfPresent(logoData, forKey: .logoData)
+        try container.encode(nomBanque, forKey: .nomBanque)
         try container.encode(iban, forKey: .iban)
         try container.encode(bic, forKey: .bic)
         try container.encode(titulaireCompte, forKey: .titulaireCompte)
