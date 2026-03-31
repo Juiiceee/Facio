@@ -8,7 +8,7 @@ let package = Package(
         .executableTarget(
             name: "Facio",
             path: "Facio",
-            exclude: ["Resources/AppIcon.icns", "Config/Secrets.example"]
+            exclude: ["Resources/AppIcon.icns"]
         )
     ]
 )

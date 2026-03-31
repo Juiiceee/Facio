@@ -3,7 +3,7 @@ import Foundation
 /// Charge les secrets Supabase.
 /// Priorite :
 /// 1. SecretsGenerated.swift (injecte au build CI, compile dans le binaire)
-/// 2. ~/.facio_config (dev local)
+/// 2. .env (dev local, racine du projet)
 enum Secrets {
     static var supabaseURL: String {
         // Valeurs injectees au build CI
@@ -22,8 +22,11 @@ enum Secrets {
     // MARK: - Lecture fichier local (dev)
 
     private static let localConfig: [String: String] = {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let configURL = home.appendingPathComponent(".facio_config")
+        let projectDir = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // Config/
+            .deletingLastPathComponent() // Facio/
+            .deletingLastPathComponent() // project root
+        let configURL = projectDir.appendingPathComponent(".env")
         guard let content = try? String(contentsOf: configURL, encoding: .utf8) else { return [:] }
 
         var dict: [String: String] = [:]

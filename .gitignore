@@ -20,4 +20,9 @@ dist/
 *.dmg
 
 # Secrets
+.env
 .facio_config
+
+# Local dev config
+.mcp.json
+.claude/settings.local.json

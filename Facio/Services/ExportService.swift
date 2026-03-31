@@ -23,7 +23,6 @@ struct ExportService {
             NSWorkspace.shared.open(url)
             return true
         } catch {
-            print("Erreur lors de l'export: \(error)")
             return false
         }
     }
