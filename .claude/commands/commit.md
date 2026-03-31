@@ -16,6 +16,7 @@ Steps:
    - Message in English, concise, 1 line (max 72 chars)
    - NO Co-Authored-By line
 6. Create the commit
-7. Show the result
+7. Push to origin with `git push`
+8. Show the result
 
 If the user provides an argument, use it as a hint for the commit message: $ARGUMENTS
