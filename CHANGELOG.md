@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.5.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.4.1...Facio-v1.5.0) (2026-03-31)
+
+
+### Nouvelles fonctionnalites
+
+* **sync:** normalized DB schema and email-only auth ([fb602b8](https://github.com/Juiiceee/Facio/commit/fb602b8c85ca38d53a57ed5c114947d5d03c3ea8))
+
+
+### Corrections de bugs
+
+* **auth:** replace password auth with email OTP verification ([f572c9d](https://github.com/Juiiceee/Facio/commit/f572c9d78c452714397fcfe9ec65e74cdae03913))
+* **build:** add codesign and DMG with install instructions ([fc62e2a](https://github.com/Juiiceee/Facio/commit/fc62e2ab88bdfed3907d79fcb430757343521176))
+* **security:** inject Supabase secrets at build time via CI ([72c1eca](https://github.com/Juiiceee/Facio/commit/72c1eca4bca4016e3800dc3f3eeb39ac5a529d67))
+* **security:** move Supabase credentials out of source code ([1256b82](https://github.com/Juiiceee/Facio/commit/1256b82e842dcf826fef6936ac2dee8b81e0b56d))
+
 ## [1.4.1](https://github.com/Juiiceee/Facio/compare/Facio-v1.4.0...Facio-v1.4.1) (2026-03-31)
 
 
