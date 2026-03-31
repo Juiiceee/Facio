@@ -10,6 +10,7 @@ final class ClientInfo: Identifiable, Codable, Hashable {
     var ville: String = ""
     var email: String = ""
     var createdAt: Date = Date()
+    var updatedAt: Date = Date()
 
     // MARK: - Hashable
 
@@ -56,7 +57,7 @@ final class ClientInfo: Identifiable, Codable, Hashable {
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case id, nom, adresse, codePostal, ville, email, createdAt
+        case id, nom, adresse, codePostal, ville, email, createdAt, updatedAt
     }
 
     required init(from decoder: Decoder) throws {
@@ -68,6 +69,7 @@ final class ClientInfo: Identifiable, Codable, Hashable {
         ville = try container.decode(String.self, forKey: .ville)
         email = try container.decode(String.self, forKey: .email)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
+        updatedAt = (try? container.decode(Date.self, forKey: .updatedAt)) ?? createdAt
     }
 
     func encode(to encoder: Encoder) throws {
@@ -79,5 +81,6 @@ final class ClientInfo: Identifiable, Codable, Hashable {
         try container.encode(ville, forKey: .ville)
         try container.encode(email, forKey: .email)
         try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(updatedAt, forKey: .updatedAt)
     }
 }

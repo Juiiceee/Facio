@@ -8,10 +8,11 @@ struct SyncSettingsView: View {
     @State private var customAPIKey = SyncConfig.customAPIKey
     @State private var showApiKey = false
 
-    // Auth email (mode avance)
+    // Auth email
     @State private var email = ""
     @State private var password = ""
     @State private var isSignUp = false
+    @State private var showSQL = false
 
     var syncService: SyncService
     var authService: AuthService
@@ -27,13 +28,10 @@ struct SyncSettingsView: View {
                     Toggle("Activer la sauvegarde en ligne", isOn: $isEnabled)
                         .onChange(of: isEnabled) {
                             SyncConfig.isEnabled = isEnabled
-                            if isEnabled && !authService.isAuthenticated {
-                                Task { await authService.signInAnonymously() }
-                            }
                         }
 
                     if isEnabled {
-                        Text("Vos donnees sont sauvegardees automatiquement dans le cloud. Elles sont privees et liees a cet appareil.")
+                        Text("Vos donnees sont synchronisees dans le cloud. Creez un compte ou connectez-vous pour activer la sync.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -41,35 +39,88 @@ struct SyncSettingsView: View {
                 .padding(12)
             }
 
-            // MARK: - Statut
+            // MARK: - Authentification
             if isEnabled {
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Label("Compte", systemImage: "person.crop.circle")
+                            .font(.headline)
+
+                        if authService.isAuthenticated {
+                            // Connected state
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(.green)
+                                    .frame(width: 8, height: 8)
+                                Text("Connecte — \(authService.userEmail)")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Button("Deconnexion") { authService.signOut() }
+                                    .foregroundStyle(.red)
+                                    .buttonStyle(.borderless)
+                            }
+                        } else {
+                            // Login / Signup form
+                            Picker("", selection: $isSignUp) {
+                                Text("Connexion").tag(false)
+                                Text("Inscription").tag(true)
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(maxWidth: 250)
+
+                            settingsRow("Email") {
+                                TextField("email@exemple.com", text: $email)
+                                    .textFieldStyle(.roundedBorder)
+                            }
+
+                            settingsRow("Mot de passe") {
+                                SecureField("Min 6 caracteres", text: $password)
+                                    .textFieldStyle(.roundedBorder)
+                            }
+
+                            Button(isSignUp ? "Creer le compte" : "Se connecter") {
+                                Task {
+                                    if isSignUp {
+                                        await authService.signUp(email: email, password: password)
+                                    } else {
+                                        await authService.signIn(email: email, password: password)
+                                    }
+                                    if authService.isAuthenticated {
+                                        await syncService.fullSync(dataStore: dataStore)
+                                    }
+                                }
+                            }
+                            .disabled(email.isEmpty || password.count < 6 || authService.isLoading)
+
+                            if authService.isLoading {
+                                HStack {
+                                    ProgressView().scaleEffect(0.7)
+                                    Text("Connexion en cours...")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+
+                        if let error = authService.error {
+                            HStack(spacing: 6) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundStyle(.red)
+                                Text(error)
+                                    .foregroundStyle(.red)
+                                    .font(.caption)
+                            }
+                        }
+                    }
+                    .padding(12)
+                }
+            }
+
+            // MARK: - Statut sync
+            if isEnabled && authService.isAuthenticated {
                 GroupBox {
                     VStack(alignment: .leading, spacing: 14) {
                         Label("Statut", systemImage: "antenna.radiowaves.left.and.right")
                             .font(.headline)
-
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(authService.isAuthenticated ? .green : .orange)
-                                .frame(width: 8, height: 8)
-                            if authService.isAuthenticated {
-                                if authService.isAnonymous {
-                                    Text("Connecte (automatique)")
-                                        .foregroundStyle(.secondary)
-                                } else {
-                                    Text("Connecte — \(authService.userEmail)")
-                                        .foregroundStyle(.secondary)
-                                }
-                            } else if authService.isLoading {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                                Text("Connexion en cours...")
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Text("Non connecte")
-                                    .foregroundStyle(.orange)
-                            }
-                        }
 
                         if syncService.isSyncing {
                             HStack {
@@ -99,21 +150,11 @@ struct SyncSettingsView: View {
                             }
                         }
 
-                        if let error = authService.error {
-                            HStack(spacing: 6) {
-                                Image(systemName: "exclamationmark.triangle")
-                                    .foregroundStyle(.red)
-                                Text(error)
-                                    .foregroundStyle(.red)
-                                    .font(.caption)
-                            }
-                        }
-
                         HStack(spacing: 12) {
                             Button("Synchroniser") {
                                 Task { await syncService.fullSync(dataStore: dataStore) }
                             }
-                            .disabled(!authService.isAuthenticated || syncService.isSyncing)
+                            .disabled(syncService.isSyncing)
 
                             Button("Tout pousser") {
                                 Task {
@@ -124,7 +165,7 @@ struct SyncSettingsView: View {
                                     await syncService.pushAllDirty()
                                 }
                             }
-                            .disabled(!authService.isAuthenticated || syncService.isSyncing)
+                            .disabled(syncService.isSyncing)
                         }
                     }
                     .padding(12)
@@ -143,7 +184,6 @@ struct SyncSettingsView: View {
                                 SyncConfig.useCustomDB = useCustomDB
                                 if !useCustomDB {
                                     authService.signOut()
-                                    Task { await authService.signInAnonymously() }
                                 }
                             }
 
@@ -175,83 +215,24 @@ struct SyncSettingsView: View {
 
                             Divider()
 
-                            // Connexion email pour DB custom
-                            if authService.isAuthenticated && !authService.isAnonymous {
-                                HStack {
-                                    Image(systemName: "person.crop.circle.fill")
-                                        .foregroundStyle(.green)
-                                    Text(authService.userEmail)
-                                    Spacer()
-                                    Button("Deconnexion") { authService.signOut() }
-                                        .foregroundStyle(.red)
-                                }
-                            } else {
-                                Picker("", selection: $isSignUp) {
-                                    Text("Connexion").tag(false)
-                                    Text("Inscription").tag(true)
-                                }
-                                .pickerStyle(.segmented)
-                                .frame(maxWidth: 250)
-
-                                settingsRow("Email") {
-                                    TextField("email@exemple.com", text: $email)
-                                        .textFieldStyle(.roundedBorder)
-                                }
-
-                                settingsRow("Mot de passe") {
-                                    SecureField("Min 6 caracteres", text: $password)
-                                        .textFieldStyle(.roundedBorder)
-                                }
-
-                                Button(isSignUp ? "Creer le compte" : "Se connecter") {
-                                    Task {
-                                        if isSignUp {
-                                            await authService.signUp(email: email, password: password)
-                                        } else {
-                                            await authService.signIn(email: email, password: password)
-                                        }
-                                        if authService.isAuthenticated {
-                                            await syncService.fullSync(dataStore: dataStore)
-                                        }
-                                    }
-                                }
-                                .disabled(email.isEmpty || password.count < 6 || authService.isLoading)
-                            }
-
-                            Divider()
-
                             // SQL helper
-                            Text("Executez ce SQL dans votre Supabase :")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            DisclosureGroup("Schema SQL pour votre base", isExpanded: $showSQL) {
+                                Text(SyncService.sqlSchema)
+                                    .font(.system(.caption2, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .padding(8)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color.black.opacity(0.05))
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
 
-                            let sql = """
-                            CREATE TABLE IF NOT EXISTS sync_data (
-                              id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                              user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-                              key TEXT NOT NULL,
-                              data JSONB NOT NULL DEFAULT '{}',
-                              updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                              UNIQUE(user_id, key)
-                            );
-                            CREATE INDEX IF NOT EXISTS idx_sync_data_user_key ON sync_data(user_id, key);
-                            ALTER TABLE sync_data ENABLE ROW LEVEL SECURITY;
-                            CREATE POLICY "own_data" ON sync_data FOR ALL
-                              USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-                            """
-                            Text(sql)
-                                .font(.system(.caption2, design: .monospaced))
-                                .textSelection(.enabled)
-                                .padding(8)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.black.opacity(0.05))
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
-
-                            Button("Copier le SQL") {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(sql, forType: .string)
+                                Button("Copier le SQL") {
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(SyncService.sqlSchema, forType: .string)
+                                }
+                                .buttonStyle(.borderless)
                             }
-                            .buttonStyle(.borderless)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         }
                     }
                     .padding(12)

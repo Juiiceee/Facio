@@ -37,16 +37,8 @@ struct FacioApp: App {
                     syncService.authService = authService
 
                     Task {
-                        // 1. Si sync activee, s'assurer qu'on est authentifie
-                        if SyncConfig.isEnabled {
-                            if authService.isAuthenticated {
-                                // Refresh le token
-                                await authService.refreshSession()
-                            } else {
-                                // Premiere fois : auth anonyme automatique
-                                await authService.signInAnonymously()
-                            }
-                            // 2. Sync
+                        if SyncConfig.isEnabled && authService.isAuthenticated {
+                            await authService.refreshSession()
                             await syncService.fullSync(dataStore: dataStore)
                         }
                     }

@@ -34,7 +34,8 @@ enum JourSemaine: Int, Codable, CaseIterable, Identifiable {
 
 // MARK: - Entree journaliere
 
-struct TimesheetDay: Codable, Hashable {
+struct TimesheetDay: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
     /// Date du jour (sans heure)
     var dateString: String  // "2026-03-01" — stocke comme string pour serialisation fiable
     var heures: Decimal = 0
@@ -68,8 +69,22 @@ struct TimesheetDay: Codable, Hashable {
     }()
 
     init(date: Date, heures: Decimal = 0) {
+        self.id = UUID()
         self.dateString = TimesheetDay.dateFormatter.string(from: date)
         self.heures = heures
+    }
+
+    // MARK: - Codable (backwards-compatible)
+
+    enum CodingKeys: String, CodingKey {
+        case id, dateString, heures
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? container.decode(UUID.self, forKey: .id)) ?? UUID()
+        dateString = try container.decode(String.self, forKey: .dateString)
+        heures = try container.decode(Decimal.self, forKey: .heures)
     }
 }
 
@@ -119,6 +134,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     var annee: Int = 2026
     var semaines: [TimesheetWeek] = []
     var createdAt: Date = Date()
+    var updatedAt: Date = Date()
 
     // Parametres de calcul
     var tauxNormal: Decimal = 26.39
@@ -216,7 +232,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case id, nom, mois, annee, semaines, createdAt
+        case id, nom, mois, annee, semaines, createdAt, updatedAt
         case tauxNormal, tauxSupplementaire, coefficientNet, seuilHebdo
     }
 
@@ -228,6 +244,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         annee = try c.decode(Int.self, forKey: .annee)
         semaines = try c.decode([TimesheetWeek].self, forKey: .semaines)
         createdAt = try c.decode(Date.self, forKey: .createdAt)
+        updatedAt = (try? c.decode(Date.self, forKey: .updatedAt)) ?? createdAt
         tauxNormal = try c.decode(Decimal.self, forKey: .tauxNormal)
         tauxSupplementaire = try c.decode(Decimal.self, forKey: .tauxSupplementaire)
         coefficientNet = try c.decode(Decimal.self, forKey: .coefficientNet)
@@ -242,6 +259,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         try c.encode(annee, forKey: .annee)
         try c.encode(semaines, forKey: .semaines)
         try c.encode(createdAt, forKey: .createdAt)
+        try c.encode(updatedAt, forKey: .updatedAt)
         try c.encode(tauxNormal, forKey: .tauxNormal)
         try c.encode(tauxSupplementaire, forKey: .tauxSupplementaire)
         try c.encode(coefficientNet, forKey: .coefficientNet)

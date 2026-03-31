@@ -66,6 +66,7 @@ final class CompanyInfo: Identifiable, Codable {
     var delaiPaiementJours: Int = 30
     var deviseParDefautRawValue: String = "USDC"
     var blockchainParDefautRawValue: String? = "Solana"
+    var updatedAt: Date = Date()
 
     var deviseParDefaut: CurrencyType {
         get { CurrencyType(rawValue: deviseParDefautRawValue) ?? .eur }
@@ -105,6 +106,7 @@ final class CompanyInfo: Identifiable, Codable {
         case id, nom, adresse, codePostal, ville, siret, telephone, email, logoData
         case iban, bic, titulaireCompte, wallets, prestations
         case tauxTVAParDefaut, delaiPaiementJours, deviseParDefautRawValue, blockchainParDefautRawValue
+        case updatedAt
     }
 
     required init(from decoder: Decoder) throws {
@@ -127,6 +129,7 @@ final class CompanyInfo: Identifiable, Codable {
         delaiPaiementJours = try container.decode(Int.self, forKey: .delaiPaiementJours)
         deviseParDefautRawValue = try container.decode(String.self, forKey: .deviseParDefautRawValue)
         blockchainParDefautRawValue = try container.decodeIfPresent(String.self, forKey: .blockchainParDefautRawValue)
+        updatedAt = (try? container.decode(Date.self, forKey: .updatedAt)) ?? Date()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -149,5 +152,6 @@ final class CompanyInfo: Identifiable, Codable {
         try container.encode(delaiPaiementJours, forKey: .delaiPaiementJours)
         try container.encode(deviseParDefautRawValue, forKey: .deviseParDefautRawValue)
         try container.encodeIfPresent(blockchainParDefautRawValue, forKey: .blockchainParDefautRawValue)
+        try container.encode(updatedAt, forKey: .updatedAt)
     }
 }

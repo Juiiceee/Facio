@@ -183,7 +183,7 @@ struct AboutSettingsView: View {
 
         let filesToDelete = [
             "documents.json", "clients.json", "company.json",
-            "timesheets.json", "sync_state.json"
+            "timesheets.json", "sync_state.json", "auth_session.json"
         ]
 
         for file in filesToDelete {
@@ -192,7 +192,7 @@ struct AboutSettingsView: View {
         }
 
         let defaults = UserDefaults.standard
-        for key in ["facio_sync_enabled", "facio_user_id", "facio_user_email", "facio_is_anonymous"] {
+        for key in ["facio_sync_enabled", "facio_user_id", "facio_user_email"] {
             defaults.removeObject(forKey: key)
         }
 

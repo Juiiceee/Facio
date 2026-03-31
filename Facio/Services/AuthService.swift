@@ -1,15 +1,20 @@
 import Foundation
 import Observation
-import Security
+
+/// Tokens de session persistes dans un fichier JSON local
+private struct SessionData: Codable {
+    var accessToken: String = ""
+    var refreshToken: String = ""
+    var userId: String = ""
+    var userEmail: String = ""
+}
 
 /// Gere l'authentification Supabase
-/// Mode par defaut : anonymous auth (zero config, auto au lancement)
-/// Mode avance : email + mot de passe
+/// Email + mot de passe uniquement. Sync opt-in, local par defaut.
 @Observable
 @MainActor
 final class AuthService: Sendable {
     var isAuthenticated: Bool = false
-    var isAnonymous: Bool = false
     var userEmail: String = ""
     var userId: String = ""
     var accessToken: String = ""
@@ -17,71 +22,22 @@ final class AuthService: Sendable {
     var error: String?
     var isLoading: Bool = false
 
-    private let tokenKey = "facio_access_token"
-    private let refreshKey = "facio_refresh_token"
-    private let userIdKey = "facio_user_id"
-    private let emailKey = "facio_user_email"
-    private let anonKey = "facio_is_anonymous"
+    private let sessionURL: URL
 
     init() {
-        // Restaurer la session
-        accessToken = keychainRead(key: tokenKey) ?? ""
-        refreshToken = keychainRead(key: refreshKey) ?? ""
-        userId = UserDefaults.standard.string(forKey: userIdKey) ?? ""
-        userEmail = UserDefaults.standard.string(forKey: emailKey) ?? ""
-        isAnonymous = UserDefaults.standard.bool(forKey: anonKey)
-        isAuthenticated = !accessToken.isEmpty && !userId.isEmpty
-    }
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let dir = appSupport.appendingPathComponent("Facio", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        sessionURL = dir.appendingPathComponent("auth_session.json")
 
-    // MARK: - Anonymous Auth (zero config)
-
-    /// Connexion anonyme automatique — cree un user invisible
-    func signInAnonymously() async {
-        guard SyncConfig.isConfigured else { return }
-        guard !isAuthenticated else { return }
-        guard let url = buildURL(path: "/auth/v1/signup") else { return }
-
-        isLoading = true
-        error = nil
-
-        // Supabase anonymous sign-in : body vide avec header GoTrue
-        let bodyString = "{}"
-        guard let bodyData = bodyString.data(using: .utf8) else {
-            isLoading = false
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.httpBody = bodyData
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.addValue(SyncConfig.apiKey, forHTTPHeaderField: "apikey")
-        request.addValue("Bearer \(SyncConfig.apiKey)", forHTTPHeaderField: "Authorization")
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            isLoading = false
-
-            guard let httpResponse = response as? HTTPURLResponse else { return }
-
-            if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    handleAuthResponse(json)
-                    isAnonymous = true
-                    UserDefaults.standard.set(true, forKey: anonKey)
-                }
-            } else {
-                // Lire l'erreur
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let msg = json["msg"] as? String ?? json["error_description"] as? String ?? json["message"] as? String {
-                    self.error = msg
-                } else {
-                    self.error = "Erreur anonymous auth (HTTP \(httpResponse.statusCode))"
-                }
-            }
-        } catch {
-            isLoading = false
-            self.error = error.localizedDescription
+        // Restaurer la session depuis le fichier
+        if let data = try? Data(contentsOf: sessionURL),
+           let session = try? JSONDecoder().decode(SessionData.self, from: data) {
+            accessToken = session.accessToken
+            refreshToken = session.refreshToken
+            userId = session.userId
+            userEmail = session.userEmail
+            isAuthenticated = !accessToken.isEmpty && !userId.isEmpty
         }
     }
 
@@ -98,7 +54,10 @@ final class AuthService: Sendable {
         error = nil
 
         let body: [String: String] = ["email": email, "password": password]
-        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else { return }
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
+            isLoading = false
+            return
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -115,8 +74,6 @@ final class AuthService: Sendable {
             if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     handleAuthResponse(json)
-                    isAnonymous = false
-                    UserDefaults.standard.set(false, forKey: anonKey)
                 }
             } else {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -143,7 +100,10 @@ final class AuthService: Sendable {
         error = nil
 
         let body: [String: String] = ["email": email, "password": password]
-        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else { return }
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
+            isLoading = false
+            return
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -160,8 +120,6 @@ final class AuthService: Sendable {
             if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     handleAuthResponse(json)
-                    isAnonymous = false
-                    UserDefaults.standard.set(false, forKey: anonKey)
                 }
             } else {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -198,13 +156,8 @@ final class AuthService: Sendable {
                   httpResponse.statusCode >= 200 && httpResponse.statusCode < 300,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             else {
-                // Token expire — re-auth anonyme si besoin
-                if isAnonymous {
-                    signOut()
-                    await signInAnonymously()
-                } else {
-                    signOut()
-                }
+                // Token expire — deconnexion
+                signOut()
                 return
             }
             handleAuthResponse(json)
@@ -221,56 +174,7 @@ final class AuthService: Sendable {
         userId = ""
         userEmail = ""
         isAuthenticated = false
-        isAnonymous = false
-        persistSession()
-    }
-
-    // MARK: - Device ID (Keychain — survit aux reinstalls)
-
-    private func getOrCreateDeviceId() -> String {
-        if let existing = keychainRead(key: "facio_device_id") {
-            return existing
-        }
-        let newId = UUID().uuidString
-        keychainWrite(key: "facio_device_id", value: newId)
-        return newId
-    }
-
-    // MARK: - Keychain
-
-    func keychainRead(key: String) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.juiceeedev.facio",
-            kSecAttrAccount as String: key,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-
-    @discardableResult
-    func keychainWrite(key: String, value: String) -> Bool {
-        let data = value.data(using: .utf8)!
-        // Supprimer l'ancien si existant
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.juiceeedev.facio",
-            kSecAttrAccount as String: key,
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
-
-        let addQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.juiceeedev.facio",
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-        ]
-        return SecItemAdd(addQuery as CFDictionary, nil) == errSecSuccess
+        try? FileManager.default.removeItem(at: sessionURL)
     }
 
     // MARK: - Helpers
@@ -291,11 +195,15 @@ final class AuthService: Sendable {
     }
 
     private func persistSession() {
-        keychainWrite(key: tokenKey, value: accessToken)
-        keychainWrite(key: refreshKey, value: refreshToken)
-        UserDefaults.standard.set(userId, forKey: userIdKey)
-        UserDefaults.standard.set(userEmail, forKey: emailKey)
-        UserDefaults.standard.set(isAnonymous, forKey: anonKey)
+        let session = SessionData(
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            userId: userId,
+            userEmail: userEmail
+        )
+        if let data = try? JSONEncoder().encode(session) {
+            try? data.write(to: sessionURL, options: .atomic)
+        }
     }
 
     private func buildURL(path: String) -> URL? {
