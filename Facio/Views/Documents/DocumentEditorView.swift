@@ -458,15 +458,49 @@ struct DocumentEditorView: View {
             GroupBox("Paiement — Crypto") {
                 VStack(alignment: .leading, spacing: 8) {
                     if let chain = document.blockchain {
+                        let walletsForChain = company.wallets.filter { $0.blockchain == chain }
+
                         HStack {
                             Label("Reseau", systemImage: "link")
                                 .foregroundStyle(.secondary)
                             Text(chain.label)
                                 .fontWeight(.medium)
                         }
-                        if let wallet = company.wallet(pour: chain) {
+
+                        if walletsForChain.count > 1 {
+                            // Plusieurs wallets — Picker
                             HStack {
                                 Label("Wallet", systemImage: "wallet.pass")
+                                    .foregroundStyle(.secondary)
+                                Picker("", selection: Binding(
+                                    get: {
+                                        document.selectedWalletId ?? walletsForChain.first?.id ?? UUID()
+                                    },
+                                    set: {
+                                        document.selectedWalletId = $0
+                                        dataStore.save()
+                                    }
+                                )) {
+                                    ForEach(walletsForChain) { w in
+                                        Text(w.label.isEmpty ? w.address.prefix(12) + "..." : w.label)
+                                            .tag(w.id)
+                                    }
+                                }
+                                .labelsHidden()
+                            }
+                            // Afficher l'adresse du wallet selectionne
+                            if let selected = walletsForChain.first(where: { $0.id == (document.selectedWalletId ?? walletsForChain.first?.id) }) {
+                                Text(selected.address)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .textSelection(.enabled)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } else if let wallet = walletsForChain.first {
+                            // Un seul wallet — affichage simple
+                            HStack {
+                                Label(wallet.label.isEmpty ? "Wallet" : wallet.label, systemImage: "wallet.pass")
                                     .foregroundStyle(.secondary)
                                 Text(wallet.address)
                                     .font(.system(.caption, design: .monospaced))

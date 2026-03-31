@@ -434,8 +434,16 @@ struct PDFGenerator {
             ry += 12
             drawText("Wallet adresse:", x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
             ry += 12
-            if let chain = document.blockchain, let wallet = company.wallet(pour: chain) {
-                drawText(wallet.address, x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textBlack, context: context)
+            if let chain = document.blockchain {
+                let walletsForChain = company.wallets.filter { $0.blockchain == chain }
+                let wallet = walletsForChain.first(where: { $0.id == document.selectedWalletId }) ?? walletsForChain.first
+                if let wallet = wallet {
+                    if !wallet.label.isEmpty {
+                        drawText(wallet.label, x: rightX, y: ry, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
+                        ry += 12
+                    }
+                    drawText(wallet.address, x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textBlack, context: context)
+                }
             }
         } else {
             drawText("Virement bancaire", x: rightX, y: ry, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)

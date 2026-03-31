@@ -29,6 +29,9 @@ final class Document: Identifiable, Codable, Hashable {
     // Notes optionnelles
     var notes: String = ""
 
+    // Wallet selectionne (quand plusieurs sur le meme reseau)
+    var selectedWalletId: UUID?
+
     // MARK: - Hashable
 
     static func == (lhs: Document, rhs: Document) -> Bool {
@@ -177,7 +180,7 @@ final class Document: Identifiable, Codable, Hashable {
         case currencyRawValue, blockchainRawValue, paymentModeRawValue
         case clientNom, clientAdresse, clientCodePostal, clientVille
         case lignes, transactionSignatures
-        case createdAt, updatedAt, notes
+        case createdAt, updatedAt, notes, selectedWalletId
     }
 
     required init(from decoder: Decoder) throws {
@@ -200,6 +203,7 @@ final class Document: Identifiable, Codable, Hashable {
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         notes = try container.decode(String.self, forKey: .notes)
+        selectedWalletId = try? container.decode(UUID.self, forKey: .selectedWalletId)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -222,5 +226,6 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(notes, forKey: .notes)
+        try container.encodeIfPresent(selectedWalletId, forKey: .selectedWalletId)
     }
 }
