@@ -1,11 +1,27 @@
 import Foundation
 
-/// Charge les secrets depuis ~/.facio_config (hors du repo)
-/// Format du fichier :
-///   SUPABASE_URL=https://xxx.supabase.co
-///   SUPABASE_ANON_KEY=eyJhbG...
+/// Charge les secrets Supabase.
+/// Priorite :
+/// 1. SecretsGenerated.swift (injecte au build CI, compile dans le binaire)
+/// 2. ~/.facio_config (dev local)
 enum Secrets {
-    private static let config: [String: String] = {
+    static var supabaseURL: String {
+        // Valeurs injectees au build CI
+        let generated = SecretsGenerated.supabaseURL
+        if !generated.isEmpty { return generated }
+        // Fallback dev local
+        return localConfig["SUPABASE_URL"] ?? ""
+    }
+
+    static var supabaseAnonKey: String {
+        let generated = SecretsGenerated.supabaseAnonKey
+        if !generated.isEmpty { return generated }
+        return localConfig["SUPABASE_ANON_KEY"] ?? ""
+    }
+
+    // MARK: - Lecture fichier local (dev)
+
+    private static let localConfig: [String: String] = {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let configURL = home.appendingPathComponent(".facio_config")
         guard let content = try? String(contentsOf: configURL, encoding: .utf8) else { return [:] }
@@ -20,12 +36,4 @@ enum Secrets {
         }
         return dict
     }()
-
-    static var supabaseURL: String {
-        config["SUPABASE_URL"] ?? ""
-    }
-
-    static var supabaseAnonKey: String {
-        config["SUPABASE_ANON_KEY"] ?? ""
-    }
 }
