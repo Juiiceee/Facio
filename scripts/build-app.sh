@@ -83,7 +83,20 @@ fi
 # 6. Creer PkgInfo
 echo -n "APPL????" > "$APP_DIR/Contents/PkgInfo"
 
-echo "[4/4] Termine !"
+# 7. Signer l'app (ad-hoc si pas de certificat)
+echo "[4/5] Signature de l'app..."
+if [ -n "${CODESIGN_IDENTITY:-}" ]; then
+    codesign --force --deep --sign "$CODESIGN_IDENTITY" \
+        --options runtime \
+        --entitlements "scripts/Facio.entitlements" \
+        "$APP_DIR" 2>&1
+    echo "    Signe avec: $CODESIGN_IDENTITY"
+else
+    codesign --force --deep --sign - "$APP_DIR" 2>&1
+    echo "    Signature ad-hoc (pas de certificat Developer ID)"
+fi
+
+echo "[5/5] Termine !"
 echo ""
 echo "=== ${APP_NAME}.app cree dans dist/ ==="
 echo "Pour l'utiliser :"

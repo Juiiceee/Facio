@@ -53,19 +53,8 @@ jobs:
       - name: Create DMG
         run: |
           VERSION="${{ needs.release-please.outputs.version }}"
-          DMG_NAME="Facio-${VERSION}.dmg"
-
-          mkdir -p dmg-staging
-          cp -r dist/Facio.app dmg-staging/
-          ln -s /Applications dmg-staging/Applications
-
-          hdiutil create -volname "Facio" \
-            -srcfolder dmg-staging \
-            -ov -format UDZO \
-            "dist/${DMG_NAME}"
-
-          rm -rf dmg-staging
-          echo "DMG_NAME=${DMG_NAME}" >> $GITHUB_ENV
+          ./scripts/create-dmg.sh "$VERSION"
+          echo "DMG_NAME=Facio-${VERSION}.dmg" >> $GITHUB_ENV
 
       - name: Upload to Release
         env:
