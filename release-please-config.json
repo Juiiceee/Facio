@@ -9,6 +9,8 @@
       "changelog-sections": [
         { "type": "feat", "section": "Nouvelles fonctionnalites" },
         { "type": "fix", "section": "Corrections de bugs" },
+        { "type": "refactor", "section": "Refactorings" },
+        { "type": "impr", "section": "Ameliorations" },
         { "type": "perf", "section": "Performances" },
         { "type": "docs", "section": "Documentation" },
         { "type": "chore", "section": "Maintenance", "hidden": true }
