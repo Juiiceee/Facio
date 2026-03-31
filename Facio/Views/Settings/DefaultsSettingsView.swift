@@ -15,63 +15,114 @@ struct DefaultsSettingsView: View {
     ]
 
     var body: some View {
-        Form {
-            Section("Taux de TVA") {
-                Picker("Taux par defaut", selection: Binding(
-                    get: { company.tauxTVAParDefaut },
-                    set: { company.tauxTVAParDefaut = $0; dataStore.save() }
-                )) {
-                    ForEach(tauxTVAOptions, id: \.value) { option in
-                        Text(option.label).tag(option.value)
-                    }
-                }
-            }
+        VStack(spacing: 20) {
+            // MARK: - TVA
+            GroupBox {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("Taux de TVA", systemImage: "percent")
+                        .font(.headline)
 
-            Section("Devise") {
-                Picker("Devise par defaut", selection: Binding(
-                    get: { company.deviseParDefaut },
-                    set: { newValue in
-                        company.deviseParDefaut = newValue
-                        if !newValue.requiresBlockchain {
-                            company.blockchainParDefaut = nil
-                        } else if company.blockchainParDefaut == nil {
-                            let compatible = Blockchain.compatibleBlockchains(for: newValue)
-                            company.blockchainParDefaut = compatible.first
+                    settingsRow("Taux par defaut") {
+                        Picker("", selection: Binding(
+                            get: { company.tauxTVAParDefaut },
+                            set: { company.tauxTVAParDefaut = $0; dataStore.save() }
+                        )) {
+                            ForEach(tauxTVAOptions, id: \.value) { option in
+                                Text(option.label).tag(option.value)
+                            }
                         }
-                        dataStore.save()
-                    }
-                )) {
-                    ForEach(CurrencyType.allCases) { devise in
-                        Text(devise.label).tag(devise)
+                        .labelsHidden()
+                        .frame(maxWidth: 200)
                     }
                 }
+                .padding(12)
+            }
 
-                if company.deviseParDefaut.requiresBlockchain {
-                    let compatible = Blockchain.compatibleBlockchains(for: company.deviseParDefaut)
+            // MARK: - Devise
+            GroupBox {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("Devise", systemImage: "dollarsign.circle")
+                        .font(.headline)
 
-                    Picker("Blockchain par defaut", selection: Binding(
-                        get: { company.blockchainParDefaut ?? compatible.first ?? .solana },
-                        set: { company.blockchainParDefaut = $0; dataStore.save() }
-                    )) {
-                        ForEach(compatible) { chain in
-                            Text(chain.label).tag(chain)
+                    settingsRow("Devise par defaut") {
+                        Picker("", selection: Binding(
+                            get: { company.deviseParDefaut },
+                            set: { newValue in
+                                company.deviseParDefaut = newValue
+                                if !newValue.requiresBlockchain {
+                                    company.blockchainParDefaut = nil
+                                } else if company.blockchainParDefaut == nil {
+                                    let compatible = Blockchain.compatibleBlockchains(for: newValue)
+                                    company.blockchainParDefaut = compatible.first
+                                }
+                                dataStore.save()
+                            }
+                        )) {
+                            ForEach(CurrencyType.allCases) { devise in
+                                Text(devise.label).tag(devise)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(maxWidth: 200)
+                    }
+
+                    if company.deviseParDefaut.requiresBlockchain {
+                        let compatible = Blockchain.compatibleBlockchains(for: company.deviseParDefaut)
+
+                        settingsRow("Blockchain par defaut") {
+                            Picker("", selection: Binding(
+                                get: { company.blockchainParDefaut ?? compatible.first ?? .solana },
+                                set: { company.blockchainParDefaut = $0; dataStore.save() }
+                            )) {
+                                ForEach(compatible) { chain in
+                                    Text(chain.label).tag(chain)
+                                }
+                            }
+                            .labelsHidden()
+                            .frame(maxWidth: 200)
                         }
                     }
                 }
+                .padding(12)
             }
 
-            Section("Delai de paiement") {
-                Stepper(
-                    "Delai : \(company.delaiPaiementJours) jours",
-                    value: Binding(
-                        get: { company.delaiPaiementJours },
-                        set: { company.delaiPaiementJours = $0; dataStore.save() }
-                    ),
-                    in: 0...120,
-                    step: 5
-                )
+            // MARK: - Delai de paiement
+            GroupBox {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("Delai de paiement", systemImage: "calendar.badge.clock")
+                        .font(.headline)
+
+                    HStack {
+                        Text("Delai par defaut")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Stepper(
+                            "\(company.delaiPaiementJours) jours",
+                            value: Binding(
+                                get: { company.delaiPaiementJours },
+                                set: { company.delaiPaiementJours = $0; dataStore.save() }
+                            ),
+                            in: 0...120,
+                            step: 5
+                        )
+                        .frame(maxWidth: 200)
+                    }
+                }
+                .padding(12)
             }
+
+            Spacer()
         }
-        .formStyle(.grouped)
+        .padding(24)
+    }
+
+    private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            content()
+        }
     }
 }

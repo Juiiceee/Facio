@@ -8,41 +8,81 @@ struct PaymentSettingsView: View {
     }
 
     var body: some View {
-        Form {
-            Section("Paiement Fiat") {
-                TextField("IBAN", text: Binding(
-                    get: { company.iban },
-                    set: { company.iban = $0; dataStore.save() }
-                ))
-                TextField("BIC", text: Binding(
-                    get: { company.bic },
-                    set: { company.bic = $0; dataStore.save() }
-                ))
-                TextField("Titulaire du compte", text: Binding(
-                    get: { company.titulaireCompte },
-                    set: { company.titulaireCompte = $0; dataStore.save() }
-                ))
+        VStack(spacing: 20) {
+            // MARK: - Paiement Fiat
+            GroupBox {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("Paiement Fiat", systemImage: "building.columns")
+                        .font(.headline)
+
+                    settingsRow("IBAN") {
+                        TextField("FR76 0000 0000 0000 0000 0000 000", text: Binding(
+                            get: { company.iban },
+                            set: { company.iban = $0; dataStore.save() }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                    }
+
+                    settingsRow("BIC") {
+                        TextField("BNPAFRPP", text: Binding(
+                            get: { company.bic },
+                            set: { company.bic = $0; dataStore.save() }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                    }
+
+                    settingsRow("Titulaire du compte") {
+                        TextField("Nom du titulaire", text: Binding(
+                            get: { company.titulaireCompte },
+                            set: { company.titulaireCompte = $0; dataStore.save() }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                    }
+                }
+                .padding(12)
             }
 
-            Section("Wallets Crypto") {
-                if company.wallets.isEmpty {
-                    Text("Aucun wallet configure")
-                        .foregroundStyle(.secondary)
-                        .italic()
-                }
+            // MARK: - Wallets Crypto
+            GroupBox {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("Wallets Crypto", systemImage: "wallet.pass")
+                        .font(.headline)
 
-                ForEach(company.wallets) { wallet in
-                    WalletRow(walletId: wallet.id, company: company, dataStore: dataStore)
-                }
+                    if company.wallets.isEmpty {
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .foregroundStyle(.secondary)
+                            Text("Aucun wallet configure")
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    }
 
-                Button {
-                    addWallet()
-                } label: {
-                    Label("Ajouter un wallet", systemImage: "plus.circle")
+                    ForEach(company.wallets) { wallet in
+                        WalletRow(walletId: wallet.id, company: company, dataStore: dataStore)
+                    }
+
+                    Button {
+                        addWallet()
+                    } label: {
+                        Label("Ajouter un wallet", systemImage: "plus.circle")
+                    }
                 }
+                .padding(12)
             }
+
+            Spacer()
         }
-        .formStyle(.grouped)
+        .padding(24)
+    }
+
+    private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            content()
+        }
     }
 
     private func addWallet() {
@@ -63,7 +103,7 @@ private struct WalletRow: View {
     }
 
     var body: some View {
-        if let wallet = company.wallets.first(where: { $0.id == walletId }) {
+        if company.wallets.contains(where: { $0.id == walletId }) {
             HStack(spacing: 12) {
                 Picker("Blockchain", selection: Binding(
                     get: { company.wallets.first(where: { $0.id == walletId })?.blockchain ?? .solana },
@@ -78,12 +118,13 @@ private struct WalletRow: View {
                 .labelsHidden()
                 .frame(width: 130)
 
-                TextField("Adresse", text: Binding(
+                TextField("Adresse du wallet", text: Binding(
                     get: { company.wallets.first(where: { $0.id == walletId })?.address ?? "" },
                     set: { newVal in
                         if let i = safeIndex() { company.wallets[i].address = newVal; dataStore.save() }
                     }
                 ))
+                .textFieldStyle(.roundedBorder)
 
                 Button {
                     company.wallets.removeAll { $0.id == walletId }

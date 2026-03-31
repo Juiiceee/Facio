@@ -24,20 +24,16 @@ struct TimesheetEditorView: View {
 
     private var resumeSection: some View {
         GroupBox("Resume — \(timesheet.moisLabel)") {
-            HStack(spacing: 0) {
+            LazyVGrid(columns: [
+                GridItem(.adaptive(minimum: 100, maximum: 160))
+            ], spacing: 12) {
                 resumeCard(title: "Total heures", value: "\(timesheet.totalHeures.formatted2Decimals)h", color: .primary)
-                Divider().frame(height: 50)
                 resumeCard(title: "Normales", value: "\(timesheet.totalHeuresNormales.formatted2Decimals)h", color: .blue)
-                Divider().frame(height: 50)
                 resumeCard(title: "Supplementaires", value: "\(timesheet.totalHeuresSupplementaires.formatted2Decimals)h",
                            color: timesheet.totalHeuresSupplementaires > 0 ? .orange : .secondary)
-                Divider().frame(height: 50)
                 resumeCard(title: "Cout normal", value: timesheet.coutNormal.formatted2Decimals, color: .secondary)
-                Divider().frame(height: 50)
                 resumeCard(title: "Cout sup.", value: timesheet.coutSupplementaire.formatted2Decimals, color: .secondary)
-                Divider().frame(height: 50)
                 resumeCard(title: "Total brut", value: timesheet.totalBrut.formatted2Decimals, color: .green)
-                Divider().frame(height: 50)
                 resumeCard(title: "Total net", value: timesheet.totalNet.formatted2Decimals, color: .green)
             }
             .padding(8)
@@ -55,6 +51,7 @@ struct TimesheetEditorView: View {
                 .foregroundStyle(color)
         }
         .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
     }
 
     // MARK: - Semaine
@@ -100,19 +97,16 @@ struct TimesheetEditorView: View {
                 Divider()
 
                 // Grille des jours
-                HStack(spacing: 6) {
+                HStack(spacing: 0) {
                     ForEach(Array(week.jours.enumerated()), id: \.offset) { dayIndex, jour in
                         let estDansMois = jour.mois == timesheet.mois
                         VStack(spacing: 4) {
-                            // Nom du jour
                             Text(jour.jourSemaine.shortLabel)
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
-                            // Date (numero du jour)
                             Text("\(jour.jourDuMois)")
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundStyle(estDansMois ? .primary : .tertiary)
-                            // Champ heures (6.30 = 6h30 → 6.5)
                             TimeField(
                                 placeholder: "0",
                                 value: Binding(
@@ -131,9 +125,9 @@ struct TimesheetEditorView: View {
                                     }
                                 )
                             )
-                            .frame(width: 58)
                             .opacity(estDansMois ? 1.0 : 0.5)
                         }
+                        .frame(maxWidth: .infinity)
                     }
                 }
             }
@@ -145,37 +139,36 @@ struct TimesheetEditorView: View {
 
     private var parametresSection: some View {
         GroupBox("Parametres de calcul") {
-            HStack(spacing: 24) {
-                LabeledContent("Seuil hebdo (h)") {
-                    DecimalField(placeholder: "35", value: Binding(
-                        get: { timesheet.seuilHebdo },
-                        set: { timesheet.seuilHebdo = $0; dataStore.save() }
-                    ))
-                    .frame(width: 70)
-                }
-                LabeledContent("Taux normal") {
-                    DecimalField(placeholder: "26,39", value: Binding(
-                        get: { timesheet.tauxNormal },
-                        set: { timesheet.tauxNormal = $0; dataStore.save() }
-                    ))
-                    .frame(width: 80)
-                }
-                LabeledContent("Taux sup.") {
-                    DecimalField(placeholder: "39,59", value: Binding(
-                        get: { timesheet.tauxSupplementaire },
-                        set: { timesheet.tauxSupplementaire = $0; dataStore.save() }
-                    ))
-                    .frame(width: 80)
-                }
-                LabeledContent("Coeff. net") {
-                    DecimalField(placeholder: "0,756", value: Binding(
-                        get: { timesheet.coefficientNet },
-                        set: { timesheet.coefficientNet = $0; dataStore.save() }
-                    ))
-                    .frame(width: 80)
-                }
+            LazyVGrid(columns: [
+                GridItem(.adaptive(minimum: 150, maximum: 250))
+            ], spacing: 12) {
+                settingsField("Seuil hebdo (h)", placeholder: "35", value: Binding(
+                    get: { timesheet.seuilHebdo },
+                    set: { timesheet.seuilHebdo = $0; dataStore.save() }
+                ))
+                settingsField("Taux normal", placeholder: "26,39", value: Binding(
+                    get: { timesheet.tauxNormal },
+                    set: { timesheet.tauxNormal = $0; dataStore.save() }
+                ))
+                settingsField("Taux sup.", placeholder: "39,59", value: Binding(
+                    get: { timesheet.tauxSupplementaire },
+                    set: { timesheet.tauxSupplementaire = $0; dataStore.save() }
+                ))
+                settingsField("Coeff. net", placeholder: "0,756", value: Binding(
+                    get: { timesheet.coefficientNet },
+                    set: { timesheet.coefficientNet = $0; dataStore.save() }
+                ))
             }
             .padding(8)
+        }
+    }
+
+    private func settingsField(_ label: String, placeholder: String, value: Binding<Decimal>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            DecimalField(placeholder: placeholder, value: value)
         }
     }
 }

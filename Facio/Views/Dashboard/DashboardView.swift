@@ -49,12 +49,9 @@ struct DashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                // Cartes statistiques
+                // Cartes statistiques — adaptive columns
                 LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible()),
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
+                    GridItem(.adaptive(minimum: 180, maximum: 300))
                 ], spacing: 16) {
                     StatCard(
                         title: "CA ce mois",
@@ -86,61 +83,73 @@ struct DashboardView: View {
                 Divider()
 
                 // Dernieres factures
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Dernieres factures")
-                        .font(.headline)
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Dernieres factures", systemImage: "doc.text")
+                            .font(.headline)
 
-                    if factures.isEmpty {
-                        Text("Aucune facture pour le moment.")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(factures.prefix(5)) { doc in
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(doc.number)
+                        if factures.isEmpty {
+                            Text("Aucune facture pour le moment.")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(factures.prefix(5)) { doc in
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(doc.number)
+                                            .fontWeight(.medium)
+                                        Text(doc.clientNom)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Text(doc.totalFormatted)
+                                        .font(.body.monospacedDigit())
                                         .fontWeight(.medium)
-                                    Text(doc.clientNom)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                    StatusBadge(status: doc.status)
                                 }
-                                Spacer()
-                                Text(doc.totalFormatted)
-                                    .fontWeight(.medium)
-                                StatusBadge(status: doc.status)
+                                .padding(.vertical, 4)
+                                if doc.id != factures.prefix(5).last?.id {
+                                    Divider()
+                                }
                             }
-                            .padding(.vertical, 4)
-                            Divider()
                         }
                     }
+                    .padding(8)
                 }
 
                 // Derniers devis
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Derniers devis")
-                        .font(.headline)
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Derniers devis", systemImage: "doc.text.magnifyingglass")
+                            .font(.headline)
 
-                    if devis.isEmpty {
-                        Text("Aucun devis pour le moment.")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(devis.prefix(5)) { doc in
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(doc.number)
+                        if devis.isEmpty {
+                            Text("Aucun devis pour le moment.")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(devis.prefix(5)) { doc in
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(doc.number)
+                                            .fontWeight(.medium)
+                                        Text(doc.clientNom)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Text(doc.totalFormatted)
+                                        .font(.body.monospacedDigit())
                                         .fontWeight(.medium)
-                                    Text(doc.clientNom)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                    StatusBadge(status: doc.status)
                                 }
-                                Spacer()
-                                Text(doc.totalFormatted)
-                                    .fontWeight(.medium)
-                                StatusBadge(status: doc.status)
+                                .padding(.vertical, 4)
+                                if doc.id != devis.prefix(5).last?.id {
+                                    Divider()
+                                }
                             }
-                            .padding(.vertical, 4)
-                            Divider()
                         }
                     }
+                    .padding(8)
                 }
             }
             .padding(24)
