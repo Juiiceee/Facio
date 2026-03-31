@@ -17,9 +17,9 @@ struct SyncState: Codable {
 // MARK: - Sync Config
 
 struct SyncConfig {
-    // DB partagee par defaut (hardcodee)
-    static let defaultURL = "https://qvfmbixidpuvbuzjrkaz.supabase.co"
-    static let defaultAPIKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2Zm1iaXhpZHB1dmJ1empya2F6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4ODA3MzAsImV4cCI6MjA5MDQ1NjczMH0.JB7eiSErTjT1Ex8TQZOSFkGM9mZIdhoMi-FIqSyUN0w"
+    // DB partagee par defaut — lue depuis ~/.facio_config
+    static var defaultURL: String { Secrets.supabaseURL }
+    static var defaultAPIKey: String { Secrets.supabaseAnonKey }
 
     // Cles UserDefaults
     private static let customURLKey = "supabase_custom_url"
