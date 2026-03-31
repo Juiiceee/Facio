@@ -167,6 +167,7 @@ struct CompanySettingsView: View {
 
         if panel.runModal() == .OK, let url = panel.url {
             if let data = try? Data(contentsOf: url) {
+                guard data.count <= 2_000_000 else { return }
                 company.logoData = data
                 dataStore.save()
             }
@@ -179,6 +180,7 @@ struct CompanySettingsView: View {
             guard let data = item as? Data,
                   let url = URL(dataRepresentation: data, relativeTo: nil),
                   let imageData = try? Data(contentsOf: url),
+                  imageData.count <= 2_000_000,
                   NSImage(data: imageData) != nil else { return }
 
             DispatchQueue.main.async {

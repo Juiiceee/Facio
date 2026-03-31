@@ -73,7 +73,8 @@ enum Blockchain: String, Codable, CaseIterable, Identifiable {
 
     /// Construit l'URL vers la transaction sur l'explorateur
     func explorerURL(signature: String) -> URL? {
-        URL(string: explorerTxBaseURL + signature)
+        guard let encoded = signature.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else { return nil }
+        return URL(string: explorerTxBaseURL + encoded)
     }
 
     /// Construit l'URL vers le wallet sur l'explorateur

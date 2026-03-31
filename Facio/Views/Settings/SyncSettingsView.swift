@@ -77,8 +77,8 @@ struct SyncSettingsView: View {
                                 Button("Verifier") {
                                     Task {
                                         await authService.verifyOTP(code: otpCode)
+                                        otpCode = ""
                                         if authService.isAuthenticated {
-                                            otpCode = ""
                                             await syncService.fullSync(dataStore: dataStore)
                                         }
                                     }

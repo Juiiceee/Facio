@@ -229,6 +229,7 @@ final class AuthService: Sendable {
         )
         if let data = try? JSONEncoder().encode(session) {
             try? data.write(to: sessionURL, options: .atomic)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: sessionURL.path)
         }
     }
 

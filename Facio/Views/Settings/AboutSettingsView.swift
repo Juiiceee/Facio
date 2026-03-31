@@ -192,7 +192,8 @@ struct AboutSettingsView: View {
         }
 
         let defaults = UserDefaults.standard
-        for key in ["facio_sync_enabled", "facio_user_id", "facio_user_email"] {
+        for key in ["facio_sync_enabled", "facio_user_id", "facio_user_email",
+                    "supabase_custom_url", "supabase_custom_api_key", "supabase_use_custom"] {
             defaults.removeObject(forKey: key)
         }
 

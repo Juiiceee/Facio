@@ -78,6 +78,7 @@ final class DataStore: Sendable {
         ensureStorageDirectory()
         if let data = try? encoder.encode(documents) {
             try? data.write(to: documentsFileURL, options: .atomic)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: documentsFileURL.path)
         }
         syncService?.markDirty("documents")
     }
@@ -86,6 +87,7 @@ final class DataStore: Sendable {
         ensureStorageDirectory()
         if let data = try? encoder.encode(clients) {
             try? data.write(to: clientsFileURL, options: .atomic)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: clientsFileURL.path)
         }
         syncService?.markDirty("clients")
     }
@@ -94,6 +96,7 @@ final class DataStore: Sendable {
         ensureStorageDirectory()
         if let data = try? encoder.encode(companyInfo) {
             try? data.write(to: companyFileURL, options: .atomic)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: companyFileURL.path)
         }
         syncService?.markDirty("company")
     }
@@ -102,6 +105,7 @@ final class DataStore: Sendable {
         ensureStorageDirectory()
         if let data = try? encoder.encode(timesheets) {
             try? data.write(to: timesheetsFileURL, options: .atomic)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: timesheetsFileURL.path)
         }
         syncService?.markDirty("timesheets")
     }
@@ -111,13 +115,25 @@ final class DataStore: Sendable {
         ensureStorageDirectory()
         switch key {
         case "documents":
-            if let data = try? encoder.encode(documents) { try? data.write(to: documentsFileURL, options: .atomic) }
+            if let data = try? encoder.encode(documents) {
+                try? data.write(to: documentsFileURL, options: .atomic)
+                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: documentsFileURL.path)
+            }
         case "clients":
-            if let data = try? encoder.encode(clients) { try? data.write(to: clientsFileURL, options: .atomic) }
+            if let data = try? encoder.encode(clients) {
+                try? data.write(to: clientsFileURL, options: .atomic)
+                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: clientsFileURL.path)
+            }
         case "company":
-            if let data = try? encoder.encode(companyInfo) { try? data.write(to: companyFileURL, options: .atomic) }
+            if let data = try? encoder.encode(companyInfo) {
+                try? data.write(to: companyFileURL, options: .atomic)
+                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: companyFileURL.path)
+            }
         case "timesheets":
-            if let data = try? encoder.encode(timesheets) { try? data.write(to: timesheetsFileURL, options: .atomic) }
+            if let data = try? encoder.encode(timesheets) {
+                try? data.write(to: timesheetsFileURL, options: .atomic)
+                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: timesheetsFileURL.path)
+            }
         default: break
         }
     }

@@ -159,6 +159,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
 
     /// Label du mois (ex: "Mars 2026")
     var moisLabel: String {
+        guard mois >= 1 && mois <= 12 else { return "Mois \(mois) \(annee)" }
         let f = DateFormatter()
         f.locale = Locale(identifier: "fr_FR")
         return "\(f.monthSymbols[mois - 1].capitalized) \(annee)"

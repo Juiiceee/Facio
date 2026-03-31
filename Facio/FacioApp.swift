@@ -45,7 +45,10 @@ struct FacioApp: App {
                 }
                 .onChange(of: networkMonitor.isConnected) { _, isConnected in
                     if isConnected && SyncConfig.isEnabled {
-                        Task { await syncService.pushAllDirty() }
+                        Task {
+                            await authService.refreshSession()
+                            await syncService.pushAllDirty()
+                        }
                     }
                 }
         }

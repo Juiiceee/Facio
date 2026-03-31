@@ -756,7 +756,8 @@ final class SyncService: Sendable {
 
     private func buildURL(path: String) -> URL? {
         let base = SyncConfig.url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return URL(string: "\(base)\(path)")
+        guard let url = URL(string: "\(base)\(path)"), url.scheme == "https" else { return nil }
+        return url
     }
 
     private func addHeaders(_ request: inout URLRequest, token: String? = nil) {
@@ -845,6 +846,7 @@ final class SyncService: Sendable {
       telephone TEXT NOT NULL DEFAULT '',
       email TEXT NOT NULL DEFAULT '',
       logo_data TEXT,
+      nom_banque TEXT NOT NULL DEFAULT '',
       iban TEXT NOT NULL DEFAULT '',
       bic TEXT NOT NULL DEFAULT '',
       titulaire_compte TEXT NOT NULL DEFAULT '',
@@ -862,7 +864,8 @@ final class SyncService: Sendable {
       user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
       company_id UUID NOT NULL REFERENCES company_info(id) ON DELETE CASCADE,
       blockchain_raw_value TEXT NOT NULL DEFAULT 'Solana',
-      address TEXT NOT NULL DEFAULT ''
+      address TEXT NOT NULL DEFAULT '',
+      label TEXT NOT NULL DEFAULT ''
     );
 
     -- 7. Prestations favorites
