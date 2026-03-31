@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.1](https://github.com/Juiiceee/Facio/compare/Facio-v1.4.0...Facio-v1.4.1) (2026-03-31)
+
+
+### Corrections de bugs
+
+* **ui:** fix "Deviss" typo and status badge truncation ([bb491b2](https://github.com/Juiiceee/Facio/commit/bb491b204b28cdc33ae219bf8006f533057e25b8))
+* **ui:** redesign settings and make entire app responsive ([5134005](https://github.com/Juiiceee/Facio/commit/51340055b5911122a606ded2917c3fd535b3f1cb))
+
+
+### Ameliorations
+
+* **ui:** replace Form/grouped style with GroupBox layout, add adaptive grids for dashboard and timesheet, reduce minimum window size to 900x600, use scrollable tab bar in settings ([5134005](https://github.com/Juiiceee/Facio/commit/51340055b5911122a606ded2917c3fd535b3f1cb))
+
 ## [1.4.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.3.0...Facio-v1.4.0) (2026-03-30)
 
 
