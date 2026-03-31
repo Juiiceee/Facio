@@ -21,13 +21,13 @@ struct ContentView: View {
             SidebarView(selection: $selectedSection)
         } content: {
             contentForSection
-                .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
+                .navigationSplitViewColumnWidth(min: 240, ideal: 300, max: 400)
         } detail: {
             detailForSection
-                .frame(minWidth: 600)
+                .frame(minWidth: 500)
         }
         .navigationSplitViewStyle(.balanced)
-        .frame(minWidth: 1200, minHeight: 700)
+        .frame(minWidth: 900, minHeight: 600)
         .onChange(of: selectedSection) {
             selectedDocumentId = nil
             selectedTimesheetId = nil

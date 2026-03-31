@@ -36,7 +36,7 @@ struct DocumentEditorView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 20) {
                 enTeteSection
                 datesSection
                 deviseSection
@@ -101,13 +101,19 @@ struct DocumentEditorView: View {
         GroupBox("En-tete") {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 16) {
-                    LabeledContent("Type") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Type")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                         Text(document.type.label)
                             .font(.headline)
                             .foregroundStyle(Color.appPrimary)
                     }
 
-                    LabeledContent("Numero") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Numero")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                         TextField("Numero", text: Binding(
                             get: { document.number },
                             set: { document.number = $0; scheduleSave() }
@@ -116,13 +122,17 @@ struct DocumentEditorView: View {
                         .frame(maxWidth: 250)
                     }
 
-                    LabeledContent("Statut") {
+                    Spacer()
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Statut")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                         Picker("Statut", selection: Binding(
                             get: { document.status },
                             set: { newStatus in
                                 document.status = newStatus
                                 dataStore.save()
-                                // Si on passe en Payee et crypto, proposer d'ajouter une signature
                                 if newStatus == .payee && document.currency.isCrypto
                                     && document.transactionSignatures.isEmpty {
                                     showAddSignature = true
@@ -233,17 +243,21 @@ struct DocumentEditorView: View {
 
     private var clientFields: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 16) {
-                LabeledContent("Nom") {
-                    TextField("Nom du client", text: Binding(
-                        get: { document.clientNom },
-                        set: { document.clientNom = $0; scheduleSave() }
-                    ))
-                    .textFieldStyle(.roundedBorder)
-                }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Nom")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                TextField("Nom du client", text: Binding(
+                    get: { document.clientNom },
+                    set: { document.clientNom = $0; scheduleSave() }
+                ))
+                .textFieldStyle(.roundedBorder)
             }
 
-            LabeledContent("Adresse") {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Adresse")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                 TextField("Adresse", text: Binding(
                     get: { document.clientAdresse },
                     set: { document.clientAdresse = $0; scheduleSave() }
@@ -252,7 +266,10 @@ struct DocumentEditorView: View {
             }
 
             HStack(spacing: 16) {
-                LabeledContent("Code postal") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Code postal")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                     TextField("Code postal", text: Binding(
                         get: { document.clientCodePostal },
                         set: { document.clientCodePostal = $0; scheduleSave() }
@@ -261,7 +278,10 @@ struct DocumentEditorView: View {
                     .frame(maxWidth: 120)
                 }
 
-                LabeledContent("Ville") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Ville")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                     TextField("Ville", text: Binding(
                         get: { document.clientVille },
                         set: { document.clientVille = $0; scheduleSave() }
@@ -648,7 +668,7 @@ private struct ClientPickerSheet: View {
                         HStack {
                             TextField("Code postal", text: $newCodePostal)
                                 .textFieldStyle(.roundedBorder)
-                                .frame(width: 100)
+                                .frame(maxWidth: 120)
                             TextField("Ville", text: $newVille)
                                 .textFieldStyle(.roundedBorder)
                         }

@@ -7,24 +7,138 @@ struct AboutSettingsView: View {
     @State private var resetDone = false
 
     private var appVersion: String {
-        // Lire depuis le bundle ou fallback
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.0"
     }
 
     var body: some View {
-        VStack(spacing: 24) {
-            // Header avec logo et version
-            appHeader
+        VStack(spacing: 20) {
+            // MARK: - Header
+            GroupBox {
+                HStack(spacing: 16) {
+                    Group {
+                        if let icon = NSApp.applicationIconImage {
+                            Image(nsImage: icon)
+                                .resizable()
+                                .frame(width: 64, height: 64)
+                        } else {
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(Color.purple.gradient)
+                                .frame(width: 64, height: 64)
+                                .overlay {
+                                    Text("F")
+                                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.white)
+                                }
+                        }
+                    }
 
-            Divider()
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Facio")
+                            .font(.title)
+                            .fontWeight(.bold)
 
-            // Liens
-            linksSection
+                        Text("Version \(appVersion)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
 
-            Divider()
+                        Text("Factures & devis professionnels")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
 
-            // Actions dangereuses
-            dangerZone
+                    Spacer()
+                }
+                .padding(12)
+            }
+
+            // MARK: - Liens
+            GroupBox {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("Liens", systemImage: "link")
+                        .font(.headline)
+
+                    HStack(spacing: 10) {
+                        linkButton(
+                            title: "Code source",
+                            icon: "chevron.left.forwardslash.chevron.right",
+                            url: "https://github.com/Juiiceee/Facio"
+                        )
+
+                        linkButton(
+                            title: "Releases",
+                            icon: "arrow.down.circle",
+                            url: "https://github.com/Juiiceee/Facio/releases"
+                        )
+
+                        linkButton(
+                            title: "Signaler un bug",
+                            icon: "ladybug",
+                            url: "https://github.com/Juiiceee/Facio/issues/new"
+                        )
+                    }
+                }
+                .padding(12)
+            }
+
+            // MARK: - Zone dangereuse
+            GroupBox {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("Zone dangereuse", systemImage: "exclamationmark.triangle")
+                        .font(.headline)
+                        .foregroundStyle(.red)
+
+                    HStack(spacing: 10) {
+                        Button {
+                            showResetAlert = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.counterclockwise")
+                                Text("Reinitialiser")
+                            }
+                            .font(.subheadline)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(.red.opacity(0.1))
+                            .foregroundStyle(.red)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Supprime toutes les donnees et remet Facio a zero")
+
+                        Button {
+                            showUninstallAlert = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "trash")
+                                Text("Desinstaller")
+                            }
+                            .font(.subheadline)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(.red.opacity(0.1))
+                            .foregroundStyle(.red)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Supprime toutes les donnees et ferme l'application")
+                    }
+
+                    if resetDone {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Text("Reinitialisation effectuee. Relancez Facio.")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
+                    }
+
+                    Text("Ces actions sont irreversibles. Assurez-vous d'avoir exporte vos documents importants.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(12)
+            }
 
             Spacer()
         }
@@ -43,151 +157,27 @@ struct AboutSettingsView: View {
         }
     }
 
-    // MARK: - Header
-
-    private var appHeader: some View {
-        HStack(spacing: 16) {
-            // Icone de l'app
-            Group {
-                if let icon = NSApp.applicationIconImage {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .frame(width: 64, height: 64)
-                } else {
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(Color.purple.gradient)
-                        .frame(width: 64, height: 64)
-                        .overlay {
-                            Text("F")
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                        }
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Facio")
-                    .font(.title)
-                    .fontWeight(.bold)
-
-                Text("Version \(appVersion)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Text("Factures & devis professionnels")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-
-            Spacer()
-        }
-    }
-
-    // MARK: - Liens
-
-    private var linksSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Liens")
-                .font(.headline)
-
-            HStack(spacing: 12) {
-                linkButton(
-                    title: "Code source",
-                    icon: "chevron.left.forwardslash.chevron.right",
-                    url: "https://github.com/Juiiceee/Facio"
-                )
-
-                linkButton(
-                    title: "Releases",
-                    icon: "arrow.down.circle",
-                    url: "https://github.com/Juiiceee/Facio/releases"
-                )
-
-                linkButton(
-                    title: "Signaler un bug",
-                    icon: "ladybug",
-                    url: "https://github.com/Juiiceee/Facio/issues/new"
-                )
-            }
-        }
-    }
+    // MARK: - Helpers
 
     private func linkButton(title: String, icon: String, url: String) -> some View {
         Link(destination: URL(string: url)!) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.caption)
+                    .font(.subheadline)
                 Text(title)
-                    .font(.caption)
+                    .font(.subheadline)
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(.quaternary)
-            .cornerRadius(8)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
-    }
-
-    // MARK: - Danger Zone
-
-    private var dangerZone: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Zone dangereuse")
-                .font(.headline)
-                .foregroundStyle(.red)
-
-            HStack(spacing: 12) {
-                Button {
-                    showResetAlert = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.counterclockwise")
-                        Text("Reinitialiser")
-                    }
-                    .font(.caption)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(.red.opacity(0.1))
-                    .foregroundStyle(.red)
-                    .cornerRadius(8)
-                }
-                .buttonStyle(.plain)
-                .help("Supprime toutes les donnees et remet Facio a zero")
-
-                Button {
-                    showUninstallAlert = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "trash")
-                        Text("Desinstaller")
-                    }
-                    .font(.caption)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(.red.opacity(0.1))
-                    .foregroundStyle(.red)
-                    .cornerRadius(8)
-                }
-                .buttonStyle(.plain)
-                .help("Supprime toutes les donnees et ferme l'application")
-            }
-
-            if resetDone {
-                Text("Reinitialisation effectuee. Relancez Facio.")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-            }
-
-            Text("Ces actions sont irreversibles. Assurez-vous d'avoir exporte vos documents importants.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-        }
     }
 
     // MARK: - Actions
 
     private func resetApp() {
-        // Supprimer tous les fichiers de donnees
         let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
             .appendingPathComponent("Facio", isDirectory: true)
 
@@ -201,29 +191,24 @@ struct AboutSettingsView: View {
             try? FileManager.default.removeItem(at: url)
         }
 
-        // Nettoyer UserDefaults
         let defaults = UserDefaults.standard
         for key in ["facio_sync_enabled", "facio_user_id", "facio_user_email", "facio_is_anonymous"] {
             defaults.removeObject(forKey: key)
         }
 
-        // Recharger le DataStore
         dataStore.resetAll()
         resetDone = true
     }
 
     private func uninstallApp() {
-        // Supprimer le dossier de donnees
         let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
             .appendingPathComponent("Facio", isDirectory: true)
         try? FileManager.default.removeItem(at: supportDir)
 
-        // Nettoyer UserDefaults
         if let bundleId = Bundle.main.bundleIdentifier {
             UserDefaults.standard.removePersistentDomain(forName: bundleId)
         }
 
-        // Quitter
         NSApplication.shared.terminate(nil)
     }
 }

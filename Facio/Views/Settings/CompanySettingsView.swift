@@ -10,65 +10,115 @@ struct CompanySettingsView: View {
     @State private var isDropTargeted = false
 
     var body: some View {
-        Form {
-            Section("Identite") {
-                TextField("Nom", text: Binding(
-                    get: { company.nom },
-                    set: { company.nom = $0; dataStore.save() }
-                ))
-                TextField("Adresse", text: Binding(
-                    get: { company.adresse },
-                    set: { company.adresse = $0; dataStore.save() }
-                ))
-                HStack {
-                    TextField("Code postal", text: Binding(
-                        get: { company.codePostal },
-                        set: { company.codePostal = $0; dataStore.save() }
-                    ))
-                    .frame(width: 120)
-                    TextField("Ville", text: Binding(
-                        get: { company.ville },
-                        set: { company.ville = $0; dataStore.save() }
-                    ))
+        VStack(spacing: 20) {
+            // MARK: - Identite
+            GroupBox {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("Identite", systemImage: "building.2")
+                        .font(.headline)
+
+                    settingsRow("Nom") {
+                        TextField("Nom de l'entreprise", text: Binding(
+                            get: { company.nom },
+                            set: { company.nom = $0; dataStore.save() }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                    }
+
+                    settingsRow("Adresse") {
+                        TextField("Adresse postale", text: Binding(
+                            get: { company.adresse },
+                            set: { company.adresse = $0; dataStore.save() }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                    }
+
+                    HStack(spacing: 12) {
+                        settingsRow("Code postal") {
+                            TextField("54000", text: Binding(
+                                get: { company.codePostal },
+                                set: { company.codePostal = $0; dataStore.save() }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+                            .frame(maxWidth: 120)
+                        }
+
+                        settingsRow("Ville") {
+                            TextField("Ville", text: Binding(
+                                get: { company.ville },
+                                set: { company.ville = $0; dataStore.save() }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+                        }
+                    }
+
+                    settingsRow("SIRET") {
+                        TextField("000 000 000 00000", text: Binding(
+                            get: { company.siret },
+                            set: { company.siret = $0; dataStore.save() }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                    }
                 }
-                TextField("SIRET", text: Binding(
-                    get: { company.siret },
-                    set: { company.siret = $0; dataStore.save() }
-                ))
+                .padding(12)
             }
 
-            Section("Contact") {
-                TextField("Telephone", text: Binding(
-                    get: { company.telephone },
-                    set: { company.telephone = $0; dataStore.save() }
-                ))
-                TextField("Email", text: Binding(
-                    get: { company.email },
-                    set: { company.email = $0; dataStore.save() }
-                ))
+            // MARK: - Contact
+            GroupBox {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("Contact", systemImage: "phone")
+                        .font(.headline)
+
+                    settingsRow("Telephone") {
+                        TextField("06 00 00 00 00", text: Binding(
+                            get: { company.telephone },
+                            set: { company.telephone = $0; dataStore.save() }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                    }
+
+                    settingsRow("Email") {
+                        TextField("contact@entreprise.fr", text: Binding(
+                            get: { company.email },
+                            set: { company.email = $0; dataStore.save() }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                    }
+                }
+                .padding(12)
             }
 
-            Section("Logo") {
-                VStack(spacing: 12) {
+            // MARK: - Logo
+            GroupBox {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("Logo", systemImage: "photo")
+                        .font(.headline)
+
                     if let logoData = company.logoData,
                        let nsImage = NSImage(data: logoData) {
-                        Image(nsImage: nsImage)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxHeight: 80)
-                            .cornerRadius(8)
+                        HStack(spacing: 16) {
+                            Image(nsImage: nsImage)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: 100, maxHeight: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                        Button("Supprimer le logo", role: .destructive) {
-                            company.logoData = nil
-                            dataStore.save()
+                            VStack(alignment: .leading, spacing: 8) {
+                                Button("Choisir un autre fichier...") {
+                                    pickLogoFile()
+                                }
+                                Button("Supprimer le logo", role: .destructive) {
+                                    company.logoData = nil
+                                    dataStore.save()
+                                }
+                                .foregroundStyle(.red)
+                            }
                         }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.red)
                     } else {
                         ZStack {
                             RoundedRectangle(cornerRadius: 8)
                                 .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6]))
-                                .foregroundStyle(isDropTargeted ? .blue : .secondary)
+                                .foregroundStyle(isDropTargeted ? .blue : .secondary.opacity(0.5))
                                 .frame(height: 80)
 
                             VStack(spacing: 4) {
@@ -83,16 +133,30 @@ struct CompanySettingsView: View {
                         .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
                             handleDrop(providers: providers)
                         }
-                    }
 
-                    Button("Choisir un fichier...") {
-                        pickLogoFile()
+                        Button("Choisir un fichier...") {
+                            pickLogoFile()
+                        }
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(12)
             }
+
+            Spacer()
         }
-        .formStyle(.grouped)
+        .padding(24)
+    }
+
+    // MARK: - Helpers
+
+    /// Ligne label + champ alignee
+    private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            content()
+        }
     }
 
     private func pickLogoFile() {

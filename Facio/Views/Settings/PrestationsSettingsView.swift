@@ -8,33 +8,67 @@ struct PrestationsSettingsView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
+        VStack(spacing: 20) {
+            // Info
+            HStack(spacing: 8) {
+                Image(systemName: "info.circle")
+                    .foregroundStyle(.secondary)
                 Text("Configurez vos prestations habituelles pour les ajouter en un clic lors de la creation de factures et devis.")
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
-            Section("Prestations favorites") {
-                if company.prestations.isEmpty {
-                    Text("Aucune prestation configuree")
+            // MARK: - Prestations
+            GroupBox {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("Prestations favorites", systemImage: "star")
+                        .font(.headline)
+
+                    if company.prestations.isEmpty {
+                        HStack {
+                            Image(systemName: "tray")
+                                .foregroundStyle(.secondary)
+                            Text("Aucune prestation configuree")
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    }
+
+                    // Header
+                    if !company.prestations.isEmpty {
+                        HStack(spacing: 10) {
+                            Text("Designation")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Text("Prix")
+                                .frame(width: 80, alignment: .trailing)
+                            Text("TVA")
+                                .frame(width: 75, alignment: .center)
+                            Spacer().frame(width: 28)
+                        }
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                        .italic()
-                }
+                        .padding(.horizontal, 4)
 
-                ForEach(company.prestations) { preset in
-                    PrestationRow(presetId: preset.id, company: company, dataStore: dataStore)
-                }
+                        Divider()
+                    }
 
-                Button {
-                    company.prestations.append(DesignationPreset())
-                    dataStore.save()
-                } label: {
-                    Label("Ajouter une prestation", systemImage: "plus.circle")
+                    ForEach(company.prestations) { preset in
+                        PrestationRow(presetId: preset.id, company: company, dataStore: dataStore)
+                    }
+
+                    Button {
+                        company.prestations.append(DesignationPreset())
+                        dataStore.save()
+                    } label: {
+                        Label("Ajouter une prestation", systemImage: "plus.circle")
+                    }
                 }
+                .padding(12)
             }
+
+            Spacer()
         }
-        .formStyle(.grouped)
+        .padding(24)
     }
 }
 
@@ -59,6 +93,7 @@ private struct PrestationRow: View {
                         if let i = safeIndex() { company.prestations[i].designation = newVal; dataStore.save() }
                     }
                 ))
+                .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: .infinity)
 
                 DecimalField(
