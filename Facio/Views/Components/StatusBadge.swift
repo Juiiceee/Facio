@@ -12,5 +12,6 @@ struct StatusBadge: View {
             .background(Color.statusColor(for: status).opacity(0.15))
             .foregroundStyle(Color.statusColor(for: status))
             .clipShape(Capsule())
+            .fixedSize()
     }
 }

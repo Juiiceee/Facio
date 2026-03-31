@@ -56,7 +56,7 @@ struct DocumentListView: View {
                     }
                 }
         }
-        .navigationTitle(documentType.label + "s")
+        .navigationTitle(documentType == .devis ? "Devis" : "Factures")
         .searchable(text: $searchText, prompt: "Rechercher par numero ou client")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
