@@ -8,10 +8,9 @@ struct SyncSettingsView: View {
     @State private var customAPIKey = SyncConfig.customAPIKey
     @State private var showApiKey = false
 
-    // Auth email
+    // Auth OTP
     @State private var email = ""
-    @State private var password = ""
-    @State private var isSignUp = false
+    @State private var otpCode = ""
     @State private var showSQL = false
 
     var syncService: SyncService
@@ -59,43 +58,74 @@ struct SyncSettingsView: View {
                                     .foregroundStyle(.red)
                                     .buttonStyle(.borderless)
                             }
-                        } else {
-                            // Login / Signup form
-                            Picker("", selection: $isSignUp) {
-                                Text("Connexion").tag(false)
-                                Text("Inscription").tag(true)
+                        } else if authService.awaitingOTP {
+                            // Step 2: Enter OTP code
+                            HStack(spacing: 6) {
+                                Image(systemName: "envelope.badge")
+                                    .foregroundStyle(.blue)
+                                Text("Un code a 6 chiffres a ete envoye a **\(authService.pendingEmail)**")
+                                    .font(.subheadline)
                             }
-                            .pickerStyle(.segmented)
-                            .frame(maxWidth: 250)
+
+                            settingsRow("Code de verification") {
+                                TextField("123456", text: $otpCode)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(maxWidth: 200)
+                            }
+
+                            HStack(spacing: 12) {
+                                Button("Verifier") {
+                                    Task {
+                                        await authService.verifyOTP(code: otpCode)
+                                        if authService.isAuthenticated {
+                                            otpCode = ""
+                                            await syncService.fullSync(dataStore: dataStore)
+                                        }
+                                    }
+                                }
+                                .disabled(otpCode.count < 6 || authService.isLoading)
+
+                                Button("Renvoyer le code") {
+                                    Task { await authService.sendOTP(email: authService.pendingEmail) }
+                                }
+                                .buttonStyle(.borderless)
+                                .disabled(authService.isLoading)
+
+                                Button("Annuler") {
+                                    authService.cancelOTP()
+                                    otpCode = ""
+                                }
+                                .buttonStyle(.borderless)
+                                .foregroundStyle(.secondary)
+                            }
+
+                            if authService.isLoading {
+                                HStack {
+                                    ProgressView().scaleEffect(0.7)
+                                    Text("Verification...")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        } else {
+                            // Step 1: Enter email
+                            Text("Entrez votre email pour recevoir un code de connexion.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
 
                             settingsRow("Email") {
                                 TextField("email@exemple.com", text: $email)
                                     .textFieldStyle(.roundedBorder)
                             }
 
-                            settingsRow("Mot de passe") {
-                                SecureField("Min 6 caracteres", text: $password)
-                                    .textFieldStyle(.roundedBorder)
+                            Button("Recevoir un code") {
+                                Task { await authService.sendOTP(email: email) }
                             }
-
-                            Button(isSignUp ? "Creer le compte" : "Se connecter") {
-                                Task {
-                                    if isSignUp {
-                                        await authService.signUp(email: email, password: password)
-                                    } else {
-                                        await authService.signIn(email: email, password: password)
-                                    }
-                                    if authService.isAuthenticated {
-                                        await syncService.fullSync(dataStore: dataStore)
-                                    }
-                                }
-                            }
-                            .disabled(email.isEmpty || password.count < 6 || authService.isLoading)
+                            .disabled(email.isEmpty || !email.contains("@") || authService.isLoading)
 
                             if authService.isLoading {
                                 HStack {
                                     ProgressView().scaleEffect(0.7)
-                                    Text("Connexion en cours...")
+                                    Text("Envoi du code...")
                                         .foregroundStyle(.secondary)
                                 }
                             }

@@ -9,8 +9,8 @@ private struct SessionData: Codable {
     var userEmail: String = ""
 }
 
-/// Gere l'authentification Supabase
-/// Email + mot de passe uniquement. Sync opt-in, local par defaut.
+/// Gere l'authentification Supabase via OTP (code par email).
+/// Sync opt-in, local par defaut.
 @Observable
 @MainActor
 final class AuthService: Sendable {
@@ -21,6 +21,11 @@ final class AuthService: Sendable {
     var refreshToken: String = ""
     var error: String?
     var isLoading: Bool = false
+
+    /// true apres envoi du code OTP, en attente de verification
+    var awaitingOTP: Bool = false
+    /// Email pour lequel on attend le code
+    var pendingEmail: String = ""
 
     private let sessionURL: URL
 
@@ -41,19 +46,23 @@ final class AuthService: Sendable {
         }
     }
 
-    // MARK: - Email Auth
+    // MARK: - OTP : Envoyer le code
 
-    func signUp(email: String, password: String) async {
+    /// Envoie un code OTP a 6 chiffres par email via Supabase
+    func sendOTP(email: String) async {
         guard SyncConfig.isConfigured else {
             error = "Configuration Supabase manquante"
             return
         }
-        guard let url = buildURL(path: "/auth/v1/signup") else { return }
+        guard let url = buildURL(path: "/auth/v1/otp") else { return }
 
         isLoading = true
         error = nil
 
-        let body: [String: String] = ["email": email, "password": password]
+        let body: [String: Any] = [
+            "email": email,
+            "create_user": true,
+        ]
         guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
             isLoading = false
             return
@@ -72,15 +81,14 @@ final class AuthService: Sendable {
             guard let httpResponse = response as? HTTPURLResponse else { return }
 
             if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    handleAuthResponse(json)
-                }
+                pendingEmail = email
+                awaitingOTP = true
             } else {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let msg = json["msg"] as? String ?? json["error_description"] as? String ?? json["message"] as? String {
                     error = msg
                 } else {
-                    error = "Erreur d'inscription (HTTP \(httpResponse.statusCode))"
+                    error = "Erreur d'envoi du code (HTTP \(httpResponse.statusCode))"
                 }
             }
         } catch {
@@ -89,17 +97,24 @@ final class AuthService: Sendable {
         }
     }
 
-    func signIn(email: String, password: String) async {
+    // MARK: - OTP : Verifier le code
+
+    /// Verifie le code OTP saisi par l'utilisateur
+    func verifyOTP(code: String) async {
         guard SyncConfig.isConfigured else {
             error = "Configuration Supabase manquante"
             return
         }
-        guard let url = buildURL(path: "/auth/v1/token?grant_type=password") else { return }
+        guard let url = buildURL(path: "/auth/v1/verify") else { return }
 
         isLoading = true
         error = nil
 
-        let body: [String: String] = ["email": email, "password": password]
+        let body: [String: Any] = [
+            "email": pendingEmail,
+            "token": code,
+            "type": "email",
+        ]
         guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
             isLoading = false
             return
@@ -120,19 +135,29 @@ final class AuthService: Sendable {
             if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     handleAuthResponse(json)
+                    awaitingOTP = false
+                    pendingEmail = ""
                 }
             } else {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let msg = json["msg"] as? String ?? json["error_description"] as? String ?? json["message"] as? String {
                     error = msg
                 } else {
-                    error = "Email ou mot de passe incorrect"
+                    error = "Code invalide ou expire"
                 }
             }
         } catch {
             isLoading = false
             self.error = error.localizedDescription
         }
+    }
+
+    // MARK: - Annuler OTP
+
+    func cancelOTP() {
+        awaitingOTP = false
+        pendingEmail = ""
+        error = nil
     }
 
     // MARK: - Refresh Token
@@ -156,7 +181,6 @@ final class AuthService: Sendable {
                   httpResponse.statusCode >= 200 && httpResponse.statusCode < 300,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             else {
-                // Token expire — deconnexion
                 signOut()
                 return
             }
@@ -174,6 +198,8 @@ final class AuthService: Sendable {
         userId = ""
         userEmail = ""
         isAuthenticated = false
+        awaitingOTP = false
+        pendingEmail = ""
         try? FileManager.default.removeItem(at: sessionURL)
     }
 
