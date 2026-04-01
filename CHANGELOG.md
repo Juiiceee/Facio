@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.5.1](https://github.com/Juiiceee/Facio/compare/Facio-v1.5.0...Facio-v1.5.1) (2026-04-01)
+
+
+### Corrections de bugs
+
+* **crypto:** allow wallet selection when multiple on same chain ([38b83fb](https://github.com/Juiiceee/Facio/commit/38b83fb610d0ccdbf89121c2487c632e94193da5))
+* **pdf:** remove wallet label from PDF output ([c17a14a](https://github.com/Juiiceee/Facio/commit/c17a14a9247c8e479e95392a1f8811d86ff01610))
+* **security:** harden file permissions, input validation and auth flow ([885801f](https://github.com/Juiiceee/Facio/commit/885801f3f8983d957a013e2756a82e03772dbb48))
+* **sync:** add missing wallet label, bank name and wallet id fields ([2d39cf7](https://github.com/Juiiceee/Facio/commit/2d39cf77c4bccb3563d27cb3ff9275a8d8c8c089))
+
+
+### Refactorings
+
+* migrate config to .env, remove unused files and dead code ([ccce71c](https://github.com/Juiiceee/Facio/commit/ccce71c7d3df7be64685611a3faa4658ef6b4930))
+
+
+### Ameliorations
+
+* **settings:** add wallet label and bank name fields ([dc6d80a](https://github.com/Juiiceee/Facio/commit/dc6d80a0fac7becf2b05efdf0128e4a812f559ba))
+* **timesheet:** add month picker and auto-repair truncated weeks ([e8b5247](https://github.com/Juiiceee/Facio/commit/e8b5247058b3792a271597a70087eb5de7bd6689))
+
 ## [1.5.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.4.1...Facio-v1.5.0) (2026-03-31)
 
 
