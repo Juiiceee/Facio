@@ -33,7 +33,7 @@ struct CompanySettingsView: View {
                         .textFieldStyle(.roundedBorder)
                     }
 
-                    HStack(spacing: 12) {
+                    HStack(alignment: .top, spacing: 12) {
                         settingsRow(L10n.postalCode(lang)) {
                             TextField("54000", text: Binding(
                                 get: { company.codePostal },

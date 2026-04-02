@@ -23,7 +23,7 @@ struct ContentView: View {
             SidebarView(selection: $selectedSection)
         } content: {
             contentForSection
-                .navigationSplitViewColumnWidth(min: 240, ideal: 300, max: 400)
+                .navigationSplitViewColumnWidth(min: 300, ideal: 320, max: 400)
         } detail: {
             detailForSection
                 .frame(minWidth: 500)

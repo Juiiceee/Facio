@@ -21,7 +21,7 @@ struct FacioApp: App {
                 .environment(syncService)
                 .environment(authService)
                 .environment(networkMonitor)
-                .frame(minWidth: 1100, minHeight: 650)
+                .frame(minWidth: 1200, minHeight: 650)
                 .alert("Bienvenue sur Facio !", isPresented: $showFirstLaunch) {
                     Button("Compris") {
                         UserDefaults.standard.set(true, forKey: "facio_has_launched")

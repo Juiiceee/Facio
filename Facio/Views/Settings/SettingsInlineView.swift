@@ -35,31 +35,39 @@ struct SettingsInlineView: View {
             .padding(.top, 20)
             .padding(.bottom, 12)
 
-            // Tab bar — wraps on narrow windows
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 4) {
-                    ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                selectedTab = index
+            // Tab bar — scrollable with auto-scroll to selected tab
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    selectedTab = index
+                                }
+                            } label: {
+                                Label(tab.label, systemImage: tab.icon)
+                                    .font(.subheadline)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 7)
+                                    .background(
+                                        selectedTab == index
+                                            ? Color.accentColor.opacity(0.12)
+                                            : Color.clear
+                                    )
+                                    .foregroundStyle(selectedTab == index ? .primary : .secondary)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
                             }
-                        } label: {
-                            Label(tab.label, systemImage: tab.icon)
-                                .font(.subheadline)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 7)
-                                .background(
-                                    selectedTab == index
-                                        ? Color.accentColor.opacity(0.12)
-                                        : Color.clear
-                                )
-                                .foregroundStyle(selectedTab == index ? .primary : .secondary)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .buttonStyle(.plain)
+                            .id(index)
                         }
-                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 24)
+                }
+                .onChange(of: selectedTab) { _, newValue in
+                    withAnimation {
+                        proxy.scrollTo(newValue, anchor: .center)
                     }
                 }
-                .padding(.horizontal, 24)
             }
             .padding(.bottom, 12)
 
@@ -79,6 +87,6 @@ struct SettingsInlineView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(minWidth: 700, maxWidth: .infinity, maxHeight: .infinity)
     }
 }

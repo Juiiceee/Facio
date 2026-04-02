@@ -105,11 +105,8 @@ struct ClientDetailView: View {
             Section(L10n.information(lang)) {
                 TextField(L10n.name(lang), text: Bindable(client).nom)
                 TextField(L10n.address(lang), text: Bindable(client).adresse)
-                HStack {
-                    TextField(L10n.postalCode(lang), text: Bindable(client).codePostal)
-                        .frame(width: 100)
-                    TextField(L10n.city(lang), text: Bindable(client).ville)
-                }
+                TextField(L10n.postalCode(lang), text: Bindable(client).codePostal)
+                TextField(L10n.city(lang), text: Bindable(client).ville)
                 TextField(L10n.email(lang), text: Bindable(client).email)
             }
         }

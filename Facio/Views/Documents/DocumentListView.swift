@@ -136,6 +136,7 @@ struct DocumentRowView: View {
                 HStack {
                     Text(document.number)
                         .font(.headline)
+                        .lineLimit(1)
                     Spacer()
                     StatusBadge(status: document.status)
                 }
@@ -144,17 +145,20 @@ struct DocumentRowView: View {
                     Text(document.clientNom.isEmpty ? L10n.noClient(lang) : document.clientNom)
                         .font(.subheadline)
                         .foregroundStyle(document.clientNom.isEmpty ? .tertiary : .secondary)
+                        .lineLimit(1)
                     Spacer()
                     Text(document.dateCreation.frenchFormatted)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
             }
 
             Text(document.totalFormatted)
                 .font(.body.monospacedDigit())
                 .fontWeight(.medium)
-                .frame(minWidth: 100, alignment: .trailing)
+                .lineLimit(1)
+                .frame(minWidth: 80, alignment: .trailing)
         }
         .padding(.vertical, 4)
     }
