@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.6.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.5.1...Facio-v1.6.0) (2026-04-02)
+
+
+### Nouvelles fonctionnalites
+
+* **i18n:** add FR/EN language support per document and UI ([6c9eea6](https://github.com/Juiiceee/Facio/commit/6c9eea6c01826bef9c3bdd017c6fe892e4b3374c))
+* **settings:** add Customisation tab with theme color picker ([4c7a524](https://github.com/Juiiceee/Facio/commit/4c7a5248fa594794ec17354d2b12815101f6a371))
+
+
+### Corrections de bugs
+
+* **sync:** prevent reset from deleting remote data on next sync ([7208240](https://github.com/Juiiceee/Facio/commit/720824020e741d4a7601e03da971a6cb20250f7e))
+* **ui:** improve responsive layout and minimum window sizing ([715aed7](https://github.com/Juiiceee/Facio/commit/715aed751c0740f6ee515c9e5d5f21e9d29873c6))
+
+
+### Refactorings
+
+* **i18n:** split L10n.swift into domain-specific extensions ([5efe5af](https://github.com/Juiiceee/Facio/commit/5efe5afcb3dd0315f0b9bd18fb43ede7f9aa0f58))
+
 ## [1.5.1](https://github.com/Juiiceee/Facio/compare/Facio-v1.5.0...Facio-v1.5.1) (2026-04-01)
 
 
