@@ -33,12 +33,26 @@ cat > "$STAGING/README.txt" << 'README'
 ║     → Click "Open Anyway" next to the Facio message      ║
 ║     → Confirm by clicking "Open"                         ║
 ║                                                          ║
+║     Or double-click "Open Security Settings" in this     ║
+║     window to go there directly.                         ║
+║                                                          ║
 ║     Alternative (Terminal):                              ║
 ║     xattr -cr /Applications/Facio.app                    ║
 ║     Then launch Facio normally.                          ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
 README
+
+# Create a small app that opens Privacy & Security settings directly
+osacompile -o "$STAGING/Open Security Settings.app" \
+  -e 'do shell script "open \"x-apple.systempreferences:com.apple.settings.PrivacySecurity\""'
+
+# Set gear icon for the Security Settings app
+GEAR_ICON="/System/Applications/System Settings.app/Contents/Resources/SystemSettings.icns"
+if [ -f "$GEAR_ICON" ]; then
+  rm -f "$STAGING/Open Security Settings.app/Contents/Resources/Assets.car"
+  cp "$GEAR_ICON" "$STAGING/Open Security Settings.app/Contents/Resources/applet.icns"
+fi
 
 # Creer le DMG
 hdiutil create -volname "Facio — Glissez vers Applications" \
