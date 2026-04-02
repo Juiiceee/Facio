@@ -16,26 +16,28 @@ mkdir -p "$STAGING"
 cp -r "dist/${APP_NAME}.app" "$STAGING/"
 ln -s /Applications "$STAGING/Applications"
 
-# Creer le README d'installation
-cat > "$STAGING/LISEZ-MOI.txt" << 'README'
-╔═══════════════════════════════════════════════════════╗
-║                  INSTALLER FACIO                       ║
-╠═══════════════════════════════════════════════════════╣
-║                                                        ║
-║  1. Glissez Facio.app vers le dossier Applications     ║
-║                                                        ║
-║  2. Au premier lancement, macOS peut bloquer l'app.    ║
-║     C'est normal (l'app n'est pas encore certifiee).   ║
-║                                                        ║
-║     Pour l'ouvrir :                                    ║
-║     → Clic droit sur Facio.app > Ouvrir                ║
-║     → Cliquez "Ouvrir" dans la fenetre de confirmation ║
-║                                                        ║
-║     Si ca ne marche pas, ouvrez le Terminal et tapez : ║
-║     xattr -cr /Applications/Facio.app                  ║
-║     Puis relancez Facio normalement.                   ║
-║                                                        ║
-╚═══════════════════════════════════════════════════════╝
+# Create the installation README
+cat > "$STAGING/README.txt" << 'README'
+╔══════════════════════════════════════════════════════════╗
+║                    INSTALL FACIO                         ║
+╠══════════════════════════════════════════════════════════╣
+║                                                          ║
+║  1. Drag Facio.app into the Applications folder          ║
+║                                                          ║
+║  2. macOS will block the app on first launch.            ║
+║     This is normal — the app is not signed yet.          ║
+║                                                          ║
+║     To authorize it:                                     ║
+║     → Open System Settings > Privacy & Security          ║
+║     → Scroll down to the Security section                ║
+║     → Click "Open Anyway" next to the Facio message      ║
+║     → Confirm by clicking "Open"                         ║
+║                                                          ║
+║     Alternative (Terminal):                              ║
+║     xattr -cr /Applications/Facio.app                    ║
+║     Then launch Facio normally.                          ║
+║                                                          ║
+╚══════════════════════════════════════════════════════════╝
 README
 
 # Creer le DMG

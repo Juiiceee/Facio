@@ -1,31 +1,48 @@
 # Facio
 
-Application macOS native pour creer et gerer des factures et devis professionnels en PDF.
+Native macOS app to create and manage professional invoices and quotes as PDF.
 
-## Fonctionnalites
+## Features
 
-- **Factures & Devis** — creation, duplication, conversion devis → facture
-- **Multi-devises** — EUR, USD, USDC, USDT, BTC, ETH
-- **Paiement flexible** — virement bancaire (IBAN), crypto (wallet multi-chain), ou aucun
-- **Export PDF** — rendu professionnel avec apercu integre
-- **Prestations favorites** — designations pre-enregistrees en un clic
-- **Carnet de clients** — sauvegarde et reutilisation des infos clients
-- **Persistance locale** — toutes les donnees restent sur votre Mac
-- **Preuves de paiement** — signatures de transactions blockchain avec liens explorateurs
+- **Invoices & Quotes** — create, duplicate, convert quote to invoice
+- **Multi-currency** — EUR, USD, USDC, USDT, BTC, ETH
+- **Flexible payment** — bank transfer (IBAN), crypto (multi-chain wallet), or none
+- **PDF export** — professional rendering with built-in preview
+- **Favorite line items** — pre-saved designations insertable in one click
+- **Client directory** — save and reuse client info
+- **Timesheet** — weekly hour tracking with overtime calculation (35h threshold)
+- **Local persistence** — all data stays on your Mac
+- **Payment proofs** — blockchain transaction signatures with explorer links
 
 ## Installation
 
-### Depuis les releases
+### Download the .dmg
 
-Telecharger le `.dmg` depuis la [page Releases](https://github.com/Juiiceee/Facio/releases), ouvrir et glisser Facio dans Applications.
+1. Go to the [Releases page](https://github.com/Juiiceee/Facio/releases)
+2. Download the latest `.dmg` file
+3. Open the `.dmg` and drag **Facio.app** into your **Applications** folder
 
-> **Note :** L'app n'est pas signee avec un certificat Apple Developer. Au premier lancement macOS peut la bloquer. Pour l'ouvrir :
-> ```bash
-> xattr -cr /Applications/Facio.app
-> ```
-> Ou : clic droit sur Facio.app → **Ouvrir** (au lieu de double-clic).
+### Authorize the app
 
-### Depuis les sources
+Facio is not signed with an Apple Developer certificate. macOS will block it on first launch — this is normal.
+
+**To authorize it:**
+
+1. Try to open Facio — macOS will show a warning and prevent it from launching
+2. Open **System Settings** → **Privacy & Security**
+3. Scroll down to the **Security** section
+4. You will see a message saying Facio was blocked — click **Open Anyway**
+5. Confirm by clicking **Open** in the dialog that appears
+
+**Alternative (Terminal):**
+
+```bash
+xattr -cr /Applications/Facio.app
+```
+
+Then launch Facio normally.
+
+### From source
 
 ```bash
 git clone https://github.com/Juiiceee/Facio.git
@@ -33,27 +50,27 @@ cd Facio
 swift run
 ```
 
-### Construire le .app
+### Build the .app
 
 ```bash
 ./scripts/build-app.sh 1.0.0
 open dist/Facio.app
 
-# Installer dans Applications
+# Install to Applications
 cp -r dist/Facio.app /Applications/
 ```
 
-## Prerequis
+## Requirements
 
 - macOS 15+
 - Swift 6.0+
 
 ## Stack
 
-- **SwiftUI** — interface native macOS
-- **CoreText / CoreGraphics** — generation PDF
-- **JSON** — persistance locale (`~/Library/Application Support/Facio/`)
+- **SwiftUI** — native macOS interface
+- **CoreText / CoreGraphics** — PDF generation
+- **JSON** — local persistence (`~/Library/Application Support/Facio/`)
 
-## Licence
+## License
 
-Tous droits reserves.
+All rights reserved.
