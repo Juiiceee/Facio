@@ -25,24 +25,27 @@ struct TimesheetListView: View {
     }
 
     var body: some View {
-        List(timesheets, selection: $selectedTimesheetId) { ts in
-            TimesheetRowView(timesheet: ts, lang: lang)
-                .tag(ts.id)
-                .contextMenu {
-                    Button {
-                        genererFacture(ts)
-                    } label: {
-                        Label(L10n.generateInvoice(lang), systemImage: "doc.text")
+        List(selection: $selectedTimesheetId) {
+            ForEach(timesheets) { ts in
+                TimesheetRowView(timesheet: ts, lang: lang, adjacentHours: dataStore.adjacentHours(for: ts))
+                    .tag(ts.id)
+                    .contextMenu {
+                        Button {
+                            genererFacture(ts)
+                        } label: {
+                            Label(L10n.generateInvoice(lang), systemImage: "doc.text")
+                        }
+                        Divider()
+                        Button(role: .destructive) {
+                            if selectedTimesheetId == ts.id { selectedTimesheetId = nil }
+                            dataStore.deleteTimesheet(ts)
+                        } label: {
+                            Label(L10n.delete(lang), systemImage: "trash")
+                        }
                     }
-                    Divider()
-                    Button(role: .destructive) {
-                        if selectedTimesheetId == ts.id { selectedTimesheetId = nil }
-                        dataStore.deleteTimesheet(ts)
-                    } label: {
-                        Label(L10n.delete(lang), systemImage: "trash")
-                    }
-                }
+            }
         }
+        .id(timesheets.count)
         .navigationTitle(L10n.sidebarTimeTracking(lang))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -137,10 +140,15 @@ struct TimesheetListView: View {
         }
 
         dataStore.addTimesheet(ts)
+        dataStore.syncSharedWeeks(for: ts)
         selectedTimesheetId = ts.id
     }
 
     private func genererFacture(_ ts: TimesheetPeriod) {
+        let adj = dataStore.adjacentHours(for: ts)
+        let heuresNorm = ts.totalHeuresNormalesCrossPeriod(adjacentHours: adj)
+        let heuresSup = ts.totalHeuresSupCrossPeriod(adjacentHours: adj)
+
         let number = DocumentNumberService.nextNumber(
             type: .facture,
             existingDocuments: dataStore.documents,
@@ -154,20 +162,20 @@ struct TimesheetListView: View {
             blockchain: dataStore.companyInfo.blockchainParDefaut
         )
 
-        if ts.totalHeuresNormales > 0 {
+        if heuresNorm > 0 {
             doc.lignes.append(LineItem(
                 designation: L10n.workHours(lang),
-                quantite: ts.totalHeuresNormales,
+                quantite: heuresNorm,
                 prixUnitaire: ts.tauxNormal,
                 tauxTVA: dataStore.companyInfo.tauxTVAParDefaut,
                 ordre: 0
             ))
         }
 
-        if ts.totalHeuresSupplementaires > 0 {
+        if heuresSup > 0 {
             doc.lignes.append(LineItem(
                 designation: L10n.overtimeLabel(lang),
-                quantite: ts.totalHeuresSupplementaires,
+                quantite: heuresSup,
                 prixUnitaire: ts.tauxSupplementaire,
                 tauxTVA: dataStore.companyInfo.tauxTVAParDefaut,
                 ordre: 1
@@ -183,28 +191,37 @@ struct TimesheetListView: View {
 private struct TimesheetRowView: View {
     let timesheet: TimesheetPeriod
     let lang: AppLanguage
+    let adjacentHours: [String: Decimal]
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
+        let heuresMois = timesheet.totalHeuresDuMois()
+        let heuresSup = timesheet.totalHeuresSupCrossPeriod(adjacentHours: adjacentHours)
+        let brut = timesheet.totalBrutCrossPeriod(adjacentHours: adjacentHours)
+
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
                 Text(timesheet.moisLabel(for: lang))
                     .font(.headline)
-                HStack(spacing: 8) {
-                    Text("\(timesheet.totalHeures.formatted2Decimals)h")
-                        .font(.subheadline)
+                Spacer()
+                if brut > 0 {
+                    Text(brut.formatted2Decimals)
+                        .font(.subheadline.monospacedDigit())
+                        .fontWeight(.medium)
                         .foregroundStyle(.secondary)
-                    if timesheet.totalHeuresSupplementaires > 0 {
-                        Text("+\(timesheet.totalHeuresSupplementaires.formatted2Decimals)h sup")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
                 }
             }
-            Spacer()
-            Text(timesheet.totalBrut.formatted2Decimals)
-                .font(.body.monospacedDigit())
-                .fontWeight(.medium)
+            HStack(spacing: 8) {
+                Text("\(heuresMois.formatted2Decimals)h")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                if heuresSup > 0 {
+                    Text("+\(heuresSup.formatted2Decimals)h sup")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
         }
         .padding(.vertical, 4)
+        .frame(minHeight: 44)
     }
 }

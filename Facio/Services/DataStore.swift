@@ -182,6 +182,82 @@ final class DataStore: Sendable {
         saveTimesheets()
     }
 
+    // MARK: - Cross-period sync
+
+    /// Synchronise les jours partagés entre périodes adjacentes.
+    /// Pour chaque jour hors-mois dans la période, tire les heures depuis la période adjacente.
+    /// Pour chaque jour du mois courant dans une semaine partagée, pousse les heures vers la période adjacente.
+    func syncSharedWeeks(for period: TimesheetPeriod) {
+        let cal = Calendar(identifier: .gregorian)
+        var didChange = false
+
+        for wi in period.semaines.indices {
+            let week = period.semaines[wi]
+            // Vérifier si c'est une semaine partagée
+            let hasOutOfMonthDays = week.jours.contains { $0.mois != period.mois }
+            guard hasOutOfMonthDays else { continue }
+
+            for ji in week.jours.indices {
+                let jour = week.jours[ji]
+                let jourMois = jour.mois
+                let jourAnnee = cal.component(.year, from: jour.date)
+
+                if jourMois == period.mois {
+                    // Jour du mois courant → pousser vers les périodes adjacentes qui ont ce jour
+                    for adj in timesheets where adj.id != period.id {
+                        for awi in adj.semaines.indices {
+                            for aji in adj.semaines[awi].jours.indices {
+                                if adj.semaines[awi].jours[aji].dateString == jour.dateString
+                                    && adj.semaines[awi].jours[aji].heures != jour.heures {
+                                    adj.semaines[awi].jours[aji].heures = jour.heures
+                                    didChange = true
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Jour hors-mois → tirer depuis la période adjacente
+                    if let adj = timesheets.first(where: { $0.id != period.id && $0.mois == jourMois && $0.annee == jourAnnee }) {
+                        for aw in adj.semaines {
+                            if let day = aw.jours.first(where: { $0.dateString == jour.dateString }) {
+                                if period.semaines[wi].jours[ji].heures != day.heures {
+                                    period.semaines[wi].jours[ji].heures = day.heures
+                                    didChange = true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if didChange {
+            saveTimesheets()
+        }
+    }
+
+    /// Retourne les heures des jours hors-mois depuis les périodes adjacentes.
+    /// Clé = dateString, Valeur = heures de la période qui possède ce jour.
+    func adjacentHours(for period: TimesheetPeriod) -> [String: Decimal] {
+        let cal = Calendar(identifier: .gregorian)
+        var result: [String: Decimal] = [:]
+
+        for week in period.semaines {
+            for jour in week.jours where jour.mois != period.mois {
+                let jourAnnee = cal.component(.year, from: jour.date)
+                if let adj = timesheets.first(where: { $0.id != period.id && $0.mois == jour.mois && $0.annee == jourAnnee }) {
+                    for w in adj.semaines {
+                        if let d = w.jours.first(where: { $0.dateString == jour.dateString }) {
+                            result[jour.dateString] = d.heures
+                        }
+                    }
+                }
+            }
+        }
+
+        return result
+    }
+
     // MARK: - Company
 
     func companyUpdated() {

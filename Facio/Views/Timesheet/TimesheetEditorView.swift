@@ -6,6 +6,9 @@ struct TimesheetEditorView: View {
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
+    /// Heures des jours hors-mois depuis les périodes adjacentes
+    private var adjHours: [String: Decimal] { dataStore.adjacentHours(for: timesheet) }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -25,18 +28,27 @@ struct TimesheetEditorView: View {
     // MARK: - Resume
 
     private var resumeSection: some View {
-        GroupBox("\(L10n.summary(lang)) — \(timesheet.moisLabel(for: lang))") {
+        let adj = adjHours
+        let heuresMois = timesheet.totalHeuresDuMois()
+        let heuresSup = timesheet.totalHeuresSupCrossPeriod(adjacentHours: adj)
+        let heuresNorm = heuresMois - heuresSup
+        let coutNorm = heuresNorm * timesheet.tauxNormal
+        let coutSup = heuresSup * timesheet.tauxSupplementaire
+        let brut = coutNorm + coutSup
+        let net = brut * timesheet.coefficientNet
+
+        return GroupBox("\(L10n.summary(lang)) — \(timesheet.moisLabel(for: lang))") {
             LazyVGrid(columns: [
                 GridItem(.adaptive(minimum: 100, maximum: 160))
             ], spacing: 12) {
-                resumeCard(title: L10n.totalHours(lang), value: "\(timesheet.totalHeures.formatted2Decimals)h", color: .primary)
-                resumeCard(title: L10n.normalHours(lang), value: "\(timesheet.totalHeuresNormales.formatted2Decimals)h", color: .blue)
-                resumeCard(title: L10n.overtimeHours(lang), value: "\(timesheet.totalHeuresSupplementaires.formatted2Decimals)h",
-                           color: timesheet.totalHeuresSupplementaires > 0 ? .orange : .secondary)
-                resumeCard(title: L10n.normalCost(lang), value: timesheet.coutNormal.formatted2Decimals, color: .secondary)
-                resumeCard(title: L10n.overtimeCost(lang), value: timesheet.coutSupplementaire.formatted2Decimals, color: .secondary)
-                resumeCard(title: L10n.grossTotal(lang), value: timesheet.totalBrut.formatted2Decimals, color: .green)
-                resumeCard(title: L10n.netTotal(lang), value: timesheet.totalNet.formatted2Decimals, color: .green)
+                resumeCard(title: L10n.totalHours(lang), value: "\(heuresMois.formatted2Decimals)h", color: .primary)
+                resumeCard(title: L10n.normalHours(lang), value: "\(heuresNorm.formatted2Decimals)h", color: .blue)
+                resumeCard(title: L10n.overtimeHours(lang), value: "\(heuresSup.formatted2Decimals)h",
+                           color: heuresSup > 0 ? .orange : .secondary)
+                resumeCard(title: L10n.normalCost(lang), value: coutNorm.formatted2Decimals, color: .secondary)
+                resumeCard(title: L10n.overtimeCost(lang), value: coutSup.formatted2Decimals, color: .secondary)
+                resumeCard(title: L10n.grossTotal(lang), value: brut.formatted2Decimals, color: .green)
+                resumeCard(title: L10n.netTotal(lang), value: net.formatted2Decimals, color: .green)
             }
             .padding(8)
         }
@@ -60,6 +72,12 @@ struct TimesheetEditorView: View {
 
     private func weekSection(weekIndex: Int, week: TimesheetWeek) -> some View {
         let seuil = timesheet.seuilHebdo
+        let adj = adjHours
+
+        // Heures du mois courant dans cette semaine
+        let heuresMoisSemaine = week.jours.filter { $0.mois == timesheet.mois }.reduce(Decimal(0)) { $0 + $1.heures }
+        let supSemaine = week.heuresSupPourMois(moisPeriode: timesheet.mois, seuil: seuil, adjacentHours: adj)
+        let normSemaine = heuresMoisSemaine - supSemaine
 
         return GroupBox {
             VStack(spacing: 10) {
@@ -74,21 +92,21 @@ struct TimesheetEditorView: View {
                     }
                     Spacer()
                     HStack(spacing: 16) {
-                        Label("\(week.totalHeures.formatted2Decimals)h", systemImage: "clock")
+                        Label("\(heuresMoisSemaine.formatted2Decimals)h", systemImage: "clock")
                             .font(.subheadline.monospacedDigit())
                             .fontWeight(.medium)
-                        Text("N: \(week.heuresNormales(seuil: seuil).formatted2Decimals)h")
+                        Text("N: \(normSemaine.formatted2Decimals)h")
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.blue)
-                        if week.heuresSupplementaires(seuil: seuil) > 0 {
-                            Text("S: +\(week.heuresSupplementaires(seuil: seuil).formatted2Decimals)h")
+                        if supSemaine > 0 {
+                            Text("S: +\(supSemaine.formatted2Decimals)h")
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.orange)
                                 .fontWeight(.medium)
                         }
                         Divider().frame(height: 14)
-                        let coutSemaine = week.heuresNormales(seuil: seuil) * timesheet.tauxNormal
-                            + week.heuresSupplementaires(seuil: seuil) * timesheet.tauxSupplementaire
+                        let coutSemaine = normSemaine * timesheet.tauxNormal
+                            + supSemaine * timesheet.tauxSupplementaire
                         Text(coutSemaine.formatted2Decimals)
                             .font(.subheadline.monospacedDigit())
                             .fontWeight(.semibold)
@@ -124,6 +142,7 @@ struct TimesheetEditorView: View {
                                         else { return }
                                         timesheet.semaines[weekIndex].jours[dayIndex].heures = newVal
                                         dataStore.save()
+                                        dataStore.syncSharedWeeks(for: timesheet)
                                     }
                                 )
                             )

@@ -117,6 +117,40 @@ struct TimesheetWeek: Identifiable, Codable, Hashable {
         max(totalHeures - seuil, 0)
     }
 
+    /// Calcule les heures sup attribuables au mois courant dans cette semaine,
+    /// en tenant compte des heures des jours d'un mois adjacent (chronologiquement).
+    /// Les jours sont ordonnés lun→dim. Les premières `seuil` heures sont normales,
+    /// le reste est overtime, réparti par mois selon l'ordre chronologique.
+    func heuresSupPourMois(moisPeriode: Int, seuil: Decimal = 35, adjacentHours: [String: Decimal]) -> Decimal {
+        var heuresPrecedentes: Decimal = 0
+        var heuresMoisCourant: Decimal = 0
+        var moisCourantCommence = false
+
+        for jour in jours {
+            let h: Decimal
+            if jour.mois == moisPeriode {
+                h = jour.heures
+                heuresMoisCourant += h
+                moisCourantCommence = true
+            } else {
+                h = adjacentHours[jour.dateString] ?? jour.heures
+                if !moisCourantCommence {
+                    // Jours d'un autre mois avant le mois courant
+                    heuresPrecedentes += h
+                }
+                // Jours après le mois courant n'affectent pas l'overtime de CE mois
+            }
+        }
+        return max(0, heuresPrecedentes + heuresMoisCourant - seuil) - max(0, heuresPrecedentes - seuil)
+    }
+
+    /// Heures normales du mois courant dans cette semaine (cross-période)
+    func heuresNormalesPourMois(moisPeriode: Int, seuil: Decimal = 35, adjacentHours: [String: Decimal]) -> Decimal {
+        let heuresMois = jours.filter { $0.mois == moisPeriode }.reduce(Decimal(0)) { $0 + $1.heures }
+        let sup = heuresSupPourMois(moisPeriode: moisPeriode, seuil: seuil, adjacentHours: adjacentHours)
+        return heuresMois - sup
+    }
+
     /// Le lundi de cette semaine
     var dateDebut: Date? {
         jours.first?.date
@@ -172,6 +206,37 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     var coutSupplementaire: Decimal { totalHeuresSupplementaires * tauxSupplementaire }
     var totalBrut: Decimal { coutNormal + coutSupplementaire }
     var totalNet: Decimal { totalBrut * coefficientNet }
+
+    // MARK: - Cross-period overtime (heures sup inter-mois)
+
+    /// Total heures travaillées uniquement les jours du mois courant
+    func totalHeuresDuMois() -> Decimal {
+        semaines.reduce(Decimal(0)) { total, week in
+            total + week.jours.filter { $0.mois == mois }.reduce(Decimal(0)) { $0 + $1.heures }
+        }
+    }
+
+    /// Heures sup cross-période (tenant compte des heures des mois adjacents)
+    func totalHeuresSupCrossPeriod(adjacentHours: [String: Decimal]) -> Decimal {
+        semaines.reduce(Decimal(0)) { $0 + $1.heuresSupPourMois(moisPeriode: mois, seuil: seuilHebdo, adjacentHours: adjacentHours) }
+    }
+
+    /// Heures normales cross-période
+    func totalHeuresNormalesCrossPeriod(adjacentHours: [String: Decimal]) -> Decimal {
+        totalHeuresDuMois() - totalHeuresSupCrossPeriod(adjacentHours: adjacentHours)
+    }
+
+    /// Coût brut cross-période
+    func totalBrutCrossPeriod(adjacentHours: [String: Decimal]) -> Decimal {
+        let normales = totalHeuresNormalesCrossPeriod(adjacentHours: adjacentHours)
+        let sup = totalHeuresSupCrossPeriod(adjacentHours: adjacentHours)
+        return normales * tauxNormal + sup * tauxSupplementaire
+    }
+
+    /// Coût net cross-période
+    func totalNetCrossPeriod(adjacentHours: [String: Decimal]) -> Decimal {
+        totalBrutCrossPeriod(adjacentHours: adjacentHours) * coefficientNet
+    }
 
     /// Label du mois (ex: "Mars 2026")
     var moisLabel: String {
