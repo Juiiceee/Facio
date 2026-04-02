@@ -23,6 +23,17 @@ enum SidebarSection: String, Hashable, Identifiable {
         }
     }
 
+    func label(for lang: AppLanguage) -> String {
+        switch self {
+        case .factures: return L10n.sidebarInvoices(lang)
+        case .devis: return L10n.sidebarQuotes(lang)
+        case .clients: return L10n.sidebarClients(lang)
+        case .heures: return L10n.sidebarTimeTracking(lang)
+        case .dashboard: return L10n.sidebarDashboard(lang)
+        case .parametres: return L10n.sidebarSettings(lang)
+        }
+    }
+
     var icon: String {
         switch self {
         case .factures: return "doc.text"
@@ -39,30 +50,33 @@ enum SidebarSection: String, Hashable, Identifiable {
 
 struct SidebarView: View {
     @Binding var selection: SidebarSection?
+    @Environment(DataStore.self) private var dataStore
+
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     var body: some View {
         List(selection: $selection) {
-            Section("Documents") {
-                Label(SidebarSection.factures.label, systemImage: SidebarSection.factures.icon)
+            Section(L10n.sidebarDocuments(lang)) {
+                Label(SidebarSection.factures.label(for: lang), systemImage: SidebarSection.factures.icon)
                     .tag(SidebarSection.factures)
 
-                Label(SidebarSection.devis.label, systemImage: SidebarSection.devis.icon)
+                Label(SidebarSection.devis.label(for: lang), systemImage: SidebarSection.devis.icon)
                     .tag(SidebarSection.devis)
             }
 
-            Section("Gestion") {
-                Label(SidebarSection.clients.label, systemImage: SidebarSection.clients.icon)
+            Section(L10n.sidebarManagement(lang)) {
+                Label(SidebarSection.clients.label(for: lang), systemImage: SidebarSection.clients.icon)
                     .tag(SidebarSection.clients)
 
-                Label(SidebarSection.heures.label, systemImage: SidebarSection.heures.icon)
+                Label(SidebarSection.heures.label(for: lang), systemImage: SidebarSection.heures.icon)
                     .tag(SidebarSection.heures)
 
-                Label(SidebarSection.dashboard.label, systemImage: SidebarSection.dashboard.icon)
+                Label(SidebarSection.dashboard.label(for: lang), systemImage: SidebarSection.dashboard.icon)
                     .tag(SidebarSection.dashboard)
             }
 
             Section {
-                Label(SidebarSection.parametres.label, systemImage: SidebarSection.parametres.icon)
+                Label(SidebarSection.parametres.label(for: lang), systemImage: SidebarSection.parametres.icon)
                     .tag(SidebarSection.parametres)
             }
         }

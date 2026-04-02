@@ -7,13 +7,15 @@ struct PrestationsSettingsView: View {
         dataStore.companyInfo
     }
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     var body: some View {
         VStack(spacing: 20) {
             // Info
             HStack(spacing: 8) {
                 Image(systemName: "info.circle")
                     .foregroundStyle(.secondary)
-                Text("Configurez vos prestations habituelles pour les ajouter en un clic lors de la creation de factures et devis.")
+                Text(L10n.servicesInfo(lang))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -21,14 +23,14 @@ struct PrestationsSettingsView: View {
             // MARK: - Prestations
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("Prestations favorites", systemImage: "star")
+                    Label(L10n.favoriteServices(lang), systemImage: "star")
                         .font(.headline)
 
                     if company.prestations.isEmpty {
                         HStack {
                             Image(systemName: "tray")
                                 .foregroundStyle(.secondary)
-                            Text("Aucune prestation configuree")
+                            Text(L10n.noServiceConfigured(lang))
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 4)
@@ -37,11 +39,11 @@ struct PrestationsSettingsView: View {
                     // Header
                     if !company.prestations.isEmpty {
                         HStack(spacing: 10) {
-                            Text("Designation")
+                            Text(L10n.designationLabel(lang))
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            Text("Prix")
+                            Text(L10n.priceLabel(lang))
                                 .frame(width: 80, alignment: .trailing)
-                            Text("TVA")
+                            Text(L10n.vatLabel(lang))
                                 .frame(width: 75, alignment: .center)
                             Spacer().frame(width: 28)
                         }
@@ -60,7 +62,7 @@ struct PrestationsSettingsView: View {
                         company.prestations.append(DesignationPreset())
                         dataStore.save()
                     } label: {
-                        Label("Ajouter une prestation", systemImage: "plus.circle")
+                        Label(L10n.addService(lang), systemImage: "plus.circle")
                     }
                 }
                 .padding(12)

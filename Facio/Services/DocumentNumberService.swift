@@ -6,7 +6,8 @@ struct DocumentNumberService {
     static func nextNumber(
         type: DocumentType,
         existingDocuments: [Document],
-        date: Date = Date()
+        date: Date = Date(),
+        language: AppLanguage = .fr
     ) -> String {
         let calendar = Calendar.current
         let year = calendar.component(.year, from: date)
@@ -27,6 +28,6 @@ struct DocumentNumberService {
         }
 
         let nextNum = maxNumber + 1
-        return String(format: "%@_%d_%02d", type.prefix, year, nextNum)
+        return String(format: "%@_%d_%02d", type.prefix(for: language), year, nextNum)
     }
 }

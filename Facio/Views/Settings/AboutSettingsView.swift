@@ -6,6 +6,8 @@ struct AboutSettingsView: View {
     @State private var showUninstallAlert = false
     @State private var resetDone = false
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
     }
@@ -41,7 +43,7 @@ struct AboutSettingsView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
-                        Text("Factures & devis professionnels")
+                        Text(L10n.professionalInvoices(lang))
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
@@ -54,24 +56,24 @@ struct AboutSettingsView: View {
             // MARK: - Liens
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("Liens", systemImage: "link")
+                    Label(L10n.links(lang), systemImage: "link")
                         .font(.headline)
 
                     HStack(spacing: 10) {
                         linkButton(
-                            title: "Code source",
+                            title: L10n.sourceCode(lang),
                             icon: "chevron.left.forwardslash.chevron.right",
                             url: "https://github.com/Juiiceee/Facio"
                         )
 
                         linkButton(
-                            title: "Releases",
+                            title: L10n.releases(lang),
                             icon: "arrow.down.circle",
                             url: "https://github.com/Juiiceee/Facio/releases"
                         )
 
                         linkButton(
-                            title: "Signaler un bug",
+                            title: L10n.reportBug(lang),
                             icon: "ladybug",
                             url: "https://github.com/Juiiceee/Facio/issues/new"
                         )
@@ -83,7 +85,7 @@ struct AboutSettingsView: View {
             // MARK: - Zone dangereuse
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("Zone dangereuse", systemImage: "exclamationmark.triangle")
+                    Label(L10n.dangerZone(lang), systemImage: "exclamationmark.triangle")
                         .font(.headline)
                         .foregroundStyle(.red)
 
@@ -93,7 +95,7 @@ struct AboutSettingsView: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "arrow.counterclockwise")
-                                Text("Reinitialiser")
+                                Text(L10n.reset(lang))
                             }
                             .font(.subheadline)
                             .padding(.horizontal, 14)
@@ -103,14 +105,14 @@ struct AboutSettingsView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                         .buttonStyle(.plain)
-                        .help("Supprime toutes les donnees et remet Facio a zero")
+                        .help(L10n.resetHelp(lang))
 
                         Button {
                             showUninstallAlert = true
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "trash")
-                                Text("Desinstaller")
+                                Text(L10n.uninstall(lang))
                             }
                             .font(.subheadline)
                             .padding(.horizontal, 14)
@@ -120,20 +122,20 @@ struct AboutSettingsView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                         .buttonStyle(.plain)
-                        .help("Supprime toutes les donnees et ferme l'application")
+                        .help(L10n.uninstallHelp(lang))
                     }
 
                     if resetDone {
                         HStack(spacing: 6) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
-                            Text("Reinitialisation effectuee. Relancez Facio.")
+                            Text(L10n.resetDone(lang))
                                 .font(.caption)
                                 .foregroundStyle(.green)
                         }
                     }
 
-                    Text("Ces actions sont irreversibles. Assurez-vous d'avoir exporte vos documents importants.")
+                    Text(L10n.irreversibleWarning(lang))
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
@@ -143,17 +145,17 @@ struct AboutSettingsView: View {
             Spacer()
         }
         .padding(24)
-        .alert("Reinitialiser Facio ?", isPresented: $showResetAlert) {
-            Button("Annuler", role: .cancel) {}
-            Button("Reinitialiser", role: .destructive) { resetApp() }
+        .alert(L10n.resetConfirmTitle(lang), isPresented: $showResetAlert) {
+            Button(L10n.cancel(lang), role: .cancel) {}
+            Button(L10n.reset(lang), role: .destructive) { resetApp() }
         } message: {
-            Text("Toutes vos donnees seront supprimees (factures, devis, clients, parametres). Cette action est irreversible.")
+            Text(L10n.resetConfirmMessage(lang))
         }
-        .alert("Desinstaller Facio ?", isPresented: $showUninstallAlert) {
-            Button("Annuler", role: .cancel) {}
-            Button("Desinstaller", role: .destructive) { uninstallApp() }
+        .alert(L10n.uninstallConfirmTitle(lang), isPresented: $showUninstallAlert) {
+            Button(L10n.cancel(lang), role: .cancel) {}
+            Button(L10n.uninstall(lang), role: .destructive) { uninstallApp() }
         } message: {
-            Text("L'application sera fermee et toutes les donnees locales seront supprimees. Vous devrez supprimer Facio.app manuellement.")
+            Text(L10n.uninstallConfirmMessage(lang))
         }
     }
 

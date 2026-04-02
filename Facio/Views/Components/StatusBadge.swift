@@ -2,9 +2,12 @@ import SwiftUI
 
 struct StatusBadge: View {
     let status: DocumentStatus
+    @Environment(DataStore.self) private var dataStore
+
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     var body: some View {
-        Text(status.label)
+        Text(status.label(for: lang))
             .font(.caption2)
             .fontWeight(.medium)
             .padding(.horizontal, 8)

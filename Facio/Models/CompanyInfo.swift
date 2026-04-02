@@ -71,6 +71,26 @@ final class CompanyInfo: Identifiable, Codable {
     var blockchainParDefautRawValue: String? = "Solana"
     var updatedAt: Date = Date()
 
+    // Langue & Format
+    var langueParDefautRawValue: String = "fr"
+    var formatDateRawValue: String = "fr"
+    var formatNombreRawValue: String = "fr"
+
+    var langueParDefaut: AppLanguage {
+        get { AppLanguage(rawValue: langueParDefautRawValue) ?? .fr }
+        set { langueParDefautRawValue = newValue.rawValue }
+    }
+
+    var formatDate: AppLanguage {
+        get { AppLanguage(rawValue: formatDateRawValue) ?? .fr }
+        set { formatDateRawValue = newValue.rawValue }
+    }
+
+    var formatNombre: AppLanguage {
+        get { AppLanguage(rawValue: formatNombreRawValue) ?? .fr }
+        set { formatNombreRawValue = newValue.rawValue }
+    }
+
     var deviseParDefaut: CurrencyType {
         get { CurrencyType(rawValue: deviseParDefautRawValue) ?? .eur }
         set { deviseParDefautRawValue = newValue.rawValue }
@@ -110,6 +130,7 @@ final class CompanyInfo: Identifiable, Codable {
         case nomBanque, iban, bic, titulaireCompte, wallets, prestations
         case tauxTVAParDefaut, delaiPaiementJours, deviseParDefautRawValue, blockchainParDefautRawValue
         case updatedAt
+        case langueParDefautRawValue, formatDateRawValue, formatNombreRawValue
     }
 
     required init(from decoder: Decoder) throws {
@@ -134,6 +155,9 @@ final class CompanyInfo: Identifiable, Codable {
         deviseParDefautRawValue = try container.decode(String.self, forKey: .deviseParDefautRawValue)
         blockchainParDefautRawValue = try container.decodeIfPresent(String.self, forKey: .blockchainParDefautRawValue)
         updatedAt = (try? container.decode(Date.self, forKey: .updatedAt)) ?? Date()
+        langueParDefautRawValue = (try? container.decode(String.self, forKey: .langueParDefautRawValue)) ?? "fr"
+        formatDateRawValue = (try? container.decode(String.self, forKey: .formatDateRawValue)) ?? "fr"
+        formatNombreRawValue = (try? container.decode(String.self, forKey: .formatNombreRawValue)) ?? "fr"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -158,5 +182,8 @@ final class CompanyInfo: Identifiable, Codable {
         try container.encode(deviseParDefautRawValue, forKey: .deviseParDefautRawValue)
         try container.encodeIfPresent(blockchainParDefautRawValue, forKey: .blockchainParDefautRawValue)
         try container.encode(updatedAt, forKey: .updatedAt)
+        try container.encode(langueParDefautRawValue, forKey: .langueParDefautRawValue)
+        try container.encode(formatDateRawValue, forKey: .formatDateRawValue)
+        try container.encode(formatNombreRawValue, forKey: .formatNombreRawValue)
     }
 }

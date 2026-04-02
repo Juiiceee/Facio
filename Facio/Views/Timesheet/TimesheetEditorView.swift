@@ -4,6 +4,8 @@ struct TimesheetEditorView: View {
     let timesheet: TimesheetPeriod
     @Environment(DataStore.self) private var dataStore
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -17,24 +19,24 @@ struct TimesheetEditorView: View {
             }
             .padding(24)
         }
-        .navigationTitle(timesheet.moisLabel)
+        .navigationTitle(timesheet.moisLabel(for: lang))
     }
 
     // MARK: - Resume
 
     private var resumeSection: some View {
-        GroupBox("Resume — \(timesheet.moisLabel)") {
+        GroupBox("\(L10n.summary(lang)) — \(timesheet.moisLabel(for: lang))") {
             LazyVGrid(columns: [
                 GridItem(.adaptive(minimum: 100, maximum: 160))
             ], spacing: 12) {
-                resumeCard(title: "Total heures", value: "\(timesheet.totalHeures.formatted2Decimals)h", color: .primary)
-                resumeCard(title: "Normales", value: "\(timesheet.totalHeuresNormales.formatted2Decimals)h", color: .blue)
-                resumeCard(title: "Supplementaires", value: "\(timesheet.totalHeuresSupplementaires.formatted2Decimals)h",
+                resumeCard(title: L10n.totalHours(lang), value: "\(timesheet.totalHeures.formatted2Decimals)h", color: .primary)
+                resumeCard(title: L10n.normalHours(lang), value: "\(timesheet.totalHeuresNormales.formatted2Decimals)h", color: .blue)
+                resumeCard(title: L10n.overtimeHours(lang), value: "\(timesheet.totalHeuresSupplementaires.formatted2Decimals)h",
                            color: timesheet.totalHeuresSupplementaires > 0 ? .orange : .secondary)
-                resumeCard(title: "Cout normal", value: timesheet.coutNormal.formatted2Decimals, color: .secondary)
-                resumeCard(title: "Cout sup.", value: timesheet.coutSupplementaire.formatted2Decimals, color: .secondary)
-                resumeCard(title: "Total brut", value: timesheet.totalBrut.formatted2Decimals, color: .green)
-                resumeCard(title: "Total net", value: timesheet.totalNet.formatted2Decimals, color: .green)
+                resumeCard(title: L10n.normalCost(lang), value: timesheet.coutNormal.formatted2Decimals, color: .secondary)
+                resumeCard(title: L10n.overtimeCost(lang), value: timesheet.coutSupplementaire.formatted2Decimals, color: .secondary)
+                resumeCard(title: L10n.grossTotal(lang), value: timesheet.totalBrut.formatted2Decimals, color: .green)
+                resumeCard(title: L10n.netTotal(lang), value: timesheet.totalNet.formatted2Decimals, color: .green)
             }
             .padding(8)
         }
@@ -64,9 +66,9 @@ struct TimesheetEditorView: View {
                 // En-tete
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Semaine \(week.numero)")
+                        Text(L10n.week(lang, number: week.numero))
                             .font(.headline)
-                        Text(week.label)
+                        Text(week.label(for: lang))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -101,7 +103,7 @@ struct TimesheetEditorView: View {
                     ForEach(Array(week.jours.enumerated()), id: \.offset) { dayIndex, jour in
                         let estDansMois = jour.mois == timesheet.mois
                         VStack(spacing: 4) {
-                            Text(jour.jourSemaine.shortLabel)
+                            Text(jour.jourSemaine.shortLabel(for: lang))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                             Text("\(jour.jourDuMois)")
@@ -138,23 +140,23 @@ struct TimesheetEditorView: View {
     // MARK: - Parametres
 
     private var parametresSection: some View {
-        GroupBox("Parametres de calcul") {
+        GroupBox(L10n.calculationParams(lang)) {
             LazyVGrid(columns: [
                 GridItem(.adaptive(minimum: 150, maximum: 250))
             ], spacing: 12) {
-                settingsField("Seuil hebdo (h)", placeholder: "35", value: Binding(
+                settingsField(L10n.weeklyThreshold(lang), placeholder: "35", value: Binding(
                     get: { timesheet.seuilHebdo },
                     set: { timesheet.seuilHebdo = $0; dataStore.save() }
                 ))
-                settingsField("Taux normal", placeholder: "26,39", value: Binding(
+                settingsField(L10n.normalRate(lang), placeholder: "26,39", value: Binding(
                     get: { timesheet.tauxNormal },
                     set: { timesheet.tauxNormal = $0; dataStore.save() }
                 ))
-                settingsField("Taux sup.", placeholder: "39,59", value: Binding(
+                settingsField(L10n.overtimeRate(lang), placeholder: "39,59", value: Binding(
                     get: { timesheet.tauxSupplementaire },
                     set: { timesheet.tauxSupplementaire = $0; dataStore.save() }
                 ))
-                settingsField("Coeff. net", placeholder: "0,756", value: Binding(
+                settingsField(L10n.netCoeff(lang), placeholder: "0,756", value: Binding(
                     get: { timesheet.coefficientNet },
                     set: { timesheet.coefficientNet = $0; dataStore.save() }
                 ))

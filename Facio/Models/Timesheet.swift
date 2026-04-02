@@ -30,6 +30,14 @@ enum JourSemaine: Int, Codable, CaseIterable, Identifiable {
         case .dimanche: return "Dim"
         }
     }
+
+    func label(for lang: AppLanguage) -> String {
+        L10n.weekdayLabel(rawValue, lang)
+    }
+
+    func shortLabel(for lang: AppLanguage) -> String {
+        L10n.weekdayShort(rawValue, lang)
+    }
 }
 
 // MARK: - Entree journaliere
@@ -122,6 +130,14 @@ struct TimesheetWeek: Identifiable, Codable, Hashable {
         f.locale = Locale(identifier: "fr_FR")
         return "\(f.string(from: first.date)) — \(f.string(from: last.date))"
     }
+
+    func label(for lang: AppLanguage) -> String {
+        guard let first = jours.first, let last = jours.last else { return L10n.week(lang, number: numero) }
+        let f = DateFormatter()
+        f.dateFormat = "dd MMM"
+        f.locale = Locale(identifier: lang == .fr ? "fr_FR" : "en_US")
+        return "\(f.string(from: first.date)) — \(f.string(from: last.date))"
+    }
 }
 
 // MARK: - Periode (mois)
@@ -159,9 +175,13 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
 
     /// Label du mois (ex: "Mars 2026")
     var moisLabel: String {
-        guard mois >= 1 && mois <= 12 else { return "Mois \(mois) \(annee)" }
+        moisLabel(for: .fr)
+    }
+
+    func moisLabel(for lang: AppLanguage) -> String {
+        guard mois >= 1 && mois <= 12 else { return "\(L10n.month(lang)) \(mois) \(annee)" }
         let f = DateFormatter()
-        f.locale = Locale(identifier: "fr_FR")
+        f.locale = Locale(identifier: lang == .fr ? "fr_FR" : "en_US")
         return "\(f.monthSymbols[mois - 1].capitalized) \(annee)"
     }
 

@@ -3,6 +3,8 @@ import SwiftUI
 struct DashboardView: View {
     @Environment(DataStore.self) private var dataStore
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     private var allDocuments: [Document] {
         dataStore.documents.sorted { $0.dateCreation > $1.dateCreation }
     }
@@ -54,26 +56,26 @@ struct DashboardView: View {
                     GridItem(.adaptive(minimum: 180, maximum: 300))
                 ], spacing: 16) {
                     StatCard(
-                        title: "CA ce mois",
+                        title: L10n.revenueThisMonth(lang),
                         value: caMoisEnCours.formatted2Decimals,
                         icon: "chart.line.uptrend.xyaxis",
                         color: .green
                     )
                     StatCard(
-                        title: "CA cette annee",
+                        title: L10n.revenueThisYear(lang),
                         value: caAnneeEnCours.formatted2Decimals,
                         icon: "chart.bar.fill",
                         color: .blue
                     )
                     StatCard(
-                        title: "En attente",
+                        title: L10n.pending(lang),
                         value: montantEnAttente.formatted2Decimals,
-                        subtitle: "\(facturesEnAttente.count) facture(s)",
+                        subtitle: L10n.pendingInvoices(lang, count: facturesEnAttente.count),
                         icon: "clock.fill",
                         color: .orange
                     )
                     StatCard(
-                        title: "Devis en cours",
+                        title: L10n.quotesInProgress(lang),
                         value: "\(devis.filter { $0.status == .envoyee }.count)",
                         icon: "doc.text",
                         color: .purple
@@ -85,11 +87,11 @@ struct DashboardView: View {
                 // Dernieres factures
                 GroupBox {
                     VStack(alignment: .leading, spacing: 12) {
-                        Label("Dernieres factures", systemImage: "doc.text")
+                        Label(L10n.latestInvoices(lang), systemImage: "doc.text")
                             .font(.headline)
 
                         if factures.isEmpty {
-                            Text("Aucune facture pour le moment.")
+                            Text(L10n.noInvoicesYet(lang))
                                 .foregroundStyle(.secondary)
                         } else {
                             ForEach(factures.prefix(5)) { doc in
@@ -120,11 +122,11 @@ struct DashboardView: View {
                 // Derniers devis
                 GroupBox {
                     VStack(alignment: .leading, spacing: 12) {
-                        Label("Derniers devis", systemImage: "doc.text.magnifyingglass")
+                        Label(L10n.latestQuotes(lang), systemImage: "doc.text.magnifyingglass")
                             .font(.headline)
 
                         if devis.isEmpty {
-                            Text("Aucun devis pour le moment.")
+                            Text(L10n.noQuotesYet(lang))
                                 .foregroundStyle(.secondary)
                         } else {
                             ForEach(devis.prefix(5)) { doc in
@@ -154,7 +156,7 @@ struct DashboardView: View {
             }
             .padding(24)
         }
-        .navigationTitle("Dashboard")
+        .navigationTitle(L10n.dashboard(lang))
     }
 }
 

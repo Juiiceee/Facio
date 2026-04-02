@@ -7,6 +7,8 @@ struct DocumentListView: View {
     @Environment(DataStore.self) private var dataStore
     @State private var searchText = ""
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     private var allDocuments: [Document] {
         dataStore.documents.sorted { $0.dateCreation > $1.dateCreation }
     }
@@ -29,21 +31,21 @@ struct DocumentListView: View {
                     Button(role: .destructive) {
                         supprimerDocument(document)
                     } label: {
-                        Label("Supprimer", systemImage: "trash")
+                        Label(L10n.delete(lang), systemImage: "trash")
                     }
                 }
                 .contextMenu {
                     Button {
                         dupliquerDocument(document)
                     } label: {
-                        Label("Dupliquer", systemImage: "doc.on.doc")
+                        Label(L10n.duplicate(lang), systemImage: "doc.on.doc")
                     }
 
                     if document.type == .devis {
                         Button {
                             convertirEnFacture(document)
                         } label: {
-                            Label("Convertir en Facture", systemImage: "arrow.right.doc.on.clipboard")
+                            Label(L10n.convertToInvoice(lang), systemImage: "arrow.right.doc.on.clipboard")
                         }
                     }
 
@@ -52,27 +54,27 @@ struct DocumentListView: View {
                     Button(role: .destructive) {
                         supprimerDocument(document)
                     } label: {
-                        Label("Supprimer", systemImage: "trash")
+                        Label(L10n.delete(lang), systemImage: "trash")
                     }
                 }
         }
-        .navigationTitle(documentType == .devis ? "Devis" : "Factures")
-        .searchable(text: $searchText, prompt: "Rechercher par numero ou client")
+        .navigationTitle(documentType == .devis ? L10n.sidebarQuotes(lang) : L10n.sidebarInvoices(lang))
+        .searchable(text: $searchText, prompt: L10n.searchByNumberOrClient(lang))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     creerDocument()
                 } label: {
-                    Label("Nouveau \(documentType.label)", systemImage: "plus")
+                    Label(L10n.new(lang), systemImage: "plus")
                 }
             }
         }
         .overlay {
             if documents.isEmpty {
                 ContentUnavailableView(
-                    "Aucun \(documentType.label.lowercased())",
+                    L10n.noDocuments(lang, type: documentType.label(for: lang).lowercased()),
                     systemImage: documentType == .facture ? "doc.text" : "doc.text.magnifyingglass",
-                    description: Text("Cliquez sur + pour creer un \(documentType.label.lowercased()).")
+                    description: Text(L10n.clickToCreate(lang, type: documentType.label(for: lang).lowercased()))
                 )
             }
         }
@@ -83,7 +85,8 @@ struct DocumentListView: View {
     private func creerDocument() {
         let number = DocumentNumberService.nextNumber(
             type: documentType,
-            existingDocuments: allDocuments
+            existingDocuments: allDocuments,
+            language: lang
         )
         let document = Document(type: documentType, number: number)
         dataStore.addDocument(document)
@@ -101,7 +104,8 @@ struct DocumentListView: View {
         let copie = document.dupliquer()
         copie.number = DocumentNumberService.nextNumber(
             type: copie.type,
-            existingDocuments: allDocuments
+            existingDocuments: allDocuments,
+            language: lang
         )
         dataStore.addDocument(copie)
         selectedDocumentId = copie.id
@@ -111,7 +115,8 @@ struct DocumentListView: View {
         let facture = document.convertirEnFacture()
         facture.number = DocumentNumberService.nextNumber(
             type: .facture,
-            existingDocuments: allDocuments
+            existingDocuments: allDocuments,
+            language: lang
         )
         dataStore.addDocument(facture)
     }
@@ -121,6 +126,9 @@ struct DocumentListView: View {
 
 struct DocumentRowView: View {
     let document: Document
+    @Environment(DataStore.self) private var dataStore
+
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -133,7 +141,7 @@ struct DocumentRowView: View {
                 }
 
                 HStack {
-                    Text(document.clientNom.isEmpty ? "Sans client" : document.clientNom)
+                    Text(document.clientNom.isEmpty ? L10n.noClient(lang) : document.clientNom)
                         .font(.subheadline)
                         .foregroundStyle(document.clientNom.isEmpty ? .tertiary : .secondary)
                     Spacer()

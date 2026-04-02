@@ -6,6 +6,8 @@ struct ClientListView: View {
     @State private var selectedClient: ClientInfo?
     @State private var showingNewClient = false
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     private var clients: [ClientInfo] {
         dataStore.clients.sorted { $0.nom < $1.nom }
     }
@@ -27,12 +29,12 @@ struct ClientListView: View {
                     ClientRow(client: client)
                         .tag(client)
                         .contextMenu {
-                            Button("Supprimer", role: .destructive) {
+                            Button(L10n.delete(lang), role: .destructive) {
                                 deleteClient(client)
                             }
                         }
                 }
-                .searchable(text: $searchText, prompt: "Rechercher un client...")
+                .searchable(text: $searchText, prompt: L10n.searchClientPrompt(lang))
             }
             .frame(minWidth: 250)
 
@@ -41,24 +43,24 @@ struct ClientListView: View {
                 ClientDetailView(client: client)
             } else {
                 ContentUnavailableView(
-                    "Aucun client selectionne",
+                    L10n.noClientSelected(lang),
                     systemImage: "person.crop.circle",
-                    description: Text("Selectionnez un client ou creez-en un nouveau.")
+                    description: Text(L10n.selectOrCreateClient(lang))
                 )
             }
         }
         .toolbar {
             ToolbarItem {
                 Button(action: createClient) {
-                    Label("Nouveau client", systemImage: "plus")
+                    Label(L10n.newClient(lang), systemImage: "plus")
                 }
             }
         }
-        .navigationTitle("Clients")
+        .navigationTitle(L10n.sidebarClients(lang))
     }
 
     private func createClient() {
-        let client = ClientInfo(nom: "Nouveau client")
+        let client = ClientInfo(nom: L10n.newClient(lang))
         dataStore.addClient(client)
         selectedClient = client
     }
@@ -96,17 +98,19 @@ struct ClientDetailView: View {
     var client: ClientInfo
     @Environment(DataStore.self) private var dataStore
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     var body: some View {
         Form {
-            Section("Informations") {
-                TextField("Nom", text: Bindable(client).nom)
-                TextField("Adresse", text: Bindable(client).adresse)
+            Section(L10n.information(lang)) {
+                TextField(L10n.name(lang), text: Bindable(client).nom)
+                TextField(L10n.address(lang), text: Bindable(client).adresse)
                 HStack {
-                    TextField("Code postal", text: Bindable(client).codePostal)
+                    TextField(L10n.postalCode(lang), text: Bindable(client).codePostal)
                         .frame(width: 100)
-                    TextField("Ville", text: Bindable(client).ville)
+                    TextField(L10n.city(lang), text: Bindable(client).ville)
                 }
-                TextField("Email", text: Bindable(client).email)
+                TextField(L10n.email(lang), text: Bindable(client).email)
             }
         }
         .formStyle(.grouped)

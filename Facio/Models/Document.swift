@@ -29,6 +29,14 @@ final class Document: Identifiable, Codable, Hashable {
     // Notes optionnelles
     var notes: String = ""
 
+    // Langue du document (FR/EN)
+    var langueRawValue: String = "fr"
+
+    var langue: AppLanguage {
+        get { AppLanguage(rawValue: langueRawValue) ?? .fr }
+        set { langueRawValue = newValue.rawValue }
+    }
+
     // Wallet selectionne (quand plusieurs sur le meme reseau)
     var selectedWalletId: UUID?
 
@@ -151,6 +159,7 @@ final class Document: Identifiable, Codable, Hashable {
         copie.clientCodePostal = clientCodePostal
         copie.clientVille = clientVille
         copie.notes = notes
+        copie.langueRawValue = langueRawValue
 
         for ligne in lignesTriees {
             let nouvelleLigne = LineItem(
@@ -180,7 +189,7 @@ final class Document: Identifiable, Codable, Hashable {
         case currencyRawValue, blockchainRawValue, paymentModeRawValue
         case clientNom, clientAdresse, clientCodePostal, clientVille
         case lignes, transactionSignatures
-        case createdAt, updatedAt, notes, selectedWalletId
+        case createdAt, updatedAt, notes, selectedWalletId, langueRawValue
     }
 
     required init(from decoder: Decoder) throws {
@@ -204,6 +213,7 @@ final class Document: Identifiable, Codable, Hashable {
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         notes = try container.decode(String.self, forKey: .notes)
         selectedWalletId = try? container.decode(UUID.self, forKey: .selectedWalletId)
+        langueRawValue = (try? container.decode(String.self, forKey: .langueRawValue)) ?? "fr"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -227,5 +237,6 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(notes, forKey: .notes)
         try container.encodeIfPresent(selectedWalletId, forKey: .selectedWalletId)
+        try container.encode(langueRawValue, forKey: .langueRawValue)
     }
 }

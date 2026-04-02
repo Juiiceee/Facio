@@ -12,6 +12,8 @@ struct DocumentEditorView: View {
     // Debounce timer for auto-save
     @State private var saveTask: Task<Void, Never>?
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     private var allDocuments: [Document] {
         dataStore.documents.sorted { $0.dateCreation > $1.dateCreation }
     }
@@ -53,7 +55,7 @@ struct DocumentEditorView: View {
             }
             .padding(24)
         }
-        .navigationTitle(document.number.isEmpty ? "Nouveau document" : document.number)
+        .navigationTitle(document.number.isEmpty ? L10n.newDocument(lang) : document.number)
         .toolbar {
             editorToolbar
         }
@@ -78,19 +80,19 @@ struct DocumentEditorView: View {
             Button {
                 dupliquer()
             } label: {
-                Label("Dupliquer", systemImage: "doc.on.doc")
+                Label(L10n.duplicate(lang), systemImage: "doc.on.doc")
             }
 
             Button {
                 showPreview = true
             } label: {
-                Label("Apercu", systemImage: "eye")
+                Label(L10n.preview(lang), systemImage: "eye")
             }
 
             Button {
                 exporterPDF()
             } label: {
-                Label("Exporter PDF", systemImage: "square.and.arrow.up")
+                Label(L10n.exportPDF(lang), systemImage: "square.and.arrow.up")
             }
         }
     }
@@ -98,23 +100,23 @@ struct DocumentEditorView: View {
     // MARK: - En-tete
 
     private var enTeteSection: some View {
-        GroupBox("En-tete") {
+        GroupBox(L10n.headerSection(lang)) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Type")
+                        Text(L10n.type(lang))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        Text(document.type.label)
+                        Text(document.type.label(for: lang))
                             .font(.headline)
                             .foregroundStyle(Color.appPrimary)
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Numero")
+                        Text(L10n.number(lang))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        TextField("Numero", text: Binding(
+                        TextField(L10n.number(lang), text: Binding(
                             get: { document.number },
                             set: { document.number = $0; scheduleSave() }
                         ))
@@ -122,13 +124,32 @@ struct DocumentEditorView: View {
                         .frame(maxWidth: 250)
                     }
 
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L10n.language(lang))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Picker("", selection: Binding(
+                            get: { document.langue },
+                            set: { newLang in
+                                document.langue = newLang
+                                dataStore.save()
+                            }
+                        )) {
+                            ForEach(AppLanguage.allCases) { l in
+                                Text(l.label).tag(l)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(maxWidth: 120)
+                    }
+
                     Spacer()
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Statut")
+                        Text(L10n.status(lang))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        Picker("Statut", selection: Binding(
+                        Picker(L10n.status(lang), selection: Binding(
                             get: { document.status },
                             set: { newStatus in
                                 document.status = newStatus
@@ -144,7 +165,7 @@ struct DocumentEditorView: View {
                                     Circle()
                                         .fill(Color.statusColor(for: status))
                                         .frame(width: 8, height: 8)
-                                    Text(status.label)
+                                    Text(status.label(for: lang))
                                 }
                                 .tag(status)
                             }
@@ -161,13 +182,13 @@ struct DocumentEditorView: View {
     // MARK: - Dates
 
     private var datesSection: some View {
-        GroupBox("Dates") {
+        GroupBox(L10n.datesSection(lang)) {
             HStack(spacing: 24) {
-                DatePicker("Date de creation", selection: Binding(
+                DatePicker(L10n.creationDate(lang), selection: Binding(
                     get: { document.dateCreation },
                     set: { document.dateCreation = $0; dataStore.save() }
                 ), displayedComponents: .date)
-                DatePicker("Date d'echeance", selection: Binding(
+                DatePicker(L10n.dueDateLabel(lang), selection: Binding(
                     get: { document.dateEcheance },
                     set: { document.dateEcheance = $0; dataStore.save() }
                 ), displayedComponents: .date)
@@ -179,7 +200,7 @@ struct DocumentEditorView: View {
     // MARK: - Devise & Mode de paiement
 
     private var deviseSection: some View {
-        GroupBox("Devise & Paiement") {
+        GroupBox(L10n.currencyPayment(lang)) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 24) {
                     CurrencyPicker(selection: Binding(
@@ -187,12 +208,12 @@ struct DocumentEditorView: View {
                         set: { document.currency = $0; dataStore.save() }
                     ))
 
-                    Picker("Paiement", selection: Binding(
+                    Picker(L10n.payment(lang), selection: Binding(
                         get: { document.paymentMode },
                         set: { document.paymentMode = $0; dataStore.save() }
                     )) {
                         ForEach(PaymentMode.allCases) { mode in
-                            Text(mode.label).tag(mode)
+                            Text(mode.label(for: lang)).tag(mode)
                         }
                     }
                     .frame(maxWidth: 150)
@@ -201,11 +222,11 @@ struct DocumentEditorView: View {
                 if document.paymentMode == .crypto {
                     HStack(spacing: 16) {
                         let compatibles = Blockchain.compatibleBlockchains(for: document.currency)
-                        Picker("Blockchain", selection: Binding(
+                        Picker(L10n.blockchain(lang), selection: Binding(
                             get: { document.blockchain },
                             set: { document.blockchain = $0; dataStore.save() }
                         )) {
-                            Text("Aucune").tag(Blockchain?.none)
+                            Text(L10n.blockchainNone(lang)).tag(Blockchain?.none)
                             ForEach(compatibles) { chain in
                                 Text(chain.label).tag(Blockchain?.some(chain))
                             }
@@ -221,17 +242,17 @@ struct DocumentEditorView: View {
     // MARK: - Client (Destinataire)
 
     private var clientSection: some View {
-        GroupBox("DESTINATAIRE") {
+        GroupBox(L10n.recipientSection(lang)) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("Informations client")
+                    Text(L10n.clientInfo(lang))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button {
                         showClientPicker = true
                     } label: {
-                        Label("Carnet de clients", systemImage: "person.crop.rectangle.stack")
+                        Label(L10n.clientBook(lang), systemImage: "person.crop.rectangle.stack")
                     }
                 }
 
@@ -244,10 +265,10 @@ struct DocumentEditorView: View {
     private var clientFields: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Nom")
+                Text(L10n.name(lang))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                TextField("Nom du client", text: Binding(
+                TextField(L10n.clientName(lang), text: Binding(
                     get: { document.clientNom },
                     set: { document.clientNom = $0; scheduleSave() }
                 ))
@@ -255,10 +276,10 @@ struct DocumentEditorView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Adresse")
+                Text(L10n.address(lang))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                TextField("Adresse", text: Binding(
+                TextField(L10n.address(lang), text: Binding(
                     get: { document.clientAdresse },
                     set: { document.clientAdresse = $0; scheduleSave() }
                 ))
@@ -267,10 +288,10 @@ struct DocumentEditorView: View {
 
             HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Code postal")
+                    Text(L10n.postalCode(lang))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    TextField("Code postal", text: Binding(
+                    TextField(L10n.postalCode(lang), text: Binding(
                         get: { document.clientCodePostal },
                         set: { document.clientCodePostal = $0; scheduleSave() }
                     ))
@@ -279,10 +300,10 @@ struct DocumentEditorView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Ville")
+                    Text(L10n.city(lang))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    TextField("Ville", text: Binding(
+                    TextField(L10n.city(lang), text: Binding(
                         get: { document.clientVille },
                         set: { document.clientVille = $0; scheduleSave() }
                     ))
@@ -295,7 +316,7 @@ struct DocumentEditorView: View {
     // MARK: - Lignes
 
     private var lignesSection: some View {
-        GroupBox("Lignes") {
+        GroupBox(L10n.linesSection(lang)) {
             VStack(alignment: .leading, spacing: 8) {
                 lignesHeader
                 Divider()
@@ -309,15 +330,15 @@ struct DocumentEditorView: View {
 
     private var lignesHeader: some View {
         HStack(spacing: 8) {
-            Text("Designation")
+            Text(L10n.designationLabel(lang))
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Text("Quantite")
+            Text(L10n.quantityLabel(lang))
                 .frame(width: 80, alignment: .trailing)
-            Text("Prix unitaire")
+            Text(L10n.unitPrice(lang))
                 .frame(width: 110, alignment: .trailing)
-            Text("TVA")
+            Text(L10n.vatLabel(lang))
                 .frame(width: 80, alignment: .center)
-            Text("Total HT")
+            Text(L10n.totalHTLabel(lang))
                 .frame(width: 110, alignment: .trailing)
             Spacer().frame(width: 32)
         }
@@ -343,7 +364,7 @@ struct DocumentEditorView: View {
             }
 
             if document.lignes.isEmpty {
-                Text("Aucune ligne. Ajoutez-en une ci-dessous.")
+                Text(L10n.noLines(lang))
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 12)
@@ -364,7 +385,7 @@ struct DocumentEditorView: View {
                 document.ajouterLigne(ligne)
                 dataStore.save()
             } label: {
-                Label("Ajouter une ligne vide", systemImage: "plus.circle")
+                Label(L10n.addEmptyLine(lang), systemImage: "plus.circle")
             }
             .buttonStyle(.borderless)
 
@@ -383,7 +404,7 @@ struct DocumentEditorView: View {
                         }
                     }
                 } label: {
-                    Label("Prestation favorite", systemImage: "star.fill")
+                    Label(L10n.favoriteService(lang), systemImage: "star.fill")
                 }
                 .menuStyle(.borderlessButton)
             }
@@ -417,7 +438,7 @@ struct DocumentEditorView: View {
             EmptyView()
 
         case .virement:
-            GroupBox("Paiement — Virement bancaire") {
+            GroupBox(L10n.paymentBankSection(lang)) {
                 VStack(alignment: .leading, spacing: 8) {
                     if !company.iban.isEmpty {
                         HStack {
@@ -437,7 +458,7 @@ struct DocumentEditorView: View {
                         }
                         if !company.titulaireCompte.isEmpty {
                             HStack {
-                                Label("Titulaire", systemImage: "person")
+                                Label(L10n.accountHolderLabel(lang), systemImage: "person")
                                     .foregroundStyle(.secondary)
                                 Text(company.titulaireCompte)
                             }
@@ -446,7 +467,7 @@ struct DocumentEditorView: View {
                         HStack {
                             Image(systemName: "exclamationmark.triangle")
                                 .foregroundStyle(.orange)
-                            Text("Aucun IBAN configure (voir Parametres > Paiement)")
+                            Text(L10n.noIBANConfigured(lang))
                                 .foregroundStyle(.orange)
                         }
                     }
@@ -455,13 +476,13 @@ struct DocumentEditorView: View {
             }
 
         case .crypto:
-            GroupBox("Paiement — Crypto") {
+            GroupBox(L10n.paymentCryptoSection(lang)) {
                 VStack(alignment: .leading, spacing: 8) {
                     if let chain = document.blockchain {
                         let walletsForChain = company.wallets.filter { $0.blockchain == chain }
 
                         HStack {
-                            Label("Reseau", systemImage: "link")
+                            Label(L10n.network(lang), systemImage: "link")
                                 .foregroundStyle(.secondary)
                             Text(chain.label)
                                 .fontWeight(.medium)
@@ -470,7 +491,7 @@ struct DocumentEditorView: View {
                         if walletsForChain.count > 1 {
                             // Plusieurs wallets — Picker
                             HStack {
-                                Label("Wallet", systemImage: "wallet.pass")
+                                Label(L10n.wallet(lang), systemImage: "wallet.pass")
                                     .foregroundStyle(.secondary)
                                 Picker("", selection: Binding(
                                     get: {
@@ -500,7 +521,7 @@ struct DocumentEditorView: View {
                         } else if let wallet = walletsForChain.first {
                             // Un seul wallet — affichage simple
                             HStack {
-                                Label(wallet.label.isEmpty ? "Wallet" : wallet.label, systemImage: "wallet.pass")
+                                Label(wallet.label.isEmpty ? L10n.wallet(lang) : wallet.label, systemImage: "wallet.pass")
                                     .foregroundStyle(.secondary)
                                 Text(wallet.address)
                                     .font(.system(.caption, design: .monospaced))
@@ -512,7 +533,7 @@ struct DocumentEditorView: View {
                             HStack {
                                 Image(systemName: "exclamationmark.triangle")
                                     .foregroundStyle(.orange)
-                                Text("Aucun wallet configure pour \(chain.label) (voir Parametres > Paiement)")
+                                Text(L10n.noWalletConfigured(lang, chain: chain.label))
                                     .foregroundStyle(.orange)
                             }
                         }
@@ -520,7 +541,7 @@ struct DocumentEditorView: View {
                         HStack {
                             Image(systemName: "exclamationmark.triangle")
                                 .foregroundStyle(.orange)
-                            Text("Selectionnez un reseau dans la section Devise & Paiement")
+                            Text(L10n.selectNetwork(lang))
                                 .foregroundStyle(.orange)
                         }
                     }
@@ -533,13 +554,13 @@ struct DocumentEditorView: View {
     // MARK: - Signatures
 
     private var signaturesSection: some View {
-        GroupBox("Preuves de paiement") {
+        GroupBox(L10n.paymentProofsSection(lang)) {
             VStack(alignment: .leading, spacing: 8) {
                 signaturesContent
                 Button {
                     showAddSignature = true
                 } label: {
-                    Label("Ajouter une signature", systemImage: "plus.circle")
+                    Label(L10n.addSignature(lang), systemImage: "plus.circle")
                 }
                 .buttonStyle(.borderless)
             }
@@ -550,12 +571,12 @@ struct DocumentEditorView: View {
     private var signaturesContent: some View {
         Group {
             if document.transactionSignatures.isEmpty {
-                Text("Aucune signature enregistree.")
+                Text(L10n.noSignatures(lang))
                     .foregroundStyle(.tertiary)
                     .padding(.vertical, 8)
             } else {
                 ForEach(document.transactionSignatures) { sig in
-                    SignatureRowView(document: document, signature: sig) {
+                    SignatureRowView(document: document, signature: sig, lang: lang) {
                         document.transactionSignatures.removeAll { $0.id == sig.id }
                         dataStore.save()
                     }
@@ -568,7 +589,7 @@ struct DocumentEditorView: View {
     // MARK: - Notes
 
     private var notesSection: some View {
-        GroupBox("Notes") {
+        GroupBox(L10n.notes(lang)) {
             TextEditor(text: Binding(
                 get: { document.notes },
                 set: { document.notes = $0; scheduleSave() }
@@ -585,7 +606,8 @@ struct DocumentEditorView: View {
         let copie = document.dupliquer()
         copie.number = DocumentNumberService.nextNumber(
             type: copie.type,
-            existingDocuments: allDocuments
+            existingDocuments: allDocuments,
+            language: lang
         )
         dataStore.addDocument(copie)
     }
@@ -594,7 +616,7 @@ struct DocumentEditorView: View {
         let pdfData = PDFGenerator(document: document, company: company).generate()
         guard !pdfData.isEmpty else { return }
         Task {
-            _ = await ExportService.exportPDF(data: pdfData, defaultFilename: document.number)
+            _ = await ExportService.exportPDF(data: pdfData, defaultFilename: document.number, language: lang)
         }
     }
 }
@@ -604,6 +626,7 @@ struct DocumentEditorView: View {
 private struct SignatureRowView: View {
     let document: Document
     let signature: TransactionSignature
+    let lang: AppLanguage
     let onDelete: () -> Void
 
     var body: some View {
@@ -631,7 +654,7 @@ private struct SignatureRowView: View {
             Spacer()
             if let url = signature.explorerURL {
                 Link(destination: url) {
-                    Label("Voir sur \(signature.explorerName)", systemImage: "arrow.up.right.square")
+                    Label(L10n.viewOn(lang, explorer: signature.explorerName), systemImage: "arrow.up.right.square")
                         .font(.caption)
                 }
             }
@@ -663,6 +686,8 @@ private struct ClientPickerSheet: View {
     @State private var newVille = ""
     @State private var newEmail = ""
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     private var allClients: [ClientInfo] {
         dataStore.clients.sorted { $0.nom < $1.nom }
     }
@@ -679,38 +704,38 @@ private struct ClientPickerSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Selectionner un client")
+                Text(L10n.selectClient(lang))
                     .font(.headline)
                 Spacer()
                 Button {
                     showNewClient.toggle()
                 } label: {
-                    Label("Nouveau", systemImage: "plus")
+                    Label(L10n.new(lang), systemImage: "plus")
                 }
-                Button("Fermer") { dismiss() }
+                Button(L10n.close(lang)) { dismiss() }
                     .keyboardShortcut(.cancelAction)
             }
             .padding()
 
             if showNewClient {
-                GroupBox("Nouveau client") {
+                GroupBox(L10n.newClient(lang)) {
                     VStack(spacing: 8) {
-                        TextField("Nom", text: $newNom)
+                        TextField(L10n.name(lang), text: $newNom)
                             .textFieldStyle(.roundedBorder)
-                        TextField("Adresse", text: $newAdresse)
+                        TextField(L10n.address(lang), text: $newAdresse)
                             .textFieldStyle(.roundedBorder)
                         HStack {
-                            TextField("Code postal", text: $newCodePostal)
+                            TextField(L10n.postalCode(lang), text: $newCodePostal)
                                 .textFieldStyle(.roundedBorder)
                                 .frame(maxWidth: 120)
-                            TextField("Ville", text: $newVille)
+                            TextField(L10n.city(lang), text: $newVille)
                                 .textFieldStyle(.roundedBorder)
                         }
-                        TextField("Email", text: $newEmail)
+                        TextField(L10n.email(lang), text: $newEmail)
                             .textFieldStyle(.roundedBorder)
                         HStack {
                             Spacer()
-                            Button("Creer et selectionner") {
+                            Button(L10n.createAndSelect(lang)) {
                                 let client = ClientInfo(
                                     nom: newNom,
                                     adresse: newAdresse,
@@ -746,7 +771,7 @@ private struct ClientPickerSheet: View {
                 }
                 .buttonStyle(.plain)
             }
-            .searchable(text: $searchText, prompt: "Rechercher un client")
+            .searchable(text: $searchText, prompt: L10n.searchClient(lang))
         }
         .frame(minWidth: 450, minHeight: 400)
     }
@@ -764,13 +789,15 @@ private struct AddSignatureSheet: View {
     @State private var selectedBlockchain: Blockchain = .solana
     @State private var date = Date()
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Ajouter une preuve de paiement")
+                Text(L10n.addPaymentProof(lang))
                     .font(.headline)
                 Spacer()
-                Button("Annuler") { dismiss() }
+                Button(L10n.cancel(lang)) { dismiss() }
                     .keyboardShortcut(.cancelAction)
             }
             .padding()
@@ -782,19 +809,19 @@ private struct AddSignatureSheet: View {
                     }
                 }
 
-                TextField("Signature / Hash de transaction", text: $signature)
+                TextField(L10n.txHash(lang), text: $signature)
                     .font(.system(.body, design: .monospaced))
 
-                TextField("Montant", value: $montant, format: .number)
+                TextField(L10n.amount(lang), value: $montant, format: .number)
 
-                DatePicker("Date", selection: $date, displayedComponents: .date)
+                DatePicker(L10n.date(lang), selection: $date, displayedComponents: .date)
             }
             .formStyle(.grouped)
             .padding(.horizontal)
 
             HStack {
                 Spacer()
-                Button("Ajouter") {
+                Button(L10n.add(lang)) {
                     let tx = TransactionSignature(
                         signature: signature,
                         date: date,

@@ -7,20 +7,25 @@ struct SettingsInlineView: View {
     @Environment(AuthService.self) private var authService
     @State private var selectedTab = 0
 
-    private let tabs: [(label: String, icon: String)] = [
-        ("Entreprise", "building.2"),
-        ("Paiement", "creditcard"),
-        ("Valeurs par defaut", "slider.horizontal.3"),
-        ("Prestations", "star"),
-        ("Synchronisation", "arrow.triangle.2.circlepath"),
-        ("A propos", "info.circle")
-    ]
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
+    private var tabs: [(label: String, icon: String)] {
+        [
+            (L10n.settingsCompany(lang), "building.2"),
+            (L10n.settingsPayment(lang), "creditcard"),
+            (L10n.settingsDefaults(lang), "slider.horizontal.3"),
+            (L10n.settingsServices(lang), "star"),
+            (L10n.settingsLanguage(lang), "globe"),
+            (L10n.settingsSync(lang), "arrow.triangle.2.circlepath"),
+            (L10n.settingsAbout(lang), "info.circle")
+        ]
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Parametres")
+                Text(L10n.settings(lang))
                     .font(.title2)
                     .fontWeight(.bold)
                 Spacer()
@@ -65,8 +70,9 @@ struct SettingsInlineView: View {
                 case 1: PaymentSettingsView()
                 case 2: DefaultsSettingsView()
                 case 3: PrestationsSettingsView()
-                case 4: SyncSettingsView(syncService: syncService, authService: authService)
-                case 5: AboutSettingsView()
+                case 4: LanguageSettingsView()
+                case 5: SyncSettingsView(syncService: syncService, authService: authService)
+                case 6: AboutSettingsView()
                 default: EmptyView()
                 }
             }

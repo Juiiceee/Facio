@@ -14,6 +14,7 @@ struct PDFGenerator {
     private let mL = PDFLayout.marginLeft
     private let mR = PDFLayout.marginRight
     private let cW = PDFLayout.contentWidth
+    private var lang: AppLanguage { document.langue }
 
     // MARK: - Generation principale
 
@@ -190,10 +191,11 @@ struct PDFGenerator {
         var cy = y
 
         // Gauche : dates
-        drawText("Date de facture: \(document.dateCreation.frenchFormatted)",
+        let dateLabel = document.type == .facture ? L10n.invoiceDate(lang) : L10n.quoteDate(lang)
+        drawText("\(dateLabel)\(document.dateCreation.frenchFormatted)",
                  x: mL, y: cy, font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
         cy += 15
-        drawText("Echeance: \(document.dateEcheance.frenchFormatted)",
+        drawText("\(L10n.dueDate(lang))\(document.dateEcheance.frenchFormatted)",
                  x: mL, y: cy, font: PDFLayout.fontBodyBold, color: PDFLayout.textBlack, context: context)
 
         // Droite : destinataire
@@ -201,8 +203,7 @@ struct PDFGenerator {
         let destX = blockRight - 180
         var ry = y
 
-        // "DESTINATAIRE" en vert fonce
-        drawText("DESTINATAIRE", x: destX, y: ry, font: PDFLayout.fontSection, color: PDFLayout.greenDark, context: context)
+        drawText(L10n.recipient(lang), x: destX, y: ry, font: PDFLayout.fontSection, color: PDFLayout.greenDark, context: context)
         ry += 13
         // Ligne verte fine sous DESTINATAIRE
         strokeLine(context, x1: destX, y1: ry, x2: blockRight, y2: ry, color: PDFLayout.greenDark, width: 1.0)
@@ -236,7 +237,7 @@ struct PDFGenerator {
             w * PDFLayout.colTotal,
             w * PDFLayout.colTVA
         ]
-        let headers = ["DESIGNATION", "QUANTITE", "PRIX", "TOTAL", "TVA"]
+        let headers = [L10n.designation(lang), L10n.quantity(lang), L10n.price(lang), L10n.total(lang), L10n.vat(lang)]
 
         // En-tete du tableau
         cy = drawTableHeader(context, headers: headers, colW: colW, x: x, w: w, y: cy)
@@ -325,8 +326,7 @@ struct PDFGenerator {
 
         let cur = document.currency.rawValue
 
-        // TOTAL
-        drawTextRight("TOTAL", rightX: labelRight, y: cy,
+        drawTextRight(L10n.total(lang), rightX: labelRight, y: cy,
                       font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
         drawTextRight("\(formatSpaced(document.totalHT)) \(cur)", rightX: valueRight, y: cy,
                       font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
@@ -336,8 +336,7 @@ struct PDFGenerator {
         strokeLine(context, x1: labelRight - 30, y1: cy - 2, x2: valueRight, y2: cy - 2,
                    color: PDFLayout.greenPrimary.withAlphaComponent(0.2), width: 0.3)
 
-        // TVA
-        drawTextRight("TVA", rightX: labelRight, y: cy,
+        drawTextRight(L10n.totalVAT(lang), rightX: labelRight, y: cy,
                       font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
         drawTextRight("\(formatSpaced(document.totalTVA)) \(cur)", rightX: valueRight, y: cy,
                       font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
@@ -347,8 +346,7 @@ struct PDFGenerator {
         strokeLine(context, x1: labelRight - 30, y1: cy - 2, x2: valueRight, y2: cy - 2,
                    color: PDFLayout.greenPrimary.withAlphaComponent(0.3), width: 0.5)
 
-        // Total TTC (gras italique)
-        drawTextRight("Total TTC", rightX: labelRight, y: cy,
+        drawTextRight(L10n.totalTTC(lang), rightX: labelRight, y: cy,
                       font: PDFLayout.fontTotalTTC, color: PDFLayout.textBlack, context: context)
         drawTextRight("\(formatSpaced(document.totalTTC)) \(cur)", rightX: valueRight, y: cy,
                       font: PDFLayout.fontTotalTTC, color: PDFLayout.textBlack, context: context)
@@ -361,7 +359,7 @@ struct PDFGenerator {
 
     private func drawTransactionSignatures(_ context: CGContext, y: CGFloat) -> CGFloat {
         var cy = y
-        drawText("PREUVES DE PAIEMENT", x: mL, y: cy,
+        drawText(L10n.paymentProofs(lang), x: mL, y: cy,
                  font: PDFLayout.fontSection, color: PDFLayout.greenDark, context: context)
         cy += 16
 
@@ -371,7 +369,7 @@ struct PDFGenerator {
             cy += 13
 
             let sig = tx.signature.count > 60 ? "\(tx.signature.prefix(30))...\(tx.signature.suffix(10))" : tx.signature
-            drawText("TX: \(sig)", x: mL + 10, y: cy,
+            drawText("\(L10n.txPrefix(lang))\(sig)", x: mL + 10, y: cy,
                      font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
             cy += 11
 
@@ -398,7 +396,7 @@ struct PDFGenerator {
         let rightX = pW / 2 + 10
 
         // Colonne gauche : infos entreprise
-        drawText(company.nom.isEmpty ? "ENTREPRISE" : company.nom.uppercased(),
+        drawText(company.nom.isEmpty ? L10n.companyFallback(lang) : company.nom.uppercased(),
                  x: leftX, y: cy, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
         cy += 12
         if !company.ville.isEmpty || !company.codePostal.isEmpty {
@@ -430,9 +428,9 @@ struct PDFGenerator {
             let chainLabel = document.blockchain?.label ?? "Crypto"
             drawText(chainLabel, x: rightX, y: ry, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
             ry += 12
-            drawText("Transfert Cryptomonnaie", x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
+            drawText(L10n.cryptoTransfer(lang), x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
             ry += 12
-            drawText("Wallet adresse:", x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
+            drawText(L10n.walletAddress(lang), x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
             ry += 12
             if let chain = document.blockchain {
                 let walletsForChain = company.wallets.filter { $0.blockchain == chain }
@@ -442,7 +440,7 @@ struct PDFGenerator {
                 }
             }
         } else {
-            drawText("Virement bancaire", x: rightX, y: ry, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
+            drawText(L10n.bankTransfer(lang), x: rightX, y: ry, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
             ry += 12
             if !company.iban.isEmpty {
                 drawText("IBAN: \(company.iban)", x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
@@ -453,7 +451,7 @@ struct PDFGenerator {
                 ry += 11
             }
             if !company.titulaireCompte.isEmpty {
-                drawText("Titulaire: \(company.titulaireCompte)", x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
+                drawText("\(L10n.accountHolder(lang))\(company.titulaireCompte)", x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
             }
         }
 

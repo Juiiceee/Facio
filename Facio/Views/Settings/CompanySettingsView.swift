@@ -7,6 +7,8 @@ struct CompanySettingsView: View {
         dataStore.companyInfo
     }
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     @State private var isDropTargeted = false
 
     var body: some View {
@@ -14,19 +16,19 @@ struct CompanySettingsView: View {
             // MARK: - Identite
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("Identite", systemImage: "building.2")
+                    Label(L10n.identity(lang), systemImage: "building.2")
                         .font(.headline)
 
-                    settingsRow("Nom") {
-                        TextField("Nom de l'entreprise", text: Binding(
+                    settingsRow(L10n.name(lang)) {
+                        TextField(L10n.companyName(lang), text: Binding(
                             get: { company.nom },
                             set: { company.nom = $0; dataStore.save() }
                         ))
                         .textFieldStyle(.roundedBorder)
                     }
 
-                    settingsRow("Adresse") {
-                        TextField("Adresse postale", text: Binding(
+                    settingsRow(L10n.address(lang)) {
+                        TextField(L10n.postalAddress(lang), text: Binding(
                             get: { company.adresse },
                             set: { company.adresse = $0; dataStore.save() }
                         ))
@@ -34,7 +36,7 @@ struct CompanySettingsView: View {
                     }
 
                     HStack(spacing: 12) {
-                        settingsRow("Code postal") {
+                        settingsRow(L10n.postalCode(lang)) {
                             TextField("54000", text: Binding(
                                 get: { company.codePostal },
                                 set: { company.codePostal = $0; dataStore.save() }
@@ -43,8 +45,8 @@ struct CompanySettingsView: View {
                             .frame(maxWidth: 120)
                         }
 
-                        settingsRow("Ville") {
-                            TextField("Ville", text: Binding(
+                        settingsRow(L10n.city(lang)) {
+                            TextField(L10n.city(lang), text: Binding(
                                 get: { company.ville },
                                 set: { company.ville = $0; dataStore.save() }
                             ))
@@ -66,10 +68,10 @@ struct CompanySettingsView: View {
             // MARK: - Contact
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("Contact", systemImage: "phone")
+                    Label(L10n.contact(lang), systemImage: "phone")
                         .font(.headline)
 
-                    settingsRow("Telephone") {
+                    settingsRow(L10n.phone(lang)) {
                         TextField("06 00 00 00 00", text: Binding(
                             get: { company.telephone },
                             set: { company.telephone = $0; dataStore.save() }
@@ -77,7 +79,7 @@ struct CompanySettingsView: View {
                         .textFieldStyle(.roundedBorder)
                     }
 
-                    settingsRow("Email") {
+                    settingsRow(L10n.email(lang)) {
                         TextField("contact@entreprise.fr", text: Binding(
                             get: { company.email },
                             set: { company.email = $0; dataStore.save() }
@@ -91,7 +93,7 @@ struct CompanySettingsView: View {
             // MARK: - Logo
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("Logo", systemImage: "photo")
+                    Label(L10n.logo(lang), systemImage: "photo")
                         .font(.headline)
 
                     if let logoData = company.logoData,
@@ -104,10 +106,10 @@ struct CompanySettingsView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
                             VStack(alignment: .leading, spacing: 8) {
-                                Button("Choisir un autre fichier...") {
+                                Button(L10n.chooseAnotherFile(lang)) {
                                     pickLogoFile()
                                 }
-                                Button("Supprimer le logo", role: .destructive) {
+                                Button(L10n.deleteLogo(lang), role: .destructive) {
                                     company.logoData = nil
                                     dataStore.save()
                                 }
@@ -125,7 +127,7 @@ struct CompanySettingsView: View {
                                 Image(systemName: "photo.badge.plus")
                                     .font(.title2)
                                     .foregroundStyle(.secondary)
-                                Text("Glissez une image ici")
+                                Text(L10n.dragImageHere(lang))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -134,7 +136,7 @@ struct CompanySettingsView: View {
                             handleDrop(providers: providers)
                         }
 
-                        Button("Choisir un fichier...") {
+                        Button(L10n.chooseFile(lang)) {
                             pickLogoFile()
                         }
                     }

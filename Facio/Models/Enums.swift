@@ -9,6 +9,16 @@ enum PaymentMode: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
     var label: String { rawValue }
+
+    func label(for lang: AppLanguage) -> String {
+        switch (self, lang) {
+        case (.aucun, .fr): return "Aucun"
+        case (.aucun, .en): return "None"
+        case (.virement, .fr): return "Virement"
+        case (.virement, .en): return "Bank transfer"
+        case (.crypto, _): return "Crypto"
+        }
+    }
 }
 
 // MARK: - Type de document
@@ -21,11 +31,24 @@ enum DocumentType: String, Codable, CaseIterable, Identifiable {
 
     var label: String { rawValue }
 
+    func label(for lang: AppLanguage) -> String {
+        switch (self, lang) {
+        case (.facture, .fr): return "Facture"
+        case (.facture, .en): return "Invoice"
+        case (.devis, .fr): return "Devis"
+        case (.devis, .en): return "Quote"
+        }
+    }
+
     var prefix: String {
         switch self {
         case .facture: return "Facture"
         case .devis: return "Devis"
         }
+    }
+
+    func prefix(for lang: AppLanguage) -> String {
+        label(for: lang)
     }
 }
 
@@ -40,6 +63,19 @@ enum DocumentStatus: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     var label: String { rawValue }
+
+    func label(for lang: AppLanguage) -> String {
+        switch (self, lang) {
+        case (.brouillon, .fr): return "Brouillon"
+        case (.brouillon, .en): return "Draft"
+        case (.envoyee, .fr): return "Envoyee"
+        case (.envoyee, .en): return "Sent"
+        case (.payee, .fr): return "Payee"
+        case (.payee, .en): return "Paid"
+        case (.annulee, .fr): return "Annulee"
+        case (.annulee, .en): return "Cancelled"
+        }
+    }
 
     var color: String {
         switch self {

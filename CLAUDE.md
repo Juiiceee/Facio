@@ -38,19 +38,26 @@ macOS SwiftUI app (Swift 6.0, macOS 15+) built with Swift Package Manager. Gener
 - `Services/SyncService.swift` — Supabase REST sync (UPSERT/pull), dirty tracking, sync state
 - `Services/AuthService.swift` — Supabase anonymous + email auth, Keychain token storage
 - `Services/NetworkMonitor.swift` — NWPathMonitor wrapper for connectivity detection
-- `Services/DocumentNumberService.swift` — auto-numbering: `Facture_2026_03`, `Devis_2026_01`
+- `Services/DocumentNumberService.swift` — auto-numbering: `Facture_2026_03` / `Invoice_2026_03`
 - `Services/ExportService.swift` — NSSavePanel wrapper for PDF export
 - `Views/ContentView.swift` — three-column NavigationSplitView (sidebar → list → detail)
 - `Views/Documents/DocumentEditorView.swift` — main editor with all sections
 - `Views/Timesheet/` — TimesheetListView, TimesheetEditorView for weekly hour tracking
-- `Views/Settings/` — Company, Payment, Defaults, Prestations, Sync, About
+- `Views/Settings/` — Company, Payment, Defaults, Prestations, Language, Sync, About
 - `PDF/PDFGenerator.swift` — full A4 PDF rendering. Olive green theme (#6B8E3A). Abstract circle logo fallback.
 - `PDF/PDFLayout.swift` — all constants (fonts, colors, margins, column widths)
 - `Extensions/` — Date and Decimal French formatting helpers, Color theme
 
-### UI Language
+### Internationalization (i18n)
 
-All labels, placeholders, and PDF content are in **French**. Keep this consistent.
+The app supports **French** (default) and **English**. All user-facing strings are centralized in `Localization/L10n.swift`.
+
+- **Language per document** — each `Document` has a `langue` field (FR/EN). The PDF and document number (`Facture_` vs `Invoice_`) adapt to the document's language.
+- **Global UI language** — controlled by `CompanyInfo.langueParDefaut`. All views use `private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }` to access it.
+- **Date/number formats** — configurable globally via `CompanyInfo.formatDate` / `CompanyInfo.formatNombre` in Settings > Langue & Format.
+- **Pattern** — `L10n.someKey(lang)` returns the translated string. Never hardcode French strings in views or PDF.
+
+**IMPORTANT : Whenever you add or modify any UI element that displays text (labels, placeholders, buttons, alerts, section titles, PDF text, etc.), you MUST add the translation in `L10n.swift` for both FR and EN, and use `L10n.xxx(lang)` instead of a hardcoded string.**
 
 ## Conventional Commits
 

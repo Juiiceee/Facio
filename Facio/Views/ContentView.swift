@@ -6,6 +6,8 @@ struct ContentView: View {
     @State private var selectedDocumentId: UUID?
     @State private var selectedTimesheetId: UUID?
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     private var selectedDocument: Document? {
         guard let id = selectedDocumentId else { return nil }
         return dataStore.documents.first { $0.id == id }
@@ -67,9 +69,9 @@ struct ContentView: View {
                 DocumentEditorView(document: doc)
             } else {
                 ContentUnavailableView(
-                    "Aucun document selectionne",
+                    L10n.noDocumentSelected(lang),
                     systemImage: "doc.text",
-                    description: Text("Selectionnez un document dans la liste ou creez-en un nouveau avec +")
+                    description: Text(L10n.selectDocumentHint(lang))
                 )
             }
         case .heures:
@@ -77,9 +79,9 @@ struct ContentView: View {
                 TimesheetEditorView(timesheet: ts)
             } else {
                 ContentUnavailableView(
-                    "Aucune periode selectionnee",
+                    L10n.noPeriodSelected(lang),
                     systemImage: "clock",
-                    description: Text("Selectionnez une periode ou creez-en une avec +")
+                    description: Text(L10n.selectPeriodHint(lang))
                 )
             }
         case .clients:
@@ -89,7 +91,7 @@ struct ContentView: View {
         case .parametres:
             SettingsInlineView()
         case .none:
-            Text("Selectionnez une section")
+            Text(L10n.selectSection(lang))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

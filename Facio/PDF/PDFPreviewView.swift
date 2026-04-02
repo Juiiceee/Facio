@@ -30,20 +30,23 @@ struct PDFPreviewSheet: View {
     let document: Document
     let company: CompanyInfo
     @Environment(\.dismiss) private var dismiss
+    @Environment(DataStore.self) private var dataStore
+
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     var body: some View {
         VStack(spacing: 0) {
             // Toolbar
             HStack {
-                Text("Aperçu — \(document.number)")
+                Text(L10n.previewTitle(lang, number: document.number))
                     .font(.headline)
                 Spacer()
-                Button("Exporter PDF") {
+                Button(L10n.exportPDF(lang)) {
                     exportPDF()
                 }
                 .keyboardShortcut("e", modifiers: .command)
 
-                Button("Fermer") {
+                Button(L10n.close(lang)) {
                     dismiss()
                 }
                 .keyboardShortcut(.escape)
@@ -56,9 +59,9 @@ struct PDFPreviewSheet: View {
             let pdfData = PDFGenerator(document: document, company: company).generate()
             if pdfData.isEmpty {
                 ContentUnavailableView(
-                    "Erreur de génération",
+                    L10n.pdfGenerationError(lang),
                     systemImage: "exclamationmark.triangle",
-                    description: Text("Impossible de générer le PDF.")
+                    description: Text(L10n.cannotGeneratePDF(lang))
                 )
             } else {
                 PDFPreviewView(data: pdfData)
@@ -71,7 +74,7 @@ struct PDFPreviewSheet: View {
         let pdfData = PDFGenerator(document: document, company: company).generate()
         guard !pdfData.isEmpty else { return }
         Task {
-            await ExportService.exportPDF(data: pdfData, defaultFilename: document.number)
+            await ExportService.exportPDF(data: pdfData, defaultFilename: document.number, language: lang)
         }
     }
 }

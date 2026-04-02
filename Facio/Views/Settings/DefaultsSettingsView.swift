@@ -7,6 +7,8 @@ struct DefaultsSettingsView: View {
         dataStore.companyInfo
     }
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     private let tauxTVAOptions: [(label: String, value: Decimal)] = [
         ("0 %", 0),
         ("5,5 %", 5.5),
@@ -19,10 +21,10 @@ struct DefaultsSettingsView: View {
             // MARK: - TVA
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("Taux de TVA", systemImage: "percent")
+                    Label(L10n.vatRate(lang), systemImage: "percent")
                         .font(.headline)
 
-                    settingsRow("Taux par defaut") {
+                    settingsRow(L10n.defaultRate(lang)) {
                         Picker("", selection: Binding(
                             get: { company.tauxTVAParDefaut },
                             set: { company.tauxTVAParDefaut = $0; dataStore.save() }
@@ -41,10 +43,10 @@ struct DefaultsSettingsView: View {
             // MARK: - Devise
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("Devise", systemImage: "dollarsign.circle")
+                    Label(L10n.currency(lang), systemImage: "dollarsign.circle")
                         .font(.headline)
 
-                    settingsRow("Devise par defaut") {
+                    settingsRow(L10n.defaultCurrency(lang)) {
                         Picker("", selection: Binding(
                             get: { company.deviseParDefaut },
                             set: { newValue in
@@ -69,7 +71,7 @@ struct DefaultsSettingsView: View {
                     if company.deviseParDefaut.requiresBlockchain {
                         let compatible = Blockchain.compatibleBlockchains(for: company.deviseParDefaut)
 
-                        settingsRow("Blockchain par defaut") {
+                        settingsRow(L10n.defaultBlockchain(lang)) {
                             Picker("", selection: Binding(
                                 get: { company.blockchainParDefaut ?? compatible.first ?? .solana },
                                 set: { company.blockchainParDefaut = $0; dataStore.save() }
@@ -89,16 +91,16 @@ struct DefaultsSettingsView: View {
             // MARK: - Delai de paiement
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("Delai de paiement", systemImage: "calendar.badge.clock")
+                    Label(L10n.paymentDelay(lang), systemImage: "calendar.badge.clock")
                         .font(.headline)
 
                     HStack {
-                        Text("Delai par defaut")
+                        Text(L10n.defaultDelay(lang))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Spacer()
                         Stepper(
-                            "\(company.delaiPaiementJours) jours",
+                            L10n.days(lang, count: company.delaiPaiementJours),
                             value: Binding(
                                 get: { company.delaiPaiementJours },
                                 set: { company.delaiPaiementJours = $0; dataStore.save() }

@@ -7,16 +7,18 @@ struct PaymentSettingsView: View {
         dataStore.companyInfo
     }
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     var body: some View {
         VStack(spacing: 20) {
             // MARK: - Paiement Fiat
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("Paiement Fiat", systemImage: "building.columns")
+                    Label(L10n.fiatPayment(lang), systemImage: "building.columns")
                         .font(.headline)
 
-                    settingsRow("Nom de la banque") {
-                        TextField("Ex: Boursorama, BNP, Revolut...", text: Binding(
+                    settingsRow(L10n.bankName(lang)) {
+                        TextField(L10n.bankNamePlaceholder(lang), text: Binding(
                             get: { company.nomBanque },
                             set: { company.nomBanque = $0; dataStore.save() }
                         ))
@@ -39,8 +41,8 @@ struct PaymentSettingsView: View {
                         .textFieldStyle(.roundedBorder)
                     }
 
-                    settingsRow("Titulaire du compte") {
-                        TextField("Nom du titulaire", text: Binding(
+                    settingsRow(L10n.accountHolderLabel(lang)) {
+                        TextField(L10n.accountHolderPlaceholder(lang), text: Binding(
                             get: { company.titulaireCompte },
                             set: { company.titulaireCompte = $0; dataStore.save() }
                         ))
@@ -53,14 +55,14 @@ struct PaymentSettingsView: View {
             // MARK: - Wallets Crypto
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("Wallets Crypto", systemImage: "wallet.pass")
+                    Label(L10n.cryptoWallets(lang), systemImage: "wallet.pass")
                         .font(.headline)
 
                     if company.wallets.isEmpty {
                         HStack {
                             Image(systemName: "info.circle")
                                 .foregroundStyle(.secondary)
-                            Text("Aucun wallet configure")
+                            Text(L10n.noWalletConfiguredShort(lang))
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 4)
@@ -73,7 +75,7 @@ struct PaymentSettingsView: View {
                     Button {
                         addWallet()
                     } label: {
-                        Label("Ajouter un wallet", systemImage: "plus.circle")
+                        Label(L10n.addWallet(lang), systemImage: "plus.circle")
                     }
                 }
                 .padding(12)

@@ -6,6 +6,10 @@ struct LineItemRowView: View {
     var onDelete: () -> Void
     var onUpdate: () -> Void
 
+    @Environment(DataStore.self) private var dataStore
+
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     private static let tvaRates: [Decimal] = [0, 5.5, 10, 20]
 
     /// Acces securise a la ligne — retourne nil si supprimee
@@ -22,7 +26,7 @@ struct LineItemRowView: View {
         if let currentLigne = ligne {
             HStack(spacing: 8) {
                 // Designation
-                TextField("Designation", text: Binding(
+                TextField(L10n.designationLabel(lang), text: Binding(
                     get: { document.lignes.first(where: { $0.id == ligneId })?.designation ?? "" },
                     set: { newVal in
                         if let i = safeIndex() { document.lignes[i].designation = newVal; onUpdate() }
@@ -33,7 +37,7 @@ struct LineItemRowView: View {
 
                 // Quantite
                 DecimalField(
-                    placeholder: "Qte",
+                    placeholder: L10n.qtyShort(lang),
                     value: Binding(
                         get: { document.lignes.first(where: { $0.id == ligneId })?.quantite ?? 0 },
                         set: { newVal in
@@ -45,7 +49,7 @@ struct LineItemRowView: View {
 
                 // Prix unitaire
                 DecimalField(
-                    placeholder: "Prix",
+                    placeholder: L10n.priceLabel(lang),
                     value: Binding(
                         get: { document.lignes.first(where: { $0.id == ligneId })?.prixUnitaire ?? 0 },
                         set: { newVal in
@@ -56,7 +60,7 @@ struct LineItemRowView: View {
                 .frame(width: 110)
 
                 // TVA
-                Picker("TVA", selection: Binding(
+                Picker(L10n.vatLabel(lang), selection: Binding(
                     get: { document.lignes.first(where: { $0.id == ligneId })?.tauxTVA ?? 0 },
                     set: { newVal in
                         if let i = safeIndex() { document.lignes[i].tauxTVA = newVal; onUpdate() }

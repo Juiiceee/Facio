@@ -2,6 +2,9 @@ import SwiftUI
 
 struct TotalsView: View {
     let document: Document
+    @Environment(DataStore.self) private var dataStore
+
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     /// Ventilation TVA par taux
     private var tvaBreakdown: [(rate: Decimal, amount: Decimal)] {
@@ -22,25 +25,25 @@ struct TotalsView: View {
 
             GroupBox {
                 VStack(alignment: .trailing, spacing: 8) {
-                    totalRow(label: "Total HT", value: document.currency.format(document.totalHT), isDetail: false)
+                    totalRow(label: L10n.totalHT(lang), value: document.currency.format(document.totalHT), isDetail: false)
 
                     // Ventilation TVA
                     if tvaBreakdown.count > 1 {
                         ForEach(tvaBreakdown, id: \.rate) { entry in
                             totalRow(
-                                label: "TVA \(entry.rate as NSDecimalNumber)%",
+                                label: L10n.vatRate(lang, rate: "\(entry.rate as NSDecimalNumber)"),
                                 value: document.currency.format(entry.amount),
                                 isDetail: true
                             )
                         }
                     }
 
-                    totalRow(label: "Total TVA", value: document.currency.format(document.totalTVA), isDetail: false)
+                    totalRow(label: L10n.totalTVA(lang), value: document.currency.format(document.totalTVA), isDetail: false)
 
                     Divider()
 
                     HStack {
-                        Text("Total TTC")
+                        Text(L10n.totalTTC(lang))
                             .font(.headline)
                         Spacer()
                         Text(document.totalFormatted)

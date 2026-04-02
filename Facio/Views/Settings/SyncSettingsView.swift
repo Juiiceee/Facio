@@ -16,21 +16,23 @@ struct SyncSettingsView: View {
     var syncService: SyncService
     var authService: AuthService
 
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     var body: some View {
         VStack(spacing: 20) {
             // MARK: - Toggle principal
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("Synchronisation cloud", systemImage: "icloud")
+                    Label(L10n.cloudSync(lang), systemImage: "icloud")
                         .font(.headline)
 
-                    Toggle("Activer la sauvegarde en ligne", isOn: $isEnabled)
+                    Toggle(L10n.enableOnlineBackup(lang), isOn: $isEnabled)
                         .onChange(of: isEnabled) {
                             SyncConfig.isEnabled = isEnabled
                         }
 
                     if isEnabled {
-                        Text("Vos donnees sont synchronisees dans le cloud. Creez un compte ou connectez-vous pour activer la sync.")
+                        Text(L10n.syncDescription(lang))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -42,7 +44,7 @@ struct SyncSettingsView: View {
             if isEnabled {
                 GroupBox {
                     VStack(alignment: .leading, spacing: 14) {
-                        Label("Compte", systemImage: "person.crop.circle")
+                        Label(L10n.account(lang), systemImage: "person.crop.circle")
                             .font(.headline)
 
                         if authService.isAuthenticated {
@@ -51,10 +53,10 @@ struct SyncSettingsView: View {
                                 Circle()
                                     .fill(.green)
                                     .frame(width: 8, height: 8)
-                                Text("Connecte — \(authService.userEmail)")
+                                Text(L10n.connected(lang, email: authService.userEmail))
                                     .foregroundStyle(.secondary)
                                 Spacer()
-                                Button("Deconnexion") { authService.signOut() }
+                                Button(L10n.signOut(lang)) { authService.signOut() }
                                     .foregroundStyle(.red)
                                     .buttonStyle(.borderless)
                             }
@@ -63,18 +65,18 @@ struct SyncSettingsView: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "envelope.badge")
                                     .foregroundStyle(.blue)
-                                Text("Un code a 6 chiffres a ete envoye a **\(authService.pendingEmail)**")
+                                Text(L10n.otpSent(lang, email: authService.pendingEmail))
                                     .font(.subheadline)
                             }
 
-                            settingsRow("Code de verification") {
+                            settingsRow(L10n.verificationCode(lang)) {
                                 TextField("123456", text: $otpCode)
                                     .textFieldStyle(.roundedBorder)
                                     .frame(maxWidth: 200)
                             }
 
                             HStack(spacing: 12) {
-                                Button("Verifier") {
+                                Button(L10n.verify(lang)) {
                                     Task {
                                         await authService.verifyOTP(code: otpCode)
                                         otpCode = ""
@@ -85,13 +87,13 @@ struct SyncSettingsView: View {
                                 }
                                 .disabled(otpCode.count < 6 || authService.isLoading)
 
-                                Button("Renvoyer le code") {
+                                Button(L10n.resendCode(lang)) {
                                     Task { await authService.sendOTP(email: authService.pendingEmail) }
                                 }
                                 .buttonStyle(.borderless)
                                 .disabled(authService.isLoading)
 
-                                Button("Annuler") {
+                                Button(L10n.cancel(lang)) {
                                     authService.cancelOTP()
                                     otpCode = ""
                                 }
@@ -102,22 +104,22 @@ struct SyncSettingsView: View {
                             if authService.isLoading {
                                 HStack {
                                     ProgressView().scaleEffect(0.7)
-                                    Text("Verification...")
+                                    Text(L10n.verifying(lang))
                                         .foregroundStyle(.secondary)
                                 }
                             }
                         } else {
                             // Step 1: Enter email
-                            Text("Entrez votre email pour recevoir un code de connexion.")
+                            Text(L10n.emailLoginPrompt(lang))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
 
-                            settingsRow("Email") {
+                            settingsRow(L10n.email(lang)) {
                                 TextField("email@exemple.com", text: $email)
                                     .textFieldStyle(.roundedBorder)
                             }
 
-                            Button("Recevoir un code") {
+                            Button(L10n.receiveCode(lang)) {
                                 Task { await authService.sendOTP(email: email) }
                             }
                             .disabled(email.isEmpty || !email.contains("@") || authService.isLoading)
@@ -125,7 +127,7 @@ struct SyncSettingsView: View {
                             if authService.isLoading {
                                 HStack {
                                     ProgressView().scaleEffect(0.7)
-                                    Text("Envoi du code...")
+                                    Text(L10n.sendingCode(lang))
                                         .foregroundStyle(.secondary)
                                 }
                             }
@@ -149,20 +151,20 @@ struct SyncSettingsView: View {
             if isEnabled && authService.isAuthenticated {
                 GroupBox {
                     VStack(alignment: .leading, spacing: 14) {
-                        Label("Statut", systemImage: "antenna.radiowaves.left.and.right")
+                        Label(L10n.syncStatus(lang), systemImage: "antenna.radiowaves.left.and.right")
                             .font(.headline)
 
                         if syncService.isSyncing {
                             HStack {
                                 ProgressView().scaleEffect(0.7)
-                                Text("Synchronisation...")
+                                Text(L10n.syncing(lang))
                                     .foregroundStyle(.secondary)
                             }
                         }
 
                         if let lastSync = syncService.lastSyncDate {
                             HStack {
-                                Text("Derniere sync")
+                                Text(L10n.lastSync(lang))
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 Text(lastSync.frenchFormatted)
@@ -181,12 +183,12 @@ struct SyncSettingsView: View {
                         }
 
                         HStack(spacing: 12) {
-                            Button("Synchroniser") {
+                            Button(L10n.synchronize(lang)) {
                                 Task { await syncService.fullSync(dataStore: dataStore) }
                             }
                             .disabled(syncService.isSyncing)
 
-                            Button("Tout pousser") {
+                            Button(L10n.pushAll(lang)) {
                                 Task {
                                     syncService.markDirty("documents")
                                     syncService.markDirty("clients")
@@ -206,10 +208,10 @@ struct SyncSettingsView: View {
             if isEnabled {
                 GroupBox {
                     VStack(alignment: .leading, spacing: 14) {
-                        Label("Avance", systemImage: "wrench.and.screwdriver")
+                        Label(L10n.advanced(lang), systemImage: "wrench.and.screwdriver")
                             .font(.headline)
 
-                        Toggle("Utiliser ma propre base Supabase", isOn: $useCustomDB)
+                        Toggle(L10n.useOwnSupabase(lang), isOn: $useCustomDB)
                             .onChange(of: useCustomDB) {
                                 SyncConfig.useCustomDB = useCustomDB
                                 if !useCustomDB {
@@ -218,19 +220,19 @@ struct SyncSettingsView: View {
                             }
 
                         if useCustomDB {
-                            settingsRow("URL Supabase") {
+                            settingsRow(L10n.supabaseURL(lang)) {
                                 TextField("https://xxx.supabase.co", text: $customURL)
                                     .textFieldStyle(.roundedBorder)
                                     .onChange(of: customURL) { SyncConfig.customURL = customURL }
                             }
 
-                            settingsRow("Cle API (anon)") {
+                            settingsRow(L10n.apiKeyAnon(lang)) {
                                 HStack {
                                     if showApiKey {
                                         TextField("eyJhbG...", text: $customAPIKey)
                                             .textFieldStyle(.roundedBorder)
                                     } else {
-                                        SecureField("Cle API", text: $customAPIKey)
+                                        SecureField(L10n.apiKey(lang), text: $customAPIKey)
                                             .textFieldStyle(.roundedBorder)
                                     }
                                     Button {
@@ -246,7 +248,7 @@ struct SyncSettingsView: View {
                             Divider()
 
                             // SQL helper
-                            DisclosureGroup("Schema SQL pour votre base", isExpanded: $showSQL) {
+                            DisclosureGroup(L10n.sqlSchema(lang), isExpanded: $showSQL) {
                                 Text(SyncService.sqlSchema)
                                     .font(.system(.caption2, design: .monospaced))
                                     .textSelection(.enabled)
@@ -255,7 +257,7 @@ struct SyncSettingsView: View {
                                     .background(Color.black.opacity(0.05))
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
 
-                                Button("Copier le SQL") {
+                                Button(L10n.copySQL(lang)) {
                                     NSPasteboard.general.clearContents()
                                     NSPasteboard.general.setString(SyncService.sqlSchema, forType: .string)
                                 }
