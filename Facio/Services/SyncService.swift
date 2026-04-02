@@ -452,7 +452,7 @@ final class SyncService: Sendable {
             // Parse line_items
             if let lineItemsJson = json["line_items"] as? [[String: Any]] {
                 doc.lignes = lineItemsJson.compactMap { li in
-                    guard let liId = (li["id"] as? String).flatMap({ UUID(uuidString: $0) }) else { return nil }
+                    guard (li["id"] as? String).flatMap({ UUID(uuidString: $0) }) != nil else { return nil }
                     return LineItem(
                         designation: li["designation"] as? String ?? "",
                         quantite: Decimal(li["quantite"] as? Double ?? 0),
@@ -713,7 +713,7 @@ final class SyncService: Sendable {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
-                if let httpResponse = response as? HTTPURLResponse,
+                if let _ = response as? HTTPURLResponse,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let msg = json["message"] as? String {
                     lastError = msg
