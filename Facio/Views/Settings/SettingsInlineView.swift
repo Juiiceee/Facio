@@ -49,6 +49,7 @@ struct SettingsInlineView: View {
                                     .font(.subheadline)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 7)
+                                    .contentShape(RoundedRectangle(cornerRadius: 6))
                                     .background(
                                         selectedTab == index
                                             ? Color.accentColor.opacity(0.12)
