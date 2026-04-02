@@ -12,6 +12,11 @@ struct SettingsView: View {
                     Label(L10n.settingsCompany(lang), systemImage: "building.2")
                 }
 
+            CustomisationSettingsView()
+                .tabItem {
+                    Label(L10n.settingsCustomisation(lang), systemImage: "paintpalette")
+                }
+
             PaymentSettingsView()
                 .tabItem {
                     Label(L10n.settingsPayment(lang), systemImage: "creditcard")

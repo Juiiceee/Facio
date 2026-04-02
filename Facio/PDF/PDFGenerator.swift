@@ -16,6 +16,10 @@ struct PDFGenerator {
     private let cW = PDFLayout.contentWidth
     private var lang: AppLanguage { document.langue }
 
+    // Couleurs dynamiques (depuis CompanyInfo)
+    private var themePrimary: NSColor { PDFLayout.themePrimary(from: company) }
+    private var themeDark: NSColor { PDFLayout.themeDark(from: company) }
+
     // MARK: - Generation principale
 
     func generate() -> Data {
@@ -203,10 +207,10 @@ struct PDFGenerator {
         let destX = blockRight - 180
         var ry = y
 
-        drawText(L10n.recipient(lang), x: destX, y: ry, font: PDFLayout.fontSection, color: PDFLayout.greenDark, context: context)
+        drawText(L10n.recipient(lang), x: destX, y: ry, font: PDFLayout.fontSection, color: themeDark, context: context)
         ry += 13
         // Ligne verte fine sous DESTINATAIRE
-        strokeLine(context, x1: destX, y1: ry, x2: blockRight, y2: ry, color: PDFLayout.greenDark, width: 1.0)
+        strokeLine(context, x1: destX, y1: ry, x2: blockRight, y2: ry, color: themeDark, width: 1.0)
         ry += 8
 
         // Nom client
@@ -248,7 +252,7 @@ struct PDFGenerator {
         for (_, ligne) in document.lignesTriees.enumerated() {
             if cy > pH - PDFLayout.marginBottom - 80 {
                 // Bordure du tableau avant nouvelle page
-                strokeRect(context, x: x, y: tableStartY, w: w, h: cy - tableStartY, color: PDFLayout.greenPrimary, lineWidth: 0.8)
+                strokeRect(context, x: x, y: tableStartY, w: w, h: cy - tableStartY, color: themePrimary, lineWidth: 0.8)
                 context.endPDFPage()
                 cy = beginPage(context)
                 cy = drawTableHeader(context, headers: headers, colW: colW, x: x, w: w, y: cy)
@@ -260,7 +264,7 @@ struct PDFGenerator {
                 sepX += colW[i]
                 if i < colW.count - 1 {
                     strokeLine(context, x1: sepX, y1: cy, x2: sepX, y2: cy + PDFLayout.tableRowHeight,
-                               color: PDFLayout.greenPrimary.withAlphaComponent(0.3), width: 0.3)
+                               color: themePrimary.withAlphaComponent(0.3), width: 0.3)
                 }
             }
 
@@ -290,18 +294,18 @@ struct PDFGenerator {
 
             // Ligne horizontale fine entre les lignes
             strokeLine(context, x1: x, y1: cy, x2: x + w, y2: cy,
-                       color: PDFLayout.greenPrimary.withAlphaComponent(0.15), width: 0.3)
+                       color: themePrimary.withAlphaComponent(0.15), width: 0.3)
         }
 
         // Bordure du tableau
-        strokeRect(context, x: x, y: tableStartY, w: w, h: cy - tableStartY, color: PDFLayout.greenPrimary, lineWidth: 0.8)
+        strokeRect(context, x: x, y: tableStartY, w: w, h: cy - tableStartY, color: themePrimary, lineWidth: 0.8)
 
         return cy
     }
 
     private func drawTableHeader(_ context: CGContext, headers: [String], colW: [CGFloat], x: CGFloat, w: CGFloat, y: CGFloat) -> CGFloat {
         // Fond vert olive
-        fillRect(context, x: x, y: y, w: w, h: PDFLayout.tableHeaderHeight, color: PDFLayout.greenPrimary)
+        fillRect(context, x: x, y: y, w: w, h: PDFLayout.tableHeaderHeight, color: themePrimary)
 
         var colX = x
         for (i, h) in headers.enumerated() {
@@ -334,7 +338,7 @@ struct PDFGenerator {
 
         // Ligne de separation
         strokeLine(context, x1: labelRight - 30, y1: cy - 2, x2: valueRight, y2: cy - 2,
-                   color: PDFLayout.greenPrimary.withAlphaComponent(0.2), width: 0.3)
+                   color: themePrimary.withAlphaComponent(0.2), width: 0.3)
 
         drawTextRight(L10n.totalVAT(lang), rightX: labelRight, y: cy,
                       font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
@@ -344,7 +348,7 @@ struct PDFGenerator {
 
         // Ligne de separation
         strokeLine(context, x1: labelRight - 30, y1: cy - 2, x2: valueRight, y2: cy - 2,
-                   color: PDFLayout.greenPrimary.withAlphaComponent(0.3), width: 0.5)
+                   color: themePrimary.withAlphaComponent(0.3), width: 0.5)
 
         drawTextRight(L10n.totalTTC(lang), rightX: labelRight, y: cy,
                       font: PDFLayout.fontTotalTTC, color: PDFLayout.textBlack, context: context)
@@ -360,7 +364,7 @@ struct PDFGenerator {
     private func drawTransactionSignatures(_ context: CGContext, y: CGFloat) -> CGFloat {
         var cy = y
         drawText(L10n.paymentProofs(lang), x: mL, y: cy,
-                 font: PDFLayout.fontSection, color: PDFLayout.greenDark, context: context)
+                 font: PDFLayout.fontSection, color: themeDark, context: context)
         cy += 16
 
         for tx in document.transactionSignatures {
@@ -390,7 +394,7 @@ struct PDFGenerator {
         // Bordure verte epaisse a gauche du bloc
         let blockTop = cy
         let blockHeight: CGFloat = 70
-        fillRect(context, x: mL, y: cy, w: 4, h: blockHeight, color: PDFLayout.greenPrimary)
+        fillRect(context, x: mL, y: cy, w: 4, h: blockHeight, color: themePrimary)
 
         let leftX = mL + 14
         let rightX = pW / 2 + 10

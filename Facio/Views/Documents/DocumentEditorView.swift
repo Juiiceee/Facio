@@ -109,7 +109,7 @@ struct DocumentEditorView: View {
                             .foregroundStyle(.secondary)
                         Text(document.type.label(for: lang))
                             .font(.headline)
-                            .foregroundStyle(Color.appPrimary)
+                            .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
                     }
 
                     VStack(alignment: .leading, spacing: 4) {

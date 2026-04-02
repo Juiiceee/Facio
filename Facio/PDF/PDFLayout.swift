@@ -60,4 +60,21 @@ struct PDFLayout {
     static let logoGreenDark = NSColor(red: 0.35, green: 0.48, blue: 0.17, alpha: 0.85)     // #5A7A2B
     static let logoGreenMed = NSColor(red: 0.45, green: 0.55, blue: 0.20, alpha: 0.80)
     static let logoYellowLight = NSColor(red: 0.82, green: 0.72, blue: 0.30, alpha: 0.75)
+
+    // MARK: - Couleurs dynamiques (depuis CompanyInfo)
+
+    /// Couleur principale du theme (en-tetes, bordures, accents)
+    static func themePrimary(from company: CompanyInfo) -> NSColor {
+        company.accentNSColor
+    }
+
+    /// Variante foncee (labels de section)
+    static func themeDark(from company: CompanyInfo) -> NSColor {
+        company.accentNSColor.darkened(by: 0.15)
+    }
+
+    /// Variante tres claire (alternance de lignes)
+    static func themeLight(from company: CompanyInfo) -> NSColor {
+        company.accentNSColor.withAlphaComponent(0.07)
+    }
 }

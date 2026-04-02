@@ -13,6 +13,16 @@ extension L10n {
     static func settingsSync(_ l: AppLanguage) -> String { l == .fr ? "Synchronisation" : "Sync" }
     static func settingsAbout(_ l: AppLanguage) -> String { l == .fr ? "A propos" : "About" }
     static func settingsLanguage(_ l: AppLanguage) -> String { l == .fr ? "Langue & Format" : "Language & Format" }
+    static func settingsCustomisation(_ l: AppLanguage) -> String { l == .fr ? "Personnalisation" : "Customisation" }
+
+    // Personnalisation
+    static func themeColor(_ l: AppLanguage) -> String { l == .fr ? "Couleur du theme" : "Theme color" }
+    static func mainColor(_ l: AppLanguage) -> String { l == .fr ? "Couleur principale" : "Main color" }
+    static func resetColor(_ l: AppLanguage) -> String { l == .fr ? "Reinitialiser" : "Reset" }
+    static func colorPreview(_ l: AppLanguage) -> String { l == .fr ? "Apercu" : "Preview" }
+    static func colorHeader(_ l: AppLanguage) -> String { l == .fr ? "En-tete" : "Header" }
+    static func colorSections(_ l: AppLanguage) -> String { l == .fr ? "Sections" : "Sections" }
+    static func colorAlternating(_ l: AppLanguage) -> String { l == .fr ? "Alternance" : "Alternating" }
 
     // Entreprise
     static func identity(_ l: AppLanguage) -> String { l == .fr ? "Identite" : "Identity" }

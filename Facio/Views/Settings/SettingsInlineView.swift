@@ -12,6 +12,7 @@ struct SettingsInlineView: View {
     private var tabs: [(label: String, icon: String)] {
         [
             (L10n.settingsCompany(lang), "building.2"),
+            (L10n.settingsCustomisation(lang), "paintpalette"),
             (L10n.settingsPayment(lang), "creditcard"),
             (L10n.settingsDefaults(lang), "slider.horizontal.3"),
             (L10n.settingsServices(lang), "star"),
@@ -67,12 +68,13 @@ struct SettingsInlineView: View {
             ScrollView {
                 switch selectedTab {
                 case 0: CompanySettingsView()
-                case 1: PaymentSettingsView()
-                case 2: DefaultsSettingsView()
-                case 3: PrestationsSettingsView()
-                case 4: LanguageSettingsView()
-                case 5: SyncSettingsView(syncService: syncService, authService: authService)
-                case 6: AboutSettingsView()
+                case 1: CustomisationSettingsView()
+                case 2: PaymentSettingsView()
+                case 3: DefaultsSettingsView()
+                case 4: PrestationsSettingsView()
+                case 5: LanguageSettingsView()
+                case 6: SyncSettingsView(syncService: syncService, authService: authService)
+                case 7: AboutSettingsView()
                 default: EmptyView()
                 }
             }

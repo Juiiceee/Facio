@@ -10,6 +10,13 @@ extension Color {
     /// Vert clair pour les lignes alternees du tableau
     static var appPrimaryLight: Color { Color(red: 0.33, green: 0.54, blue: 0.19).opacity(0.08) }
 
+    /// Couleur principale dynamique (depuis CompanyInfo)
+    static func appPrimary(from company: CompanyInfo) -> Color {
+        guard let hex = company.couleurAccentHex,
+              let ns = NSColor.fromHex(hex) else { return appPrimary }
+        return Color(nsColor: ns)
+    }
+
     /// Fond de la sidebar
     static var sidebarBackground: Color { Color(nsColor: .controlBackgroundColor) }
 

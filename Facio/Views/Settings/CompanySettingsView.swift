@@ -9,8 +9,6 @@ struct CompanySettingsView: View {
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
-    @State private var isDropTargeted = false
-
     var body: some View {
         VStack(spacing: 20) {
             // MARK: - Identite
@@ -90,60 +88,6 @@ struct CompanySettingsView: View {
                 .padding(12)
             }
 
-            // MARK: - Logo
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.logo(lang), systemImage: "photo")
-                        .font(.headline)
-
-                    if let logoData = company.logoData,
-                       let nsImage = NSImage(data: logoData) {
-                        HStack(spacing: 16) {
-                            Image(nsImage: nsImage)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxWidth: 100, maxHeight: 80)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                            VStack(alignment: .leading, spacing: 8) {
-                                Button(L10n.chooseAnotherFile(lang)) {
-                                    pickLogoFile()
-                                }
-                                Button(L10n.deleteLogo(lang), role: .destructive) {
-                                    company.logoData = nil
-                                    dataStore.save()
-                                }
-                                .foregroundStyle(.red)
-                            }
-                        }
-                    } else {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 8)
-                                .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6]))
-                                .foregroundStyle(isDropTargeted ? .blue : .secondary.opacity(0.5))
-                                .frame(height: 80)
-
-                            VStack(spacing: 4) {
-                                Image(systemName: "photo.badge.plus")
-                                    .font(.title2)
-                                    .foregroundStyle(.secondary)
-                                Text(L10n.dragImageHere(lang))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
-                            handleDrop(providers: providers)
-                        }
-
-                        Button(L10n.chooseFile(lang)) {
-                            pickLogoFile()
-                        }
-                    }
-                }
-                .padding(12)
-            }
-
             Spacer()
         }
         .padding(24)
@@ -161,35 +105,4 @@ struct CompanySettingsView: View {
         }
     }
 
-    private func pickLogoFile() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.png, .jpeg, .tiff]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-
-        if panel.runModal() == .OK, let url = panel.url {
-            if let data = try? Data(contentsOf: url) {
-                guard data.count <= 2_000_000 else { return }
-                company.logoData = data
-                dataStore.save()
-            }
-        }
-    }
-
-    private func handleDrop(providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first else { return false }
-        provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
-            guard let data = item as? Data,
-                  let url = URL(dataRepresentation: data, relativeTo: nil),
-                  let imageData = try? Data(contentsOf: url),
-                  imageData.count <= 2_000_000,
-                  NSImage(data: imageData) != nil else { return }
-
-            DispatchQueue.main.async {
-                company.logoData = imageData
-                dataStore.save()
-            }
-        }
-        return true
-    }
 }

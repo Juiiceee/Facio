@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 
@@ -76,6 +77,17 @@ final class CompanyInfo: Identifiable, Codable {
     var formatDateRawValue: String = "fr"
     var formatNombreRawValue: String = "fr"
 
+    // Personnalisation visuelle
+    var couleurAccentHex: String?
+
+    /// Couleur d'accent resolue (defaut: vert olive #6B8E3A)
+    var accentNSColor: NSColor {
+        guard let hex = couleurAccentHex else {
+            return NSColor(red: 0.42, green: 0.56, blue: 0.23, alpha: 1.0)
+        }
+        return NSColor.fromHex(hex) ?? NSColor(red: 0.42, green: 0.56, blue: 0.23, alpha: 1.0)
+    }
+
     var langueParDefaut: AppLanguage {
         get { AppLanguage(rawValue: langueParDefautRawValue) ?? .fr }
         set { langueParDefautRawValue = newValue.rawValue }
@@ -131,6 +143,7 @@ final class CompanyInfo: Identifiable, Codable {
         case tauxTVAParDefaut, delaiPaiementJours, deviseParDefautRawValue, blockchainParDefautRawValue
         case updatedAt
         case langueParDefautRawValue, formatDateRawValue, formatNombreRawValue
+        case couleurAccentHex
     }
 
     required init(from decoder: Decoder) throws {
@@ -158,6 +171,7 @@ final class CompanyInfo: Identifiable, Codable {
         langueParDefautRawValue = (try? container.decode(String.self, forKey: .langueParDefautRawValue)) ?? "fr"
         formatDateRawValue = (try? container.decode(String.self, forKey: .formatDateRawValue)) ?? "fr"
         formatNombreRawValue = (try? container.decode(String.self, forKey: .formatNombreRawValue)) ?? "fr"
+        couleurAccentHex = try? container.decode(String.self, forKey: .couleurAccentHex)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -185,5 +199,6 @@ final class CompanyInfo: Identifiable, Codable {
         try container.encode(langueParDefautRawValue, forKey: .langueParDefautRawValue)
         try container.encode(formatDateRawValue, forKey: .formatDateRawValue)
         try container.encode(formatNombreRawValue, forKey: .formatNombreRawValue)
+        try container.encodeIfPresent(couleurAccentHex, forKey: .couleurAccentHex)
     }
 }
