@@ -191,10 +191,19 @@ final class DataStore: Sendable {
     // MARK: - Reset
 
     func resetAll() {
+        // Detach sync to avoid marking empty data as dirty
+        // (which would delete all remote data on next sync)
+        let sync = syncService
+        syncService = nil
+
         documents = []
         clients = []
         companyInfo = CompanyInfo()
         timesheets = []
         save()
+
+        // Reset sync state so nothing is dirty after reset
+        sync?.resetSyncState()
+        syncService = sync
     }
 }

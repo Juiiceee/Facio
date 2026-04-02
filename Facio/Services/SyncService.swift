@@ -182,10 +182,14 @@ final class SyncService: Sendable {
         let remoteIds = await fetchRemoteIds(table: "documents")
 
         // 2. Delete remote docs that don't exist locally
+        //    BUT skip deletion if local is empty and remote has data
+        //    (this means a reset happened — we don't want to wipe the DB)
         let localIds = Set(docs.map { $0.id.uuidString })
         let toDelete = remoteIds.subtracting(localIds)
-        for id in toDelete {
-            _ = await supabaseDelete(table: "documents", filter: "id=eq.\(id)")
+        if !docs.isEmpty || remoteIds.isEmpty {
+            for id in toDelete {
+                _ = await supabaseDelete(table: "documents", filter: "id=eq.\(id)")
+            }
         }
 
         // 3. Upsert each document
@@ -260,8 +264,10 @@ final class SyncService: Sendable {
 
         let remoteIds = await fetchRemoteIds(table: "clients")
         let localIds = Set(clients.map { $0.id.uuidString })
-        for id in remoteIds.subtracting(localIds) {
-            _ = await supabaseDelete(table: "clients", filter: "id=eq.\(id)")
+        if !clients.isEmpty || remoteIds.isEmpty {
+            for id in remoteIds.subtracting(localIds) {
+                _ = await supabaseDelete(table: "clients", filter: "id=eq.\(id)")
+            }
         }
 
         for client in clients {
@@ -357,8 +363,10 @@ final class SyncService: Sendable {
 
         let remoteIds = await fetchRemoteIds(table: "timesheet_periods")
         let localIds = Set(timesheets.map { $0.id.uuidString })
-        for id in remoteIds.subtracting(localIds) {
-            _ = await supabaseDelete(table: "timesheet_periods", filter: "id=eq.\(id)")
+        if !timesheets.isEmpty || remoteIds.isEmpty {
+            for id in remoteIds.subtracting(localIds) {
+                _ = await supabaseDelete(table: "timesheet_periods", filter: "id=eq.\(id)")
+            }
         }
 
         for ts in timesheets {
@@ -615,13 +623,20 @@ final class SyncService: Sendable {
 
     // MARK: - Full Sync
 
+    /// Reinitialise le sync state (apres un reset app)
+    func resetSyncState() {
+        syncState = SyncState()
+        saveSyncState()
+    }
+
     func fullSync(dataStore: DataStore) async {
         guard SyncConfig.isEnabled, SyncConfig.isConfigured,
               authService?.isAuthenticated == true else { return }
 
         isSyncing = true
 
-        // Push local changes first
+        // Push local changes first (but skip empty collections to avoid
+        // deleting remote data after a local reset)
         await pushAllDirty()
 
         // Pull remote data
