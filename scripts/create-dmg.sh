@@ -6,13 +6,13 @@ APP_NAME="Facio"
 DMG_NAME="${APP_NAME}-${VERSION}.dmg"
 STAGING="dmg-staging"
 
-echo "=== Creation du DMG ${DMG_NAME} ==="
+echo "=== Creating DMG ${DMG_NAME} ==="
 
-# Nettoyer
+# Clean
 rm -rf "$STAGING"
 mkdir -p "$STAGING"
 
-# Copier l'app et le lien Applications
+# Copy app and Applications symlink
 cp -r "dist/${APP_NAME}.app" "$STAGING/"
 ln -s /Applications "$STAGING/Applications"
 
@@ -33,9 +33,6 @@ cat > "$STAGING/README.txt" << 'README'
 ║     → Click "Open Anyway" next to the Facio message      ║
 ║     → Confirm by clicking "Open"                         ║
 ║                                                          ║
-║     Or double-click "Open Security Settings" in this     ║
-║     window to go there directly.                         ║
-║                                                          ║
 ║     Alternative (Terminal):                              ║
 ║     xattr -cr /Applications/Facio.app                    ║
 ║     Then launch Facio normally.                          ║
@@ -43,25 +40,14 @@ cat > "$STAGING/README.txt" << 'README'
 ╚══════════════════════════════════════════════════════════╝
 README
 
-# Create a small app that opens Privacy & Security settings directly
-osacompile -o "$STAGING/Open Security Settings.app" \
-  -e 'do shell script "open \"x-apple.systempreferences:com.apple.settings.PrivacySecurity\""'
-
-# Set gear icon for the Security Settings app
-GEAR_ICON="/System/Applications/System Settings.app/Contents/Resources/SystemSettings.icns"
-if [ -f "$GEAR_ICON" ]; then
-  rm -f "$STAGING/Open Security Settings.app/Contents/Resources/Assets.car"
-  cp "$GEAR_ICON" "$STAGING/Open Security Settings.app/Contents/Resources/applet.icns"
-fi
-
-# Creer le DMG
-hdiutil create -volname "Facio — Glissez vers Applications" \
+# Create the DMG
+hdiutil create -volname "Install Facio" \
   -srcfolder "$STAGING" \
   -ov -format UDZO \
   "dist/${DMG_NAME}"
 
-# Nettoyer
+# Clean up
 rm -rf "$STAGING"
 
-echo "=== DMG cree : dist/${DMG_NAME} ==="
+echo "=== DMG created: dist/${DMG_NAME} ==="
 echo "DMG_NAME=${DMG_NAME}"
