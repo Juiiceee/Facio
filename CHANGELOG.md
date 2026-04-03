@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.3](https://github.com/Juiiceee/Facio/compare/Facio-v1.6.2...Facio-v1.6.3) (2026-04-03)
+
+
+### Ameliorations
+
+* **dmg:** remove Security Settings app and clean up script ([3e75c4b](https://github.com/Juiiceee/Facio/commit/3e75c4bbf915ecaf7cacbcc09e32cdb66f22cdec))
+
 ## [1.6.2](https://github.com/Juiiceee/Facio/compare/Facio-v1.6.1...Facio-v1.6.2) (2026-04-03)
 
 
