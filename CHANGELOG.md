@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.1](https://github.com/Juiiceee/Facio/compare/Facio-v1.6.0...Facio-v1.6.1) (2026-04-03)
+
+
+### Corrections de bugs
+
+* **timesheet:** sync overtime calculation across month boundaries ([ac0e1a3](https://github.com/Juiiceee/Facio/commit/ac0e1a36a6694744f72903abeeb0bd44a0c7f8b6))
+* **ui:** expand settings tab hit area to full padding zone ([569f470](https://github.com/Juiiceee/Facio/commit/569f4703ce598380d492b8456c80ea8741d2d786))
+
 ## [1.6.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.5.1...Facio-v1.6.0) (2026-04-02)
 
 
