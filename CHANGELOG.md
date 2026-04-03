@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.6.2](https://github.com/Juiiceee/Facio/compare/Facio-v1.6.1...Facio-v1.6.2) (2026-04-03)
+
+
+### Corrections de bugs
+
+* **sync:** remove unused variable warnings in SyncService ([98b8a80](https://github.com/Juiiceee/Facio/commit/98b8a803aacda097fc91d13e1f6b5693b91a5ef9))
+
+
+### Ameliorations
+
+* **dmg:** add Security Settings shortcut app with gear icon ([d82fd04](https://github.com/Juiiceee/Facio/commit/d82fd046f72e79b91a5a6e2a3b4e4eca4c61f3ce))
+
 ## [1.6.1](https://github.com/Juiiceee/Facio/compare/Facio-v1.6.0...Facio-v1.6.1) (2026-04-03)
 
 
