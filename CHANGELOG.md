@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.1](https://github.com/Juiiceee/Facio/compare/Facio-v1.7.0...Facio-v1.7.1) (2026-04-04)
+
+
+### Corrections de bugs
+
+* **build:** copy SPM resource bundle into .app to prevent crash ([706f381](https://github.com/Juiiceee/Facio/commit/706f3818a9ae14e6aa61ba17dc1d6580a4143359))
+* **build:** copy SPM resource bundle into .app to prevent crash ([11bbfe9](https://github.com/Juiiceee/Facio/commit/11bbfe9a30b870d88d625b67ca4545ae62abc50a))
+
 ## [1.7.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.6.3...Facio-v1.7.0) (2026-04-04)
 
 
