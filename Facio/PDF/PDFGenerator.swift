@@ -509,8 +509,14 @@ struct PDFGenerator {
             width: bgSize, height: bgSize
         ))
 
-        // Charger le logo Solana depuis les ressources
-        guard let url = Bundle.module.url(forResource: "solanaLogo", withExtension: "png"),
+        // Charger le logo Solana depuis les ressources (Bundle.main ou Bundle.module)
+        let url: URL? = Bundle.main.url(forResource: "solanaLogo", withExtension: "png")
+            ?? {
+                // SPM resource bundle (dev via swift run)
+                let bundlePath = Bundle.main.bundleURL.appendingPathComponent("Facio_Facio.bundle")
+                return Bundle(path: bundlePath.path)?.url(forResource: "solanaLogo", withExtension: "png")
+            }()
+        guard let url,
               let dataProvider = CGDataProvider(url: url as CFURL),
               let logo = CGImage(pngDataProviderSource: dataProvider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
         else { return }
