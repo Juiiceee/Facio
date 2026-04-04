@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.7.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.6.3...Facio-v1.7.0) (2026-04-04)
+
+
+### Nouvelles fonctionnalites
+
+* **pdf:** add Solana Pay QR code to crypto invoices ([f901964](https://github.com/Juiiceee/Facio/commit/f901964ef45a9e20952d169f76087799647479ff))
+
+
+### Ameliorations
+
+* **pdf:** enlarge QR code, add Solana logo and align layout ([cf47d7a](https://github.com/Juiiceee/Facio/commit/cf47d7a547f85c6ad60027f24b338fe111124679))
+
 ## [1.6.3](https://github.com/Juiiceee/Facio/compare/Facio-v1.6.2...Facio-v1.6.3) (2026-04-03)
 
 
