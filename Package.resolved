@@ -1,0 +1,15 @@
+{
+  "originHash" : "9faac1ce7a7e9debd078a940b0d287ec0e1af20e5d374a635941a3552167ab46",
+  "pins" : [
+    {
+      "identity" : "solkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Juiiceee/SolKit",
+      "state" : {
+        "branch" : "main",
+        "revision" : "9d9c5d3c83d9da3ae85ea760bff2b70120cf052c"
+      }
+    }
+  ],
+  "version" : 3
+}

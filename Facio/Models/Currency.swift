@@ -42,6 +42,15 @@ enum CurrencyType: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Adresse du mint SPL sur Solana (mainnet), nil si non applicable
+    var solanaMintAddress: String? {
+        switch self {
+        case .usdc: return "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        case .usdt: return "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+        default: return nil
+        }
+    }
+
     /// Formatage du montant avec symbole
     func format(_ amount: Decimal) -> String {
         let formatter = NumberFormatter()

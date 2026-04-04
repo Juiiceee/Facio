@@ -56,8 +56,22 @@ struct PDFGenerator {
         }
 
         // 6. Pied de page entreprise + paiement
-        if y > pH - 140 { context.endPDFPage(); y = beginPage(context) }
-        y = drawFooterBlock(context, y: y, showPayment: document.paymentMode != .aucun)
+        let solanaPayQR: CGImage? = {
+            guard document.paymentMode == .crypto, document.blockchain == .solana else { return nil }
+            let walletsForChain = company.wallets.filter { $0.blockchain == .solana }
+            let wallet = walletsForChain.first(where: { $0.id == document.selectedWalletId }) ?? walletsForChain.first
+            guard let address = wallet?.address, !address.isEmpty else { return nil }
+            return SolanaPayService.generateQRCode(
+                walletAddress: address,
+                amount: document.totalTTC,
+                currency: document.currency,
+                companyName: company.nom,
+                documentNumber: document.number
+            )
+        }()
+        let footerThreshold: CGFloat = solanaPayQR != nil ? 170 : 140
+        if y > pH - footerThreshold { context.endPDFPage(); y = beginPage(context) }
+        y = drawFooterBlock(context, y: y, showPayment: document.paymentMode != .aucun, solanaPayQR: solanaPayQR)
 
         context.endPDFPage()
         context.closePDF()
@@ -145,6 +159,10 @@ struct PDFGenerator {
     private func fillCircle(_ ctx: CGContext, cx: CGFloat, cy: CGFloat, r: CGFloat, color: NSColor) {
         ctx.setFillColor(color.cgColor)
         ctx.fillEllipse(in: CGRect(x: cx - r, y: cgY(cy) - r, width: r * 2, height: r * 2))
+    }
+
+    private func drawImage(_ ctx: CGContext, image: CGImage, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat) {
+        ctx.draw(image, in: CGRect(x: x, y: cgY(y + h), width: w, height: h))
     }
 
     // MARK: - 1. Titre + Logo
@@ -388,12 +406,12 @@ struct PDFGenerator {
 
     // MARK: - 6. Pied de page (bloc entreprise + paiement)
 
-    private func drawFooterBlock(_ context: CGContext, y: CGFloat, showPayment: Bool = true) -> CGFloat {
+    private func drawFooterBlock(_ context: CGContext, y: CGFloat, showPayment: Bool = true, solanaPayQR: CGImage? = nil) -> CGFloat {
         var cy = y + 10
 
         // Bordure verte epaisse a gauche du bloc
         let blockTop = cy
-        let blockHeight: CGFloat = 70
+        let blockHeight: CGFloat = solanaPayQR != nil ? 100 : 70
         fillRect(context, x: mL, y: cy, w: 4, h: blockHeight, color: themePrimary)
 
         let leftX = mL + 14
@@ -442,6 +460,15 @@ struct PDFGenerator {
                 if let wallet = wallet {
                     drawText(wallet.address, x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textBlack, context: context)
                 }
+            }
+            // QR code Solana Pay
+            if let qr = solanaPayQR {
+                let qrSize = PDFLayout.qrCodeSize
+                let qrX = pW - mR - qrSize - 5
+                let qrY = blockTop + 2
+                drawImage(context, image: qr, x: qrX, y: qrY, w: qrSize, h: qrSize)
+                drawText(L10n.scanToPay(lang), x: qrX, y: qrY + qrSize + 3,
+                         font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
             }
         } else {
             drawText(L10n.bankTransfer(lang), x: rightX, y: ry, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
