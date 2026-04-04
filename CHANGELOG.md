@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.2](https://github.com/Juiiceee/Facio/compare/Facio-v1.7.1...Facio-v1.7.2) (2026-04-04)
+
+
+### Corrections de bugs
+
+* **pdf:** replace Bundle.module with safe resource loading ([1fac5e4](https://github.com/Juiiceee/Facio/commit/1fac5e4b69a563d5e7d801379a8f51f6e0bc3ff2))
+
 ## [1.7.1](https://github.com/Juiiceee/Facio/compare/Facio-v1.7.0...Facio-v1.7.1) (2026-04-04)
 
 
