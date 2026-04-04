@@ -56,8 +56,22 @@ struct PDFGenerator {
         }
 
         // 6. Pied de page entreprise + paiement
-        if y > pH - 140 { context.endPDFPage(); y = beginPage(context) }
-        y = drawFooterBlock(context, y: y, showPayment: document.paymentMode != .aucun)
+        let solanaPayQR: CGImage? = {
+            guard document.paymentMode == .crypto, document.blockchain == .solana else { return nil }
+            let walletsForChain = company.wallets.filter { $0.blockchain == .solana }
+            let wallet = walletsForChain.first(where: { $0.id == document.selectedWalletId }) ?? walletsForChain.first
+            guard let address = wallet?.address, !address.isEmpty else { return nil }
+            return SolanaPayService.generateQRCode(
+                walletAddress: address,
+                amount: document.totalTTC,
+                currency: document.currency,
+                companyName: company.nom,
+                documentNumber: document.number
+            )
+        }()
+        let footerThreshold: CGFloat = solanaPayQR != nil ? 230 : 140
+        if y > pH - footerThreshold { context.endPDFPage(); y = beginPage(context) }
+        y = drawFooterBlock(context, y: y, showPayment: document.paymentMode != .aucun, solanaPayQR: solanaPayQR)
 
         context.endPDFPage()
         context.closePDF()
@@ -145,6 +159,10 @@ struct PDFGenerator {
     private func fillCircle(_ ctx: CGContext, cx: CGFloat, cy: CGFloat, r: CGFloat, color: NSColor) {
         ctx.setFillColor(color.cgColor)
         ctx.fillEllipse(in: CGRect(x: cx - r, y: cgY(cy) - r, width: r * 2, height: r * 2))
+    }
+
+    private func drawImage(_ ctx: CGContext, image: CGImage, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat) {
+        ctx.draw(image, in: CGRect(x: x, y: cgY(y + h), width: w, height: h))
     }
 
     // MARK: - 1. Titre + Logo
@@ -388,7 +406,7 @@ struct PDFGenerator {
 
     // MARK: - 6. Pied de page (bloc entreprise + paiement)
 
-    private func drawFooterBlock(_ context: CGContext, y: CGFloat, showPayment: Bool = true) -> CGFloat {
+    private func drawFooterBlock(_ context: CGContext, y: CGFloat, showPayment: Bool = true, solanaPayQR: CGImage? = nil) -> CGFloat {
         var cy = y + 10
 
         // Bordure verte epaisse a gauche du bloc
@@ -459,7 +477,51 @@ struct PDFGenerator {
             }
         }
 
-        return blockTop + blockHeight + 10
+        var endY = blockTop + blockHeight + 10
+
+        // QR code Solana Pay (sous le bloc footer, centré)
+        if let qr = solanaPayQR {
+            let qrSize = PDFLayout.qrCodeSize
+            let qrX = pW / 2 + 10
+            let qrY = endY + 5
+            drawImage(context, image: qr, x: qrX, y: qrY, w: qrSize, h: qrSize)
+            drawSolanaLogo(context, centerX: qrX + qrSize / 2, centerY: qrY + qrSize / 2, size: 18)
+            let labelWidth = textWidth(L10n.scanToPay(lang), font: PDFLayout.fontSmall)
+            drawText(L10n.scanToPay(lang), x: qrX + (qrSize - labelWidth) / 2, y: qrY + qrSize + 4,
+                     font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
+            endY = qrY + qrSize + 18
+        }
+
+        return endY
+    }
+
+    // MARK: - Logo Solana (centre du QR)
+
+    /// Dessine le logo Solana PNG au centre du QR code avec fond blanc carré
+    private func drawSolanaLogo(_ context: CGContext, centerX: CGFloat, centerY: CGFloat, size: CGFloat) {
+        let padding = size * 0.3
+        let bgSize = size + padding
+
+        // Fond blanc carré
+        context.setFillColor(NSColor.white.cgColor)
+        context.fill(CGRect(
+            x: centerX - bgSize / 2, y: cgY(centerY) - bgSize / 2,
+            width: bgSize, height: bgSize
+        ))
+
+        // Charger le logo Solana depuis les ressources
+        guard let url = Bundle.module.url(forResource: "solanaLogo", withExtension: "png"),
+              let dataProvider = CGDataProvider(url: url as CFURL),
+              let logo = CGImage(pngDataProviderSource: dataProvider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
+        else { return }
+
+        let rect = CGRect(
+            x: centerX - size / 2,
+            y: cgY(centerY) - size / 2,
+            width: size,
+            height: size
+        )
+        context.draw(logo, in: rect)
     }
 
     // MARK: - Formatage nombres

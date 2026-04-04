@@ -31,5 +31,6 @@ extension L10n {
     static func cryptoTransfer(_ l: AppLanguage) -> String { l == .fr ? "Transfert Cryptomonnaie" : "Cryptocurrency transfer" }
     static func walletAddress(_ l: AppLanguage) -> String { l == .fr ? "Wallet adresse:" : "Wallet address:" }
     static func accountHolder(_ l: AppLanguage) -> String { l == .fr ? "Titulaire: " : "Holder: " }
+    static func scanToPay(_ l: AppLanguage) -> String { l == .fr ? "Scanner pour payer" : "Scan to pay" }
     static func companyFallback(_ l: AppLanguage) -> String { l == .fr ? "ENTREPRISE" : "COMPANY" }
 }

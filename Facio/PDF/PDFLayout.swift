@@ -27,6 +27,9 @@ struct PDFLayout {
     static let colTotal: CGFloat = 0.15
     static let colTVA: CGFloat = 0.15
 
+    // MARK: - QR Code
+    static let qrCodeSize: CGFloat = 120
+
     // MARK: - Polices (Helvetica / sans-serif)
     static let fontTitle = NSFont(name: "Helvetica-Bold", size: 18) ?? NSFont.systemFont(ofSize: 18, weight: .bold)
     static let fontBody = NSFont(name: "Helvetica", size: 10) ?? NSFont.systemFont(ofSize: 10)
