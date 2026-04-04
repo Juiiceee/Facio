@@ -80,6 +80,13 @@ else
     fi
 fi
 
+# 5b. Copier le resource bundle SPM (contient solanaLogo.png etc.)
+RESOURCE_BUNDLE="$BUILD_DIR/Facio_Facio.bundle"
+if [ -d "$RESOURCE_BUNDLE" ]; then
+    cp -R "$RESOURCE_BUNDLE" "$APP_DIR/Contents/Resources/Facio_Facio.bundle"
+    echo "    Resource bundle copie."
+fi
+
 # 6. Creer PkgInfo
 echo -n "APPL????" > "$APP_DIR/Contents/PkgInfo"
 
