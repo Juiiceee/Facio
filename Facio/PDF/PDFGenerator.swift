@@ -69,7 +69,7 @@ struct PDFGenerator {
                 documentNumber: document.number
             )
         }()
-        let footerThreshold: CGFloat = solanaPayQR != nil ? 170 : 140
+        let footerThreshold: CGFloat = solanaPayQR != nil ? 230 : 140
         if y > pH - footerThreshold { context.endPDFPage(); y = beginPage(context) }
         y = drawFooterBlock(context, y: y, showPayment: document.paymentMode != .aucun, solanaPayQR: solanaPayQR)
 
@@ -411,7 +411,7 @@ struct PDFGenerator {
 
         // Bordure verte epaisse a gauche du bloc
         let blockTop = cy
-        let blockHeight: CGFloat = solanaPayQR != nil ? 100 : 70
+        let blockHeight: CGFloat = 70
         fillRect(context, x: mL, y: cy, w: 4, h: blockHeight, color: themePrimary)
 
         let leftX = mL + 14
@@ -461,15 +461,6 @@ struct PDFGenerator {
                     drawText(wallet.address, x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textBlack, context: context)
                 }
             }
-            // QR code Solana Pay
-            if let qr = solanaPayQR {
-                let qrSize = PDFLayout.qrCodeSize
-                let qrX = pW - mR - qrSize - 5
-                let qrY = blockTop + 2
-                drawImage(context, image: qr, x: qrX, y: qrY, w: qrSize, h: qrSize)
-                drawText(L10n.scanToPay(lang), x: qrX, y: qrY + qrSize + 3,
-                         font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
-            }
         } else {
             drawText(L10n.bankTransfer(lang), x: rightX, y: ry, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
             ry += 12
@@ -486,7 +477,51 @@ struct PDFGenerator {
             }
         }
 
-        return blockTop + blockHeight + 10
+        var endY = blockTop + blockHeight + 10
+
+        // QR code Solana Pay (sous le bloc footer, centré)
+        if let qr = solanaPayQR {
+            let qrSize = PDFLayout.qrCodeSize
+            let qrX = pW / 2 + 10
+            let qrY = endY + 5
+            drawImage(context, image: qr, x: qrX, y: qrY, w: qrSize, h: qrSize)
+            drawSolanaLogo(context, centerX: qrX + qrSize / 2, centerY: qrY + qrSize / 2, size: 18)
+            let labelWidth = textWidth(L10n.scanToPay(lang), font: PDFLayout.fontSmall)
+            drawText(L10n.scanToPay(lang), x: qrX + (qrSize - labelWidth) / 2, y: qrY + qrSize + 4,
+                     font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
+            endY = qrY + qrSize + 18
+        }
+
+        return endY
+    }
+
+    // MARK: - Logo Solana (centre du QR)
+
+    /// Dessine le logo Solana PNG au centre du QR code avec fond blanc carré
+    private func drawSolanaLogo(_ context: CGContext, centerX: CGFloat, centerY: CGFloat, size: CGFloat) {
+        let padding = size * 0.3
+        let bgSize = size + padding
+
+        // Fond blanc carré
+        context.setFillColor(NSColor.white.cgColor)
+        context.fill(CGRect(
+            x: centerX - bgSize / 2, y: cgY(centerY) - bgSize / 2,
+            width: bgSize, height: bgSize
+        ))
+
+        // Charger le logo Solana depuis les ressources
+        guard let url = Bundle.module.url(forResource: "solanaLogo", withExtension: "png"),
+              let dataProvider = CGDataProvider(url: url as CFURL),
+              let logo = CGImage(pngDataProviderSource: dataProvider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
+        else { return }
+
+        let rect = CGRect(
+            x: centerX - size / 2,
+            y: cgY(centerY) - size / 2,
+            width: size,
+            height: size
+        )
+        context.draw(logo, in: rect)
     }
 
     // MARK: - Formatage nombres

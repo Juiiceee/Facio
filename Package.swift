@@ -15,7 +15,8 @@ let package = Package(
                 .product(name: "SolKitPay", package: "SolKit"),
             ],
             path: "Facio",
-            exclude: ["Resources/AppIcon.icns"]
+            exclude: ["Resources/AppIcon.icns"],
+            resources: [.copy("Resources/solanaLogo.png")]
         )
     ]
 )
