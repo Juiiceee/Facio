@@ -61,9 +61,12 @@ struct PDFGenerator {
             let walletsForChain = company.wallets.filter { $0.blockchain == .solana }
             let wallet = walletsForChain.first(where: { $0.id == document.selectedWalletId }) ?? walletsForChain.first
             guard let address = wallet?.address, !address.isEmpty else { return nil }
+            var raw = document.totalTTC
+            var rounded = Decimal()
+            NSDecimalRound(&rounded, &raw, 2, .bankers)
             return SolanaPayService.generateQRCode(
                 walletAddress: address,
-                amount: document.totalTTC,
+                amount: rounded,
                 currency: document.currency,
                 companyName: company.nom,
                 documentNumber: document.number
