@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.3](https://github.com/Juiiceee/Facio/compare/Facio-v1.7.2...Facio-v1.7.3) (2026-04-09)
+
+
+### Corrections de bugs
+
+* **pdf:** round QR code amount to 2 decimals to match invoice total ([54ed26f](https://github.com/Juiiceee/Facio/commit/54ed26f4abf47f33fae6a38c3b1f548088486254))
+* **pdf:** round QR code amount to 2 decimals to match invoice total ([5d95fb7](https://github.com/Juiiceee/Facio/commit/5d95fb7005b90e2c2e6e4fa34a7c3ad4a682397e))
+
 ## [1.7.2](https://github.com/Juiiceee/Facio/compare/Facio-v1.7.1...Facio-v1.7.2) (2026-04-04)
 
 
