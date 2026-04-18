@@ -2,9 +2,11 @@ import SwiftUI
 
 struct AboutSettingsView: View {
     @Environment(DataStore.self) private var dataStore
+    @State private var updateService = UpdateService()
     @State private var showResetAlert = false
     @State private var showUninstallAlert = false
     @State private var resetDone = false
+    @State private var updateChecked = false
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -71,6 +73,60 @@ struct AboutSettingsView: View {
                             icon: "arrow.down.circle",
                             url: "https://github.com/Juiiceee/Facio/releases"
                         )
+                    }
+
+                    Divider()
+
+                    HStack(spacing: 10) {
+                        Button {
+                            updateChecked = false
+                            Task {
+                                await updateService.checkForUpdates()
+                                updateChecked = true
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                if updateService.isChecking {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Image(systemName: "arrow.trianglehead.2.clockwise")
+                                }
+                                Text(L10n.checkForUpdates(lang))
+                            }
+                            .font(.subheadline)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(.quaternary)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(updateService.isChecking)
+
+                        if updateChecked {
+                            if updateService.isUpdateAvailable, let url = updateService.releaseURL {
+                                Link(destination: url) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "arrow.down.circle.fill")
+                                            .foregroundStyle(.green)
+                                        Text(L10n.updateAvailable(lang, version: updateService.latestVersion ?? ""))
+                                            .foregroundStyle(.green)
+                                    }
+                                    .font(.subheadline)
+                                }
+                                .buttonStyle(.plain)
+                            } else if !updateService.isChecking {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                    Text(L10n.upToDate(lang))
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+
+                    HStack(spacing: 10) {
 
                         linkButton(
                             title: L10n.reportBug(lang),
