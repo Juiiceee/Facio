@@ -702,7 +702,7 @@ final class SyncService: Sendable {
         return await executeRequest(request)
     }
 
-    private func supabaseGet(table: String, query: String) async -> [[String: Any]]? {
+    private func supabaseGet(table: String, query: String, retryOn401: Bool = true) async -> [[String: Any]]? {
         guard let url = buildURL(path: "/rest/v1/\(table)?\(query)") else { return nil }
 
         var request = URLRequest(url: url)
@@ -711,10 +711,16 @@ final class SyncService: Sendable {
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
-                if let _ = response as? HTTPURLResponse,
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            guard let httpResponse = response as? HTTPURLResponse else { return nil }
+
+            if httpResponse.statusCode == 401 && retryOn401 {
+                await authService?.refreshSession()
+                guard authService?.isAuthenticated == true else { return nil }
+                return await supabaseGet(table: table, query: query, retryOn401: false)
+            }
+
+            guard httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let msg = json["message"] as? String {
                     lastError = msg
                 }
@@ -746,12 +752,21 @@ final class SyncService: Sendable {
         }
     }
 
-    private func executeRequest(_ request: URLRequest) async -> Bool {
+    private func executeRequest(_ request: URLRequest, retryOn401: Bool = true) async -> Bool {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse {
                 if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+                    lastError = nil
                     return true
+                }
+                // Token expire : tenter un refresh et reessayer une fois
+                if httpResponse.statusCode == 401 && retryOn401 {
+                    await authService?.refreshSession()
+                    guard authService?.isAuthenticated == true else { return false }
+                    var retried = request
+                    retried.setValue("Bearer \(authService?.accessToken ?? "")", forHTTPHeaderField: "Authorization")
+                    return await executeRequest(retried, retryOn401: false)
                 }
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let msg = json["message"] as? String ?? json["msg"] as? String {
