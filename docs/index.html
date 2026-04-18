@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Facio — Invoices & Quotes for macOS</title>
+  <meta name="description" content="Facio is a native macOS app to create professional invoices and quotes as PDF, with multi-currency support and blockchain payments." />
+  <meta property="og:title" content="Facio — Invoices & Quotes for macOS" />
+  <meta property="og:description" content="Create professional invoices in seconds. Native PDF, multi-currency, crypto payments." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" type="image/png" href="icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purple: #7B5EA7;
+      --purple-dark: #5a3d8a;
+      --purple-light: #f4f0fa;
+      --purple-mid: #9b7cc4;
+      --text: #1a1a1a;
+      --muted: #666;
+      --border: #e5e5e5;
+      --bg: #fafafa;
+      --white: #fff;
+      --radius: 14px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(250,250,250,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+    }
+    .nav-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 700; font-size: 18px; color: var(--text);
+      text-decoration: none;
+    }
+    .nav-logo-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      overflow: hidden;
+    }
+    .nav-logo-icon img { width: 100%; height: 100%; display: block; }
+    .nav-links { display: flex; align-items: center; gap: 24px; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; transition: color .2s; }
+    .nav-links a:hover { color: var(--text); }
+    .btn-nav {
+      background: var(--purple); color: white !important;
+      padding: 8px 18px; border-radius: 8px; font-weight: 500;
+      font-size: 14px !important; transition: background .2s !important;
+    }
+    .btn-nav:hover { background: var(--purple-dark) !important; }
+
+    /* HERO */
+    .hero {
+      max-width: 1100px; margin: 0 auto;
+      padding: 96px 24px 80px;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 64px; align-items: center;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--purple-light); color: var(--purple-dark);
+      padding: 4px 12px; border-radius: 100px; font-size: 13px;
+      font-weight: 500; margin-bottom: 20px;
+    }
+    .hero-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+    h1 {
+      font-size: clamp(32px, 4vw, 52px);
+      font-weight: 700; line-height: 1.15;
+      letter-spacing: -0.02em; margin-bottom: 20px;
+    }
+    h1 span { color: var(--purple); }
+    .hero-desc { font-size: 18px; color: var(--muted); line-height: 1.7; margin-bottom: 36px; }
+    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--purple); color: white;
+      padding: 14px 28px; border-radius: 10px;
+      font-weight: 600; font-size: 16px; text-decoration: none;
+      transition: background .2s, transform .15s;
+    }
+    .btn-primary:hover { background: var(--purple-dark); transform: translateY(-1px); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--white); color: var(--text);
+      padding: 14px 24px; border-radius: 10px;
+      font-weight: 500; font-size: 15px; text-decoration: none;
+      border: 1px solid var(--border); transition: border-color .2s;
+    }
+    .btn-secondary:hover { border-color: var(--purple); }
+    .hero-meta { font-size: 13px; color: var(--muted); margin-top: 14px; }
+    .hero-meta a { color: var(--purple); text-decoration: none; }
+
+    /* PDF MOCKUP */
+    .pdf-mockup {
+      background: white; border-radius: var(--radius);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.06);
+      padding: 28px; font-size: 11px; line-height: 1.5;
+      border: 1px solid var(--border);
+    }
+    .pdf-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+    .pdf-title { font-size: 18px; font-weight: 700; color: var(--text); }
+    .pdf-logo { width: 44px; height: 44px; border-radius: 10px; overflow: hidden; }
+    .pdf-logo img { width: 100%; height: 100%; display: block; }
+    .pdf-meta { color: var(--muted); font-size: 10px; margin-bottom: 16px; }
+    .pdf-table-header {
+      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+      background: var(--purple); color: white;
+      padding: 6px 8px; border-radius: 4px 4px 0 0;
+      font-weight: 600; font-size: 10px;
+    }
+    .pdf-table-row {
+      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+      padding: 5px 8px; border-bottom: 1px solid #f0f0f0; font-size: 10px;
+    }
+    .pdf-table-row span:not(:first-child),
+    .pdf-table-header span:not(:first-child) { text-align: right; }
+    .pdf-totals { margin-top: 12px; text-align: right; font-size: 10px; }
+    .pdf-totals-line { display: flex; justify-content: flex-end; gap: 16px; padding: 2px 0; color: var(--muted); }
+    .pdf-totals-line.total { font-weight: 700; font-size: 12px; color: var(--text); }
+    .pdf-footer { margin-top: 16px; padding-top: 12px; border-top: 3px solid var(--purple); display: flex; gap: 24px; }
+    .pdf-footer-col { flex: 1; font-size: 9px; color: var(--muted); }
+    .pdf-footer-col strong { display: block; color: var(--text); font-size: 10px; margin-bottom: 3px; }
+
+    /* SECTIONS */
+    .section { max-width: 1100px; margin: 0 auto; padding: 80px 24px; }
+    .section-label { font-size: 13px; font-weight: 600; color: var(--purple); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px; }
+    .section-title { font-size: clamp(26px, 3vw, 40px); font-weight: 700; letter-spacing: -0.02em; margin-bottom: 16px; }
+    .section-desc { font-size: 17px; color: var(--muted); max-width: 560px; }
+
+    /* DEMOS */
+    .demos { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; display: flex; flex-direction: column; gap: 80px; }
+    .demo-row { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+    .demo-row.reverse { direction: rtl; }
+    .demo-row.reverse > * { direction: ltr; }
+
+    /* VIDEO CARD */
+    .demo-video {
+      position: relative;
+      border-radius: var(--radius); overflow: hidden;
+      box-shadow: 0 16px 56px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+      border: 1px solid var(--border);
+      background: #000;
+      aspect-ratio: 16/10;
+      cursor: pointer;
+    }
+    .demo-video video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .demo-video .expand-btn {
+      position: absolute; bottom: 10px; right: 10px;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(6px);
+      border: none; border-radius: 8px; padding: 6px 10px;
+      color: white; cursor: pointer; font-size: 13px;
+      display: flex; align-items: center; gap: 5px;
+      opacity: 0; transition: opacity .2s;
+    }
+    .demo-video:hover .expand-btn { opacity: 1; }
+
+    /* LIGHTBOX */
+    .lightbox {
+      display: none; position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,0.92); backdrop-filter: blur(8px);
+      align-items: center; justify-content: center;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox-inner {
+      position: relative; max-width: 90vw; max-height: 90vh;
+      width: 100%;
+    }
+    .lightbox-inner video {
+      width: 100%; max-height: 90vh;
+      border-radius: 10px; display: block;
+    }
+    .lightbox-close {
+      position: absolute; top: -44px; right: 0;
+      background: none; border: none; color: white;
+      font-size: 28px; cursor: pointer; line-height: 1;
+      opacity: .7; transition: opacity .2s;
+    }
+    .lightbox-close:hover { opacity: 1; }
+
+    .demo-text {}
+    .demo-num { font-size: 12px; font-weight: 700; color: var(--purple); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 12px; }
+    .demo-text h3 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 14px; }
+    .demo-text p { font-size: 16px; color: var(--muted); line-height: 1.75; }
+    .demo-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--purple-light); color: var(--purple-dark);
+      font-size: 12px; font-weight: 600; padding: 4px 10px;
+      border-radius: 100px; margin-top: 16px;
+    }
+
+    /* CURRENCIES */
+    .currencies-section { background: var(--purple-light); padding: 64px 24px; }
+    .currencies-inner { max-width: 1100px; margin: 0 auto; }
+    .currencies-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 36px; }
+    .currency-badge {
+      background: white; border: 1px solid var(--border);
+      border-radius: 100px; padding: 8px 18px;
+      font-size: 14px; font-weight: 500;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .currency-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--purple); }
+
+    /* OPEN SOURCE */
+    .opensource { background: var(--text); color: white; padding: 80px 24px; }
+    .opensource-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+    .opensource h2 { font-size: 36px; font-weight: 700; margin-bottom: 16px; }
+    .opensource p { color: rgba(255,255,255,0.65); font-size: 16px; line-height: 1.7; margin-bottom: 28px; }
+    .btn-outline {
+      display: inline-flex; align-items: center; gap: 8px;
+      border: 1px solid rgba(255,255,255,0.25); color: white;
+      padding: 12px 24px; border-radius: 10px; font-size: 15px;
+      font-weight: 500; text-decoration: none; transition: border-color .2s;
+    }
+    .btn-outline:hover { border-color: white; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .stat { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius); padding: 24px; }
+    .stat-num { font-size: 36px; font-weight: 700; color: var(--purple-mid); }
+    .stat-label { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+
+    /* DOWNLOAD */
+    .download { max-width: 760px; margin: 0 auto; padding: 96px 24px; text-align: center; }
+    .download h2 { font-size: 40px; font-weight: 700; margin-bottom: 16px; }
+    .download p { font-size: 17px; color: var(--muted); margin-bottom: 40px; }
+    .requirements { margin-top: 20px; font-size: 13px; color: var(--muted); }
+    .requirements span { display: inline-flex; align-items: center; gap: 4px; background: white; border: 1px solid var(--border); padding: 4px 12px; border-radius: 100px; margin: 4px; }
+
+    /* FOOTER */
+    footer { border-top: 1px solid var(--border); padding: 28px 24px; }
+    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--muted); }
+    .footer-links { display: flex; gap: 20px; }
+    .footer-links a { color: var(--muted); text-decoration: none; }
+    .footer-links a:hover { color: var(--text); }
+
+    @media (max-width: 768px) {
+      .hero { grid-template-columns: 1fr; padding: 60px 20px 40px; gap: 40px; }
+      .demo-row, .demo-row.reverse { grid-template-columns: 1fr; direction: ltr; }
+      .opensource-inner { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      .stats { grid-template-columns: 1fr 1fr; }
+      .footer-inner { flex-direction: column; gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- LIGHTBOX -->
+  <div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+    <div class="lightbox-inner">
+      <button class="lightbox-close" onclick="closeLightbox()">×</button>
+      <video id="lightbox-video" controls playsinline></video>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">
+        <div class="nav-logo-icon"><img src="icon.png" alt="Facio" /></div>
+        Facio
+      </a>
+      <div class="nav-links">
+        <a href="#demo">Demo</a>
+        <a href="#currencies">Currencies</a>
+        <a href="https://github.com/Juiiceee/Facio">GitHub</a>
+        <a href="https://github.com/Juiiceee/Facio/releases/latest" class="btn-nav">Download</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section style="background: var(--white); border-bottom: 1px solid var(--border);">
+    <div class="hero">
+      <div>
+        <div class="hero-badge">macOS 15+ · Free · Open Source</div>
+        <h1>Invoices &amp;<br /><span>quotes</span><br />in 30 seconds.</h1>
+        <p class="hero-desc">
+          Excel looks terrible. SaaS tools charge €15/month to generate a PDF.
+          Facio is a native macOS app — no account, no subscription.
+        </p>
+        <div class="hero-actions">
+          <a href="https://github.com/Juiiceee/Facio/releases/latest" class="btn-primary" id="download-btn">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 12l-4.5-4.5 1.06-1.06L7 9.88V2h2v7.88l2.44-2.44L12.5 7.5 8 12z"/><path d="M2 13h12v1.5H2z"/></svg>
+            Download for Mac
+          </a>
+          <a href="https://github.com/Juiiceee/Facio" class="btn-secondary">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            View on GitHub
+          </a>
+        </div>
+        <p class="hero-meta">Latest release: <a href="https://github.com/Juiiceee/Facio/releases" id="version-tag">—</a></p>
+      </div>
+
+      <div>
+        <div class="pdf-mockup">
+          <div class="pdf-header">
+            <div>
+              <div class="pdf-title">Invoice_2026_04</div>
+              <div class="pdf-meta">Date: Apr 18, 2026 · Due: May 02, 2026</div>
+            </div>
+            <div class="pdf-logo"><img src="icon.png" alt="Facio" /></div>
+          </div>
+          <div class="pdf-meta">
+            <strong style="color:#1a1a1a; font-size:11px;">RECIPIENT</strong><br/>
+            Acme Corp<br/>12 Rue de la Paix, 75001 Paris
+          </div>
+          <div class="pdf-table-header">
+            <span>DESCRIPTION</span><span>QTY</span><span>PRICE</span><span>TOTAL</span>
+          </div>
+          <div class="pdf-table-row"><span>Web development</span><span>3</span><span>500.00</span><span>1 500.00</span></div>
+          <div class="pdf-table-row"><span>API integration</span><span>1</span><span>350.00</span><span>350.00</span></div>
+          <div class="pdf-table-row"><span>Monthly maintenance</span><span>2</span><span>200.00</span><span>400.00</span></div>
+          <div class="pdf-totals">
+            <div class="pdf-totals-line"><span>Subtotal</span><span>2 250.00 USD</span></div>
+            <div class="pdf-totals-line"><span>VAT 20%</span><span>450.00 USD</span></div>
+            <div class="pdf-totals-line total"><span>Total</span><span>2 700.00 USD</span></div>
+          </div>
+          <div class="pdf-footer">
+            <div class="pdf-footer-col"><strong>MY COMPANY</strong>SIRET: 123 456 789 00012<br/>contact@mycompany.com</div>
+            <div class="pdf-footer-col"><strong>Bank transfer</strong>IBAN: FR76 1234 5678 9012<br/>BIC: BNPAFRPP</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEMOS -->
+  <section id="demo" style="background: var(--bg); padding-top: 80px;">
+    <div style="max-width:1100px; margin:0 auto; padding: 0 24px 48px;">
+      <div class="section-label">Demo</div>
+      <h2 class="section-title">See Facio in action.</h2>
+      <p class="section-desc">From the full flow to the details that save you time every day.</p>
+    </div>
+
+    <div class="demos">
+
+      <!-- 1. Full flow -->
+      <div class="demo-row">
+        <div class="demo-video" onclick="openLightbox('videos/flow.mp4')">
+          <video autoplay muted loop playsinline>
+            <source src="videos/flow.mp4" type="video/mp4" />
+          </video>
+          <button class="expand-btn">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1h4v1.5h-2.5v2.5h-1.5v-4zm9 0h4v4h-1.5v-2.5h-2.5v-1.5zm-9 9h1.5v2.5h2.5v1.5h-4v-4zm10.5 2.5v-2.5h1.5v4h-4v-1.5h2.5z"/></svg>
+            Fullscreen
+          </button>
+        </div>
+        <div class="demo-text">
+          <div class="demo-num">01 — Full flow</div>
+          <h3>An invoice in 30 seconds.</h3>
+          <p>3 columns: my documents, the editor, the live PDF. I create an invoice, add my lines, export. No account required, no subscription.</p>
+          <span class="demo-tag">✦ Native macOS app</span>
+        </div>
+      </div>
+
+      <!-- 2. Crypto -->
+      <div class="demo-row reverse">
+        <div class="demo-video" onclick="openLightbox('videos/crypto.mp4')">
+          <video autoplay muted loop playsinline>
+            <source src="videos/crypto.mp4" type="video/mp4" />
+          </video>
+          <button class="expand-btn">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1h4v1.5h-2.5v2.5h-1.5v-4zm9 0h4v4h-1.5v-2.5h-2.5v-1.5zm-9 9h1.5v2.5h2.5v1.5h-4v-4zm10.5 2.5v-2.5h1.5v4h-4v-1.5h2.5z"/></svg>
+            Fullscreen
+          </button>
+        </div>
+        <div class="demo-text">
+          <div class="demo-num">02 — Crypto payments</div>
+          <h3>EUR, USDC, ETH, BTC — the PDF adapts.</h3>
+          <p>Some clients pay in crypto. No invoicing tool handles that. Facio supports EUR, USD, USDC, USDT, BTC, ETH natively. The PDF shows the wallet address and network. The client just has to pay.</p>
+          <span class="demo-tag">✦ Native multi-currency</span>
+        </div>
+      </div>
+
+      <!-- 3. Solana Pay -->
+      <div class="demo-row">
+        <div class="demo-video" onclick="openLightbox('videos/pay.mov')">
+          <video autoplay muted loop playsinline>
+            <source src="videos/pay.mov" type="video/mp4" />
+          </video>
+          <button class="expand-btn">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1h4v1.5h-2.5v2.5h-1.5v-4zm9 0h4v4h-1.5v-2.5h-2.5v-1.5zm-9 9h1.5v2.5h2.5v1.5h-4v-4zm10.5 2.5v-2.5h1.5v4h-4v-1.5h2.5z"/></svg>
+            Fullscreen
+          </button>
+        </div>
+        <div class="demo-text">
+          <div class="demo-num">03 — Solana Pay</div>
+          <h3>Payment QR code embedded in the invoice.</h3>
+          <p>Your client scans → wallet opens with recipient, amount and token pre-filled. One tap to pay. Works with USDC & USDT on Solana. No copy-paste, no mistakes.</p>
+          <span class="demo-tag">✦ Solana Pay built-in</span>
+        </div>
+      </div>
+
+      <!-- 4. Presets -->
+      <div class="demo-row reverse">
+        <div class="demo-video" onclick="openLightbox('videos/presets.mp4')">
+          <video autoplay muted loop playsinline>
+            <source src="videos/presets.mp4" type="video/mp4" />
+          </video>
+          <button class="expand-btn">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1h4v1.5h-2.5v2.5h-1.5v-4zm9 0h4v4h-1.5v-2.5h-2.5v-1.5zm-9 9h1.5v2.5h2.5v1.5h-4v-4zm10.5 2.5v-2.5h1.5v4h-4v-1.5h2.5z"/></svg>
+            Fullscreen
+          </button>
+        </div>
+        <div class="demo-text">
+          <div class="demo-num">04 — Service presets</div>
+          <h3>One click = the line with the right price and VAT.</h3>
+          <p>I often invoice the same services. I added presets: one click and the line appears with price and VAT pre-filled. No more copy-pasting between invoices.</p>
+          <span class="demo-tag">✦ One-click presets</span>
+        </div>
+      </div>
+
+      <!-- 5. Bilingual -->
+      <div class="demo-row">
+        <div class="demo-video" onclick="openLightbox('videos/bilingual.mp4')">
+          <video autoplay muted loop playsinline>
+            <source src="videos/bilingual.mp4" type="video/mp4" />
+          </video>
+          <button class="expand-btn">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1h4v1.5h-2.5v2.5h-1.5v-4zm9 0h4v4h-1.5v-2.5h-2.5v-1.5zm-9 9h1.5v2.5h2.5v1.5h-4v-4zm10.5 2.5v-2.5h1.5v4h-4v-1.5h2.5z"/></svg>
+            Fullscreen
+          </button>
+        </div>
+        <div class="demo-text">
+          <div class="demo-num">05 — Bilingual FR / EN</div>
+          <h3>Each document has its own language.</h3>
+          <p>French and international clients. The number, labels, and PDF — everything adapts in one click. <code style="font-size:13px; background:var(--purple-light); padding:2px 6px; border-radius:4px;">Facture_2026_04</code> ↔ <code style="font-size:13px; background:var(--purple-light); padding:2px 6px; border-radius:4px;">Invoice_2026_04</code></p>
+          <span class="demo-tag">✦ French & English</span>
+        </div>
+      </div>
+
+      <!-- 6. Timesheet -->
+      <div class="demo-row reverse">
+        <div class="demo-video" onclick="openLightbox('videos/timesheet.mov')">
+          <video autoplay muted loop playsinline>
+            <source src="videos/timesheet.mov" type="video/mp4" />
+          </video>
+          <button class="expand-btn">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1h4v1.5h-2.5v2.5h-1.5v-4zm9 0h4v4h-1.5v-2.5h-2.5v-1.5zm-9 9h1.5v2.5h2.5v1.5h-4v-4zm10.5 2.5v-2.5h1.5v4h-4v-1.5h2.5z"/></svg>
+            Fullscreen
+          </button>
+        </div>
+        <div class="demo-text">
+          <div class="demo-num">06 — Time tracking</div>
+          <h3>A timesheet built right into the app.</h3>
+          <p>I track my hours week by week without a separate tool. It's not a complex time tracker — just what a freelancer needs: log your hours, see the total, move on.</p>
+          <span class="demo-tag">✦ Built-in timesheet</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- CURRENCIES -->
+  <section id="currencies" class="currencies-section">
+    <div class="currencies-inner">
+      <div class="section-label">Multi-currency</div>
+      <h2 class="section-title">Invoice in any currency.</h2>
+      <p class="section-desc">Fiat or crypto, the PDF automatically adapts with the right payment information.</p>
+      <div class="currencies-grid">
+        <div class="currency-badge"><div class="currency-dot"></div> EUR — Euro</div>
+        <div class="currency-badge"><div class="currency-dot"></div> USD — US Dollar</div>
+        <div class="currency-badge"><div class="currency-dot"></div> USDC — USD Coin</div>
+        <div class="currency-badge"><div class="currency-dot"></div> USDT — Tether</div>
+        <div class="currency-badge"><div class="currency-dot"></div> BTC — Bitcoin</div>
+        <div class="currency-badge"><div class="currency-dot"></div> ETH — Ethereum</div>
+        <div class="currency-badge"><div class="currency-dot" style="background:#9945ff"></div> SOL — Solana Pay QR</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OPEN SOURCE -->
+  <section class="opensource">
+    <div class="opensource-inner">
+      <div>
+        <h2>Open source,<br/>forever.</h2>
+        <p>Facio is fully open source under the MIT license. Audit the code, contribute, or fork it for your own needs.</p>
+        <a href="https://github.com/Juiiceee/Facio" class="btn-outline">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          View source code
+        </a>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="stat-num">Swift</div><div class="stat-label">Native macOS language</div></div>
+        <div class="stat"><div class="stat-num">MIT</div><div class="stat-label">Open source license</div></div>
+        <div class="stat"><div class="stat-num">$0</div><div class="stat-label">No subscription</div></div>
+        <div class="stat"><div class="stat-num">macOS<br/><span style="font-size:20px">15+</span></div><div class="stat-label">Sequoia and above</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DOWNLOAD CTA -->
+  <section class="download">
+    <img src="icon.png" alt="Facio" style="width:80px; height:80px; border-radius:18px; margin-bottom:24px; box-shadow:0 8px 32px rgba(123,94,167,0.25);" />
+    <h2>Ready to invoice?</h2>
+    <p>Download Facio for free. Up and running in seconds, no account needed.</p>
+    <a href="https://github.com/Juiiceee/Facio/releases/latest" class="btn-primary" style="font-size:18px; padding: 16px 36px;" id="download-btn-2">
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 12l-4.5-4.5 1.06-1.06L7 9.88V2h2v7.88l2.44-2.44L12.5 7.5 8 12z"/><path d="M2 13h12v1.5H2z"/></svg>
+      Download Facio for free
+    </a>
+    <div class="requirements">
+      <span>🍎 macOS 15 Sequoia+</span>
+      <span>💻 Apple Silicon &amp; Intel</span>
+      <span>🆓 Free</span>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <span>© 2026 Facio</span>
+      <div class="footer-links">
+        <a href="https://github.com/Juiiceee/Facio">GitHub</a>
+        <a href="https://github.com/Juiiceee/Facio/releases">Releases</a>
+        <a href="https://github.com/Juiiceee/Facio/issues">Report a bug</a>
+        <a href="https://github.com/Juiiceee/Facio/blob/main/LICENSE">MIT License</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Version from GitHub API
+    fetch('https://api.github.com/repos/Juiiceee/Facio/releases/latest')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.tag_name) return;
+        document.getElementById('version-tag').textContent = data.tag_name;
+        document.getElementById('version-tag').href = data.html_url;
+        const asset = data.assets?.find(a => a.name.endsWith('.dmg') || a.name.endsWith('.zip'));
+        if (asset) {
+          document.getElementById('download-btn').href = asset.browser_download_url;
+          document.getElementById('download-btn-2').href = asset.browser_download_url;
+        }
+      })
+      .catch(() => {});
+
+    // Play videos only when visible
+    const videos = document.querySelectorAll('.demo-video video');
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) e.target.play().catch(() => {});
+        else e.target.pause();
+      });
+    }, { threshold: 0.3 });
+    videos.forEach(v => obs.observe(v));
+
+    // Lightbox
+    const lightbox = document.getElementById('lightbox');
+    const lightboxVideo = document.getElementById('lightbox-video');
+
+    function openLightbox(src) {
+      lightboxVideo.src = src;
+      lightboxVideo.load();
+      lightboxVideo.play();
+      lightbox.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox(e) {
+      if (e && e.target !== lightbox && e.target.closest('.lightbox-inner')) return;
+      lightboxVideo.pause();
+      lightboxVideo.src = '';
+      lightbox.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeLightbox();
+    });
+  </script>
+
+</body>
+</html>
