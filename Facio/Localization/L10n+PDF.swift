@@ -33,4 +33,5 @@ extension L10n {
     static func accountHolder(_ l: AppLanguage) -> String { l == .fr ? "Titulaire: " : "Holder: " }
     static func scanToPay(_ l: AppLanguage) -> String { l == .fr ? "Scanner pour payer" : "Scan to pay" }
     static func companyFallback(_ l: AppLanguage) -> String { l == .fr ? "ENTREPRISE" : "COMPANY" }
+    static func notesLabel(_ l: AppLanguage) -> String { l == .fr ? "NOTES" : "NOTES" }
 }

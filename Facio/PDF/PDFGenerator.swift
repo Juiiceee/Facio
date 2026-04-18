@@ -48,14 +48,21 @@ struct PDFGenerator {
         y = drawTotals(context, y: y)
         y += 25
 
-        // 5. Signatures (si payee)
+        // 5. Notes (si non vides)
+        if !document.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if y > pH - 120 { context.endPDFPage(); y = beginPage(context) }
+            y = drawNotes(context, y: y)
+            y += 15
+        }
+
+        // 6. Signatures (si payee)
         if document.status == .payee && !document.transactionSignatures.isEmpty {
             if y > pH - 200 { context.endPDFPage(); y = beginPage(context) }
             y = drawTransactionSignatures(context, y: y)
             y += 15
         }
 
-        // 6. Pied de page entreprise + paiement
+        // 7. Pied de page entreprise + paiement
         let solanaPayQR: CGImage? = {
             guard document.paymentMode == .crypto, document.blockchain == .solana else { return nil }
             let walletsForChain = company.wallets.filter { $0.blockchain == .solana }
@@ -407,7 +414,50 @@ struct PDFGenerator {
         return cy
     }
 
-    // MARK: - 6. Pied de page (bloc entreprise + paiement)
+    // MARK: - Notes
+
+    private func drawNotes(_ context: CGContext, y: CGFloat) -> CGFloat {
+        var cy = y
+
+        drawText(L10n.notesLabel(lang), x: mL, y: cy,
+                 font: PDFLayout.fontSection, color: themeDark, context: context)
+        cy += 13
+        strokeLine(context, x1: mL, y1: cy, x2: mL + cW, y2: cy,
+                   color: themeDark.withAlphaComponent(0.4), width: 0.5)
+        cy += 8
+
+        let maxLineWidth = cW
+        let lineHeight: CGFloat = 13
+        let rawLines = document.notes.components(separatedBy: "\n")
+
+        for rawLine in rawLines {
+            let words = rawLine.components(separatedBy: " ")
+            var currentLine = ""
+
+            for word in words {
+                let candidate = currentLine.isEmpty ? word : "\(currentLine) \(word)"
+                if textWidth(candidate, font: PDFLayout.fontBody) <= maxLineWidth {
+                    currentLine = candidate
+                } else {
+                    if !currentLine.isEmpty {
+                        drawText(currentLine, x: mL, y: cy,
+                                 font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
+                        cy += lineHeight
+                    }
+                    currentLine = word
+                }
+            }
+            if !currentLine.isEmpty {
+                drawText(currentLine, x: mL, y: cy,
+                         font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
+                cy += lineHeight
+            }
+        }
+
+        return cy
+    }
+
+    // MARK: - 7. Pied de page (bloc entreprise + paiement)
 
     private func drawFooterBlock(_ context: CGContext, y: CGFloat, showPayment: Bool = true, solanaPayQR: CGImage? = nil) -> CGFloat {
         var cy = y + 10
