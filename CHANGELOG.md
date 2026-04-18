@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.4](https://github.com/Juiiceee/Facio/compare/Facio-v1.7.3...Facio-v1.7.4) (2026-04-18)
+
+
+### Corrections de bugs
+
+* **pdf:** render notes section in PDF output ([#25](https://github.com/Juiiceee/Facio/issues/25)) ([60f795f](https://github.com/Juiiceee/Facio/commit/60f795f4610871774fb6b3f4be3a1c786ab090b3))
+
 ## [1.7.3](https://github.com/Juiiceee/Facio/compare/Facio-v1.7.2...Facio-v1.7.3) (2026-04-09)
 
 
