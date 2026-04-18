@@ -7,6 +7,7 @@ struct FacioApp: App {
     @State private var syncService = SyncService()
     @State private var authService = AuthService()
     @State private var networkMonitor = NetworkMonitor()
+    @State private var updateService = UpdateService()
     @State private var showFirstLaunch = false
 
     init() {
@@ -29,6 +30,20 @@ struct FacioApp: App {
                 } message: {
                     Text("Vous pouvez supprimer le fichier DMG de vos telechargements, Facio est installe.")
                 }
+                .alert(
+                    "Nouvelle version disponible",
+                    isPresented: Binding(
+                        get: { updateService.isUpdateAvailable },
+                        set: { _ in }
+                    )
+                ) {
+                    if let url = updateService.releaseURL {
+                        Link("Telecharger", destination: url)
+                    }
+                    Button("Plus tard", role: .cancel) {}
+                } message: {
+                    Text("Facio \(updateService.latestVersion ?? "") est disponible. Telechargez la derniere version sur GitHub.")
+                }
                 .onAppear {
                     if !UserDefaults.standard.bool(forKey: "facio_has_launched") {
                         showFirstLaunch = true
@@ -37,6 +52,7 @@ struct FacioApp: App {
                     syncService.authService = authService
 
                     Task {
+                        await updateService.checkForUpdates()
                         if SyncConfig.isEnabled && authService.isAuthenticated {
                             await authService.refreshSession()
                             await syncService.fullSync(dataStore: dataStore)

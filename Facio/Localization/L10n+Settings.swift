@@ -125,4 +125,9 @@ extension L10n {
         l == .fr ? "L'application sera fermee et toutes les donnees locales seront supprimees. Vous devrez supprimer Facio.app manuellement."
         : "The application will be closed and all local data will be deleted. You will need to delete Facio.app manually."
     }
+
+    // Mises a jour
+    static func checkForUpdates(_ l: AppLanguage) -> String { l == .fr ? "Verifier les mises a jour" : "Check for updates" }
+    static func updateAvailable(_ l: AppLanguage, version: String) -> String { l == .fr ? "Version \(version) disponible" : "Version \(version) available" }
+    static func upToDate(_ l: AppLanguage) -> String { l == .fr ? "Vous etes a jour" : "You're up to date" }
 }
