@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.7.4...Facio-v1.8.0) (2026-04-18)
+
+
+### Nouvelles fonctionnalites
+
+* **web:** add GitHub Pages landing page for Facio ([bfe966a](https://github.com/Juiiceee/Facio/commit/bfe966a8f73881643efc4b96f89d8492e7feaa49))
+* **web:** add GitHub Pages landing page for Facio ([2f93306](https://github.com/Juiiceee/Facio/commit/2f933065ce5e285a2e9be7e0c0ce40ab8d5bd0dd))
+
 ## [1.7.4](https://github.com/Juiiceee/Facio/compare/Facio-v1.7.3...Facio-v1.7.4) (2026-04-18)
 
 
