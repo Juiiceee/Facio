@@ -34,8 +34,15 @@ final class UpdateService {
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
             let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
-            let tag = release.tagName.hasPrefix("v") ? String(release.tagName.dropFirst()) : release.tagName
-            latestVersion = tag
+            // Extrait le semver depuis un tag comme "Facio-v1.8.0" ou "v1.8.0" ou "1.8.0"
+            let tag = release.tagName
+            let semver: String
+            if let range = tag.range(of: #"\d+\.\d+\.\d+"#, options: .regularExpression) {
+                semver = String(tag[range])
+            } else {
+                semver = tag
+            }
+            latestVersion = semver
             releaseURL = URL(string: release.htmlURL)
         } catch {
             // Silencieux — pas de connexion ou repo privé
