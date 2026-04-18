@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/Juiiceee/Facio/compare/Facio-v1.8.0...Facio-v1.8.1) (2026-04-18)
+
+
+### Corrections de bugs
+
+* **updates:** extract semver from tag like Facio-v1.8.0 for version comparison ([#33](https://github.com/Juiiceee/Facio/issues/33)) ([3a9b37d](https://github.com/Juiiceee/Facio/commit/3a9b37d0b30a1b2b03735753608ab811398b619a))
+
 ## [1.8.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.7.4...Facio-v1.8.0) (2026-04-18)
 
 
