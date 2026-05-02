@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Security
 
 // MARK: - Sync State
 
@@ -45,8 +46,28 @@ struct SyncConfig {
 
     /// API key custom
     static var customAPIKey: String {
-        get { UserDefaults.standard.string(forKey: customAPIKeyKey) ?? "" }
-        set { UserDefaults.standard.set(newValue, forKey: customAPIKeyKey) }
+        get {
+            if let keychainValue = SyncKeychain.string(for: customAPIKeyKey) {
+                return keychainValue
+            }
+            guard let legacyValue = UserDefaults.standard.string(forKey: customAPIKeyKey),
+                  !legacyValue.isEmpty
+            else { return "" }
+            if SyncKeychain.set(legacyValue, for: customAPIKeyKey) {
+                UserDefaults.standard.removeObject(forKey: customAPIKeyKey)
+            }
+            return legacyValue
+        }
+        set {
+            if newValue.isEmpty {
+                SyncKeychain.delete(customAPIKeyKey)
+                UserDefaults.standard.removeObject(forKey: customAPIKeyKey)
+            } else if !SyncKeychain.set(newValue, for: customAPIKeyKey) {
+                UserDefaults.standard.set(newValue, forKey: customAPIKeyKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: customAPIKeyKey)
+            }
+        }
     }
 
     /// URL effective (custom ou par defaut)
@@ -61,6 +82,58 @@ struct SyncConfig {
 
     static var isConfigured: Bool {
         !url.isEmpty && !apiKey.isEmpty
+    }
+}
+
+private enum SyncKeychain {
+    private static let service = "app.facio.sync"
+
+    static func string(for account: String) -> String? {
+        var query = baseQuery(account: account)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        guard status == errSecSuccess,
+              let data = item as? Data
+        else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    @discardableResult
+    static func set(_ value: String, for account: String) -> Bool {
+        guard let data = value.data(using: .utf8) else { return false }
+        let query = baseQuery(account: account)
+        let update = [kSecValueData as String: data]
+        let status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
+        if status == errSecSuccess { return true }
+        guard status == errSecItemNotFound else { return false }
+
+        var add = query
+        add[kSecValueData as String] = data
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
+    }
+
+    static func delete(_ account: String) {
+        SecItemDelete(baseQuery(account: account) as CFDictionary)
+    }
+
+    private static func baseQuery(account: String) -> [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
+    }
+}
+
+extension TimesheetWeek {
+    init(id: UUID = UUID(), numero: Int = 1, jours: [TimesheetDay] = []) {
+        self.id = id
+        self.numero = numero
+        self.jours = jours
     }
 }
 
@@ -188,7 +261,7 @@ final class SyncService: Sendable {
         let toDelete = remoteIds.subtracting(localIds)
         if !docs.isEmpty || remoteIds.isEmpty {
             for id in toDelete {
-                _ = await supabaseDelete(table: "documents", filter: "id=eq.\(id)")
+                guard await supabaseDelete(table: "documents", filter: "id=eq.\(id)") else { return false }
             }
         }
 
@@ -210,14 +283,14 @@ final class SyncService: Sendable {
                 "client_code_postal": doc.clientCodePostal,
                 "client_ville": doc.clientVille,
                 "notes": doc.notes,
-                "selected_wallet_id": doc.selectedWalletId?.uuidString as Any,
+                "selected_wallet_id": doc.selectedWalletId?.uuidString ?? NSNull(),
+                "langue_raw_value": doc.langueRawValue,
                 "created_at": ISO8601DateFormatter().string(from: doc.createdAt),
                 "updated_at": ISO8601DateFormatter().string(from: doc.updatedAt),
             ]
             guard await supabaseUpsert(table: "documents", body: body, onConflict: "id") else { return false }
 
-            // Delete + reinsert line_items
-            _ = await supabaseDelete(table: "line_items", filter: "document_id=eq.\(doc.id.uuidString)")
+            // Upsert first, then delete stale children so a partial failure does not wipe existing rows.
             if !doc.lignes.isEmpty {
                 let lineItems: [[String: Any]] = doc.lignes.map { li in
                     [
@@ -231,11 +304,14 @@ final class SyncService: Sendable {
                         "ordre": li.ordre,
                     ]
                 }
-                guard await supabaseBatchInsert(table: "line_items", rows: lineItems) else { return false }
+                guard await supabaseBatchUpsert(table: "line_items", rows: lineItems, onConflict: "id") else { return false }
+            }
+            let localLineItemIds = Set(doc.lignes.map { $0.id.uuidString })
+            let remoteLineItemIds = await fetchRemoteIds(table: "line_items", query: "select=id&document_id=eq.\(doc.id.uuidString)")
+            for id in remoteLineItemIds.subtracting(localLineItemIds) {
+                guard await supabaseDelete(table: "line_items", filter: "id=eq.\(id)") else { return false }
             }
 
-            // Delete + reinsert transaction_signatures
-            _ = await supabaseDelete(table: "transaction_signatures", filter: "document_id=eq.\(doc.id.uuidString)")
             if !doc.transactionSignatures.isEmpty {
                 let sigs: [[String: Any]] = doc.transactionSignatures.map { ts in
                     [
@@ -248,7 +324,12 @@ final class SyncService: Sendable {
                         "blockchain_raw_value": ts.blockchainRawValue,
                     ]
                 }
-                guard await supabaseBatchInsert(table: "transaction_signatures", rows: sigs) else { return false }
+                guard await supabaseBatchUpsert(table: "transaction_signatures", rows: sigs, onConflict: "id") else { return false }
+            }
+            let localSignatureIds = Set(doc.transactionSignatures.map { $0.id.uuidString })
+            let remoteSignatureIds = await fetchRemoteIds(table: "transaction_signatures", query: "select=id&document_id=eq.\(doc.id.uuidString)")
+            for id in remoteSignatureIds.subtracting(localSignatureIds) {
+                guard await supabaseDelete(table: "transaction_signatures", filter: "id=eq.\(id)") else { return false }
             }
         }
 
@@ -266,7 +347,7 @@ final class SyncService: Sendable {
         let localIds = Set(clients.map { $0.id.uuidString })
         if !clients.isEmpty || remoteIds.isEmpty {
             for id in remoteIds.subtracting(localIds) {
-                _ = await supabaseDelete(table: "clients", filter: "id=eq.\(id)")
+                guard await supabaseDelete(table: "clients", filter: "id=eq.\(id)") else { return false }
             }
         }
 
@@ -294,6 +375,11 @@ final class SyncService: Sendable {
 
     private func pushCompany(_ company: CompanyInfo) async -> Bool {
         guard let userId = authService?.userId, !userId.isEmpty else { return false }
+        if companyLooksRecoveredBlank(company),
+           let remote = await pullCompany(),
+           !companyLooksRecoveredBlank(remote) {
+            return true
+        }
 
         let logoBase64 = company.logoData?.base64EncodedString() ?? ""
         let body: [String: Any] = [
@@ -315,12 +401,14 @@ final class SyncService: Sendable {
             "delai_paiement_jours": company.delaiPaiementJours,
             "devise_par_defaut_raw_value": company.deviseParDefautRawValue,
             "blockchain_par_defaut_raw_value": company.blockchainParDefautRawValue ?? "",
+            "langue_par_defaut_raw_value": company.langueParDefautRawValue,
+            "format_date_raw_value": company.formatDateRawValue,
+            "format_nombre_raw_value": company.formatNombreRawValue,
+            "couleur_accent_hex": company.couleurAccentHex ?? NSNull(),
             "updated_at": ISO8601DateFormatter().string(from: company.updatedAt),
         ]
         guard await supabaseUpsert(table: "company_info", body: body, onConflict: "id") else { return false }
 
-        // Wallets: delete + reinsert
-        _ = await supabaseDelete(table: "wallets", filter: "company_id=eq.\(company.id.uuidString)")
         if !company.wallets.isEmpty {
             let wallets: [[String: Any]] = company.wallets.map { w in
                 [
@@ -332,11 +420,14 @@ final class SyncService: Sendable {
                     "label": w.label,
                 ]
             }
-            guard await supabaseBatchInsert(table: "wallets", rows: wallets) else { return false }
+            guard await supabaseBatchUpsert(table: "wallets", rows: wallets, onConflict: "id") else { return false }
+        }
+        let localWalletIds = Set(company.wallets.map { $0.id.uuidString })
+        let remoteWalletIds = await fetchRemoteIds(table: "wallets", query: "select=id&company_id=eq.\(company.id.uuidString)")
+        for id in remoteWalletIds.subtracting(localWalletIds) {
+            guard await supabaseDelete(table: "wallets", filter: "id=eq.\(id)") else { return false }
         }
 
-        // Presets: delete + reinsert
-        _ = await supabaseDelete(table: "prestation_presets", filter: "company_id=eq.\(company.id.uuidString)")
         if !company.prestations.isEmpty {
             let presets: [[String: Any]] = company.prestations.map { p in
                 [
@@ -348,7 +439,12 @@ final class SyncService: Sendable {
                     "taux_tva": NSDecimalNumber(decimal: p.tauxTVA).doubleValue,
                 ]
             }
-            guard await supabaseBatchInsert(table: "prestation_presets", rows: presets) else { return false }
+            guard await supabaseBatchUpsert(table: "prestation_presets", rows: presets, onConflict: "id") else { return false }
+        }
+        let localPresetIds = Set(company.prestations.map { $0.id.uuidString })
+        let remotePresetIds = await fetchRemoteIds(table: "prestation_presets", query: "select=id&company_id=eq.\(company.id.uuidString)")
+        for id in remotePresetIds.subtracting(localPresetIds) {
+            guard await supabaseDelete(table: "prestation_presets", filter: "id=eq.\(id)") else { return false }
         }
 
         lastSyncDate = Date()
@@ -365,7 +461,7 @@ final class SyncService: Sendable {
         let localIds = Set(timesheets.map { $0.id.uuidString })
         if !timesheets.isEmpty || remoteIds.isEmpty {
             for id in remoteIds.subtracting(localIds) {
-                _ = await supabaseDelete(table: "timesheet_periods", filter: "id=eq.\(id)")
+                guard await supabaseDelete(table: "timesheet_periods", filter: "id=eq.\(id)") else { return false }
             }
         }
 
@@ -385,9 +481,6 @@ final class SyncService: Sendable {
             ]
             guard await supabaseUpsert(table: "timesheet_periods", body: body, onConflict: "id") else { return false }
 
-            // Delete all weeks (cascade deletes days) + reinsert
-            _ = await supabaseDelete(table: "timesheet_weeks", filter: "period_id=eq.\(ts.id.uuidString)")
-
             for week in ts.semaines {
                 let weekBody: [String: Any] = [
                     "id": week.id.uuidString,
@@ -397,6 +490,7 @@ final class SyncService: Sendable {
                 ]
                 guard await supabaseUpsert(table: "timesheet_weeks", body: weekBody, onConflict: "id") else { return false }
 
+                let localDayIds = Set(week.jours.map { $0.id.uuidString })
                 if !week.jours.isEmpty {
                     let days: [[String: Any]] = week.jours.map { day in
                         [
@@ -407,8 +501,18 @@ final class SyncService: Sendable {
                             "heures": NSDecimalNumber(decimal: day.heures).doubleValue,
                         ]
                     }
-                    guard await supabaseBatchInsert(table: "timesheet_days", rows: days) else { return false }
+                    guard await supabaseBatchUpsert(table: "timesheet_days", rows: days, onConflict: "id") else { return false }
                 }
+                let remoteDayIds = await fetchRemoteIds(table: "timesheet_days", query: "select=id&week_id=eq.\(week.id.uuidString)")
+                for id in remoteDayIds.subtracting(localDayIds) {
+                    guard await supabaseDelete(table: "timesheet_days", filter: "id=eq.\(id)") else { return false }
+                }
+            }
+
+            let localWeekIds = Set(ts.semaines.map { $0.id.uuidString })
+            let remoteWeekIds = await fetchRemoteIds(table: "timesheet_weeks", query: "select=id&period_id=eq.\(ts.id.uuidString)")
+            for id in remoteWeekIds.subtracting(localWeekIds) {
+                guard await supabaseDelete(table: "timesheet_weeks", filter: "id=eq.\(id)") else { return false }
             }
         }
 
@@ -446,6 +550,7 @@ final class SyncService: Sendable {
             doc.clientVille = json["client_ville"] as? String ?? ""
             doc.notes = json["notes"] as? String ?? ""
             doc.selectedWalletId = (json["selected_wallet_id"] as? String).flatMap { UUID(uuidString: $0) }
+            doc.langueRawValue = json["langue_raw_value"] as? String ?? "fr"
             doc.createdAt = parseDate(json["created_at"]) ?? Date()
             doc.updatedAt = parseDate(json["updated_at"]) ?? Date()
 
@@ -537,6 +642,10 @@ final class SyncService: Sendable {
         company.deviseParDefautRawValue = json["devise_par_defaut_raw_value"] as? String ?? "USDC"
         let blockRaw = json["blockchain_par_defaut_raw_value"] as? String ?? ""
         company.blockchainParDefautRawValue = blockRaw.isEmpty ? nil : blockRaw
+        company.langueParDefautRawValue = json["langue_par_defaut_raw_value"] as? String ?? "fr"
+        company.formatDateRawValue = json["format_date_raw_value"] as? String ?? "fr"
+        company.formatNombreRawValue = json["format_nombre_raw_value"] as? String ?? "fr"
+        company.couleurAccentHex = json["couleur_accent_hex"] as? String
         company.updatedAt = parseDate(json["updated_at"]) ?? Date()
 
         // Wallets
@@ -649,8 +758,10 @@ final class SyncService: Sendable {
             dataStore.saveLocal(key: "clients")
         }
         if let company = await pullCompany() {
-            dataStore.companyInfo = company
-            dataStore.saveLocal(key: "company")
+            if !companyLooksRecoveredBlank(company) || companyLooksRecoveredBlank(dataStore.companyInfo) {
+                dataStore.companyInfo = company
+                dataStore.saveLocal(key: "company")
+            }
         }
         if let timesheets = await pullTimesheets() {
             dataStore.timesheets = timesheets
@@ -688,6 +799,20 @@ final class SyncService: Sendable {
         request.httpBody = bodyData
         addHeaders(&request, token: authService?.accessToken)
         request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+
+        return await executeRequest(request)
+    }
+
+    private func supabaseBatchUpsert(table: String, rows: [[String: Any]], onConflict: String) async -> Bool {
+        guard !rows.isEmpty else { return true }
+        guard let url = buildURL(path: "/rest/v1/\(table)?on_conflict=\(onConflict)") else { return false }
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: rows) else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.httpBody = bodyData
+        addHeaders(&request, token: authService?.accessToken)
+        request.setValue("resolution=merge-duplicates,return=minimal", forHTTPHeaderField: "Prefer")
 
         return await executeRequest(request)
     }
@@ -734,7 +859,11 @@ final class SyncService: Sendable {
     }
 
     private func fetchRemoteIds(table: String) async -> Set<String> {
-        guard let url = buildURL(path: "/rest/v1/\(table)?select=id") else { return [] }
+        await fetchRemoteIds(table: table, query: "select=id")
+    }
+
+    private func fetchRemoteIds(table: String, query: String) async -> Set<String> {
+        guard let url = buildURL(path: "/rest/v1/\(table)?\(query)") else { return [] }
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -801,6 +930,34 @@ final class SyncService: Sendable {
         return ISO8601DateFormatter().date(from: str)
     }
 
+    private func companyLooksRecoveredBlank(_ company: CompanyInfo) -> Bool {
+        let textFields = [
+            company.nom,
+            company.adresse,
+            company.codePostal,
+            company.ville,
+            company.siret,
+            company.telephone,
+            company.email,
+            company.nomBanque,
+            company.iban,
+            company.bic,
+            company.titulaireCompte,
+            company.couleurAccentHex ?? "",
+        ]
+        return textFields.allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            && company.logoData == nil
+            && company.wallets.isEmpty
+            && company.prestations.isEmpty
+            && company.tauxTVAParDefaut == 0
+            && company.delaiPaiementJours == 30
+            && company.deviseParDefautRawValue == "USDC"
+            && (company.blockchainParDefautRawValue ?? "Solana") == "Solana"
+            && company.langueParDefautRawValue == "fr"
+            && company.formatDateRawValue == "fr"
+            && company.formatNombreRawValue == "fr"
+    }
+
     // MARK: - SQL Schema (shown in settings for custom DB setup)
 
     static let sqlSchema = """
@@ -824,6 +981,8 @@ final class SyncService: Sendable {
       client_code_postal TEXT NOT NULL DEFAULT '',
       client_ville TEXT NOT NULL DEFAULT '',
       notes TEXT NOT NULL DEFAULT '',
+      selected_wallet_id UUID,
+      langue_raw_value TEXT NOT NULL DEFAULT 'fr',
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
@@ -884,6 +1043,10 @@ final class SyncService: Sendable {
       delai_paiement_jours INT NOT NULL DEFAULT 30,
       devise_par_defaut_raw_value TEXT NOT NULL DEFAULT 'USDC',
       blockchain_par_defaut_raw_value TEXT NOT NULL DEFAULT '',
+      langue_par_defaut_raw_value TEXT NOT NULL DEFAULT 'fr',
+      format_date_raw_value TEXT NOT NULL DEFAULT 'fr',
+      format_nombre_raw_value TEXT NOT NULL DEFAULT 'fr',
+      couleur_accent_hex TEXT,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       UNIQUE(user_id)
     );
@@ -952,16 +1115,95 @@ final class SyncService: Sendable {
     ALTER TABLE timesheet_weeks ENABLE ROW LEVEL SECURITY;
     ALTER TABLE timesheet_days ENABLE ROW LEVEL SECURITY;
 
-    CREATE POLICY "own_data" ON documents FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-    CREATE POLICY "own_data" ON line_items FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-    CREATE POLICY "own_data" ON transaction_signatures FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-    CREATE POLICY "own_data" ON clients FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-    CREATE POLICY "own_data" ON company_info FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-    CREATE POLICY "own_data" ON wallets FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-    CREATE POLICY "own_data" ON prestation_presets FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-    CREATE POLICY "own_data" ON timesheet_periods FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-    CREATE POLICY "own_data" ON timesheet_weeks FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-    CREATE POLICY "own_data" ON timesheet_days FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+    CREATE POLICY "own_data" ON documents FOR ALL
+      USING (auth.uid() = user_id)
+      WITH CHECK (auth.uid() = user_id);
+
+    CREATE POLICY "own_data" ON line_items FOR ALL
+      USING (
+        auth.uid() = user_id
+        AND EXISTS (SELECT 1 FROM documents WHERE documents.id = line_items.document_id AND documents.user_id = auth.uid())
+      )
+      WITH CHECK (
+        auth.uid() = user_id
+        AND EXISTS (SELECT 1 FROM documents WHERE documents.id = line_items.document_id AND documents.user_id = auth.uid())
+      );
+
+    CREATE POLICY "own_data" ON transaction_signatures FOR ALL
+      USING (
+        auth.uid() = user_id
+        AND EXISTS (SELECT 1 FROM documents WHERE documents.id = transaction_signatures.document_id AND documents.user_id = auth.uid())
+      )
+      WITH CHECK (
+        auth.uid() = user_id
+        AND EXISTS (SELECT 1 FROM documents WHERE documents.id = transaction_signatures.document_id AND documents.user_id = auth.uid())
+      );
+
+    CREATE POLICY "own_data" ON clients FOR ALL
+      USING (auth.uid() = user_id)
+      WITH CHECK (auth.uid() = user_id);
+
+    CREATE POLICY "own_data" ON company_info FOR ALL
+      USING (auth.uid() = user_id)
+      WITH CHECK (auth.uid() = user_id);
+
+    CREATE POLICY "own_data" ON wallets FOR ALL
+      USING (
+        auth.uid() = user_id
+        AND EXISTS (SELECT 1 FROM company_info WHERE company_info.id = wallets.company_id AND company_info.user_id = auth.uid())
+      )
+      WITH CHECK (
+        auth.uid() = user_id
+        AND EXISTS (SELECT 1 FROM company_info WHERE company_info.id = wallets.company_id AND company_info.user_id = auth.uid())
+      );
+
+    CREATE POLICY "own_data" ON prestation_presets FOR ALL
+      USING (
+        auth.uid() = user_id
+        AND EXISTS (SELECT 1 FROM company_info WHERE company_info.id = prestation_presets.company_id AND company_info.user_id = auth.uid())
+      )
+      WITH CHECK (
+        auth.uid() = user_id
+        AND EXISTS (SELECT 1 FROM company_info WHERE company_info.id = prestation_presets.company_id AND company_info.user_id = auth.uid())
+      );
+
+    CREATE POLICY "own_data" ON timesheet_periods FOR ALL
+      USING (auth.uid() = user_id)
+      WITH CHECK (auth.uid() = user_id);
+
+    CREATE POLICY "own_data" ON timesheet_weeks FOR ALL
+      USING (
+        auth.uid() = user_id
+        AND EXISTS (SELECT 1 FROM timesheet_periods WHERE timesheet_periods.id = timesheet_weeks.period_id AND timesheet_periods.user_id = auth.uid())
+      )
+      WITH CHECK (
+        auth.uid() = user_id
+        AND EXISTS (SELECT 1 FROM timesheet_periods WHERE timesheet_periods.id = timesheet_weeks.period_id AND timesheet_periods.user_id = auth.uid())
+      );
+
+    CREATE POLICY "own_data" ON timesheet_days FOR ALL
+      USING (
+        auth.uid() = user_id
+        AND EXISTS (
+          SELECT 1
+          FROM timesheet_weeks
+          JOIN timesheet_periods ON timesheet_periods.id = timesheet_weeks.period_id
+          WHERE timesheet_weeks.id = timesheet_days.week_id
+            AND timesheet_weeks.user_id = auth.uid()
+            AND timesheet_periods.user_id = auth.uid()
+        )
+      )
+      WITH CHECK (
+        auth.uid() = user_id
+        AND EXISTS (
+          SELECT 1
+          FROM timesheet_weeks
+          JOIN timesheet_periods ON timesheet_periods.id = timesheet_weeks.period_id
+          WHERE timesheet_weeks.id = timesheet_days.week_id
+            AND timesheet_weeks.user_id = auth.uid()
+            AND timesheet_periods.user_id = auth.uid()
+        )
+      );
 
     -- Index sur les cles etrangeres
     CREATE INDEX idx_line_items_document ON line_items(document_id);
