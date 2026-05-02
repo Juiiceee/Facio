@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import CoreText
+import ImageIO
 
 /// Generateur de PDF professionnel pour factures et devis
 /// Style : fond blanc, titre centre, logo abstrait, tableau vert olive, pied avec bordure verte gauche
@@ -19,6 +20,11 @@ struct PDFGenerator {
     // Couleurs dynamiques (depuis CompanyInfo)
     private var themePrimary: NSColor { PDFLayout.themePrimary(from: company) }
     private var themeDark: NSColor { PDFLayout.themeDark(from: company) }
+    private let maximumTextLength = 8_000
+    private let maximumLineLength = 1_000
+    private let maximumLogoBytes = 2_000_000
+    private let maximumLogoDimension = 4_096
+    private let maximumLogoPixels = 12_000_000
 
     // MARK: - Generation principale
 
@@ -101,39 +107,49 @@ struct PDFGenerator {
 
     // MARK: - Dessin texte via CoreText
 
-    private func drawText(_ text: String, x: CGFloat, y: CGFloat, font: NSFont, color: NSColor, context: CGContext) {
+    private func drawText(_ text: String, x: CGFloat, y: CGFloat, font: NSFont, color: NSColor, context: CGContext, maxWidth: CGFloat? = nil) {
+        let maxWidth = max(1, maxWidth ?? (pW - mR - x))
+        let text = fittedSingleLine(text, font: font, maxWidth: maxWidth)
         let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
         let attrStr = CFAttributedStringCreate(nil, text as CFString, attrs as CFDictionary)!
         let line = CTLineCreateWithAttributedString(attrStr)
         let ascent = CTFontGetAscent(font as CTFont)
         context.saveGState()
+        context.clip(to: CGRect(x: x, y: cgY(y + font.pointSize + 3), width: maxWidth, height: font.pointSize + 6))
         context.textPosition = CGPoint(x: x, y: cgY(y) - ascent)
         CTLineDraw(line, context)
         context.restoreGState()
     }
 
     /// Dessine du texte aligne a droite par rapport a rightX
-    private func drawTextRight(_ text: String, rightX: CGFloat, y: CGFloat, font: NSFont, color: NSColor, context: CGContext) {
+    private func drawTextRight(_ text: String, rightX: CGFloat, y: CGFloat, font: NSFont, color: NSColor, context: CGContext, maxWidth: CGFloat? = nil) {
+        let maxWidth = max(1, maxWidth ?? (rightX - mL))
+        let text = fittedSingleLine(text, font: font, maxWidth: maxWidth)
         let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
         let attrStr = CFAttributedStringCreate(nil, text as CFString, attrs as CFDictionary)!
         let line = CTLineCreateWithAttributedString(attrStr)
         let width = CTLineGetTypographicBounds(line, nil, nil, nil)
         let ascent = CTFontGetAscent(font as CTFont)
+        let x = rightX - width
         context.saveGState()
-        context.textPosition = CGPoint(x: rightX - width, y: cgY(y) - ascent)
+        context.clip(to: CGRect(x: rightX - maxWidth, y: cgY(y + font.pointSize + 3), width: maxWidth, height: font.pointSize + 6))
+        context.textPosition = CGPoint(x: x, y: cgY(y) - ascent)
         CTLineDraw(line, context)
         context.restoreGState()
     }
 
     /// Dessine du texte centre horizontalement
     private func drawTextCenter(_ text: String, y: CGFloat, font: NSFont, color: NSColor, context: CGContext) {
+        let text = fittedSingleLine(text, font: font, maxWidth: cW)
         let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
         let attrStr = CFAttributedStringCreate(nil, text as CFString, attrs as CFDictionary)!
         let line = CTLineCreateWithAttributedString(attrStr)
         let width = CTLineGetTypographicBounds(line, nil, nil, nil)
         let ascent = CTFontGetAscent(font as CTFont)
+        let x = (pW - width) / 2
         context.saveGState()
-        context.textPosition = CGPoint(x: (pW - width) / 2, y: cgY(y) - ascent)
+        context.clip(to: CGRect(x: mL, y: cgY(y + font.pointSize + 3), width: cW, height: font.pointSize + 6))
+        context.textPosition = CGPoint(x: x, y: cgY(y) - ascent)
         CTLineDraw(line, context)
         context.restoreGState()
     }
@@ -143,6 +159,145 @@ struct PDFGenerator {
         let attrStr = CFAttributedStringCreate(nil, text as CFString, attrs as CFDictionary)!
         let line = CTLineCreateWithAttributedString(attrStr)
         return CTLineGetTypographicBounds(line, nil, nil, nil)
+    }
+
+    private func sanitizedSingleLine(_ text: String) -> String {
+        let limited = String(text.prefix(maximumLineLength))
+        var result = ""
+        result.reserveCapacity(limited.count)
+        var previousWasSpace = false
+
+        for scalar in limited.unicodeScalars {
+            let isAllowedControl = scalar == "\t"
+            if CharacterSet.controlCharacters.contains(scalar), !isAllowedControl {
+                continue
+            }
+            let replacement = CharacterSet.newlines.contains(scalar) || isAllowedControl ? " " : String(scalar)
+            let isSpace = replacement.unicodeScalars.allSatisfy { CharacterSet.whitespacesAndNewlines.contains($0) }
+            if isSpace {
+                if !previousWasSpace {
+                    result.append(" ")
+                }
+                previousWasSpace = true
+            } else {
+                result.append(replacement)
+                previousWasSpace = false
+            }
+        }
+
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func sanitizedMultiline(_ text: String) -> String {
+        let limited = String(text.prefix(maximumTextLength))
+        var result = ""
+        result.reserveCapacity(limited.count)
+
+        for scalar in limited.unicodeScalars {
+            if scalar == "\n" || scalar == "\r" {
+                result.append("\n")
+            } else if scalar == "\t" {
+                result.append(" ")
+            } else if !CharacterSet.controlCharacters.contains(scalar) {
+                result.append(String(scalar))
+            }
+        }
+
+        return result
+    }
+
+    private func fittedSingleLine(_ text: String, font: NSFont, maxWidth: CGFloat) -> String {
+        let clean = sanitizedSingleLine(text)
+        guard !clean.isEmpty, textWidth(clean, font: font) > maxWidth else { return clean }
+        let suffix = "..."
+        guard textWidth(suffix, font: font) < maxWidth else { return "" }
+
+        var low = 0
+        var high = clean.count
+        var best = suffix
+
+        while low <= high {
+            let mid = (low + high) / 2
+            let candidate = String(clean.prefix(mid)) + suffix
+            if textWidth(candidate, font: font) <= maxWidth {
+                best = candidate
+                low = mid + 1
+            } else {
+                high = mid - 1
+            }
+        }
+
+        return best
+    }
+
+    private func wrappedLines(_ text: String, font: NSFont, maxWidth: CGFloat) -> [String] {
+        sanitizedMultiline(text)
+            .components(separatedBy: .newlines)
+            .flatMap { paragraph in
+                let words = paragraph.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+                guard !words.isEmpty else { return [""] }
+
+                var lines: [String] = []
+                var currentLine = ""
+                for word in words {
+                    let candidate = currentLine.isEmpty ? word : "\(currentLine) \(word)"
+                    if textWidth(candidate, font: font) <= maxWidth {
+                        currentLine = candidate
+                    } else {
+                        if !currentLine.isEmpty {
+                            lines.append(currentLine)
+                        }
+                        if textWidth(word, font: font) <= maxWidth {
+                            currentLine = word
+                        } else {
+                            let pieces = splitLongWord(word, font: font, maxWidth: maxWidth)
+                            lines.append(contentsOf: pieces.dropLast())
+                            currentLine = pieces.last ?? ""
+                        }
+                    }
+                }
+                if !currentLine.isEmpty {
+                    lines.append(currentLine)
+                }
+                return lines
+            }
+    }
+
+    private func splitLongWord(_ word: String, font: NSFont, maxWidth: CGFloat) -> [String] {
+        var remaining = String(word.prefix(maximumLineLength))
+        var pieces: [String] = []
+
+        while !remaining.isEmpty {
+            if textWidth(remaining, font: font) <= maxWidth {
+                pieces.append(remaining)
+                break
+            }
+
+            var low = 1
+            var high = remaining.count
+            var best = 1
+            while low <= high {
+                let mid = (low + high) / 2
+                let candidate = String(remaining.prefix(mid))
+                if textWidth(candidate, font: font) <= maxWidth {
+                    best = mid
+                    low = mid + 1
+                } else {
+                    high = mid - 1
+                }
+            }
+
+            pieces.append(String(remaining.prefix(best)))
+            remaining.removeFirst(best)
+        }
+
+        return pieces
+    }
+
+    private func ensurePageSpace(_ context: CGContext, y: CGFloat, needed: CGFloat) -> CGFloat {
+        guard y + needed > pH - PDFLayout.marginBottom else { return y }
+        context.endPDFPage()
+        return beginPage(context)
     }
 
     // MARK: - Dessin rectangles / lignes
@@ -175,6 +330,29 @@ struct PDFGenerator {
         ctx.draw(image, in: CGRect(x: x, y: cgY(y + h), width: w, height: h))
     }
 
+    private func validatedLogoImage(from data: Data, maxPixelSize: Int) -> CGImage? {
+        guard data.count <= maximumLogoBytes,
+              let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let type = CGImageSourceGetType(source),
+              ["public.png", "public.jpeg", "public.tiff"].contains(type as String),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int,
+              width > 0,
+              height > 0,
+              width <= maximumLogoDimension,
+              height <= maximumLogoDimension,
+              width * height <= maximumLogoPixels
+        else { return nil }
+
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+    }
+
     // MARK: - 1. Titre + Logo
 
     private func drawTitleAndLogo(_ context: CGContext, y: CGFloat) -> CGFloat {
@@ -195,9 +373,9 @@ struct PDFGenerator {
 
     /// Dessine le logo abstrait : 6 cercles/ellipses superposes
     private func drawAbstractLogo(_ ctx: CGContext, centerX: CGFloat, centerY: CGFloat) {
-        // Si l'utilisateur a un logo, l'utiliser
-        if let logoData = company.logoData, let logo = NSImage(data: logoData),
-           let cgImage = logo.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+        // Si l'utilisateur a un logo valide, l'utiliser.
+        if let logoData = company.logoData,
+           let cgImage = validatedLogoImage(from: logoData, maxPixelSize: 140) {
             let rect = CGRect(x: centerX - 35, y: cgY(centerY) - 35, width: 70, height: 70)
             ctx.draw(cgImage, in: rect)
             return
@@ -274,7 +452,7 @@ struct PDFGenerator {
         // En-tete du tableau
         cy = drawTableHeader(context, headers: headers, colW: colW, x: x, w: w, y: cy)
 
-        let tableStartY = y
+        var tableStartY = y
 
         // Lignes
         for (_, ligne) in document.lignesTriees.enumerated() {
@@ -283,6 +461,7 @@ struct PDFGenerator {
                 strokeRect(context, x: x, y: tableStartY, w: w, h: cy - tableStartY, color: themePrimary, lineWidth: 0.8)
                 context.endPDFPage()
                 cy = beginPage(context)
+                tableStartY = cy
                 cy = drawTableHeader(context, headers: headers, colW: colW, x: x, w: w, y: cy)
             }
 
@@ -310,11 +489,11 @@ struct PDFGenerator {
                 if i == 0 {
                     // Designation alignee a gauche
                     drawText(val, x: colX + 6, y: cy + 7,
-                             font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
+                             font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context, maxWidth: colW[i] - 12)
                 } else {
                     // Nombres alignes a droite
                     drawTextRight(val, rightX: colX + colW[i] - 6, y: cy + 7,
-                                  font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
+                                  font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context, maxWidth: colW[i] - 12)
                 }
                 colX += colW[i]
             }
@@ -339,10 +518,10 @@ struct PDFGenerator {
         for (i, h) in headers.enumerated() {
             if i == 0 {
                 drawText(h, x: colX + 6, y: y + 9,
-                         font: PDFLayout.fontTableHeader, color: PDFLayout.textWhite, context: context)
+                         font: PDFLayout.fontTableHeader, color: PDFLayout.textWhite, context: context, maxWidth: colW[i] - 12)
             } else {
                 drawTextRight(h, rightX: colX + colW[i] - 6, y: y + 9,
-                              font: PDFLayout.fontTableHeader, color: PDFLayout.textWhite, context: context)
+                              font: PDFLayout.fontTableHeader, color: PDFLayout.textWhite, context: context, maxWidth: colW[i] - 12)
             }
             colX += colW[i]
         }
@@ -390,12 +569,14 @@ struct PDFGenerator {
     // MARK: - 5. Signatures de transaction
 
     private func drawTransactionSignatures(_ context: CGContext, y: CGFloat) -> CGFloat {
-        var cy = y
+        var cy = ensurePageSpace(context, y: y, needed: 30)
         drawText(L10n.paymentProofs(lang), x: mL, y: cy,
                  font: PDFLayout.fontSection, color: themeDark, context: context)
         cy += 16
 
         for tx in document.transactionSignatures {
+            let rowHeight: CGFloat = tx.explorerURL == nil ? 24 : 38
+            cy = ensurePageSpace(context, y: cy, needed: rowHeight)
             drawText("\(tx.date.frenchFormatted) — \(document.currency.format(tx.montant)) via \(tx.blockchain.label)",
                      x: mL + 5, y: cy, font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
             cy += 13
@@ -417,7 +598,7 @@ struct PDFGenerator {
     // MARK: - Notes
 
     private func drawNotes(_ context: CGContext, y: CGFloat) -> CGFloat {
-        var cy = y
+        var cy = ensurePageSpace(context, y: y, needed: 34)
 
         drawText(L10n.notesLabel(lang), x: mL, y: cy,
                  font: PDFLayout.fontSection, color: themeDark, context: context)
@@ -428,30 +609,15 @@ struct PDFGenerator {
 
         let maxLineWidth = cW
         let lineHeight: CGFloat = 13
-        let rawLines = document.notes.components(separatedBy: "\n")
+        let lines = wrappedLines(document.notes, font: PDFLayout.fontBody, maxWidth: maxLineWidth)
 
-        for rawLine in rawLines {
-            let words = rawLine.components(separatedBy: " ")
-            var currentLine = ""
-
-            for word in words {
-                let candidate = currentLine.isEmpty ? word : "\(currentLine) \(word)"
-                if textWidth(candidate, font: PDFLayout.fontBody) <= maxLineWidth {
-                    currentLine = candidate
-                } else {
-                    if !currentLine.isEmpty {
-                        drawText(currentLine, x: mL, y: cy,
-                                 font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
-                        cy += lineHeight
-                    }
-                    currentLine = word
-                }
-            }
-            if !currentLine.isEmpty {
-                drawText(currentLine, x: mL, y: cy,
+        for line in lines {
+            cy = ensurePageSpace(context, y: cy, needed: lineHeight)
+            if !line.isEmpty {
+                drawText(line, x: mL, y: cy,
                          font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
-                cy += lineHeight
             }
+            cy += lineHeight
         }
 
         return cy

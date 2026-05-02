@@ -1,3 +1,4 @@
+import ImageIO
 import SwiftUI
 
 struct CustomisationSettingsView: View {
@@ -10,6 +11,9 @@ struct CustomisationSettingsView: View {
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     @State private var isDropTargeted = false
+    private static let maximumLogoBytes = 2_000_000
+    private static let maximumLogoDimension = 4_096
+    private static let maximumLogoPixels = 12_000_000
 
     // MARK: - Binding Color <-> hex
 
@@ -37,7 +41,7 @@ struct CustomisationSettingsView: View {
                         .font(.headline)
 
                     if let logoData = company.logoData,
-                       let nsImage = NSImage(data: logoData) {
+                       let nsImage = Self.validatedLogoPreview(from: logoData) {
                         HStack(spacing: 16) {
                             Image(nsImage: nsImage)
                                 .resizable()
@@ -150,7 +154,7 @@ struct CustomisationSettingsView: View {
 
         if panel.runModal() == .OK, let url = panel.url {
             if let data = try? Data(contentsOf: url) {
-                guard data.count <= 2_000_000 else { return }
+                guard Self.isValidLogoData(data) else { return }
                 company.logoData = data
                 dataStore.save()
             }
@@ -163,14 +167,44 @@ struct CustomisationSettingsView: View {
             guard let data = item as? Data,
                   let url = URL(dataRepresentation: data, relativeTo: nil),
                   let imageData = try? Data(contentsOf: url),
-                  imageData.count <= 2_000_000,
-                  NSImage(data: imageData) != nil else { return }
+                  Self.isValidLogoData(imageData) else { return }
 
             DispatchQueue.main.async {
                 company.logoData = imageData
                 dataStore.save()
             }
         }
+        return true
+    }
+
+    private static func validatedLogoPreview(from data: Data) -> NSImage? {
+        guard isValidLogoData(data),
+              let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: 256
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        return NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+    }
+
+    private static func isValidLogoData(_ data: Data) -> Bool {
+        guard data.count <= maximumLogoBytes,
+              let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let type = CGImageSourceGetType(source),
+              ["public.png", "public.jpeg", "public.tiff"].contains(type as String),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int,
+              width > 0,
+              height > 0,
+              width <= maximumLogoDimension,
+              height <= maximumLogoDimension,
+              width * height <= maximumLogoPixels
+        else { return false }
+
         return true
     }
 }
