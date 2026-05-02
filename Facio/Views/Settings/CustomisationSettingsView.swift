@@ -11,9 +11,9 @@ struct CustomisationSettingsView: View {
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     @State private var isDropTargeted = false
-    private static let maximumLogoBytes = 2_000_000
-    private static let maximumLogoDimension = 4_096
-    private static let maximumLogoPixels = 12_000_000
+    nonisolated private static let maximumLogoBytes = 2_000_000
+    nonisolated private static let maximumLogoDimension = 4_096
+    nonisolated private static let maximumLogoPixels = 12_000_000
 
     // MARK: - Binding Color <-> hex
 
@@ -177,7 +177,7 @@ struct CustomisationSettingsView: View {
         return true
     }
 
-    private static func validatedLogoPreview(from data: Data) -> NSImage? {
+    nonisolated private static func validatedLogoPreview(from data: Data) -> NSImage? {
         guard isValidLogoData(data),
               let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
 
@@ -190,7 +190,7 @@ struct CustomisationSettingsView: View {
         return NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
     }
 
-    private static func isValidLogoData(_ data: Data) -> Bool {
+    nonisolated private static func isValidLogoData(_ data: Data) -> Bool {
         guard data.count <= maximumLogoBytes,
               let source = CGImageSourceCreateWithData(data as CFData, nil),
               let type = CGImageSourceGetType(source),
