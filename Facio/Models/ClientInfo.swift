@@ -62,14 +62,14 @@ final class ClientInfo: Identifiable, Codable, Hashable {
 
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        nom = try container.decode(String.self, forKey: .nom)
-        adresse = try container.decode(String.self, forKey: .adresse)
-        codePostal = try container.decode(String.self, forKey: .codePostal)
-        ville = try container.decode(String.self, forKey: .ville)
-        email = try container.decode(String.self, forKey: .email)
-        createdAt = try container.decode(Date.self, forKey: .createdAt)
-        updatedAt = (try? container.decode(Date.self, forKey: .updatedAt)) ?? createdAt
+        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        nom = container.decodeOrDefault(String.self, forKey: .nom, default: "")
+        adresse = container.decodeOrDefault(String.self, forKey: .adresse, default: "")
+        codePostal = container.decodeOrDefault(String.self, forKey: .codePostal, default: "")
+        ville = container.decodeOrDefault(String.self, forKey: .ville, default: "")
+        email = container.decodeOrDefault(String.self, forKey: .email, default: "")
+        createdAt = container.decodeOrDefault(Date.self, forKey: .createdAt, default: Date())
+        updatedAt = container.decodeOrDefault(Date.self, forKey: .updatedAt, default: createdAt)
     }
 
     func encode(to encoder: Encoder) throws {

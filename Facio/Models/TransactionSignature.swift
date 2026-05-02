@@ -38,4 +38,19 @@ struct TransactionSignature: Identifiable, Codable, Hashable {
         self.montant = montant
         self.blockchainRawValue = blockchain.rawValue
     }
+
+    // MARK: - Codable
+
+    enum CodingKeys: String, CodingKey {
+        case id, signature, date, montant, blockchainRawValue
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        signature = container.decodeOrDefault(String.self, forKey: .signature, default: "")
+        date = container.decodeOrDefault(Date.self, forKey: .date, default: Date())
+        montant = container.decodeOrDefault(Decimal.self, forKey: .montant, default: 0)
+        blockchainRawValue = container.decodeOrDefault(String.self, forKey: .blockchainRawValue, default: Blockchain.solana.rawValue)
+    }
 }

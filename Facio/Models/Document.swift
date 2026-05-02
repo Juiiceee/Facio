@@ -194,26 +194,30 @@ final class Document: Identifiable, Codable, Hashable {
 
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        typeRawValue = try container.decode(String.self, forKey: .typeRawValue)
-        number = try container.decode(String.self, forKey: .number)
-        dateCreation = try container.decode(Date.self, forKey: .dateCreation)
-        dateEcheance = try container.decode(Date.self, forKey: .dateEcheance)
-        statusRawValue = try container.decode(String.self, forKey: .statusRawValue)
-        currencyRawValue = try container.decode(String.self, forKey: .currencyRawValue)
+        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        typeRawValue = container.decodeOrDefault(String.self, forKey: .typeRawValue, default: DocumentType.facture.rawValue)
+        number = container.decodeOrDefault(String.self, forKey: .number, default: "")
+        dateCreation = container.decodeOrDefault(Date.self, forKey: .dateCreation, default: Date())
+        dateEcheance = container.decodeOrDefault(
+            Date.self,
+            forKey: .dateEcheance,
+            default: Calendar.current.date(byAdding: .day, value: 30, to: dateCreation) ?? dateCreation
+        )
+        statusRawValue = container.decodeOrDefault(String.self, forKey: .statusRawValue, default: DocumentStatus.brouillon.rawValue)
+        currencyRawValue = container.decodeOrDefault(String.self, forKey: .currencyRawValue, default: CurrencyType.eur.rawValue)
         blockchainRawValue = try container.decodeIfPresent(String.self, forKey: .blockchainRawValue)
-        paymentModeRawValue = (try? container.decode(String.self, forKey: .paymentModeRawValue)) ?? "Aucun"
-        clientNom = try container.decode(String.self, forKey: .clientNom)
-        clientAdresse = try container.decode(String.self, forKey: .clientAdresse)
-        clientCodePostal = try container.decode(String.self, forKey: .clientCodePostal)
-        clientVille = try container.decode(String.self, forKey: .clientVille)
-        lignes = try container.decode([LineItem].self, forKey: .lignes)
-        transactionSignatures = try container.decode([TransactionSignature].self, forKey: .transactionSignatures)
-        createdAt = try container.decode(Date.self, forKey: .createdAt)
-        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
-        notes = try container.decode(String.self, forKey: .notes)
+        paymentModeRawValue = container.decodeOrDefault(String.self, forKey: .paymentModeRawValue, default: PaymentMode.aucun.rawValue)
+        clientNom = container.decodeOrDefault(String.self, forKey: .clientNom, default: "")
+        clientAdresse = container.decodeOrDefault(String.self, forKey: .clientAdresse, default: "")
+        clientCodePostal = container.decodeOrDefault(String.self, forKey: .clientCodePostal, default: "")
+        clientVille = container.decodeOrDefault(String.self, forKey: .clientVille, default: "")
+        lignes = container.decodeOrDefault([LineItem].self, forKey: .lignes, default: [])
+        transactionSignatures = container.decodeOrDefault([TransactionSignature].self, forKey: .transactionSignatures, default: [])
+        createdAt = container.decodeOrDefault(Date.self, forKey: .createdAt, default: dateCreation)
+        updatedAt = container.decodeOrDefault(Date.self, forKey: .updatedAt, default: createdAt)
+        notes = container.decodeOrDefault(String.self, forKey: .notes, default: "")
         selectedWalletId = try? container.decode(UUID.self, forKey: .selectedWalletId)
-        langueRawValue = (try? container.decode(String.self, forKey: .langueRawValue)) ?? "fr"
+        langueRawValue = container.decodeOrDefault(String.self, forKey: .langueRawValue, default: AppLanguage.fr.rawValue)
     }
 
     func encode(to encoder: Encoder) throws {

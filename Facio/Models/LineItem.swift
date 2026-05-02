@@ -38,4 +38,20 @@ struct LineItem: Identifiable, Codable, Hashable {
         self.tauxTVA = tauxTVA
         self.ordre = ordre
     }
+
+    // MARK: - Codable
+
+    enum CodingKeys: String, CodingKey {
+        case id, designation, quantite, prixUnitaire, tauxTVA, ordre
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        designation = container.decodeOrDefault(String.self, forKey: .designation, default: "")
+        quantite = container.decodeOrDefault(Decimal.self, forKey: .quantite, default: 0)
+        prixUnitaire = container.decodeOrDefault(Decimal.self, forKey: .prixUnitaire, default: 0)
+        tauxTVA = container.decodeOrDefault(Decimal.self, forKey: .tauxTVA, default: 0)
+        ordre = container.decodeOrDefault(Int.self, forKey: .ordre, default: 0)
+    }
 }

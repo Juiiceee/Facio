@@ -16,6 +16,18 @@ struct DesignationPreset: Identifiable, Codable, Hashable {
         self.prixUnitaire = prixUnitaire
         self.tauxTVA = tauxTVA
     }
+
+    enum CodingKeys: String, CodingKey {
+        case id, designation, prixUnitaire, tauxTVA
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        designation = container.decodeOrDefault(String.self, forKey: .designation, default: "")
+        prixUnitaire = container.decodeOrDefault(Decimal.self, forKey: .prixUnitaire, default: 0)
+        tauxTVA = container.decodeOrDefault(Decimal.self, forKey: .tauxTVA, default: 0)
+    }
 }
 
 // MARK: - Entree Wallet
@@ -36,6 +48,18 @@ struct WalletEntry: Identifiable, Codable, Hashable {
         self.label = label
         self.blockchainRawValue = blockchain.rawValue
         self.address = address
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, label, blockchainRawValue, address
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        label = container.decodeOrDefault(String.self, forKey: .label, default: "")
+        blockchainRawValue = container.decodeOrDefault(String.self, forKey: .blockchainRawValue, default: Blockchain.solana.rawValue)
+        address = container.decodeOrDefault(String.self, forKey: .address, default: "")
     }
 }
 
@@ -148,29 +172,29 @@ final class CompanyInfo: Identifiable, Codable {
 
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        nom = try container.decode(String.self, forKey: .nom)
-        adresse = try container.decode(String.self, forKey: .adresse)
-        codePostal = try container.decode(String.self, forKey: .codePostal)
-        ville = try container.decode(String.self, forKey: .ville)
-        siret = try container.decode(String.self, forKey: .siret)
-        telephone = try container.decode(String.self, forKey: .telephone)
-        email = try container.decode(String.self, forKey: .email)
+        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        nom = container.decodeOrDefault(String.self, forKey: .nom, default: "")
+        adresse = container.decodeOrDefault(String.self, forKey: .adresse, default: "")
+        codePostal = container.decodeOrDefault(String.self, forKey: .codePostal, default: "")
+        ville = container.decodeOrDefault(String.self, forKey: .ville, default: "")
+        siret = container.decodeOrDefault(String.self, forKey: .siret, default: "")
+        telephone = container.decodeOrDefault(String.self, forKey: .telephone, default: "")
+        email = container.decodeOrDefault(String.self, forKey: .email, default: "")
         logoData = try container.decodeIfPresent(Data.self, forKey: .logoData)
-        nomBanque = (try? container.decode(String.self, forKey: .nomBanque)) ?? ""
-        iban = try container.decode(String.self, forKey: .iban)
-        bic = try container.decode(String.self, forKey: .bic)
-        titulaireCompte = try container.decode(String.self, forKey: .titulaireCompte)
-        wallets = try container.decode([WalletEntry].self, forKey: .wallets)
-        prestations = (try? container.decode([DesignationPreset].self, forKey: .prestations)) ?? []
-        tauxTVAParDefaut = try container.decode(Decimal.self, forKey: .tauxTVAParDefaut)
-        delaiPaiementJours = try container.decode(Int.self, forKey: .delaiPaiementJours)
-        deviseParDefautRawValue = try container.decode(String.self, forKey: .deviseParDefautRawValue)
+        nomBanque = container.decodeOrDefault(String.self, forKey: .nomBanque, default: "")
+        iban = container.decodeOrDefault(String.self, forKey: .iban, default: "")
+        bic = container.decodeOrDefault(String.self, forKey: .bic, default: "")
+        titulaireCompte = container.decodeOrDefault(String.self, forKey: .titulaireCompte, default: "")
+        wallets = container.decodeOrDefault([WalletEntry].self, forKey: .wallets, default: [])
+        prestations = container.decodeOrDefault([DesignationPreset].self, forKey: .prestations, default: [])
+        tauxTVAParDefaut = container.decodeOrDefault(Decimal.self, forKey: .tauxTVAParDefaut, default: 0)
+        delaiPaiementJours = container.decodeOrDefault(Int.self, forKey: .delaiPaiementJours, default: 30)
+        deviseParDefautRawValue = container.decodeOrDefault(String.self, forKey: .deviseParDefautRawValue, default: CurrencyType.usdc.rawValue)
         blockchainParDefautRawValue = try container.decodeIfPresent(String.self, forKey: .blockchainParDefautRawValue)
-        updatedAt = (try? container.decode(Date.self, forKey: .updatedAt)) ?? Date()
-        langueParDefautRawValue = (try? container.decode(String.self, forKey: .langueParDefautRawValue)) ?? "fr"
-        formatDateRawValue = (try? container.decode(String.self, forKey: .formatDateRawValue)) ?? "fr"
-        formatNombreRawValue = (try? container.decode(String.self, forKey: .formatNombreRawValue)) ?? "fr"
+        updatedAt = container.decodeOrDefault(Date.self, forKey: .updatedAt, default: Date())
+        langueParDefautRawValue = container.decodeOrDefault(String.self, forKey: .langueParDefautRawValue, default: AppLanguage.fr.rawValue)
+        formatDateRawValue = container.decodeOrDefault(String.self, forKey: .formatDateRawValue, default: AppLanguage.fr.rawValue)
+        formatNombreRawValue = container.decodeOrDefault(String.self, forKey: .formatNombreRawValue, default: AppLanguage.fr.rawValue)
         couleurAccentHex = try? container.decode(String.self, forKey: .couleurAccentHex)
     }
 

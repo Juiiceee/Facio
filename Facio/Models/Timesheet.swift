@@ -90,9 +90,13 @@ struct TimesheetDay: Identifiable, Codable, Hashable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = (try? container.decode(UUID.self, forKey: .id)) ?? UUID()
-        dateString = try container.decode(String.self, forKey: .dateString)
-        heures = try container.decode(Decimal.self, forKey: .heures)
+        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        dateString = container.decodeOrDefault(
+            String.self,
+            forKey: .dateString,
+            default: TimesheetDay.dateFormatter.string(from: Date())
+        )
+        heures = container.decodeOrDefault(Decimal.self, forKey: .heures, default: 0)
     }
 }
 
@@ -103,6 +107,8 @@ struct TimesheetWeek: Identifiable, Codable, Hashable {
     var numero: Int = 1
     /// 7 jours (lundi a dimanche) avec leurs vraies dates
     var jours: [TimesheetDay] = []
+
+    init() {}
 
     /// Total heures de la semaine
     var totalHeures: Decimal {
@@ -171,6 +177,19 @@ struct TimesheetWeek: Identifiable, Codable, Hashable {
         f.dateFormat = "dd MMM"
         f.locale = Locale(identifier: lang == .fr ? "fr_FR" : "en_US")
         return "\(f.string(from: first.date)) — \(f.string(from: last.date))"
+    }
+
+    // MARK: - Codable
+
+    enum CodingKeys: String, CodingKey {
+        case id, numero, jours
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        numero = container.decodeOrDefault(Int.self, forKey: .numero, default: 1)
+        jours = container.decodeOrDefault([TimesheetDay].self, forKey: .jours, default: [])
     }
 }
 
@@ -324,12 +343,12 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
 
     required init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(UUID.self, forKey: .id)
-        nom = try c.decode(String.self, forKey: .nom)
-        mois = try c.decode(Int.self, forKey: .mois)
-        annee = try c.decode(Int.self, forKey: .annee)
-        semaines = try c.decode([TimesheetWeek].self, forKey: .semaines)
-        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        id = c.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        nom = c.decodeOrDefault(String.self, forKey: .nom, default: "")
+        mois = c.decodeOrDefault(Int.self, forKey: .mois, default: Calendar.current.component(.month, from: Date()))
+        annee = c.decodeOrDefault(Int.self, forKey: .annee, default: Calendar.current.component(.year, from: Date()))
+        semaines = c.decodeOrDefault([TimesheetWeek].self, forKey: .semaines, default: [])
+        createdAt = c.decodeOrDefault(Date.self, forKey: .createdAt, default: Date())
 
         // Reparer les semaines si le timesheet a ete tronque
         let expected = TimesheetPeriod.genererSemaines(mois: mois, annee: annee)
@@ -352,11 +371,14 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
             }
             semaines = fixed
         }
-        updatedAt = (try? c.decode(Date.self, forKey: .updatedAt)) ?? createdAt
-        tauxNormal = try c.decode(Decimal.self, forKey: .tauxNormal)
-        tauxSupplementaire = try c.decode(Decimal.self, forKey: .tauxSupplementaire)
-        coefficientNet = try c.decode(Decimal.self, forKey: .coefficientNet)
-        seuilHebdo = try c.decode(Decimal.self, forKey: .seuilHebdo)
+        if nom.isEmpty {
+            nom = moisLabel
+        }
+        updatedAt = c.decodeOrDefault(Date.self, forKey: .updatedAt, default: createdAt)
+        tauxNormal = c.decodeOrDefault(Decimal.self, forKey: .tauxNormal, default: 26.39)
+        tauxSupplementaire = c.decodeOrDefault(Decimal.self, forKey: .tauxSupplementaire, default: 39.59)
+        coefficientNet = c.decodeOrDefault(Decimal.self, forKey: .coefficientNet, default: 0.756)
+        seuilHebdo = c.decodeOrDefault(Decimal.self, forKey: .seuilHebdo, default: 35)
     }
 
     func encode(to encoder: Encoder) throws {

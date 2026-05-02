@@ -8,6 +8,8 @@ final class DataStore: Sendable {
     var clients: [ClientInfo] = []
     var companyInfo: CompanyInfo = CompanyInfo()
     var timesheets: [TimesheetPeriod] = []
+    var persistenceErrors: [String: String] = [:]
+    var corruptBackupURLs: [String: URL] = [:]
 
     /// Reference au SyncService (injectee depuis l'app)
     var syncService: SyncService?
@@ -34,6 +36,7 @@ final class DataStore: Sendable {
     private var clientsFileURL: URL { storageDirectory.appendingPathComponent("clients.json") }
     private var companyFileURL: URL { storageDirectory.appendingPathComponent("company.json") }
     private var timesheetsFileURL: URL { storageDirectory.appendingPathComponent("timesheets.json") }
+    private var writeBlockedKeys: Set<String> = []
 
     init() {
         ensureStorageDirectory()
@@ -42,24 +45,44 @@ final class DataStore: Sendable {
 
     private func ensureStorageDirectory() {
         if !fileManager.fileExists(atPath: storageDirectory.path) {
-            try? fileManager.createDirectory(at: storageDirectory, withIntermediateDirectories: true)
+            do {
+                try fileManager.createDirectory(at: storageDirectory, withIntermediateDirectories: true)
+                persistenceErrors.removeValue(forKey: "storage")
+            } catch {
+                persistenceErrors["storage"] = "Impossible de creer le dossier de stockage: \(error.localizedDescription)"
+            }
         }
     }
 
     // MARK: - Load
 
     func load() {
-        if let data = try? Data(contentsOf: documentsFileURL) {
-            documents = (try? decoder.decode([Document].self, from: data)) ?? []
+        load([Document].self, key: "documents", from: documentsFileURL) { documents = $0 }
+        load([ClientInfo].self, key: "clients", from: clientsFileURL) { clients = $0 }
+        load(CompanyInfo.self, key: "company", from: companyFileURL) { companyInfo = $0 }
+        load([TimesheetPeriod].self, key: "timesheets", from: timesheetsFileURL) { timesheets = $0 }
+    }
+
+    private func load<T: Decodable>(_ type: T.Type, key: String, from url: URL, assign: (T) -> Void) {
+        guard fileManager.fileExists(atPath: url.path) else {
+            persistenceErrors.removeValue(forKey: key)
+            corruptBackupURLs.removeValue(forKey: key)
+            writeBlockedKeys.remove(key)
+            return
         }
-        if let data = try? Data(contentsOf: clientsFileURL) {
-            clients = (try? decoder.decode([ClientInfo].self, from: data)) ?? []
-        }
-        if let data = try? Data(contentsOf: companyFileURL) {
-            companyInfo = (try? decoder.decode(CompanyInfo.self, from: data)) ?? CompanyInfo()
-        }
-        if let data = try? Data(contentsOf: timesheetsFileURL) {
-            timesheets = (try? decoder.decode([TimesheetPeriod].self, from: data)) ?? []
+
+        do {
+            let data = try Data(contentsOf: url)
+            assign(try decoder.decode(type, from: data))
+            persistenceErrors.removeValue(forKey: key)
+            corruptBackupURLs.removeValue(forKey: key)
+            writeBlockedKeys.remove(key)
+        } catch {
+            writeBlockedKeys.insert(key)
+            let backupURL = backupCorruptFile(at: url, key: key)
+            corruptBackupURLs[key] = backupURL
+            let backupPath = backupURL?.lastPathComponent ?? "backup indisponible"
+            persistenceErrors[key] = "Lecture impossible de \(url.lastPathComponent): \(error.localizedDescription). Fichier preserve: \(backupPath)"
         }
     }
 
@@ -75,68 +98,100 @@ final class DataStore: Sendable {
     // MARK: - Save par cle (local + notify sync)
 
     func saveDocuments() {
-        ensureStorageDirectory()
-        if let data = try? encoder.encode(documents) {
-            try? data.write(to: documentsFileURL, options: .atomic)
-            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: documentsFileURL.path)
+        if write([Document].self, documents, key: "documents", to: documentsFileURL, allowBlockedWrite: false) {
+            syncService?.markDirty("documents")
         }
-        syncService?.markDirty("documents")
     }
 
     func saveClients() {
-        ensureStorageDirectory()
-        if let data = try? encoder.encode(clients) {
-            try? data.write(to: clientsFileURL, options: .atomic)
-            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: clientsFileURL.path)
+        if write([ClientInfo].self, clients, key: "clients", to: clientsFileURL, allowBlockedWrite: false) {
+            syncService?.markDirty("clients")
         }
-        syncService?.markDirty("clients")
     }
 
     func saveCompany() {
-        ensureStorageDirectory()
-        if let data = try? encoder.encode(companyInfo) {
-            try? data.write(to: companyFileURL, options: .atomic)
-            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: companyFileURL.path)
+        if write(CompanyInfo.self, companyInfo, key: "company", to: companyFileURL, allowBlockedWrite: false) {
+            syncService?.markDirty("company")
         }
-        syncService?.markDirty("company")
     }
 
     func saveTimesheets() {
-        ensureStorageDirectory()
-        if let data = try? encoder.encode(timesheets) {
-            try? data.write(to: timesheetsFileURL, options: .atomic)
-            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: timesheetsFileURL.path)
+        if write([TimesheetPeriod].self, timesheets, key: "timesheets", to: timesheetsFileURL, allowBlockedWrite: false) {
+            syncService?.markDirty("timesheets")
         }
-        syncService?.markDirty("timesheets")
     }
 
     /// Sauvegarde locale uniquement (sans trigger sync — utilise par SyncService apres pull)
     func saveLocal(key: String) {
-        ensureStorageDirectory()
         switch key {
         case "documents":
-            if let data = try? encoder.encode(documents) {
-                try? data.write(to: documentsFileURL, options: .atomic)
-                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: documentsFileURL.path)
-            }
+            _ = write([Document].self, documents, key: key, to: documentsFileURL, allowBlockedWrite: true)
         case "clients":
-            if let data = try? encoder.encode(clients) {
-                try? data.write(to: clientsFileURL, options: .atomic)
-                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: clientsFileURL.path)
-            }
+            _ = write([ClientInfo].self, clients, key: key, to: clientsFileURL, allowBlockedWrite: true)
         case "company":
-            if let data = try? encoder.encode(companyInfo) {
-                try? data.write(to: companyFileURL, options: .atomic)
-                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: companyFileURL.path)
-            }
+            _ = write(CompanyInfo.self, companyInfo, key: key, to: companyFileURL, allowBlockedWrite: true)
         case "timesheets":
-            if let data = try? encoder.encode(timesheets) {
-                try? data.write(to: timesheetsFileURL, options: .atomic)
-                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: timesheetsFileURL.path)
-            }
+            _ = write([TimesheetPeriod].self, timesheets, key: key, to: timesheetsFileURL, allowBlockedWrite: true)
         default: break
         }
     }
+
+    private func write<T: Encodable>(
+        _ type: T.Type,
+        _ value: T,
+        key: String,
+        to url: URL,
+        allowBlockedWrite: Bool
+    ) -> Bool {
+        ensureStorageDirectory()
+
+        guard allowBlockedWrite || !writeBlockedKeys.contains(key) else {
+            persistenceErrors[key] = "Sauvegarde bloquee pour \(url.lastPathComponent): le fichier local n'a pas pu etre decode au chargement."
+            return false
+        }
+
+        do {
+            let data = try encoder.encode(value)
+            try data.write(to: url, options: .atomic)
+            try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+            persistenceErrors.removeValue(forKey: key)
+            corruptBackupURLs.removeValue(forKey: key)
+            writeBlockedKeys.remove(key)
+            return true
+        } catch {
+            persistenceErrors[key] = "Sauvegarde impossible de \(url.lastPathComponent): \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    private func backupCorruptFile(at url: URL, key: String) -> URL? {
+        let timestamp = Self.backupTimestampFormatter.string(from: Date())
+        let backupURL = url.deletingLastPathComponent()
+            .appendingPathComponent("\(key).corrupt-\(timestamp).json")
+
+        do {
+            let targetURL: URL
+            if fileManager.fileExists(atPath: backupURL.path) {
+                targetURL = url.deletingLastPathComponent()
+                    .appendingPathComponent("\(key).corrupt-\(timestamp)-\(UUID().uuidString).json")
+            } else {
+                targetURL = backupURL
+            }
+            try fileManager.copyItem(at: url, to: targetURL)
+            return targetURL
+        } catch {
+            persistenceErrors["\(key).backup"] = "Backup impossible de \(url.lastPathComponent): \(error.localizedDescription)"
+            return nil
+        }
+    }
+
+    private static let backupTimestampFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        return formatter
+    }()
 
     // MARK: - Document CRUD
 
