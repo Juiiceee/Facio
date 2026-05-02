@@ -5,7 +5,7 @@ let package = Package(
     name: "Facio",
     platforms: [.macOS(.v15)],
     dependencies: [
-        .package(url: "https://github.com/Juiiceee/SolKit", branch: "main"),
+        .package(url: "https://github.com/Juiiceee/SolKit", revision: "9d9c5d3c83d9da3ae85ea760bff2b70120cf052c"),
     ],
     targets: [
         .executableTarget(

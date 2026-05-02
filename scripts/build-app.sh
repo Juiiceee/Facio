@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+set -Eeuo pipefail
+IFS=$'\n\t'
 
 # === Configuration ===
 APP_NAME="Facio"
@@ -8,15 +9,31 @@ BUNDLE_ID="com.juiceeedev.facio"
 BUILD_DIR=".build/release"
 APP_DIR="dist/${APP_NAME}.app"
 
+require_command() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        echo "Erreur: commande requise introuvable: $1" >&2
+        exit 1
+    fi
+}
+
+if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){2}([-+][0-9A-Za-z.-]+)?$ ]]; then
+    echo "Erreur: version invalide: $VERSION" >&2
+    exit 1
+fi
+
+require_command swift
+require_command codesign
+require_command du
+
 echo "=== Building ${APP_NAME} v${VERSION} ==="
 
 # 1. Build en release
 echo "[1/4] Compilation en mode release..."
-swift build -c release 2>&1
+swift build -c release
 
 EXECUTABLE="${BUILD_DIR}/${APP_NAME}"
 if [ ! -f "$EXECUTABLE" ]; then
-    echo "Erreur: executable non trouve a $EXECUTABLE"
+    echo "Erreur: executable non trouve a $EXECUTABLE" >&2
     exit 1
 fi
 
@@ -74,7 +91,7 @@ if [ -f "Facio/Resources/AppIcon.icns" ]; then
     echo "    Icone copiee."
 else
     echo "    Pas d'icone trouvee, generation..."
-    swift scripts/generate-icon.swift 2>&1 || true
+    swift scripts/generate-icon.swift || true
     if [ -f "Facio/Resources/AppIcon.icns" ]; then
         cp "Facio/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
     fi
@@ -89,18 +106,28 @@ fi
 # 6. Creer PkgInfo
 echo -n "APPL????" > "$APP_DIR/Contents/PkgInfo"
 
-# 7. Signer l'app (ad-hoc si pas de certificat)
+# 7. Signer l'app
 echo "[4/5] Signature de l'app..."
 if [ -n "${CODESIGN_IDENTITY:-}" ]; then
+    if [ ! -f "scripts/Facio.entitlements" ]; then
+        echo "Erreur: fichier d'entitlements introuvable: scripts/Facio.entitlements" >&2
+        exit 1
+    fi
     codesign --force --deep --sign "$CODESIGN_IDENTITY" \
         --options runtime \
         --entitlements "scripts/Facio.entitlements" \
-        "$APP_DIR" 2>&1
+        "$APP_DIR"
     echo "    Signe avec: $CODESIGN_IDENTITY"
+elif [ "${ALLOW_AD_HOC_SIGNING:-0}" = "1" ]; then
+    codesign --force --deep --sign - "$APP_DIR"
+    echo "    Signature ad-hoc autorisee explicitement (ALLOW_AD_HOC_SIGNING=1)"
 else
-    codesign --force --deep --sign - "$APP_DIR" 2>&1
-    echo "    Signature ad-hoc (pas de certificat Developer ID)"
+    echo "Erreur: CODESIGN_IDENTITY est requis pour une build distribuable." >&2
+    echo "       Utilisez ALLOW_AD_HOC_SIGNING=1 seulement pour une build locale non distribuee." >&2
+    exit 1
 fi
+
+codesign --verify --deep --strict --verbose=2 "$APP_DIR"
 
 echo "[5/5] Termine !"
 echo ""

@@ -24,23 +24,16 @@ Native macOS app to create and manage professional invoices and quotes as PDF.
 
 ### Authorize the app
 
-Facio is not signed with an Apple Developer certificate. macOS will block it on first launch — this is normal.
+Release downloads are signed and notarized for macOS. If macOS blocks Facio, download the latest release again from the official GitHub Releases page and compare the file against the published SHA-256 checksum before opening an issue.
 
-**To authorize it:**
-
-1. Try to open Facio — macOS will show a warning and prevent it from launching
-2. Open **System Settings** → **Privacy & Security**
-3. Scroll down to the **Security** section
-4. You will see a message saying Facio was blocked — click **Open Anyway**
-5. Confirm by clicking **Open** in the dialog that appears
-
-**Alternative (Terminal):**
+**Verify a download:**
 
 ```bash
-xattr -cr /Applications/Facio.app
+shasum -a 256 Facio-<version>.dmg
+cat Facio-<version>.dmg.sha256
 ```
 
-Then launch Facio normally.
+The two hashes should match exactly.
 
 ### From source
 
@@ -53,11 +46,17 @@ swift run
 ### Build the .app
 
 ```bash
-./scripts/build-app.sh 1.0.0
+CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" ./scripts/build-app.sh 1.0.0
 open dist/Facio.app
 
 # Install to Applications
 cp -r dist/Facio.app /Applications/
+```
+
+For local-only development builds without a Developer ID certificate:
+
+```bash
+ALLOW_AD_HOC_SIGNING=1 ./scripts/build-app.sh 1.0.0
 ```
 
 ## Requirements
