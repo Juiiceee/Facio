@@ -1,7 +1,8 @@
 import Foundation
 import Observation
 
-/// Tokens de session persistes dans un fichier JSON local
+/// Etat de session non sensible persiste dans un fichier JSON local.
+/// Les champs token restent decodables pour migrer les anciennes sessions.
 private struct SessionData: Codable {
     var accessToken: String = ""
     var refreshToken: String = ""
@@ -27,6 +28,11 @@ final class AuthService: Sendable {
     /// Email pour lequel on attend le code
     var pendingEmail: String = ""
 
+    private enum KeychainAccount {
+        static let accessToken = "accessToken"
+        static let refreshToken = "refreshToken"
+    }
+
     private let sessionURL: URL
 
     init() {
@@ -35,15 +41,20 @@ final class AuthService: Sendable {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         sessionURL = dir.appendingPathComponent("auth_session.json")
 
-        // Restaurer la session depuis le fichier
+        // Restaurer l'etat non sensible depuis le fichier, puis les tokens depuis Keychain.
         if let data = try? Data(contentsOf: sessionURL),
            let session = try? JSONDecoder().decode(SessionData.self, from: data) {
-            accessToken = session.accessToken
-            refreshToken = session.refreshToken
             userId = session.userId
             userEmail = session.userEmail
-            isAuthenticated = !accessToken.isEmpty && !userId.isEmpty
+
+            if !session.accessToken.isEmpty || !session.refreshToken.isEmpty {
+                migrateLegacyTokens(accessToken: session.accessToken, refreshToken: session.refreshToken)
+            }
         }
+
+        accessToken = (try? KeychainService.string(for: KeychainAccount.accessToken)) ?? ""
+        refreshToken = (try? KeychainService.string(for: KeychainAccount.refreshToken)) ?? ""
+        isAuthenticated = !accessToken.isEmpty && !userId.isEmpty
     }
 
     // MARK: - OTP : Envoyer le code
@@ -201,6 +212,8 @@ final class AuthService: Sendable {
         awaitingOTP = false
         pendingEmail = ""
         try? FileManager.default.removeItem(at: sessionURL)
+        try? KeychainService.delete(account: KeychainAccount.accessToken)
+        try? KeychainService.delete(account: KeychainAccount.refreshToken)
     }
 
     // MARK: - Helpers
@@ -217,13 +230,37 @@ final class AuthService: Sendable {
             if let email = user["email"] as? String { userEmail = email }
         }
         isAuthenticated = !accessToken.isEmpty && !userId.isEmpty
-        persistSession()
+        persistTokens()
+        persistSessionState()
     }
 
-    private func persistSession() {
+    private func migrateLegacyTokens(accessToken legacyAccessToken: String, refreshToken legacyRefreshToken: String) {
+        do {
+            if !legacyAccessToken.isEmpty {
+                try KeychainService.set(legacyAccessToken, for: KeychainAccount.accessToken)
+            }
+            if !legacyRefreshToken.isEmpty {
+                try KeychainService.set(legacyRefreshToken, for: KeychainAccount.refreshToken)
+            }
+            persistSessionState()
+        } catch {
+            self.error = "Erreur de migration de la session"
+        }
+    }
+
+    private func persistTokens() {
+        do {
+            try KeychainService.set(accessToken, for: KeychainAccount.accessToken)
+            try KeychainService.set(refreshToken, for: KeychainAccount.refreshToken)
+        } catch {
+            self.error = "Erreur d'enregistrement de la session"
+        }
+    }
+
+    private func persistSessionState() {
         let session = SessionData(
-            accessToken: accessToken,
-            refreshToken: refreshToken,
+            accessToken: "",
+            refreshToken: "",
             userId: userId,
             userEmail: userEmail
         )
@@ -234,7 +271,56 @@ final class AuthService: Sendable {
     }
 
     private func buildURL(path: String) -> URL? {
-        let base = SyncConfig.url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return URL(string: "\(base)\(path)")
+        guard var components = URLComponents(string: SyncConfig.url.trimmingCharacters(in: .whitespacesAndNewlines)),
+              let scheme = components.scheme?.lowercased(),
+              let host = components.host,
+              !host.isEmpty else {
+            error = "URL Supabase invalide"
+            return nil
+        }
+
+        guard components.user == nil,
+              components.password == nil,
+              components.fragment == nil else {
+            error = "URL Supabase invalide"
+            return nil
+        }
+
+        if scheme == "http" {
+            #if DEBUG
+            guard isLocalhost(host) else {
+                error = "URL Supabase non securisee"
+                return nil
+            }
+            #else
+            error = "URL Supabase non securisee"
+            return nil
+            #endif
+        } else if scheme != "https" {
+            error = "URL Supabase invalide"
+            return nil
+        }
+
+        guard let pathComponents = URLComponents(string: path) else {
+            error = "URL Supabase invalide"
+            return nil
+        }
+
+        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let requestPath = pathComponents.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        components.path = "/" + [basePath, requestPath]
+            .filter { !$0.isEmpty }
+            .joined(separator: "/")
+        components.query = pathComponents.query
+        components.fragment = nil
+
+        return components.url
+    }
+
+    private func isLocalhost(_ host: String) -> Bool {
+        let normalizedHost = host.lowercased()
+        return normalizedHost == "localhost"
+            || normalizedHost == "127.0.0.1"
+            || normalizedHost == "::1"
     }
 }
