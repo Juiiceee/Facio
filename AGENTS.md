@@ -49,6 +49,14 @@ This repo uses Conventional Commits with Release Please. Prefer `fix:` for small
 
 PRs should include a short summary, linked issue when applicable, manual test notes, and screenshots or screen recordings for UI changes. Mention release or migration risks, especially when changing Codable fields or local JSON persistence.
 
+## Claude-Style Commands
+
+Slash commands map to `.claude/commands/*.md`. For example, `/commit` means read and execute `.claude/commands/commit.md`, and `/large-change` means read and execute `.claude/commands/large-change.md`. Treat text after the slash command as command arguments.
+
+## Large Change Workflow
+
+For large or multi-part changes, use GitHub-style isolation: one issue, branch, worktree, and PR per task. Follow `.claude/commands/large-change.md` and `.claude/commands/commit.md`; for Codex, use the global `large-change-workflow` skill. Do not push directly to `main` unless explicitly requested.
+
 ## Data & Configuration Notes
 
 Local app data is stored under `~/Library/Application Support/Facio/`. When adding Codable fields, provide defaults in `init(from:)` for backward compatibility and update `CodingKeys` plus `encode(to:)`.
