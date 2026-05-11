@@ -3,6 +3,7 @@ import SwiftUI
 struct TimesheetEditorView: View {
     let timesheet: TimesheetPeriod
     @Environment(DataStore.self) private var dataStore
+    @State private var hourInputMode: TimesheetHourInputMode = .decimal
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -13,6 +14,7 @@ struct TimesheetEditorView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 resumeSection
+                hourInputModeControl
 
                 ForEach(Array(timesheet.semaines.enumerated()), id: \.element.id) { weekIndex, week in
                     weekSection(weekIndex: weekIndex, week: week)
@@ -66,6 +68,25 @@ struct TimesheetEditorView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
+    }
+
+    private var hourInputModeControl: some View {
+        HStack(spacing: 12) {
+            Label(L10n.hourInputMode(lang), systemImage: "clock.badge")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Picker("", selection: $hourInputMode) {
+                Text(L10n.hourInputDecimalMode(lang)).tag(TimesheetHourInputMode.decimal)
+                Text(L10n.hourInputTimeMode(lang)).tag(TimesheetHourInputMode.time)
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .frame(width: 220)
+            .help(L10n.hourInputHelp(lang, mode: hourInputMode))
+
+            Spacer()
+        }
     }
 
     // MARK: - Semaine
@@ -128,7 +149,7 @@ struct TimesheetEditorView: View {
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundStyle(estDansMois ? .primary : .tertiary)
                             TimeField(
-                                placeholder: "0",
+                                placeholder: L10n.hourInputPlaceholder(lang, mode: hourInputMode),
                                 value: Binding(
                                     get: {
                                         guard weekIndex < timesheet.semaines.count,
@@ -144,7 +165,9 @@ struct TimesheetEditorView: View {
                                         dataStore.save()
                                         dataStore.syncSharedWeeks(for: timesheet)
                                     }
-                                )
+                                ),
+                                mode: hourInputMode,
+                                lang: lang
                             )
                             .opacity(estDansMois ? 1.0 : 0.5)
                         }
