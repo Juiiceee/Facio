@@ -60,7 +60,7 @@ struct PrestationsSettingsView: View {
 
                     Button {
                         company.prestations.append(DesignationPreset())
-                        dataStore.save()
+                        dataStore.companyUpdated()
                     } label: {
                         Label(L10n.addService(lang), systemImage: "plus.circle")
                     }
@@ -94,7 +94,7 @@ private struct PrestationRow: View {
                 TextField(L10n.designationLabel(lang), text: Binding(
                     get: { company.prestations.first(where: { $0.id == presetId })?.designation ?? "" },
                     set: { newVal in
-                        if let i = safeIndex() { company.prestations[i].designation = newVal; dataStore.save() }
+                        if let i = safeIndex() { company.prestations[i].designation = newVal; dataStore.companyUpdated() }
                     }
                 ))
                 .textFieldStyle(.roundedBorder)
@@ -105,7 +105,7 @@ private struct PrestationRow: View {
                     value: Binding(
                         get: { company.prestations.first(where: { $0.id == presetId })?.prixUnitaire ?? 0 },
                         set: { newVal in
-                            if let i = safeIndex() { company.prestations[i].prixUnitaire = newVal; dataStore.save() }
+                            if let i = safeIndex() { company.prestations[i].prixUnitaire = newVal; dataStore.companyUpdated() }
                         }
                     )
                 )
@@ -114,7 +114,7 @@ private struct PrestationRow: View {
                 Picker(L10n.vatLabel(lang), selection: Binding(
                     get: { company.prestations.first(where: { $0.id == presetId })?.tauxTVA ?? 0 },
                     set: { newVal in
-                        if let i = safeIndex() { company.prestations[i].tauxTVA = newVal; dataStore.save() }
+                        if let i = safeIndex() { company.prestations[i].tauxTVA = newVal; dataStore.companyUpdated() }
                     }
                 )) {
                     ForEach(Self.tvaRates, id: \.self) { rate in
@@ -126,7 +126,7 @@ private struct PrestationRow: View {
 
                 Button {
                     company.prestations.removeAll { $0.id == presetId }
-                    dataStore.save()
+                    dataStore.companyUpdated()
                 } label: {
                     Image(systemName: "minus.circle.fill")
                         .foregroundStyle(.red)

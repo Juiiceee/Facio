@@ -27,7 +27,7 @@ struct CustomisationSettingsView: View {
                 let ns = NSColor(newColor).usingColorSpace(.sRGB)
                     ?? NSColor(newColor)
                 company.couleurAccentHex = ns.toHex()
-                dataStore.save()
+                dataStore.companyUpdated()
             }
         )
     }
@@ -55,7 +55,7 @@ struct CustomisationSettingsView: View {
                                 }
                                 Button(L10n.deleteLogo(lang), role: .destructive) {
                                     company.logoData = nil
-                                    dataStore.save()
+                                    dataStore.companyUpdated()
                                 }
                                 .foregroundStyle(.red)
                             }
@@ -102,7 +102,7 @@ struct CustomisationSettingsView: View {
                         if company.couleurAccentHex != nil {
                             Button(L10n.resetColor(lang)) {
                                 company.couleurAccentHex = nil
-                                dataStore.save()
+                                dataStore.companyUpdated()
                             }
                             .foregroundStyle(.secondary)
                         }
@@ -156,7 +156,7 @@ struct CustomisationSettingsView: View {
             if let data = try? Data(contentsOf: url) {
                 guard Self.isValidLogoData(data) else { return }
                 company.logoData = data
-                dataStore.save()
+                dataStore.companyUpdated()
             }
         }
     }
@@ -171,7 +171,7 @@ struct CustomisationSettingsView: View {
 
             DispatchQueue.main.async {
                 company.logoData = imageData
-                dataStore.save()
+                dataStore.companyUpdated()
             }
         }
         return true

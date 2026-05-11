@@ -68,7 +68,7 @@ struct AddSignatureSheet: View {
                     blockchain: selectedBlockchain
                 )
                 document.transactionSignatures.append(tx)
-                dataStore.save()
+                dataStore.documentUpdated(document)
                 dismiss()
             }
             .keyboardShortcut(.defaultAction)
