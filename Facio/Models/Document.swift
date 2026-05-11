@@ -22,6 +22,7 @@ final class Document: Identifiable, Codable, Hashable {
     // Relations
     var lignes: [LineItem] = []
     var transactionSignatures: [TransactionSignature] = []
+    var sourceTimesheetId: UUID?
 
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
@@ -295,7 +296,7 @@ final class Document: Identifiable, Codable, Hashable {
         case id, typeRawValue, number, dateCreation, dateEcheance, statusRawValue
         case currencyRawValue, blockchainRawValue, paymentModeRawValue
         case clientNom, clientAdresse, clientCodePostal, clientVille
-        case lignes, transactionSignatures
+        case lignes, transactionSignatures, sourceTimesheetId
         case createdAt, updatedAt, notes, selectedWalletId, langueRawValue
     }
 
@@ -320,6 +321,7 @@ final class Document: Identifiable, Codable, Hashable {
         clientVille = container.decodeOrDefault(String.self, forKey: .clientVille, default: "")
         lignes = container.decodeOrDefault([LineItem].self, forKey: .lignes, default: [])
         transactionSignatures = container.decodeOrDefault([TransactionSignature].self, forKey: .transactionSignatures, default: [])
+        sourceTimesheetId = try? container.decode(UUID.self, forKey: .sourceTimesheetId)
         createdAt = container.decodeOrDefault(Date.self, forKey: .createdAt, default: dateCreation)
         updatedAt = container.decodeOrDefault(Date.self, forKey: .updatedAt, default: createdAt)
         notes = container.decodeOrDefault(String.self, forKey: .notes, default: "")
@@ -345,6 +347,7 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encode(clientVille, forKey: .clientVille)
         try container.encode(lignes, forKey: .lignes)
         try container.encode(transactionSignatures, forKey: .transactionSignatures)
+        try container.encodeIfPresent(sourceTimesheetId, forKey: .sourceTimesheetId)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(notes, forKey: .notes)

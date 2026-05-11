@@ -41,6 +41,7 @@ struct TimesheetListView: View {
                         } label: {
                             Label(L10n.generateInvoice(lang), systemImage: "doc.text")
                         }
+                        .disabled(!canGenerateInvoice(ts))
                         Divider()
                         Button(role: .destructive) {
                             if selectedTimesheetId == ts.id { selectedTimesheetId = nil }
@@ -151,12 +152,17 @@ struct TimesheetListView: View {
     }
 
     private func genererFacture(_ ts: TimesheetPeriod) {
-        let adj = dataStore.adjacentHours(for: ts)
-        let heuresNorm = ts.totalHeuresNormalesCrossPeriod(adjacentHours: adj)
-        let heuresSup = ts.totalHeuresSupCrossPeriod(adjacentHours: adj)
+        if let existingInvoice = existingInvoice(for: ts) {
+            markTimesheet(ts, invoicedBy: existingInvoice, at: existingInvoice.dateCreation)
+            return
+        }
+        guard !ts.hasGeneratedInvoice else { return }
 
         let company = dataStore.companyInfo
         let invoiceLanguage = company.langueParDefaut
+        let lineItems = invoiceLineItems(for: ts, company: company, invoiceLanguage: invoiceLanguage)
+        guard !lineItems.isEmpty else { return }
+
         let creationDate = Date()
         let currency = company.deviseParDefaut
         let number = DocumentNumberService.nextNumber(
@@ -173,28 +179,83 @@ struct TimesheetListView: View {
             blockchain: defaultBlockchain(for: currency)
         )
         doc.langue = invoiceLanguage
+        doc.sourceTimesheetId = ts.id
+        doc.lignes = lineItems
+
+        dataStore.addDocument(doc)
+        markTimesheet(ts, invoicedBy: doc, at: creationDate)
+    }
+
+    private func canGenerateInvoice(_ ts: TimesheetPeriod) -> Bool {
+        guard !ts.hasGeneratedInvoice, existingInvoice(for: ts) == nil else { return false }
+        return hasBillableInvoiceLines(for: ts)
+    }
+
+    private func existingInvoice(for ts: TimesheetPeriod) -> Document? {
+        if let invoiceDocumentId = ts.invoiceDocumentId,
+           let document = dataStore.documents.first(where: { $0.id == invoiceDocumentId && $0.type == .facture }) {
+            return document
+        }
+        return dataStore.documents.first { $0.type == .facture && $0.sourceTimesheetId == ts.id }
+    }
+
+    private func hasBillableInvoiceLines(for ts: TimesheetPeriod) -> Bool {
+        let adj = dataStore.adjacentHours(for: ts)
+        return ts.totalHeuresNormalesCrossPeriod(adjacentHours: adj) > 0
+            || ts.totalHeuresSupCrossPeriod(adjacentHours: adj) > 0
+    }
+
+    private func invoiceLineItems(
+        for ts: TimesheetPeriod,
+        company: CompanyInfo,
+        invoiceLanguage: AppLanguage
+    ) -> [LineItem] {
+        let adj = dataStore.adjacentHours(for: ts)
+        let heuresNorm = ts.totalHeuresNormalesCrossPeriod(adjacentHours: adj)
+        let heuresSup = ts.totalHeuresSupCrossPeriod(adjacentHours: adj)
+        var lineItems: [LineItem] = []
 
         if heuresNorm > 0 {
-            doc.lignes.append(LineItem(
+            lineItems.append(LineItem(
                 designation: L10n.workHours(invoiceLanguage),
                 quantite: heuresNorm,
                 prixUnitaire: ts.tauxNormal,
                 tauxTVA: company.tauxTVAParDefaut,
-                ordre: 0
+                ordre: lineItems.count
             ))
         }
 
         if heuresSup > 0 {
-            doc.lignes.append(LineItem(
+            lineItems.append(LineItem(
                 designation: L10n.overtimeLabel(invoiceLanguage),
                 quantite: heuresSup,
                 prixUnitaire: ts.tauxSupplementaire,
                 tauxTVA: company.tauxTVAParDefaut,
-                ordre: 1
+                ordre: lineItems.count
             ))
         }
 
-        dataStore.addDocument(doc)
+        return lineItems
+    }
+
+    private func markTimesheet(_ ts: TimesheetPeriod, invoicedBy doc: Document, at date: Date) {
+        var timesheetChanged = false
+        if ts.invoiceDocumentId != doc.id {
+            ts.invoiceDocumentId = doc.id
+            timesheetChanged = true
+        }
+        if ts.billedAt == nil {
+            ts.billedAt = date
+            timesheetChanged = true
+        }
+        if timesheetChanged {
+            dataStore.timesheetUpdated(ts)
+        }
+
+        if doc.sourceTimesheetId != ts.id {
+            doc.sourceTimesheetId = ts.id
+            dataStore.documentUpdated(doc)
+        }
     }
 
     private func dueDate(from creationDate: Date) -> Date {
