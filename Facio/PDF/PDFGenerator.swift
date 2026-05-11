@@ -51,6 +51,7 @@ struct PDFGenerator {
         y += 15
 
         // 4. Totaux
+        y = ensurePageSpace(context, y: y, needed: 85)
         y = drawTotals(context, y: y)
         y += 25
 
@@ -85,8 +86,8 @@ struct PDFGenerator {
                 documentNumber: document.number
             )
         }()
-        let footerThreshold: CGFloat = solanaPayQR != nil ? 230 : 140
-        if y > pH - footerThreshold { context.endPDFPage(); y = beginPage(context) }
+        let footerNeeded: CGFloat = solanaPayQR != nil ? 70 + PDFLayout.qrCodeSize + 40 : 90
+        y = ensurePageSpace(context, y: y, needed: footerNeeded)
         y = drawFooterBlock(context, y: y, showPayment: document.paymentMode != .aucun, solanaPayQR: solanaPayQR)
 
         context.endPDFPage()
@@ -402,10 +403,10 @@ struct PDFGenerator {
 
         // Gauche : dates
         let dateLabel = document.type == .facture ? L10n.invoiceDate(lang) : L10n.quoteDate(lang)
-        drawText("\(dateLabel)\(document.dateCreation.frenchFormatted)",
+        drawText("\(dateLabel)\(formatDate(document.dateCreation))",
                  x: mL, y: cy, font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
         cy += 15
-        drawText("\(L10n.dueDate(lang))\(document.dateEcheance.frenchFormatted)",
+        drawText("\(L10n.dueDate(lang))\(formatDate(document.dateEcheance))",
                  x: mL, y: cy, font: PDFLayout.fontBodyBold, color: PDFLayout.textBlack, context: context)
 
         // Droite : destinataire
@@ -428,8 +429,10 @@ struct PDFGenerator {
             drawText(document.clientAdresse, x: destX, y: ry, font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
             ry += 13
         }
-        drawText("\(document.clientVille), \(document.clientCodePostal)",
-                 x: destX, y: ry, font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
+        let clientCityLine = addressLine(city: document.clientVille, postalCode: document.clientCodePostal)
+        if !clientCityLine.isEmpty {
+            drawText(clientCityLine, x: destX, y: ry, font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
+        }
 
         return max(cy, ry) + 15
     }
@@ -537,7 +540,7 @@ struct PDFGenerator {
 
         let cur = document.currency.rawValue
 
-        drawTextRight(L10n.total(lang), rightX: labelRight, y: cy,
+        drawTextRight(L10n.totalHT(lang), rightX: labelRight, y: cy,
                       font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
         drawTextRight("\(formatSpaced(document.totalHT)) \(cur)", rightX: valueRight, y: cy,
                       font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
@@ -577,7 +580,7 @@ struct PDFGenerator {
         for tx in document.transactionSignatures {
             let rowHeight: CGFloat = tx.explorerURL == nil ? 24 : 38
             cy = ensurePageSpace(context, y: cy, needed: rowHeight)
-            drawText("\(tx.date.frenchFormatted) — \(document.currency.format(tx.montant)) via \(tx.blockchain.label)",
+            drawText("\(formatDate(tx.date)) — \(document.currency.format(tx.montant, lang: lang)) via \(tx.blockchain.label)",
                      x: mL + 5, y: cy, font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
             cy += 13
 
@@ -641,17 +644,17 @@ struct PDFGenerator {
                  x: leftX, y: cy, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
         cy += 12
         if !company.ville.isEmpty || !company.codePostal.isEmpty {
-            drawText("\(company.ville.uppercased()), \(company.codePostal)",
+            drawText(addressLine(city: company.ville, postalCode: company.codePostal, uppercaseCity: true),
                      x: leftX, y: cy, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
         }
         cy += 11
         if !company.siret.isEmpty {
-            drawText("SIRET: \(company.siret)",
+            drawText("\(L10n.siret(lang)): \(company.siret)",
                      x: leftX, y: cy, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
         }
         cy += 11
         if !company.telephone.isEmpty {
-            drawText("Tel: \(company.telephone)",
+            drawText("\(L10n.phoneShort(lang)): \(company.telephone)",
                      x: leftX, y: cy, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
         }
         if !company.email.isEmpty {
@@ -684,11 +687,11 @@ struct PDFGenerator {
             drawText(L10n.bankTransfer(lang), x: rightX, y: ry, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
             ry += 12
             if !company.iban.isEmpty {
-                drawText("IBAN: \(company.iban)", x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
+                drawText("\(L10n.iban(lang)): \(company.iban)", x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
                 ry += 11
             }
             if !company.bic.isEmpty {
-                drawText("BIC: \(company.bic)", x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
+                drawText("\(L10n.bic(lang)): \(company.bic)", x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
                 ry += 11
             }
             if !company.titulaireCompte.isEmpty {
@@ -751,25 +754,53 @@ struct PDFGenerator {
 
     // MARK: - Formatage nombres
 
-    /// Formate un Decimal avec 2 decimales et virgule (ex: 26,39)
+    private var numberLocale: Locale {
+        Locale(identifier: lang == .fr ? "fr_FR" : "en_US")
+    }
+
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = numberLocale
+        formatter.dateStyle = .short
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
+    }
+
+    private func addressLine(city: String, postalCode: String, uppercaseCity: Bool = false) -> String {
+        let cityValue = uppercaseCity ? city.uppercased() : city
+        if lang == .fr {
+            return [postalCode, cityValue]
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+        }
+        return [cityValue, postalCode]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
+    }
+
+    /// Formate un Decimal avec 2 decimales sans separateur de milliers.
     private func formatNumber(_ value: Decimal) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
+        formatter.locale = numberLocale
         formatter.minimumFractionDigits = 2
         formatter.maximumFractionDigits = 2
-        formatter.decimalSeparator = ","
-        formatter.groupingSeparator = ""
+        formatter.usesGroupingSeparator = false
         return formatter.string(from: value as NSDecimalNumber) ?? "\(value)"
     }
 
-    /// Formate un Decimal avec separateur de milliers (ex: 2 897,39)
+    /// Formate un Decimal avec separateur de milliers.
     private func formatSpaced(_ value: Decimal) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
+        formatter.locale = numberLocale
         formatter.minimumFractionDigits = 2
         formatter.maximumFractionDigits = 2
-        formatter.decimalSeparator = ","
-        formatter.groupingSeparator = "\u{202F}" // narrow non-breaking space
+        if lang == .fr {
+            formatter.groupingSeparator = "\u{202F}" // narrow non-breaking space
+        }
         return formatter.string(from: value as NSDecimalNumber) ?? "\(value)"
     }
 }

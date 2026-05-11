@@ -53,15 +53,17 @@ enum CurrencyType: String, Codable, CaseIterable, Identifiable {
 
     /// Formatage du montant avec symbole
     func format(_ amount: Decimal) -> String {
+        format(amount, lang: .fr)
+    }
+
+    func format(_ amount: Decimal, lang: AppLanguage) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
-        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.locale = Locale(identifier: lang == .fr ? "fr_FR" : "en_US")
         formatter.minimumFractionDigits = 2
         formatter.maximumFractionDigits = 2
-        formatter.groupingSeparator = " "
-        formatter.decimalSeparator = ","
 
-        let formatted = formatter.string(from: amount as NSDecimalNumber) ?? "0,00"
+        let formatted = formatter.string(from: amount as NSDecimalNumber) ?? (lang == .fr ? "0,00" : "0.00")
 
         switch self {
         case .eur: return "\(formatted) €"

@@ -72,4 +72,4 @@ ALLOW_AD_HOC_SIGNING=1 ./scripts/build-app.sh 1.0.0
 
 ## License
 
-All rights reserved.
+MIT. See [LICENSE](LICENSE).

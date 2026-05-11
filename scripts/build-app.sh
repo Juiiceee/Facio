@@ -91,9 +91,12 @@ if [ -f "Facio/Resources/AppIcon.icns" ]; then
     echo "    Icone copiee."
 else
     echo "    Pas d'icone trouvee, generation..."
-    swift scripts/generate-icon.swift || true
+    swift scripts/generate-icon.swift
     if [ -f "Facio/Resources/AppIcon.icns" ]; then
         cp "Facio/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+    else
+        echo "Erreur: generation de l'icone echouee." >&2
+        exit 1
     fi
 fi
 
