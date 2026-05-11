@@ -16,8 +16,9 @@ require_command() {
     fi
 }
 
-if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){2}([-+][0-9A-Za-z.-]+)?$ ]]; then
-    echo "Erreur: version invalide: $VERSION" >&2
+if [[ ! "$VERSION" =~ ^[0-9]+[.][0-9]+[.][0-9]+$ ]]; then
+    echo "Erreur: version invalide pour CFBundleShortVersionString: $VERSION" >&2
+    echo "       Format attendu: MAJOR.MINOR.PATCH, sans prerelease ni metadata." >&2
     exit 1
 fi
 
