@@ -8,6 +8,30 @@ private struct SessionData: Codable {
     var refreshToken: String = ""
     var userId: String = ""
     var userEmail: String = ""
+
+    enum CodingKeys: String, CodingKey {
+        case accessToken, refreshToken, userId, userEmail
+    }
+
+    init(
+        accessToken: String = "",
+        refreshToken: String = "",
+        userId: String = "",
+        userEmail: String = ""
+    ) {
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
+        self.userId = userId
+        self.userEmail = userEmail
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        accessToken = container.decodeOrDefault(String.self, forKey: .accessToken, default: "")
+        refreshToken = container.decodeOrDefault(String.self, forKey: .refreshToken, default: "")
+        userId = container.decodeOrDefault(String.self, forKey: .userId, default: "")
+        userEmail = container.decodeOrDefault(String.self, forKey: .userEmail, default: "")
+    }
 }
 
 /// Gere l'authentification Supabase via OTP (code par email).
@@ -188,16 +212,33 @@ final class AuthService: Sendable {
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode >= 200 && httpResponse.statusCode < 300,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            else {
+            guard let httpResponse = response as? HTTPURLResponse else {
+                error = "Reponse Supabase invalide"
+                return
+            }
+
+            if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+                guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    error = "Reponse Supabase invalide"
+                    return
+                }
+                handleAuthResponse(json)
+                return
+            }
+
+            if httpResponse.statusCode == 400 || httpResponse.statusCode == 401 {
                 signOut()
                 return
             }
-            handleAuthResponse(json)
+
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let msg = json["msg"] as? String ?? json["error_description"] as? String ?? json["message"] as? String {
+                error = msg
+            } else {
+                error = "Erreur de rafraichissement de session (HTTP \(httpResponse.statusCode))"
+            }
         } catch {
-            // Pas de reseau — garder la session
+            self.error = error.localizedDescription
         }
     }
 

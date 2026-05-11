@@ -85,18 +85,28 @@ struct TimesheetDay: Identifiable, Codable, Hashable {
     // MARK: - Codable (backwards-compatible)
 
     enum CodingKeys: String, CodingKey {
-        case id, dateString, heures
+        case id, dateString, date, heures
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
-        dateString = container.decodeOrDefault(
-            String.self,
-            forKey: .dateString,
-            default: TimesheetDay.dateFormatter.string(from: Date())
-        )
+        if let persistedDateString = try container.decodeIfPresent(String.self, forKey: .dateString),
+           !persistedDateString.isEmpty {
+            dateString = persistedDateString
+        } else if let persistedDate = try container.decodeIfPresent(Date.self, forKey: .date) {
+            dateString = TimesheetDay.dateFormatter.string(from: persistedDate)
+        } else {
+            dateString = TimesheetDay.dateFormatter.string(from: Date())
+        }
         heures = container.decodeOrDefault(Decimal.self, forKey: .heures, default: 0)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(dateString, forKey: .dateString)
+        try container.encode(heures, forKey: .heures)
     }
 }
 

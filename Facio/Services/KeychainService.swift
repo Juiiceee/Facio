@@ -46,6 +46,7 @@ enum KeychainService {
         }
 
         query[kSecValueData as String] = data
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         let addStatus = SecItemAdd(query as CFDictionary, nil)
         guard addStatus == errSecSuccess else {
             throw KeychainError.unhandledStatus(addStatus)

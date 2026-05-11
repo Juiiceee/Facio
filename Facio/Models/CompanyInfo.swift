@@ -190,7 +190,10 @@ final class CompanyInfo: Identifiable, Codable {
         tauxTVAParDefaut = container.decodeOrDefault(Decimal.self, forKey: .tauxTVAParDefaut, default: 0)
         delaiPaiementJours = container.decodeOrDefault(Int.self, forKey: .delaiPaiementJours, default: 30)
         deviseParDefautRawValue = container.decodeOrDefault(String.self, forKey: .deviseParDefautRawValue, default: CurrencyType.usdc.rawValue)
-        blockchainParDefautRawValue = try container.decodeIfPresent(String.self, forKey: .blockchainParDefautRawValue)
+        let defaultBlockchain = container
+            .decodeOrDefault(String.self, forKey: .blockchainParDefautRawValue, default: Blockchain.solana.rawValue)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        blockchainParDefautRawValue = defaultBlockchain.isEmpty ? Blockchain.solana.rawValue : defaultBlockchain
         updatedAt = container.decodeOrDefault(Date.self, forKey: .updatedAt, default: Date())
         langueParDefautRawValue = container.decodeOrDefault(String.self, forKey: .langueParDefautRawValue, default: AppLanguage.fr.rawValue)
         formatDateRawValue = container.decodeOrDefault(String.self, forKey: .formatDateRawValue, default: AppLanguage.fr.rawValue)
