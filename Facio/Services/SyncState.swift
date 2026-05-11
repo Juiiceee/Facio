@@ -1,5 +1,12 @@
 import Foundation
 
+enum SyncDataKey: String, CaseIterable, Codable {
+    case documents
+    case clients
+    case company
+    case timesheets
+}
+
 struct SyncState: Codable {
     var documentsDirty: Bool = false
     var clientsDirty: Bool = false
@@ -10,6 +17,24 @@ struct SyncState: Codable {
 
     var hasDirtyData: Bool {
         documentsDirty || clientsDirty || companyDirty || timesheetsDirty
+    }
+
+    func isDirty(_ key: SyncDataKey) -> Bool {
+        switch key {
+        case .documents: return documentsDirty
+        case .clients: return clientsDirty
+        case .company: return companyDirty
+        case .timesheets: return timesheetsDirty
+        }
+    }
+
+    mutating func setDirty(_ dirty: Bool, for key: SyncDataKey) {
+        switch key {
+        case .documents: documentsDirty = dirty
+        case .clients: clientsDirty = dirty
+        case .company: companyDirty = dirty
+        case .timesheets: timesheetsDirty = dirty
+        }
     }
 
     enum CodingKeys: String, CodingKey {

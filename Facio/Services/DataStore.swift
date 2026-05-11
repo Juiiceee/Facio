@@ -36,7 +36,7 @@ final class DataStore: Sendable {
     private var clientsFileURL: URL { storageDirectory.appendingPathComponent("clients.json") }
     private var companyFileURL: URL { storageDirectory.appendingPathComponent("company.json") }
     private var timesheetsFileURL: URL { storageDirectory.appendingPathComponent("timesheets.json") }
-    private var writeBlockedKeys: Set<String> = []
+    private var writeBlockedKeys: Set<SyncDataKey> = []
 
     init() {
         ensureStorageDirectory()
@@ -57,16 +57,16 @@ final class DataStore: Sendable {
     // MARK: - Load
 
     func load() {
-        load([Document].self, key: "documents", from: documentsFileURL) { documents = $0 }
-        load([ClientInfo].self, key: "clients", from: clientsFileURL) { clients = $0 }
-        load(CompanyInfo.self, key: "company", from: companyFileURL) { companyInfo = $0 }
-        load([TimesheetPeriod].self, key: "timesheets", from: timesheetsFileURL) { timesheets = $0 }
+        load([Document].self, key: .documents, from: documentsFileURL) { documents = $0 }
+        load([ClientInfo].self, key: .clients, from: clientsFileURL) { clients = $0 }
+        load(CompanyInfo.self, key: .company, from: companyFileURL) { companyInfo = $0 }
+        load([TimesheetPeriod].self, key: .timesheets, from: timesheetsFileURL) { timesheets = $0 }
     }
 
-    private func load<T: Decodable>(_ type: T.Type, key: String, from url: URL, assign: (T) -> Void) {
+    private func load<T: Decodable>(_ type: T.Type, key: SyncDataKey, from url: URL, assign: (T) -> Void) {
         guard fileManager.fileExists(atPath: url.path) else {
-            persistenceErrors.removeValue(forKey: key)
-            corruptBackupURLs.removeValue(forKey: key)
+            persistenceErrors.removeValue(forKey: key.rawValue)
+            corruptBackupURLs.removeValue(forKey: key.rawValue)
             writeBlockedKeys.remove(key)
             return
         }
@@ -74,15 +74,15 @@ final class DataStore: Sendable {
         do {
             let data = try Data(contentsOf: url)
             assign(try decoder.decode(type, from: data))
-            persistenceErrors.removeValue(forKey: key)
-            corruptBackupURLs.removeValue(forKey: key)
+            persistenceErrors.removeValue(forKey: key.rawValue)
+            corruptBackupURLs.removeValue(forKey: key.rawValue)
             writeBlockedKeys.remove(key)
         } catch {
             writeBlockedKeys.insert(key)
-            let backupURL = backupCorruptFile(at: url, key: key)
-            corruptBackupURLs[key] = backupURL
+            let backupURL = backupCorruptFile(at: url, key: key.rawValue)
+            corruptBackupURLs[key.rawValue] = backupURL
             let backupPath = backupURL?.lastPathComponent ?? "backup indisponible"
-            persistenceErrors[key] = "Lecture impossible de \(url.lastPathComponent): \(error.localizedDescription). Fichier preserve: \(backupPath)"
+            persistenceErrors[key.rawValue] = "Lecture impossible de \(url.lastPathComponent): \(error.localizedDescription). Fichier preserve: \(backupPath)"
         }
     }
 
@@ -98,55 +98,150 @@ final class DataStore: Sendable {
     // MARK: - Save par cle (local + notify sync)
 
     func saveDocuments() {
-        if write([Document].self, documents, key: "documents", to: documentsFileURL, allowBlockedWrite: false) {
-            syncService?.markDirty("documents")
+        if persist(.documents, allowBlockedWrite: false) {
+            syncService?.markDirty(.documents)
         }
     }
 
     func saveClients() {
-        if write([ClientInfo].self, clients, key: "clients", to: clientsFileURL, allowBlockedWrite: false) {
-            syncService?.markDirty("clients")
+        if persist(.clients, allowBlockedWrite: false) {
+            syncService?.markDirty(.clients)
         }
     }
 
     func saveCompany() {
-        if write(CompanyInfo.self, companyInfo, key: "company", to: companyFileURL, allowBlockedWrite: false) {
-            syncService?.markDirty("company")
+        if persist(.company, allowBlockedWrite: false) {
+            syncService?.markDirty(.company)
         }
     }
 
     func saveTimesheets() {
-        if write([TimesheetPeriod].self, timesheets, key: "timesheets", to: timesheetsFileURL, allowBlockedWrite: false) {
-            syncService?.markDirty("timesheets")
+        if persist(.timesheets, allowBlockedWrite: false) {
+            syncService?.markDirty(.timesheets)
         }
     }
 
     /// Sauvegarde locale uniquement (sans trigger sync — utilise par SyncService apres pull)
-    func saveLocal(key: String) {
+    @discardableResult
+    func saveLocal(key: String) -> Bool {
+        guard let dataKey = SyncDataKey(rawValue: key) else { return false }
+        return saveLocal(dataKey)
+    }
+
+    /// Sauvegarde locale uniquement (sans trigger sync — utilise par SyncService apres pull)
+    @discardableResult
+    func saveLocal(_ key: SyncDataKey) -> Bool {
+        persist(key, allowBlockedWrite: false)
+    }
+
+    /// Chemin explicite de recuperation apres inspection/restauration d'un fichier corrompu.
+    @discardableResult
+    func saveLocalAfterCorruptionRecovery(key: String) -> Bool {
+        guard let dataKey = SyncDataKey(rawValue: key) else { return false }
+        return persist(dataKey, allowBlockedWrite: true)
+    }
+
+    @discardableResult
+    func applyPulledDocuments(_ pulledDocuments: [Document]) -> Bool {
+        guard write(
+            [Document].self,
+            pulledDocuments,
+            key: .documents,
+            to: documentsFileURL,
+            allowBlockedWrite: false
+        ) else { return false }
+        documents = pulledDocuments
+        return true
+    }
+
+    @discardableResult
+    func applyPulledClients(_ pulledClients: [ClientInfo]) -> Bool {
+        guard write(
+            [ClientInfo].self,
+            pulledClients,
+            key: .clients,
+            to: clientsFileURL,
+            allowBlockedWrite: false
+        ) else { return false }
+        clients = pulledClients
+        return true
+    }
+
+    @discardableResult
+    func applyPulledCompany(_ pulledCompany: CompanyInfo) -> Bool {
+        guard write(
+            CompanyInfo.self,
+            pulledCompany,
+            key: .company,
+            to: companyFileURL,
+            allowBlockedWrite: false
+        ) else { return false }
+        companyInfo = pulledCompany
+        return true
+    }
+
+    @discardableResult
+    func applyPulledTimesheets(_ pulledTimesheets: [TimesheetPeriod]) -> Bool {
+        guard write(
+            [TimesheetPeriod].self,
+            pulledTimesheets,
+            key: .timesheets,
+            to: timesheetsFileURL,
+            allowBlockedWrite: false
+        ) else { return false }
+        timesheets = pulledTimesheets
+        return true
+    }
+
+    @discardableResult
+    private func persist(_ key: SyncDataKey, allowBlockedWrite: Bool) -> Bool {
         switch key {
-        case "documents":
-            _ = write([Document].self, documents, key: key, to: documentsFileURL, allowBlockedWrite: true)
-        case "clients":
-            _ = write([ClientInfo].self, clients, key: key, to: clientsFileURL, allowBlockedWrite: true)
-        case "company":
-            _ = write(CompanyInfo.self, companyInfo, key: key, to: companyFileURL, allowBlockedWrite: true)
-        case "timesheets":
-            _ = write([TimesheetPeriod].self, timesheets, key: key, to: timesheetsFileURL, allowBlockedWrite: true)
-        default: break
+        case .documents:
+            return write(
+                [Document].self,
+                documents,
+                key: key,
+                to: documentsFileURL,
+                allowBlockedWrite: allowBlockedWrite
+            )
+        case .clients:
+            return write(
+                [ClientInfo].self,
+                clients,
+                key: key,
+                to: clientsFileURL,
+                allowBlockedWrite: allowBlockedWrite
+            )
+        case .company:
+            return write(
+                CompanyInfo.self,
+                companyInfo,
+                key: key,
+                to: companyFileURL,
+                allowBlockedWrite: allowBlockedWrite
+            )
+        case .timesheets:
+            return write(
+                [TimesheetPeriod].self,
+                timesheets,
+                key: key,
+                to: timesheetsFileURL,
+                allowBlockedWrite: allowBlockedWrite
+            )
         }
     }
 
     private func write<T: Encodable>(
         _ type: T.Type,
         _ value: T,
-        key: String,
+        key: SyncDataKey,
         to url: URL,
         allowBlockedWrite: Bool
     ) -> Bool {
         ensureStorageDirectory()
 
         guard allowBlockedWrite || !writeBlockedKeys.contains(key) else {
-            persistenceErrors[key] = "Sauvegarde bloquee pour \(url.lastPathComponent): le fichier local n'a pas pu etre decode au chargement."
+            persistenceErrors[key.rawValue] = "Sauvegarde bloquee pour \(url.lastPathComponent): le fichier local n'a pas pu etre decode au chargement."
             return false
         }
 
@@ -154,12 +249,12 @@ final class DataStore: Sendable {
             let data = try encoder.encode(value)
             try data.write(to: url, options: .atomic)
             try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
-            persistenceErrors.removeValue(forKey: key)
-            corruptBackupURLs.removeValue(forKey: key)
+            persistenceErrors.removeValue(forKey: key.rawValue)
+            corruptBackupURLs.removeValue(forKey: key.rawValue)
             writeBlockedKeys.remove(key)
             return true
         } catch {
-            persistenceErrors[key] = "Sauvegarde impossible de \(url.lastPathComponent): \(error.localizedDescription)"
+            persistenceErrors[key.rawValue] = "Sauvegarde impossible de \(url.lastPathComponent): \(error.localizedDescription)"
             return false
         }
     }

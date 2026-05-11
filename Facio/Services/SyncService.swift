@@ -54,13 +54,12 @@ final class SyncService: Sendable {
     // MARK: - Mark Dirty
 
     func markDirty(_ key: String) {
-        switch key {
-        case "documents": syncState.documentsDirty = true
-        case "clients": syncState.clientsDirty = true
-        case "company": syncState.companyDirty = true
-        case "timesheets": syncState.timesheetsDirty = true
-        default: break
-        }
+        guard let dataKey = SyncDataKey(rawValue: key) else { return }
+        markDirty(dataKey)
+    }
+
+    func markDirty(_ key: SyncDataKey) {
+        syncState.setDirty(true, for: key)
         dirtyGeneration += 1
         saveSyncState()
 
@@ -91,7 +90,7 @@ final class SyncService: Sendable {
             if let data = try? Data(contentsOf: storageDir.appendingPathComponent("documents.json")),
                let docs = try? decoder.decode([Document].self, from: data) {
                 if await pushDocuments(docs), dirtyGeneration == generation {
-                    syncState.documentsDirty = false
+                    syncState.setDirty(false, for: .documents)
                 }
             } else {
                 lastError = "Lecture locale impossible: documents.json"
@@ -102,7 +101,7 @@ final class SyncService: Sendable {
             if let data = try? Data(contentsOf: storageDir.appendingPathComponent("clients.json")),
                let clients = try? decoder.decode([ClientInfo].self, from: data) {
                 if await pushClients(clients), dirtyGeneration == generation {
-                    syncState.clientsDirty = false
+                    syncState.setDirty(false, for: .clients)
                 }
             } else {
                 lastError = "Lecture locale impossible: clients.json"
@@ -113,7 +112,7 @@ final class SyncService: Sendable {
             if let data = try? Data(contentsOf: storageDir.appendingPathComponent("company.json")),
                let company = try? decoder.decode(CompanyInfo.self, from: data) {
                 if await pushCompany(company), dirtyGeneration == generation {
-                    syncState.companyDirty = false
+                    syncState.setDirty(false, for: .company)
                 }
             } else {
                 lastError = "Lecture locale impossible: company.json"
@@ -124,7 +123,7 @@ final class SyncService: Sendable {
             if let data = try? Data(contentsOf: storageDir.appendingPathComponent("timesheets.json")),
                let timesheets = try? decoder.decode([TimesheetPeriod].self, from: data) {
                 if await pushTimesheets(timesheets), dirtyGeneration == generation {
-                    syncState.timesheetsDirty = false
+                    syncState.setDirty(false, for: .timesheets)
                 }
             } else {
                 lastError = "Lecture locale impossible: timesheets.json"
@@ -186,7 +185,10 @@ final class SyncService: Sendable {
                 guard await supabaseBatchUpsert(table: "line_items", rows: lineItems, onConflict: "id") else { return false }
             }
             let localLineItemIds = Set(doc.lignes.map { $0.id.uuidString })
-            let remoteLineItemIds = await fetchRemoteIds(table: "line_items", query: "select=id&document_id=eq.\(doc.id.uuidString)")
+            guard let remoteLineItemIds = await fetchRemoteIdsOrFail(
+                table: "line_items",
+                query: "select=id&document_id=eq.\(doc.id.uuidString)"
+            ) else { return false }
             for id in remoteLineItemIds.subtracting(localLineItemIds) {
                 guard await supabaseDelete(table: "line_items", filter: "id=eq.\(id)") else { return false }
             }
@@ -206,7 +208,10 @@ final class SyncService: Sendable {
                 guard await supabaseBatchUpsert(table: "transaction_signatures", rows: sigs, onConflict: "id") else { return false }
             }
             let localSignatureIds = Set(doc.transactionSignatures.map { $0.id.uuidString })
-            let remoteSignatureIds = await fetchRemoteIds(table: "transaction_signatures", query: "select=id&document_id=eq.\(doc.id.uuidString)")
+            guard let remoteSignatureIds = await fetchRemoteIdsOrFail(
+                table: "transaction_signatures",
+                query: "select=id&document_id=eq.\(doc.id.uuidString)"
+            ) else { return false }
             for id in remoteSignatureIds.subtracting(localSignatureIds) {
                 guard await supabaseDelete(table: "transaction_signatures", filter: "id=eq.\(id)") else { return false }
             }
@@ -294,7 +299,10 @@ final class SyncService: Sendable {
             guard await supabaseBatchUpsert(table: "wallets", rows: wallets, onConflict: "id") else { return false }
         }
         let localWalletIds = Set(company.wallets.map { $0.id.uuidString })
-        let remoteWalletIds = await fetchRemoteIds(table: "wallets", query: "select=id&company_id=eq.\(company.id.uuidString)")
+        guard let remoteWalletIds = await fetchRemoteIdsOrFail(
+            table: "wallets",
+            query: "select=id&company_id=eq.\(company.id.uuidString)"
+        ) else { return false }
         for id in remoteWalletIds.subtracting(localWalletIds) {
             guard await supabaseDelete(table: "wallets", filter: "id=eq.\(id)") else { return false }
         }
@@ -313,7 +321,10 @@ final class SyncService: Sendable {
             guard await supabaseBatchUpsert(table: "prestation_presets", rows: presets, onConflict: "id") else { return false }
         }
         let localPresetIds = Set(company.prestations.map { $0.id.uuidString })
-        let remotePresetIds = await fetchRemoteIds(table: "prestation_presets", query: "select=id&company_id=eq.\(company.id.uuidString)")
+        guard let remotePresetIds = await fetchRemoteIdsOrFail(
+            table: "prestation_presets",
+            query: "select=id&company_id=eq.\(company.id.uuidString)"
+        ) else { return false }
         for id in remotePresetIds.subtracting(localPresetIds) {
             guard await supabaseDelete(table: "prestation_presets", filter: "id=eq.\(id)") else { return false }
         }
@@ -366,14 +377,20 @@ final class SyncService: Sendable {
                     }
                     guard await supabaseBatchUpsert(table: "timesheet_days", rows: days, onConflict: "id") else { return false }
                 }
-                let remoteDayIds = await fetchRemoteIds(table: "timesheet_days", query: "select=id&week_id=eq.\(week.id.uuidString)")
+                guard let remoteDayIds = await fetchRemoteIdsOrFail(
+                    table: "timesheet_days",
+                    query: "select=id&week_id=eq.\(week.id.uuidString)"
+                ) else { return false }
                 for id in remoteDayIds.subtracting(localDayIds) {
                     guard await supabaseDelete(table: "timesheet_days", filter: "id=eq.\(id)") else { return false }
                 }
             }
 
             let localWeekIds = Set(ts.semaines.map { $0.id.uuidString })
-            let remoteWeekIds = await fetchRemoteIds(table: "timesheet_weeks", query: "select=id&period_id=eq.\(ts.id.uuidString)")
+            guard let remoteWeekIds = await fetchRemoteIdsOrFail(
+                table: "timesheet_weeks",
+                query: "select=id&period_id=eq.\(ts.id.uuidString)"
+            ) else { return false }
             for id in remoteWeekIds.subtracting(localWeekIds) {
                 guard await supabaseDelete(table: "timesheet_weeks", filter: "id=eq.\(id)") else { return false }
             }
@@ -600,12 +617,14 @@ final class SyncService: Sendable {
     /// Reinitialise le sync state (apres un reset app)
     func resetSyncState() {
         syncState = SyncState()
+        dirtyGeneration += 1
         saveSyncState()
     }
 
     func fullSync(dataStore: DataStore) async {
         guard SyncConfig.isEnabled, SyncConfig.isConfigured,
               authService?.isAuthenticated == true else { return }
+        guard !isSyncing else { return }
 
         isSyncing = true
         defer { isSyncing = false }
@@ -616,26 +635,48 @@ final class SyncService: Sendable {
         let dirtyAfterPush = syncState
 
         // Pull remote data
-        if !dirtyAfterPush.documentsDirty, let docs = await pullDocuments() {
-            dataStore.documents = docs
-            dataStore.saveLocal(key: "documents")
-        }
-        if !dirtyAfterPush.clientsDirty, let clients = await pullClients() {
-            dataStore.clients = clients
-            dataStore.saveLocal(key: "clients")
-        }
-        if !dirtyAfterPush.companyDirty, let company = await pullCompany() {
-            if !companyLooksRecoveredBlank(company) || companyLooksRecoveredBlank(dataStore.companyInfo) {
-                dataStore.companyInfo = company
-                dataStore.saveLocal(key: "company")
+        let pullGeneration = dirtyGeneration
+        var skippedPulledData = false
+        var localSaveFailed = false
+
+        if shouldPull(.documents, dirtySnapshot: dirtyAfterPush, generation: pullGeneration),
+           let docs = await pullDocuments() {
+            if shouldApplyPull(.documents, dirtySnapshot: dirtyAfterPush, generation: pullGeneration) {
+                localSaveFailed = !dataStore.applyPulledDocuments(docs) || localSaveFailed
+            } else {
+                skippedPulledData = true
             }
         }
-        if !dirtyAfterPush.timesheetsDirty, let timesheets = await pullTimesheets() {
-            dataStore.timesheets = timesheets
-            dataStore.saveLocal(key: "timesheets")
+        if shouldPull(.clients, dirtySnapshot: dirtyAfterPush, generation: pullGeneration),
+           let clients = await pullClients() {
+            if shouldApplyPull(.clients, dirtySnapshot: dirtyAfterPush, generation: pullGeneration) {
+                localSaveFailed = !dataStore.applyPulledClients(clients) || localSaveFailed
+            } else {
+                skippedPulledData = true
+            }
         }
-        if dirtyAfterPush.hasDirtyData {
+        if shouldPull(.company, dirtySnapshot: dirtyAfterPush, generation: pullGeneration),
+           let company = await pullCompany() {
+            if !companyLooksRecoveredBlank(company) || companyLooksRecoveredBlank(dataStore.companyInfo) {
+                if shouldApplyPull(.company, dirtySnapshot: dirtyAfterPush, generation: pullGeneration) {
+                    localSaveFailed = !dataStore.applyPulledCompany(company) || localSaveFailed
+                } else {
+                    skippedPulledData = true
+                }
+            }
+        }
+        if shouldPull(.timesheets, dirtySnapshot: dirtyAfterPush, generation: pullGeneration),
+           let timesheets = await pullTimesheets() {
+            if shouldApplyPull(.timesheets, dirtySnapshot: dirtyAfterPush, generation: pullGeneration) {
+                localSaveFailed = !dataStore.applyPulledTimesheets(timesheets) || localSaveFailed
+            } else {
+                skippedPulledData = true
+            }
+        }
+        if dirtyAfterPush.hasDirtyData || skippedPulledData || dirtyGeneration != pullGeneration {
             lastError = "Synchronisation partielle: des donnees locales restent a envoyer."
+        } else if localSaveFailed {
+            lastError = "Synchronisation partielle: sauvegarde locale impossible."
         }
 
         syncState.lastFullSyncAt = Date()
@@ -727,12 +768,23 @@ final class SyncService: Sendable {
         }
     }
 
-    private func fetchRemoteIds(table: String) async -> Set<String> {
-        await fetchRemoteIds(table: table, query: "select=id")
+    private func fetchRemoteIds(table: String) async throws -> Set<String> {
+        try await fetchRemoteIds(table: table, query: "select=id")
     }
 
-    private func fetchRemoteIds(table: String, query: String) async -> Set<String> {
-        guard let url = buildURL(path: "/rest/v1/\(table)?\(query)") else { return [] }
+    private func fetchRemoteIdsOrFail(table: String, query: String) async -> Set<String>? {
+        do {
+            return try await fetchRemoteIds(table: table, query: query)
+        } catch {
+            lastError = error.localizedDescription
+            return nil
+        }
+    }
+
+    private func fetchRemoteIds(table: String, query: String, retryOn401: Bool = true) async throws -> Set<String> {
+        guard let url = buildURL(path: "/rest/v1/\(table)?\(query)") else {
+            throw RemoteIdFetchError.invalidURL(table: table)
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -740,13 +792,34 @@ final class SyncService: Sendable {
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode >= 200 && httpResponse.statusCode < 300,
-                  let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
-            else { return [] }
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw RemoteIdFetchError.invalidResponse(table: table)
+            }
+
+            if httpResponse.statusCode == 401 && retryOn401 {
+                await authService?.refreshSession()
+                guard authService?.isAuthenticated == true else {
+                    throw RemoteIdFetchError.httpStatus(table: table, statusCode: httpResponse.statusCode, message: nil)
+                }
+                return try await fetchRemoteIds(table: table, query: query, retryOn401: false)
+            }
+
+            guard httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
+                throw RemoteIdFetchError.httpStatus(
+                    table: table,
+                    statusCode: httpResponse.statusCode,
+                    message: errorMessage(from: data)
+                )
+            }
+
+            guard let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+                throw RemoteIdFetchError.invalidPayload(table: table)
+            }
             return Set(jsonArray.compactMap { $0["id"] as? String })
+        } catch let error as RemoteIdFetchError {
+            throw error
         } catch {
-            return []
+            throw RemoteIdFetchError.requestFailed(table: table, error: error)
         }
     }
 
@@ -825,6 +898,21 @@ final class SyncService: Sendable {
         return defaultValue
     }
 
+    private func shouldPull(_ key: SyncDataKey, dirtySnapshot: SyncState, generation: Int) -> Bool {
+        shouldApplyPull(key, dirtySnapshot: dirtySnapshot, generation: generation)
+    }
+
+    private func shouldApplyPull(_ key: SyncDataKey, dirtySnapshot: SyncState, generation: Int) -> Bool {
+        !dirtySnapshot.isDirty(key)
+            && !syncState.isDirty(key)
+            && dirtyGeneration == generation
+    }
+
+    private func errorMessage(from data: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return json["message"] as? String ?? json["msg"] as? String
+    }
+
     private func companyLooksRecoveredBlank(_ company: CompanyInfo) -> Bool {
         let textFields = [
             company.nom,
@@ -866,6 +954,33 @@ final class SyncService: Sendable {
     }()
 
     private static let decimalLocale = Locale(identifier: "en_US_POSIX")
+
+    private enum RemoteIdFetchError: LocalizedError {
+        case invalidURL(table: String)
+        case invalidResponse(table: String)
+        case httpStatus(table: String, statusCode: Int, message: String?)
+        case invalidPayload(table: String)
+        case requestFailed(table: String, error: Error)
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidURL(let table):
+                return "URL Supabase invalide pour \(table)."
+            case .invalidResponse(let table):
+                return "Reponse Supabase invalide pendant la lecture des IDs \(table)."
+            case .httpStatus(let table, let statusCode, let message):
+                if let message, !message.isEmpty {
+                    return "Lecture des IDs \(table) impossible: HTTP \(statusCode) - \(message)"
+                } else {
+                    return "Lecture des IDs \(table) impossible: HTTP \(statusCode)"
+                }
+            case .invalidPayload(let table):
+                return "Payload Supabase invalide pendant la lecture des IDs \(table)."
+            case .requestFailed(let table, let error):
+                return "Lecture des IDs \(table) impossible: \(error.localizedDescription)"
+            }
+        }
+    }
 
     // MARK: - SQL Schema (shown in settings for custom DB setup)
 
