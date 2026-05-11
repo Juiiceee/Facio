@@ -71,24 +71,19 @@ struct PDFGenerator {
 
         // 7. Pied de page entreprise + paiement
         let solanaPayQR: CGImage? = {
-            guard document.paymentMode == .crypto, document.blockchain == .solana else { return nil }
-            let walletsForChain = company.wallets.filter { $0.blockchain == .solana }
-            let wallet = walletsForChain.first(where: { $0.id == document.selectedWalletId }) ?? walletsForChain.first
-            guard let address = wallet?.address, !address.isEmpty else { return nil }
-            var raw = document.totalTTC
-            var rounded = Decimal()
-            NSDecimalRound(&rounded, &raw, 2, .bankers)
+            guard let address = document.solanaPayWalletAddress(from: company.wallets) else { return nil }
             return SolanaPayService.generateQRCode(
                 walletAddress: address,
-                amount: rounded,
+                amount: document.totalTTC,
                 currency: document.currency,
                 companyName: company.nom,
                 documentNumber: document.number
             )
         }()
-        let footerNeeded: CGFloat = solanaPayQR != nil ? 70 + PDFLayout.qrCodeSize + 40 : 90
+        let showPaymentDetails = shouldRenderPaymentDetails
+        let footerNeeded = footerNeededHeight(showPayment: showPaymentDetails, solanaPayQR: solanaPayQR)
         y = ensurePageSpace(context, y: y, needed: footerNeeded)
-        y = drawFooterBlock(context, y: y, showPayment: document.paymentMode != .aucun, solanaPayQR: solanaPayQR)
+        y = drawFooterBlock(context, y: y, showPayment: showPaymentDetails, solanaPayQR: solanaPayQR)
 
         context.endPDFPage()
         context.closePDF()
@@ -483,7 +478,7 @@ struct PDFGenerator {
             let vals = [
                 ligne.designation,
                 formatNumber(ligne.quantite),
-                formatNumber(ligne.prixUnitaire),
+                formatCurrencyNumber(ligne.prixUnitaire, usesGroupingSeparator: false),
                 formatSpaced(ligne.totalLigne),
                 ligne.tauxTVA == 0 ? "0" : "\(formatNumber(ligne.tauxTVA))"
             ]
@@ -628,16 +623,111 @@ struct PDFGenerator {
 
     // MARK: - 7. Pied de page (bloc entreprise + paiement)
 
+    private var footerRightX: CGFloat {
+        pW / 2 + 10
+    }
+
+    private var footerRightWidth: CGFloat {
+        pW - mR - footerRightX
+    }
+
+    private var footerLineHeight: CGFloat {
+        11
+    }
+
+    private var shouldRenderPaymentDetails: Bool {
+        switch document.paymentMode {
+        case .aucun:
+            return false
+        case .crypto:
+            return document.selectedPaymentWalletAddress(from: company.wallets) != nil
+        case .virement:
+            return !trimmedPaymentValue(company.iban).isEmpty
+                || !trimmedPaymentValue(company.bic).isEmpty
+                || !trimmedPaymentValue(company.titulaireCompte).isEmpty
+        }
+    }
+
+    private func trimmedPaymentValue(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func footerNeededHeight(showPayment: Bool, solanaPayQR: CGImage?) -> CGFloat {
+        var needed = 10 + footerBlockHeight(showPayment: showPayment) + 10
+        if solanaPayQR != nil {
+            needed += 5 + PDFLayout.qrCodeSize + 18
+        }
+        return needed
+    }
+
+    private func footerBlockHeight(showPayment: Bool) -> CGFloat {
+        max(70, paymentFooterContentHeight(showPayment: showPayment))
+    }
+
+    private func paymentFooterContentHeight(showPayment: Bool) -> CGFloat {
+        guard showPayment else { return 0 }
+
+        switch document.paymentMode {
+        case .aucun:
+            return 0
+        case .crypto:
+            var height: CGFloat = 12 + 12
+            if let address = document.selectedPaymentWalletAddress(from: company.wallets) {
+                height += 12
+                height += wrappedTextHeight(address, font: PDFLayout.fontSmall, maxWidth: footerRightWidth, lineHeight: footerLineHeight)
+            }
+            return height
+        case .virement:
+            var height: CGFloat = 12
+            let iban = trimmedPaymentValue(company.iban)
+            if !iban.isEmpty {
+                height += wrappedTextHeight("\(L10n.iban(lang)): \(iban)", font: PDFLayout.fontSmall, maxWidth: footerRightWidth, lineHeight: footerLineHeight)
+            }
+            let bic = trimmedPaymentValue(company.bic)
+            if !bic.isEmpty {
+                height += wrappedTextHeight("\(L10n.bic(lang)): \(bic)", font: PDFLayout.fontSmall, maxWidth: footerRightWidth, lineHeight: footerLineHeight)
+            }
+            let accountHolder = trimmedPaymentValue(company.titulaireCompte)
+            if !accountHolder.isEmpty {
+                height += wrappedTextHeight("\(L10n.accountHolder(lang))\(accountHolder)", font: PDFLayout.fontSmall, maxWidth: footerRightWidth, lineHeight: footerLineHeight)
+            }
+            return height
+        }
+    }
+
+    private func wrappedTextHeight(_ text: String, font: NSFont, maxWidth: CGFloat, lineHeight: CGFloat) -> CGFloat {
+        CGFloat(wrappedLines(text, font: font, maxWidth: maxWidth).count) * lineHeight
+    }
+
+    @discardableResult
+    private func drawWrappedText(
+        _ text: String,
+        x: CGFloat,
+        y: CGFloat,
+        font: NSFont,
+        color: NSColor,
+        context: CGContext,
+        maxWidth: CGFloat,
+        lineHeight: CGFloat
+    ) -> CGFloat {
+        var cy = y
+        for line in wrappedLines(text, font: font, maxWidth: maxWidth) {
+            drawText(line, x: x, y: cy, font: font, color: color, context: context, maxWidth: maxWidth)
+            cy += lineHeight
+        }
+        return cy
+    }
+
     private func drawFooterBlock(_ context: CGContext, y: CGFloat, showPayment: Bool = true, solanaPayQR: CGImage? = nil) -> CGFloat {
         var cy = y + 10
 
         // Bordure verte epaisse a gauche du bloc
         let blockTop = cy
-        let blockHeight: CGFloat = 70
+        let blockHeight = footerBlockHeight(showPayment: showPayment)
         fillRect(context, x: mL, y: cy, w: 4, h: blockHeight, color: themePrimary)
 
         let leftX = mL + 14
-        let rightX = pW / 2 + 10
+        let rightX = footerRightX
 
         // Colonne gauche : infos entreprise
         drawText(company.nom.isEmpty ? L10n.companyFallback(lang) : company.nom.uppercased(),
@@ -668,7 +758,7 @@ struct PDFGenerator {
 
         if !showPayment {
             // Pas de paiement — on n'affiche rien a droite
-        } else if document.paymentMode == .crypto {
+        } else if document.paymentMode == .crypto, let walletAddress = document.selectedPaymentWalletAddress(from: company.wallets) {
             let chainLabel = document.blockchain?.label ?? "Crypto"
             drawText(chainLabel, x: rightX, y: ry, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
             ry += 12
@@ -676,26 +766,29 @@ struct PDFGenerator {
             ry += 12
             drawText(L10n.walletAddress(lang), x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
             ry += 12
-            if let chain = document.blockchain {
-                let walletsForChain = company.wallets.filter { $0.blockchain == chain }
-                let wallet = walletsForChain.first(where: { $0.id == document.selectedWalletId }) ?? walletsForChain.first
-                if let wallet = wallet {
-                    drawText(wallet.address, x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textBlack, context: context)
-                }
-            }
+            ry = drawWrappedText(walletAddress, x: rightX, y: ry, font: PDFLayout.fontSmall,
+                                 color: PDFLayout.textBlack, context: context, maxWidth: footerRightWidth,
+                                 lineHeight: footerLineHeight)
         } else {
             drawText(L10n.bankTransfer(lang), x: rightX, y: ry, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
             ry += 12
-            if !company.iban.isEmpty {
-                drawText("\(L10n.iban(lang)): \(company.iban)", x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
-                ry += 11
+            let iban = trimmedPaymentValue(company.iban)
+            if !iban.isEmpty {
+                ry = drawWrappedText("\(L10n.iban(lang)): \(iban)", x: rightX, y: ry,
+                                     font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context,
+                                     maxWidth: footerRightWidth, lineHeight: footerLineHeight)
             }
-            if !company.bic.isEmpty {
-                drawText("\(L10n.bic(lang)): \(company.bic)", x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
-                ry += 11
+            let bic = trimmedPaymentValue(company.bic)
+            if !bic.isEmpty {
+                ry = drawWrappedText("\(L10n.bic(lang)): \(bic)", x: rightX, y: ry,
+                                     font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context,
+                                     maxWidth: footerRightWidth, lineHeight: footerLineHeight)
             }
-            if !company.titulaireCompte.isEmpty {
-                drawText("\(L10n.accountHolder(lang))\(company.titulaireCompte)", x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
+            let accountHolder = trimmedPaymentValue(company.titulaireCompte)
+            if !accountHolder.isEmpty {
+                ry = drawWrappedText("\(L10n.accountHolder(lang))\(accountHolder)", x: rightX, y: ry,
+                                     font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context,
+                                     maxWidth: footerRightWidth, lineHeight: footerLineHeight)
             }
         }
 
@@ -791,16 +884,12 @@ struct PDFGenerator {
         return formatter.string(from: value as NSDecimalNumber) ?? "\(value)"
     }
 
+    private func formatCurrencyNumber(_ value: Decimal, usesGroupingSeparator: Bool = true) -> String {
+        document.currency.formatNumber(value, lang: lang, usesGroupingSeparator: usesGroupingSeparator)
+    }
+
     /// Formate un Decimal avec separateur de milliers.
     private func formatSpaced(_ value: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.locale = numberLocale
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        if lang == .fr {
-            formatter.groupingSeparator = "\u{202F}" // narrow non-breaking space
-        }
-        return formatter.string(from: value as NSDecimalNumber) ?? "\(value)"
+        formatCurrencyNumber(value)
     }
 }

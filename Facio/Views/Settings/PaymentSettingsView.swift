@@ -114,6 +114,10 @@ private struct WalletRow: View {
         company.wallets.firstIndex(where: { $0.id == walletId })
     }
 
+    private var walletAddress: String {
+        company.wallets.first(where: { $0.id == walletId })?.address ?? ""
+    }
+
     var body: some View {
         if company.wallets.contains(where: { $0.id == walletId }) {
             VStack(spacing: 8) {
@@ -157,6 +161,16 @@ private struct WalletRow: View {
                     }
                 ))
                 .textFieldStyle(.roundedBorder)
+
+                if walletAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle")
+                        Text(L10n.walletAddressRequired(lang))
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
             .padding(10)
             .background(.quaternary.opacity(0.3))

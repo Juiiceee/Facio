@@ -44,6 +44,7 @@ extension L10n {
     static func addWallet(_ l: AppLanguage) -> String { l == .fr ? "Ajouter un wallet" : "Add wallet" }
     static func walletNamePlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Nom (ex: Phantom, Ledger...)" : "Name (e.g. Phantom, Ledger...)" }
     static func walletAddressPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Adresse du wallet" : "Wallet address" }
+    static func walletAddressRequired(_ l: AppLanguage) -> String { l == .fr ? "Adresse requise pour l'utiliser comme moyen de paiement" : "Address required before this can be used for payment" }
 
     // Valeurs par defaut
     static func vatRate(_ l: AppLanguage) -> String { l == .fr ? "Taux de TVA" : "VAT rate" }

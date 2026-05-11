@@ -57,7 +57,7 @@ struct DocumentPaymentInfoView: View {
         GroupBox(L10n.paymentCryptoSection(lang)) {
             VStack(alignment: .leading, spacing: 8) {
                 if let chain = document.blockchain {
-                    let walletsForChain = company.wallets.filter { $0.blockchain == chain }
+                    let walletsForChain = document.paymentWallets(from: company.wallets, for: chain)
 
                     HStack {
                         Label(L10n.network(lang), systemImage: "link")
@@ -88,7 +88,7 @@ struct DocumentPaymentInfoView: View {
                 .foregroundStyle(.secondary)
             Picker("", selection: Binding(
                 get: {
-                    document.selectedWalletId ?? wallets.first?.id ?? UUID()
+                    wallets.first { $0.id == document.selectedWalletId }?.id ?? wallets.first?.id ?? UUID()
                 },
                 set: {
                     document.selectedWalletId = $0
@@ -96,7 +96,8 @@ struct DocumentPaymentInfoView: View {
                 }
             )) {
                 ForEach(wallets) { wallet in
-                    Text(wallet.label.isEmpty ? wallet.address.prefix(12) + "..." : wallet.label)
+                    let address = document.paymentAddress(for: wallet)
+                    Text(wallet.label.isEmpty ? "\(address.prefix(12))..." : wallet.label)
                         .tag(wallet.id)
                 }
             }
@@ -106,8 +107,8 @@ struct DocumentPaymentInfoView: View {
 
     @ViewBuilder
     private func selectedWalletAddress(_ wallets: [WalletEntry]) -> some View {
-        if let selected = wallets.first(where: { $0.id == (document.selectedWalletId ?? wallets.first?.id) }) {
-            Text(selected.address)
+        if let selected = wallets.first(where: { $0.id == document.selectedWalletId }) ?? wallets.first {
+            Text(document.paymentAddress(for: selected))
                 .font(.system(.caption, design: .monospaced))
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -120,7 +121,7 @@ struct DocumentPaymentInfoView: View {
         HStack {
             Label(wallet.label.isEmpty ? L10n.wallet(lang) : wallet.label, systemImage: "wallet.pass")
                 .foregroundStyle(.secondary)
-            Text(wallet.address)
+            Text(document.paymentAddress(for: wallet))
                 .font(.system(.caption, design: .monospaced))
                 .lineLimit(1)
                 .truncationMode(.middle)
