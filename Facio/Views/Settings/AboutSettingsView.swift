@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AboutSettingsView: View {
     @Environment(DataStore.self) private var dataStore
+    @Environment(AuthService.self) private var authService
     @State private var updateService = UpdateService()
     @State private var showResetAlert = false
     @State private var showUninstallAlert = false
@@ -236,6 +237,14 @@ struct AboutSettingsView: View {
     // MARK: - Actions
 
     private func resetApp() {
+        Task { @MainActor in
+            await authService.signOutAndWait()
+            resetLocalAppState()
+            resetDone = true
+        }
+    }
+
+    private func resetLocalAppState() {
         let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
             .appendingPathComponent("Facio", isDirectory: true)
 
@@ -249,25 +258,30 @@ struct AboutSettingsView: View {
             try? FileManager.default.removeItem(at: url)
         }
 
+        SyncConfig.resetStoredState()
+
         let defaults = UserDefaults.standard
-        for key in ["facio_sync_enabled", "facio_user_id", "facio_user_email",
-                    "supabase_custom_url", "supabase_custom_api_key", "supabase_use_custom"] {
+        for key in ["facio_user_id", "facio_user_email"] {
             defaults.removeObject(forKey: key)
         }
 
         dataStore.resetAll()
-        resetDone = true
     }
 
     private func uninstallApp() {
-        let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("Facio", isDirectory: true)
-        try? FileManager.default.removeItem(at: supportDir)
+        Task { @MainActor in
+            await authService.signOutAndWait()
+            SyncConfig.resetStoredState()
 
-        if let bundleId = Bundle.main.bundleIdentifier {
-            UserDefaults.standard.removePersistentDomain(forName: bundleId)
+            let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+                .appendingPathComponent("Facio", isDirectory: true)
+            try? FileManager.default.removeItem(at: supportDir)
+
+            if let bundleId = Bundle.main.bundleIdentifier {
+                UserDefaults.standard.removePersistentDomain(forName: bundleId)
+            }
+
+            NSApplication.shared.terminate(nil)
         }
-
-        NSApplication.shared.terminate(nil)
     }
 }

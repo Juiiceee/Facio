@@ -35,6 +35,7 @@ enum KeychainService {
         var query = baseQuery(account: account)
         let attributes: [String: Any] = [
             kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
         ]
 
         let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
@@ -46,7 +47,7 @@ enum KeychainService {
         }
 
         query[kSecValueData as String] = data
-        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         let addStatus = SecItemAdd(query as CFDictionary, nil)
         guard addStatus == errSecSuccess else {
             throw KeychainError.unhandledStatus(addStatus)
@@ -60,11 +61,23 @@ enum KeychainService {
         }
     }
 
+    static func deleteAll() throws {
+        let status = SecItemDelete(serviceQuery() as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw KeychainError.unhandledStatus(status)
+        }
+    }
+
     private static func baseQuery(account: String) -> [String: Any] {
+        var query = serviceQuery()
+        query[kSecAttrAccount as String] = account
+        return query
+    }
+
+    private static func serviceQuery() -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
         ]
     }
 }
