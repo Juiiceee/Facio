@@ -134,4 +134,10 @@ extension L10n {
     static func checkForUpdates(_ l: AppLanguage) -> String { l == .fr ? "Verifier les mises a jour" : "Check for updates" }
     static func updateAvailable(_ l: AppLanguage, version: String) -> String { l == .fr ? "Version \(version) disponible" : "Version \(version) available" }
     static func upToDate(_ l: AppLanguage) -> String { l == .fr ? "Vous etes a jour" : "You're up to date" }
+    static func updateCheckUnavailable(_ l: AppLanguage) -> String {
+        l == .fr ? "Statut de mise a jour indisponible" : "Update status unavailable"
+    }
+    static func updateCheckFailed(_ l: AppLanguage) -> String {
+        l == .fr ? "Impossible de verifier les mises a jour" : "Could not check for updates"
+    }
 }

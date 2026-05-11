@@ -7,7 +7,6 @@ struct AboutSettingsView: View {
     @State private var showResetAlert = false
     @State private var showUninstallAlert = false
     @State private var resetDone = false
-    @State private var updateChecked = false
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -80,10 +79,8 @@ struct AboutSettingsView: View {
 
                     HStack(spacing: 10) {
                         Button {
-                            updateChecked = false
                             Task {
                                 await updateService.checkForUpdates()
-                                updateChecked = true
                             }
                         } label: {
                             HStack(spacing: 6) {
@@ -103,28 +100,7 @@ struct AboutSettingsView: View {
                         .buttonStyle(.plain)
                         .disabled(updateService.isChecking)
 
-                        if updateChecked {
-                            if updateService.isUpdateAvailable, let url = updateService.releaseURL {
-                                Link(destination: url) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "arrow.down.circle.fill")
-                                            .foregroundStyle(.green)
-                                        Text(L10n.updateAvailable(lang, version: updateService.latestVersion ?? ""))
-                                            .foregroundStyle(.green)
-                                    }
-                                    .font(.subheadline)
-                                }
-                                .buttonStyle(.plain)
-                            } else if !updateService.isChecking {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.green)
-                                    Text(L10n.upToDate(lang))
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
+                        updateStatusView
                     }
 
                     HStack(spacing: 10) {
@@ -232,6 +208,60 @@ struct AboutSettingsView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var updateStatusView: some View {
+        switch updateService.checkResult {
+        case .notChecked, .checking:
+            EmptyView()
+        case .updateAvailable:
+            if let url = updateService.releaseURL {
+                Link(destination: url) {
+                    updateStatusLabel(
+                        icon: "arrow.down.circle.fill",
+                        color: .green,
+                        text: L10n.updateAvailable(lang, version: updateService.latestVersion ?? "")
+                    )
+                }
+                .buttonStyle(.plain)
+            } else {
+                updateStatusLabel(
+                    icon: "arrow.down.circle.fill",
+                    color: .green,
+                    text: L10n.updateAvailable(lang, version: updateService.latestVersion ?? "")
+                )
+            }
+        case .upToDate:
+            updateStatusLabel(
+                icon: "checkmark.circle.fill",
+                color: .green,
+                text: L10n.upToDate(lang)
+            )
+        case .unavailable:
+            updateStatusLabel(
+                icon: "questionmark.circle.fill",
+                color: .orange,
+                text: L10n.updateCheckUnavailable(lang)
+            )
+        case .failed:
+            updateStatusLabel(
+                icon: "exclamationmark.triangle.fill",
+                color: .red,
+                text: L10n.updateCheckFailed(lang)
+            )
+        }
+    }
+
+    private func updateStatusLabel(icon: String, color: Color, text: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(color)
+        }
+        .font(.subheadline)
     }
 
     // MARK: - Actions

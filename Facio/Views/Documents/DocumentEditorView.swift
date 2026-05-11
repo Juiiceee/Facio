@@ -8,6 +8,9 @@ struct DocumentEditorView: View {
     @State private var showClientPicker = false
     @State private var showPreview = false
     @State private var showAddSignature = false
+    @State private var showPDFGenerationAlert = false
+    @State private var showPDFExportAlert = false
+    @State private var signatureCountBeforeSheet = 0
 
     // Debounce timer for auto-save
     @State private var saveTask: Task<Void, Never>?
@@ -31,9 +34,18 @@ struct DocumentEditorView: View {
         saveTask = Task {
             try? await Task.sleep(for: .milliseconds(500))
             if !Task.isCancelled {
-                dataStore.save()
+                saveDocument()
             }
         }
+    }
+
+    private func saveDocument() {
+        dataStore.documentUpdated(document)
+    }
+
+    private func presentAddSignatureSheet() {
+        signatureCountBeforeSheet = document.transactionSignatures.count
+        showAddSignature = true
     }
 
     var body: some View {
@@ -44,21 +56,21 @@ struct DocumentEditorView: View {
                 deviseSection
                 clientSection
                 DocumentLineItemsSection(document: document, company: company, lang: lang) {
-                    dataStore.save()
+                    saveDocument()
                 }
                 totauxSection
                 DocumentPaymentInfoView(document: document, company: company, lang: lang) {
-                    dataStore.save()
+                    saveDocument()
                 }
 
                 if document.status == .payee {
                     DocumentSignaturesSection(
                         document: document,
                         lang: lang,
-                        onAdd: { showAddSignature = true },
+                        onAdd: presentAddSignatureSheet,
                         onDelete: { signature in
                             document.transactionSignatures.removeAll { $0.id == signature.id }
-                            dataStore.save()
+                            saveDocument()
                         }
                     )
                 }
@@ -74,15 +86,29 @@ struct DocumentEditorView: View {
         .sheet(isPresented: $showClientPicker) {
             ClientPickerSheet(clients: clients) { client in
                 client.appliquer(sur: document)
-                dataStore.save()
+                saveDocument()
                 showClientPicker = false
             }
         }
         .sheet(isPresented: $showPreview) {
             PDFPreviewSheet(document: document, company: company)
         }
-        .sheet(isPresented: $showAddSignature) {
+        .sheet(isPresented: $showAddSignature, onDismiss: {
+            if document.transactionSignatures.count != signatureCountBeforeSheet {
+                saveDocument()
+            }
+        }) {
             AddSignatureSheet(document: document)
+        }
+        .alert(L10n.pdfGenerationError(lang), isPresented: $showPDFGenerationAlert) {
+            Button(L10n.understood(lang), role: .cancel) {}
+        } message: {
+            Text(L10n.cannotGeneratePDF(lang))
+        }
+        .alert(L10n.pdfExportError(lang), isPresented: $showPDFExportAlert) {
+            Button(L10n.understood(lang), role: .cancel) {}
+        } message: {
+            Text(L10n.cannotExportPDF(lang))
         }
     }
 
@@ -144,7 +170,7 @@ struct DocumentEditorView: View {
                             get: { document.langue },
                             set: { newLang in
                                 document.langue = newLang
-                                dataStore.save()
+                                saveDocument()
                             }
                         )) {
                             ForEach(AppLanguage.allCases) { l in
@@ -165,10 +191,10 @@ struct DocumentEditorView: View {
                             get: { document.status },
                             set: { newStatus in
                                 document.status = newStatus
-                                dataStore.save()
+                                saveDocument()
                                 if newStatus == .payee && document.currency.isCrypto
                                     && document.transactionSignatures.isEmpty {
-                                    showAddSignature = true
+                                    presentAddSignatureSheet()
                                 }
                             }
                         )) {
@@ -198,11 +224,11 @@ struct DocumentEditorView: View {
             HStack(spacing: 24) {
                 DatePicker(L10n.creationDate(lang), selection: Binding(
                     get: { document.dateCreation },
-                    set: { document.dateCreation = $0; dataStore.save() }
+                    set: { document.dateCreation = $0; saveDocument() }
                 ), displayedComponents: .date)
                 DatePicker(L10n.dueDateLabel(lang), selection: Binding(
                     get: { document.dateEcheance },
-                    set: { document.dateEcheance = $0; dataStore.save() }
+                    set: { document.dateEcheance = $0; saveDocument() }
                 ), displayedComponents: .date)
             }
             .padding(8)
@@ -217,12 +243,12 @@ struct DocumentEditorView: View {
                 HStack(spacing: 24) {
                     CurrencyPicker(selection: Binding(
                         get: { document.currency },
-                        set: { document.currency = $0; dataStore.save() }
+                        set: { document.currency = $0; saveDocument() }
                     ))
 
                     Picker(L10n.payment(lang), selection: Binding(
                         get: { document.paymentMode },
-                        set: { document.paymentMode = $0; dataStore.save() }
+                        set: { document.paymentMode = $0; saveDocument() }
                     )) {
                         ForEach(PaymentMode.allCases) { mode in
                             Text(mode.label(for: lang)).tag(mode)
@@ -236,7 +262,7 @@ struct DocumentEditorView: View {
                         let compatibles = Blockchain.compatibleBlockchains(for: document.currency)
                         Picker(L10n.blockchain(lang), selection: Binding(
                             get: { document.blockchain },
-                            set: { document.blockchain = $0; dataStore.save() }
+                            set: { document.blockchain = $0; saveDocument() }
                         )) {
                             Text(L10n.blockchainNone(lang)).tag(Blockchain?.none)
                             ForEach(compatibles) { chain in
@@ -359,9 +385,16 @@ struct DocumentEditorView: View {
 
     private func exporterPDF() {
         let pdfData = PDFGenerator(document: document, company: company).generate()
-        guard !pdfData.isEmpty else { return }
+        guard !pdfData.isEmpty else {
+            showPDFGenerationAlert = true
+            return
+        }
+
         Task {
-            _ = await ExportService.exportPDF(data: pdfData, defaultFilename: document.number, language: lang)
+            let result = await ExportService.exportPDF(data: pdfData, defaultFilename: document.number, language: lang)
+            if result == .failed {
+                showPDFExportAlert = true
+            }
         }
     }
 }

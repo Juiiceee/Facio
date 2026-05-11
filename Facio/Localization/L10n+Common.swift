@@ -49,6 +49,11 @@ extension L10n {
     static func previewTitle(_ l: AppLanguage, number: String) -> String { l == .fr ? "Aperçu — \(number)" : "Preview — \(number)" }
     static func pdfGenerationError(_ l: AppLanguage) -> String { l == .fr ? "Erreur de génération" : "Generation error" }
     static func cannotGeneratePDF(_ l: AppLanguage) -> String { l == .fr ? "Impossible de générer le PDF." : "Could not generate PDF." }
+    static func pdfExportError(_ l: AppLanguage) -> String { l == .fr ? "Erreur d'export PDF" : "PDF export error" }
+    static func cannotExportPDF(_ l: AppLanguage) -> String {
+        l == .fr ? "Impossible d'enregistrer le PDF. Verifiez l'emplacement choisi et reessayez."
+        : "Could not save the PDF. Check the selected location and try again."
+    }
 
     // Alertes app
     static func firstLaunchTitle(_ l: AppLanguage) -> String { l == .fr ? "Bienvenue sur Facio !" : "Welcome to Facio!" }
