@@ -60,7 +60,7 @@ final class DataStore: Sendable {
         load([Document].self, key: .documents, from: documentsFileURL) { documents = $0 }
         load([ClientInfo].self, key: .clients, from: clientsFileURL) { clients = $0 }
         load(CompanyInfo.self, key: .company, from: companyFileURL) { companyInfo = $0 }
-        load([TimesheetPeriod].self, key: .timesheets, from: timesheetsFileURL) { timesheets = $0 }
+        load([TimesheetPeriod].self, key: .timesheets, from: timesheetsFileURL) { timesheets = normalizedTimesheets($0) }
     }
 
     private func load<T: Decodable>(_ type: T.Type, key: SyncDataKey, from url: URL, assign: (T) -> Void) {
@@ -182,14 +182,15 @@ final class DataStore: Sendable {
 
     @discardableResult
     func applyPulledTimesheets(_ pulledTimesheets: [TimesheetPeriod]) -> Bool {
+        let normalized = normalizedTimesheets(pulledTimesheets)
         guard write(
             [TimesheetPeriod].self,
-            pulledTimesheets,
+            normalized,
             key: .timesheets,
             to: timesheetsFileURL,
             allowBlockedWrite: false
         ) else { return false }
-        timesheets = pulledTimesheets
+        timesheets = normalized
         return true
     }
 
@@ -221,6 +222,7 @@ final class DataStore: Sendable {
                 allowBlockedWrite: allowBlockedWrite
             )
         case .timesheets:
+            timesheets = normalizedTimesheets(timesheets)
             return write(
                 [TimesheetPeriod].self,
                 timesheets,
@@ -296,7 +298,18 @@ final class DataStore: Sendable {
     }
 
     func deleteDocument(_ doc: Document) {
+        guard documents.contains(where: { $0.id == doc.id }) else { return }
+        let previousDocuments = documents
         documents.removeAll { $0.id == doc.id }
+        if persist(.documents, allowBlockedWrite: false) {
+            syncService?.markDeleted(doc.id, for: .documents)
+        } else {
+            documents = previousDocuments
+        }
+    }
+
+    func documentUpdated(_ document: Document) {
+        document.updatedAt = Date()
         saveDocuments()
     }
 
@@ -312,7 +325,18 @@ final class DataStore: Sendable {
     }
 
     func deleteClient(_ client: ClientInfo) {
+        guard clients.contains(where: { $0.id == client.id }) else { return }
+        let previousClients = clients
         clients.removeAll { $0.id == client.id }
+        if persist(.clients, allowBlockedWrite: false) {
+            syncService?.markDeleted(client.id, for: .clients)
+        } else {
+            clients = previousClients
+        }
+    }
+
+    func clientUpdated(_ client: ClientInfo) {
+        client.updatedAt = Date()
         saveClients()
     }
 
@@ -323,13 +347,36 @@ final class DataStore: Sendable {
     // MARK: - Timesheet CRUD
 
     func addTimesheet(_ ts: TimesheetPeriod) {
+        ts.normalizeCalendar()
         timesheets.append(ts)
         saveTimesheets()
     }
 
     func deleteTimesheet(_ ts: TimesheetPeriod) {
+        guard timesheets.contains(where: { $0.id == ts.id }) else { return }
+        let previousTimesheets = timesheets
         timesheets.removeAll { $0.id == ts.id }
+        if persist(.timesheets, allowBlockedWrite: false) {
+            syncService?.markDeleted(ts.id, for: .timesheets)
+        } else {
+            timesheets = previousTimesheets
+        }
+    }
+
+    func timesheetUpdated(_ timesheet: TimesheetPeriod, syncSharedWeeks shouldSyncSharedWeeks: Bool = false) {
+        let now = Date()
+        timesheet.updatedAt = now
+        if shouldSyncSharedWeeks {
+            _ = syncSharedWeeks(for: timesheet, updatedAt: now)
+        }
         saveTimesheets()
+    }
+
+    private func normalizedTimesheets(_ periods: [TimesheetPeriod]) -> [TimesheetPeriod] {
+        for period in periods {
+            period.normalizeCalendar()
+        }
+        return periods
     }
 
     // MARK: - Cross-period sync
@@ -338,6 +385,13 @@ final class DataStore: Sendable {
     /// Pour chaque jour hors-mois dans la période, tire les heures depuis la période adjacente.
     /// Pour chaque jour du mois courant dans une semaine partagée, pousse les heures vers la période adjacente.
     func syncSharedWeeks(for period: TimesheetPeriod) {
+        if syncSharedWeeks(for: period, updatedAt: Date()) {
+            saveTimesheets()
+        }
+    }
+
+    @discardableResult
+    private func syncSharedWeeks(for period: TimesheetPeriod, updatedAt now: Date) -> Bool {
         let cal = Calendar(identifier: .gregorian)
         var didChange = false
 
@@ -360,6 +414,7 @@ final class DataStore: Sendable {
                                 if adj.semaines[awi].jours[aji].dateString == jour.dateString
                                     && adj.semaines[awi].jours[aji].heures != jour.heures {
                                     adj.semaines[awi].jours[aji].heures = jour.heures
+                                    adj.updatedAt = now
                                     didChange = true
                                 }
                             }
@@ -372,6 +427,7 @@ final class DataStore: Sendable {
                             if let day = aw.jours.first(where: { $0.dateString == jour.dateString }) {
                                 if period.semaines[wi].jours[ji].heures != day.heures {
                                     period.semaines[wi].jours[ji].heures = day.heures
+                                    period.updatedAt = now
                                     didChange = true
                                 }
                             }
@@ -381,9 +437,7 @@ final class DataStore: Sendable {
             }
         }
 
-        if didChange {
-            saveTimesheets()
-        }
+        return didChange
     }
 
     /// Retourne les heures des jours hors-mois depuis les périodes adjacentes.
@@ -411,6 +465,7 @@ final class DataStore: Sendable {
     // MARK: - Company
 
     func companyUpdated() {
+        companyInfo.updatedAt = Date()
         saveCompany()
     }
 

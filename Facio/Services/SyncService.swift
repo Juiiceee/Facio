@@ -62,7 +62,19 @@ final class SyncService: Sendable {
         syncState.setDirty(true, for: key)
         dirtyGeneration += 1
         saveSyncState()
+        scheduleDirtyPush()
+    }
 
+    func markDeleted(_ id: UUID, for key: SyncDataKey) {
+        guard key == .documents || key == .clients || key == .timesheets else { return }
+        syncState.enqueueDelete(id: id, for: key)
+        syncState.setDirty(true, for: key)
+        dirtyGeneration += 1
+        saveSyncState()
+        scheduleDirtyPush()
+    }
+
+    private func scheduleDirtyPush() {
         debounceTask?.cancel()
         debounceTask = Task {
             try? await Task.sleep(for: .seconds(2))
@@ -83,13 +95,15 @@ final class SyncService: Sendable {
         let generation = dirtyGeneration
         defer { isPushingDirty = false }
 
+        let failedDeleteKeys = await pushPendingParentDeletes()
+
         let storageDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
             .appendingPathComponent("Facio", isDirectory: true)
 
         if syncState.documentsDirty {
             if let data = try? Data(contentsOf: storageDir.appendingPathComponent("documents.json")),
                let docs = try? decoder.decode([Document].self, from: data) {
-                if await pushDocuments(docs), dirtyGeneration == generation {
+                if await pushDocuments(docs), dirtyGeneration == generation, !failedDeleteKeys.contains(.documents) {
                     syncState.setDirty(false, for: .documents)
                 }
             } else {
@@ -100,7 +114,7 @@ final class SyncService: Sendable {
         if syncState.clientsDirty {
             if let data = try? Data(contentsOf: storageDir.appendingPathComponent("clients.json")),
                let clients = try? decoder.decode([ClientInfo].self, from: data) {
-                if await pushClients(clients), dirtyGeneration == generation {
+                if await pushClients(clients), dirtyGeneration == generation, !failedDeleteKeys.contains(.clients) {
                     syncState.setDirty(false, for: .clients)
                 }
             } else {
@@ -122,7 +136,7 @@ final class SyncService: Sendable {
         if syncState.timesheetsDirty {
             if let data = try? Data(contentsOf: storageDir.appendingPathComponent("timesheets.json")),
                let timesheets = try? decoder.decode([TimesheetPeriod].self, from: data) {
-                if await pushTimesheets(timesheets), dirtyGeneration == generation {
+                if await pushTimesheets(timesheets), dirtyGeneration == generation, !failedDeleteKeys.contains(.timesheets) {
                     syncState.setDirty(false, for: .timesheets)
                 }
             } else {
@@ -135,6 +149,58 @@ final class SyncService: Sendable {
             debounceTask?.cancel()
             debounceTask = Task { await pushAllDirty() }
         }
+    }
+
+    private func pushPendingParentDeletes() async -> Set<SyncDataKey> {
+        var failedKeys = Set<SyncDataKey>()
+
+        if await pushPendingDeleteIds(for: .documents, table: "documents") == false {
+            failedKeys.insert(.documents)
+        }
+        if await pushPendingDeleteIds(for: .clients, table: "clients") == false {
+            failedKeys.insert(.clients)
+        }
+        if await pushPendingDeleteIds(for: .timesheets, table: "timesheet_periods") == false {
+            failedKeys.insert(.timesheets)
+        }
+
+        return failedKeys
+    }
+
+    private func pushPendingDeleteIds(for key: SyncDataKey, table: String) async -> Bool {
+        let ids = syncState.pendingDeleteIds(for: key)
+        guard !ids.isEmpty else { return true }
+
+        var remaining: [String] = []
+        var didRemoveFromQueue = false
+        var failureMessage: String?
+
+        for id in ids {
+            guard UUID(uuidString: id) != nil else {
+                didRemoveFromQueue = true
+                continue
+            }
+
+            if await supabaseDelete(table: table, filter: "id=eq.\(id)") {
+                didRemoveFromQueue = true
+            } else {
+                failureMessage = failureMessage ?? lastError
+                remaining.append(id)
+            }
+        }
+
+        if didRemoveFromQueue {
+            syncState.setPendingDeleteIds(remaining, for: key)
+            saveSyncState()
+        }
+
+        if let failureMessage {
+            lastError = failureMessage
+        } else if didRemoveFromQueue && remaining.isEmpty {
+            lastSyncDate = Date()
+        }
+
+        return remaining.isEmpty
     }
 
     // MARK: - Push Documents
@@ -638,10 +704,14 @@ final class SyncService: Sendable {
         let pullGeneration = dirtyGeneration
         var skippedPulledData = false
         var localSaveFailed = false
+        var keysToMarkDirtyAfterPull = Set<SyncDataKey>()
 
         if shouldPull(.documents, dirtySnapshot: dirtyAfterPush, generation: pullGeneration),
            let docs = await pullDocuments() {
-            if shouldApplyPull(.documents, dirtySnapshot: dirtyAfterPush, generation: pullGeneration) {
+            if shouldPreserveLocalCollectionOnFirstSync(remoteCount: docs.count, localCount: dataStore.documents.count) {
+                keysToMarkDirtyAfterPull.insert(.documents)
+                skippedPulledData = true
+            } else if shouldApplyPull(.documents, dirtySnapshot: dirtyAfterPush, generation: pullGeneration) {
                 localSaveFailed = !dataStore.applyPulledDocuments(docs) || localSaveFailed
             } else {
                 skippedPulledData = true
@@ -649,7 +719,10 @@ final class SyncService: Sendable {
         }
         if shouldPull(.clients, dirtySnapshot: dirtyAfterPush, generation: pullGeneration),
            let clients = await pullClients() {
-            if shouldApplyPull(.clients, dirtySnapshot: dirtyAfterPush, generation: pullGeneration) {
+            if shouldPreserveLocalCollectionOnFirstSync(remoteCount: clients.count, localCount: dataStore.clients.count) {
+                keysToMarkDirtyAfterPull.insert(.clients)
+                skippedPulledData = true
+            } else if shouldApplyPull(.clients, dirtySnapshot: dirtyAfterPush, generation: pullGeneration) {
                 localSaveFailed = !dataStore.applyPulledClients(clients) || localSaveFailed
             } else {
                 skippedPulledData = true
@@ -667,11 +740,17 @@ final class SyncService: Sendable {
         }
         if shouldPull(.timesheets, dirtySnapshot: dirtyAfterPush, generation: pullGeneration),
            let timesheets = await pullTimesheets() {
-            if shouldApplyPull(.timesheets, dirtySnapshot: dirtyAfterPush, generation: pullGeneration) {
+            if shouldPreserveLocalCollectionOnFirstSync(remoteCount: timesheets.count, localCount: dataStore.timesheets.count) {
+                keysToMarkDirtyAfterPull.insert(.timesheets)
+                skippedPulledData = true
+            } else if shouldApplyPull(.timesheets, dirtySnapshot: dirtyAfterPush, generation: pullGeneration) {
                 localSaveFailed = !dataStore.applyPulledTimesheets(timesheets) || localSaveFailed
             } else {
                 skippedPulledData = true
             }
+        }
+        for key in keysToMarkDirtyAfterPull {
+            markDirty(key)
         }
         if dirtyAfterPush.hasDirtyData || skippedPulledData || dirtyGeneration != pullGeneration {
             lastError = "Synchronisation partielle: des donnees locales restent a envoyer."
@@ -906,6 +985,10 @@ final class SyncService: Sendable {
         !dirtySnapshot.isDirty(key)
             && !syncState.isDirty(key)
             && dirtyGeneration == generation
+    }
+
+    private func shouldPreserveLocalCollectionOnFirstSync(remoteCount: Int, localCount: Int) -> Bool {
+        syncState.lastFullSyncAt == nil && remoteCount == 0 && localCount > 0
     }
 
     private func errorMessage(from data: Data) -> String? {
