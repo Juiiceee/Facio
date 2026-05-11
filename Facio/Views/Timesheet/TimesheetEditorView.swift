@@ -95,11 +95,11 @@ struct TimesheetEditorView: View {
                         Label("\(heuresMoisSemaine.formatted2Decimals)h", systemImage: "clock")
                             .font(.subheadline.monospacedDigit())
                             .fontWeight(.medium)
-                        Text("N: \(normSemaine.formatted2Decimals)h")
+                        Text(L10n.normalHoursShort(lang, value: normSemaine.formatted2Decimals))
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.blue)
                         if supSemaine > 0 {
-                            Text("S: +\(supSemaine.formatted2Decimals)h")
+                            Text(L10n.overtimeHoursShort(lang, value: supSemaine.formatted2Decimals))
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.orange)
                                 .fontWeight(.medium)

@@ -80,6 +80,8 @@ private struct PrestationRow: View {
     let company: CompanyInfo
     let dataStore: DataStore
 
+    private var lang: AppLanguage { company.langueParDefaut }
+
     private static let tvaRates: [Decimal] = [0, 5.5, 10, 20]
 
     private func safeIndex() -> Int? {
@@ -89,7 +91,7 @@ private struct PrestationRow: View {
     var body: some View {
         if company.prestations.contains(where: { $0.id == presetId }) {
             HStack(spacing: 10) {
-                TextField("Designation", text: Binding(
+                TextField(L10n.designationLabel(lang), text: Binding(
                     get: { company.prestations.first(where: { $0.id == presetId })?.designation ?? "" },
                     set: { newVal in
                         if let i = safeIndex() { company.prestations[i].designation = newVal; dataStore.save() }
@@ -99,7 +101,7 @@ private struct PrestationRow: View {
                 .frame(maxWidth: .infinity)
 
                 DecimalField(
-                    placeholder: "Prix",
+                    placeholder: L10n.priceLabel(lang),
                     value: Binding(
                         get: { company.prestations.first(where: { $0.id == presetId })?.prixUnitaire ?? 0 },
                         set: { newVal in
@@ -109,7 +111,7 @@ private struct PrestationRow: View {
                 )
                 .frame(width: 80)
 
-                Picker("TVA", selection: Binding(
+                Picker(L10n.vatLabel(lang), selection: Binding(
                     get: { company.prestations.first(where: { $0.id == presetId })?.tauxTVA ?? 0 },
                     set: { newVal in
                         if let i = safeIndex() { company.prestations[i].tauxTVA = newVal; dataStore.save() }

@@ -442,7 +442,7 @@ struct DocumentEditorView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     if !company.iban.isEmpty {
                         HStack {
-                            Label("IBAN", systemImage: "building.columns")
+                            Label(L10n.iban(lang), systemImage: "building.columns")
                                 .foregroundStyle(.secondary)
                             Text(company.iban)
                                 .font(.system(.body, design: .monospaced))
@@ -450,7 +450,7 @@ struct DocumentEditorView: View {
                         }
                         if !company.bic.isEmpty {
                             HStack {
-                                Label("BIC", systemImage: "building.columns.fill")
+                                Label(L10n.bic(lang), systemImage: "building.columns.fill")
                                     .foregroundStyle(.secondary)
                                 Text(company.bic)
                                     .font(.system(.body, design: .monospaced))
@@ -803,7 +803,7 @@ private struct AddSignatureSheet: View {
             .padding()
 
             Form {
-                Picker("Blockchain", selection: $selectedBlockchain) {
+                Picker(L10n.blockchain(lang), selection: $selectedBlockchain) {
                     ForEach(Blockchain.allCases) { chain in
                         Text(chain.label).tag(chain)
                     }

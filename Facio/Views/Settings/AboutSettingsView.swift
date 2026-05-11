@@ -41,7 +41,7 @@ struct AboutSettingsView: View {
                             .font(.title)
                             .fontWeight(.bold)
 
-                        Text("Version \(appVersion)")
+                        Text(L10n.version(lang, value: appVersion))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 

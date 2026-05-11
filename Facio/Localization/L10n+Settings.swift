@@ -42,6 +42,8 @@ extension L10n {
     static func cryptoWallets(_ l: AppLanguage) -> String { l == .fr ? "Wallets Crypto" : "Crypto wallets" }
     static func noWalletConfiguredShort(_ l: AppLanguage) -> String { l == .fr ? "Aucun wallet configure" : "No wallet configured" }
     static func addWallet(_ l: AppLanguage) -> String { l == .fr ? "Ajouter un wallet" : "Add wallet" }
+    static func walletNamePlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Nom (ex: Phantom, Ledger...)" : "Name (e.g. Phantom, Ledger...)" }
+    static func walletAddressPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Adresse du wallet" : "Wallet address" }
 
     // Valeurs par defaut
     static func vatRate(_ l: AppLanguage) -> String { l == .fr ? "Taux de TVA" : "VAT rate" }
@@ -101,6 +103,7 @@ extension L10n {
 
     // A propos
     static func professionalInvoices(_ l: AppLanguage) -> String { l == .fr ? "Factures & devis professionnels" : "Professional invoices & quotes" }
+    static func version(_ l: AppLanguage, value: String) -> String { l == .fr ? "Version \(value)" : "Version \(value)" }
     static func links(_ l: AppLanguage) -> String { l == .fr ? "Liens" : "Links" }
     static func sourceCode(_ l: AppLanguage) -> String { l == .fr ? "Code source" : "Source code" }
     static func releases(_ l: AppLanguage) -> String { "Releases" }

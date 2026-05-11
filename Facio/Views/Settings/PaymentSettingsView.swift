@@ -25,7 +25,7 @@ struct PaymentSettingsView: View {
                         .textFieldStyle(.roundedBorder)
                     }
 
-                    settingsRow("IBAN") {
+                    settingsRow(L10n.iban(lang)) {
                         TextField("FR76 0000 0000 0000 0000 0000 000", text: Binding(
                             get: { company.iban },
                             set: { company.iban = $0; dataStore.save() }
@@ -33,7 +33,7 @@ struct PaymentSettingsView: View {
                         .textFieldStyle(.roundedBorder)
                     }
 
-                    settingsRow("BIC") {
+                    settingsRow(L10n.bic(lang)) {
                         TextField("BNPAFRPP", text: Binding(
                             get: { company.bic },
                             set: { company.bic = $0; dataStore.save() }
@@ -108,6 +108,8 @@ private struct WalletRow: View {
     let company: CompanyInfo
     let dataStore: DataStore
 
+    private var lang: AppLanguage { company.langueParDefaut }
+
     private func safeIndex() -> Int? {
         company.wallets.firstIndex(where: { $0.id == walletId })
     }
@@ -116,7 +118,7 @@ private struct WalletRow: View {
         if company.wallets.contains(where: { $0.id == walletId }) {
             VStack(spacing: 8) {
                 HStack(spacing: 12) {
-                    Picker("Blockchain", selection: Binding(
+                    Picker(L10n.blockchain(lang), selection: Binding(
                         get: { company.wallets.first(where: { $0.id == walletId })?.blockchain ?? .solana },
                         set: { newVal in
                             if let i = safeIndex() { company.wallets[i].blockchain = newVal; dataStore.save() }
@@ -129,7 +131,7 @@ private struct WalletRow: View {
                     .labelsHidden()
                     .frame(width: 130)
 
-                    TextField("Nom (ex: Phantom, Ledger...)", text: Binding(
+                    TextField(L10n.walletNamePlaceholder(lang), text: Binding(
                         get: { company.wallets.first(where: { $0.id == walletId })?.label ?? "" },
                         set: { newVal in
                             if let i = safeIndex() { company.wallets[i].label = newVal; dataStore.save() }
@@ -148,7 +150,7 @@ private struct WalletRow: View {
                     .buttonStyle(.plain)
                 }
 
-                TextField("Adresse du wallet", text: Binding(
+                TextField(L10n.walletAddressPlaceholder(lang), text: Binding(
                     get: { company.wallets.first(where: { $0.id == walletId })?.address ?? "" },
                     set: { newVal in
                         if let i = safeIndex() { company.wallets[i].address = newVal; dataStore.save() }
