@@ -162,8 +162,7 @@ struct TimesheetEditorView: View {
                                               dayIndex < timesheet.semaines[weekIndex].jours.count
                                         else { return }
                                         timesheet.semaines[weekIndex].jours[dayIndex].heures = newVal
-                                        dataStore.save()
-                                        dataStore.syncSharedWeeks(for: timesheet)
+                                        dataStore.timesheetUpdated(timesheet, syncSharedWeeks: true)
                                     }
                                 ),
                                 mode: hourInputMode,
@@ -188,19 +187,19 @@ struct TimesheetEditorView: View {
             ], spacing: 12) {
                 settingsField(L10n.weeklyThreshold(lang), placeholder: "35", value: Binding(
                     get: { timesheet.seuilHebdo },
-                    set: { timesheet.seuilHebdo = $0; dataStore.save() }
+                    set: { timesheet.seuilHebdo = $0; dataStore.timesheetUpdated(timesheet) }
                 ))
                 settingsField(L10n.normalRate(lang), placeholder: "26,39", value: Binding(
                     get: { timesheet.tauxNormal },
-                    set: { timesheet.tauxNormal = $0; dataStore.save() }
+                    set: { timesheet.tauxNormal = $0; dataStore.timesheetUpdated(timesheet) }
                 ))
                 settingsField(L10n.overtimeRate(lang), placeholder: "39,59", value: Binding(
                     get: { timesheet.tauxSupplementaire },
-                    set: { timesheet.tauxSupplementaire = $0; dataStore.save() }
+                    set: { timesheet.tauxSupplementaire = $0; dataStore.timesheetUpdated(timesheet) }
                 ))
                 settingsField(L10n.netCoeff(lang), placeholder: "0,756", value: Binding(
                     get: { timesheet.coefficientNet },
-                    set: { timesheet.coefficientNet = $0; dataStore.save() }
+                    set: { timesheet.coefficientNet = $0; dataStore.timesheetUpdated(timesheet) }
                 ))
             }
             .padding(8)

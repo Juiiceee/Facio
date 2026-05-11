@@ -20,7 +20,7 @@ struct PaymentSettingsView: View {
                     settingsRow(L10n.bankName(lang)) {
                         TextField(L10n.bankNamePlaceholder(lang), text: Binding(
                             get: { company.nomBanque },
-                            set: { company.nomBanque = $0; dataStore.save() }
+                            set: { company.nomBanque = $0; dataStore.companyUpdated() }
                         ))
                         .textFieldStyle(.roundedBorder)
                     }
@@ -28,7 +28,7 @@ struct PaymentSettingsView: View {
                     settingsRow(L10n.iban(lang)) {
                         TextField("FR76 0000 0000 0000 0000 0000 000", text: Binding(
                             get: { company.iban },
-                            set: { company.iban = $0; dataStore.save() }
+                            set: { company.iban = $0; dataStore.companyUpdated() }
                         ))
                         .textFieldStyle(.roundedBorder)
                     }
@@ -36,7 +36,7 @@ struct PaymentSettingsView: View {
                     settingsRow(L10n.bic(lang)) {
                         TextField("BNPAFRPP", text: Binding(
                             get: { company.bic },
-                            set: { company.bic = $0; dataStore.save() }
+                            set: { company.bic = $0; dataStore.companyUpdated() }
                         ))
                         .textFieldStyle(.roundedBorder)
                     }
@@ -44,7 +44,7 @@ struct PaymentSettingsView: View {
                     settingsRow(L10n.accountHolderLabel(lang)) {
                         TextField(L10n.accountHolderPlaceholder(lang), text: Binding(
                             get: { company.titulaireCompte },
-                            set: { company.titulaireCompte = $0; dataStore.save() }
+                            set: { company.titulaireCompte = $0; dataStore.companyUpdated() }
                         ))
                         .textFieldStyle(.roundedBorder)
                     }
@@ -98,7 +98,7 @@ struct PaymentSettingsView: View {
     private func addWallet() {
         let entry = WalletEntry(blockchain: .solana, address: "")
         company.wallets.append(entry)
-        dataStore.save()
+        dataStore.companyUpdated()
     }
 }
 
@@ -125,7 +125,7 @@ private struct WalletRow: View {
                     Picker(L10n.blockchain(lang), selection: Binding(
                         get: { company.wallets.first(where: { $0.id == walletId })?.blockchain ?? .solana },
                         set: { newVal in
-                            if let i = safeIndex() { company.wallets[i].blockchain = newVal; dataStore.save() }
+                            if let i = safeIndex() { company.wallets[i].blockchain = newVal; dataStore.companyUpdated() }
                         }
                     )) {
                         ForEach(Blockchain.allCases) { chain in
@@ -138,7 +138,7 @@ private struct WalletRow: View {
                     TextField(L10n.walletNamePlaceholder(lang), text: Binding(
                         get: { company.wallets.first(where: { $0.id == walletId })?.label ?? "" },
                         set: { newVal in
-                            if let i = safeIndex() { company.wallets[i].label = newVal; dataStore.save() }
+                            if let i = safeIndex() { company.wallets[i].label = newVal; dataStore.companyUpdated() }
                         }
                     ))
                     .textFieldStyle(.roundedBorder)
@@ -146,7 +146,7 @@ private struct WalletRow: View {
 
                     Button {
                         company.wallets.removeAll { $0.id == walletId }
-                        dataStore.save()
+                        dataStore.companyUpdated()
                     } label: {
                         Image(systemName: "minus.circle.fill")
                             .foregroundStyle(.red)
@@ -157,7 +157,7 @@ private struct WalletRow: View {
                 TextField(L10n.walletAddressPlaceholder(lang), text: Binding(
                     get: { company.wallets.first(where: { $0.id == walletId })?.address ?? "" },
                     set: { newVal in
-                        if let i = safeIndex() { company.wallets[i].address = newVal; dataStore.save() }
+                        if let i = safeIndex() { company.wallets[i].address = newVal; dataStore.companyUpdated() }
                     }
                 ))
                 .textFieldStyle(.roundedBorder)

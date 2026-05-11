@@ -23,7 +23,7 @@ struct DefaultsSettingsView: View {
                     settingsRow(L10n.defaultRate(lang)) {
                         Picker("", selection: Binding(
                             get: { company.tauxTVAParDefaut },
-                            set: { company.tauxTVAParDefaut = $0; dataStore.save() }
+                            set: { company.tauxTVAParDefaut = $0; dataStore.companyUpdated() }
                         )) {
                             ForEach(tauxTVAOptions, id: \.self) { option in
                                 Text(percentLabel(option)).tag(option)
@@ -48,7 +48,7 @@ struct DefaultsSettingsView: View {
                             set: { newValue in
                                 company.deviseParDefaut = newValue
                                 normalizeDefaultBlockchain(for: newValue)
-                                dataStore.save()
+                                dataStore.companyUpdated()
                             }
                         )) {
                             ForEach(CurrencyType.allCases) { devise in
@@ -65,7 +65,7 @@ struct DefaultsSettingsView: View {
                         settingsRow(L10n.defaultBlockchain(lang)) {
                             Picker("", selection: Binding(
                                 get: { company.blockchainParDefaut ?? compatible.first ?? .solana },
-                                set: { company.blockchainParDefaut = $0; dataStore.save() }
+                                set: { company.blockchainParDefaut = $0; dataStore.companyUpdated() }
                             )) {
                                 ForEach(compatible) { chain in
                                     Text(chain.label).tag(chain)
@@ -94,7 +94,7 @@ struct DefaultsSettingsView: View {
                             L10n.days(lang, count: company.delaiPaiementJours),
                             value: Binding(
                                 get: { company.delaiPaiementJours },
-                                set: { company.delaiPaiementJours = $0; dataStore.save() }
+                                set: { company.delaiPaiementJours = $0; dataStore.companyUpdated() }
                             ),
                             in: 0...120,
                             step: 5
