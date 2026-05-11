@@ -8,13 +8,9 @@ struct DefaultsSettingsView: View {
     }
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+    private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
 
-    private let tauxTVAOptions: [(label: String, value: Decimal)] = [
-        ("0 %", 0),
-        ("5,5 %", 5.5),
-        ("10 %", 10),
-        ("20 %", 20)
-    ]
+    private let tauxTVAOptions: [Decimal] = [0, 5.5, 10, 20]
 
     var body: some View {
         VStack(spacing: 20) {
@@ -29,8 +25,8 @@ struct DefaultsSettingsView: View {
                             get: { company.tauxTVAParDefaut },
                             set: { company.tauxTVAParDefaut = $0; dataStore.save() }
                         )) {
-                            ForEach(tauxTVAOptions, id: \.value) { option in
-                                Text(option.label).tag(option.value)
+                            ForEach(tauxTVAOptions, id: \.self) { option in
+                                Text(percentLabel(option)).tag(option)
                             }
                         }
                         .labelsHidden()
@@ -51,12 +47,7 @@ struct DefaultsSettingsView: View {
                             get: { company.deviseParDefaut },
                             set: { newValue in
                                 company.deviseParDefaut = newValue
-                                if !newValue.requiresBlockchain {
-                                    company.blockchainParDefaut = nil
-                                } else if company.blockchainParDefaut == nil {
-                                    let compatible = Blockchain.compatibleBlockchains(for: newValue)
-                                    company.blockchainParDefaut = compatible.first
-                                }
+                                normalizeDefaultBlockchain(for: newValue)
                                 dataStore.save()
                             }
                         )) {
@@ -126,5 +117,22 @@ struct DefaultsSettingsView: View {
                 .foregroundStyle(.secondary)
             content()
         }
+    }
+
+    private func percentLabel(_ value: Decimal) -> String {
+        "\(value.formattedDecimal(maxFractionDigits: 2, for: numberFormat)) %"
+    }
+
+    private func normalizeDefaultBlockchain(for currency: CurrencyType) {
+        guard currency.requiresBlockchain else {
+            company.blockchainParDefaut = nil
+            return
+        }
+
+        let compatible = Blockchain.compatibleBlockchains(for: currency)
+        if let current = company.blockchainParDefaut, compatible.contains(current) {
+            return
+        }
+        company.blockchainParDefaut = compatible.first
     }
 }

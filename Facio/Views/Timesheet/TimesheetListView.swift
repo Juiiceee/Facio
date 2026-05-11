@@ -8,6 +8,7 @@ struct TimesheetListView: View {
     @State private var selectedAnnee: Int = Calendar.current.component(.year, from: Date())
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+    private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
 
     private var timesheets: [TimesheetPeriod] {
         dataStore.timesheets.sorted { ($0.annee, $0.mois) > ($1.annee, $1.mois) }
@@ -27,7 +28,12 @@ struct TimesheetListView: View {
     var body: some View {
         List(selection: $selectedTimesheetId) {
             ForEach(timesheets) { ts in
-                TimesheetRowView(timesheet: ts, lang: lang, adjacentHours: dataStore.adjacentHours(for: ts))
+                TimesheetRowView(
+                    timesheet: ts,
+                    lang: lang,
+                    numberFormat: numberFormat,
+                    adjacentHours: dataStore.adjacentHours(for: ts)
+                )
                     .tag(ts.id)
                     .contextMenu {
                         Button {
@@ -149,40 +155,65 @@ struct TimesheetListView: View {
         let heuresNorm = ts.totalHeuresNormalesCrossPeriod(adjacentHours: adj)
         let heuresSup = ts.totalHeuresSupCrossPeriod(adjacentHours: adj)
 
+        let company = dataStore.companyInfo
+        let invoiceLanguage = company.langueParDefaut
+        let creationDate = Date()
+        let currency = company.deviseParDefaut
         let number = DocumentNumberService.nextNumber(
             type: .facture,
             existingDocuments: dataStore.documents,
-            language: lang
+            language: invoiceLanguage
         )
         let doc = Document(
             type: .facture,
             number: number,
-            dateCreation: Date(),
-            currency: dataStore.companyInfo.deviseParDefaut,
-            blockchain: dataStore.companyInfo.blockchainParDefaut
+            dateCreation: creationDate,
+            dateEcheance: dueDate(from: creationDate),
+            currency: currency,
+            blockchain: defaultBlockchain(for: currency)
         )
+        doc.langue = invoiceLanguage
 
         if heuresNorm > 0 {
             doc.lignes.append(LineItem(
-                designation: L10n.workHours(lang),
+                designation: L10n.workHours(invoiceLanguage),
                 quantite: heuresNorm,
                 prixUnitaire: ts.tauxNormal,
-                tauxTVA: dataStore.companyInfo.tauxTVAParDefaut,
+                tauxTVA: company.tauxTVAParDefaut,
                 ordre: 0
             ))
         }
 
         if heuresSup > 0 {
             doc.lignes.append(LineItem(
-                designation: L10n.overtimeLabel(lang),
+                designation: L10n.overtimeLabel(invoiceLanguage),
                 quantite: heuresSup,
                 prixUnitaire: ts.tauxSupplementaire,
-                tauxTVA: dataStore.companyInfo.tauxTVAParDefaut,
+                tauxTVA: company.tauxTVAParDefaut,
                 ordre: 1
             ))
         }
 
         dataStore.addDocument(doc)
+    }
+
+    private func dueDate(from creationDate: Date) -> Date {
+        Calendar.current.date(
+            byAdding: .day,
+            value: dataStore.companyInfo.delaiPaiementJours,
+            to: creationDate
+        ) ?? creationDate
+    }
+
+    private func defaultBlockchain(for currency: CurrencyType) -> Blockchain? {
+        guard currency.requiresBlockchain else { return nil }
+        let compatible = Blockchain.compatibleBlockchains(for: currency)
+        guard !compatible.isEmpty else { return nil }
+        if let defaultBlockchain = dataStore.companyInfo.blockchainParDefaut,
+           compatible.contains(defaultBlockchain) {
+            return defaultBlockchain
+        }
+        return compatible.first
     }
 }
 
@@ -191,6 +222,7 @@ struct TimesheetListView: View {
 private struct TimesheetRowView: View {
     let timesheet: TimesheetPeriod
     let lang: AppLanguage
+    let numberFormat: AppLanguage
     let adjacentHours: [String: Decimal]
 
     var body: some View {
@@ -204,18 +236,18 @@ private struct TimesheetRowView: View {
                     .font(.headline)
                 Spacer()
                 if brut > 0 {
-                    Text(brut.formatted2Decimals)
+                    Text(brut.formatted2Decimals(for: numberFormat))
                         .font(.subheadline.monospacedDigit())
                         .fontWeight(.medium)
                         .foregroundStyle(.secondary)
                 }
             }
             HStack(spacing: 8) {
-                Text("\(heuresMois.formatted2Decimals)h")
+                Text("\(heuresMois.formatted2Decimals(for: numberFormat))h")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                 if heuresSup > 0 {
-                    Text("+\(heuresSup.formatted2Decimals)h sup")
+                    Text(L10n.overtimeHoursShort(lang, value: heuresSup.formatted2Decimals(for: numberFormat)))
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }

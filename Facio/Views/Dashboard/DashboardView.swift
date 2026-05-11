@@ -4,6 +4,7 @@ struct DashboardView: View {
     @Environment(DataStore.self) private var dataStore
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+    private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
 
     private var allDocuments: [Document] {
         dataStore.documents.sorted { $0.dateCreation > $1.dateCreation }
@@ -57,19 +58,19 @@ struct DashboardView: View {
                 ], spacing: 16) {
                     StatCard(
                         title: L10n.revenueThisMonth(lang),
-                        value: caMoisEnCours.formatted2Decimals,
+                        value: caMoisEnCours.formatted2Decimals(for: numberFormat),
                         icon: "chart.line.uptrend.xyaxis",
                         color: .green
                     )
                     StatCard(
                         title: L10n.revenueThisYear(lang),
-                        value: caAnneeEnCours.formatted2Decimals,
+                        value: caAnneeEnCours.formatted2Decimals(for: numberFormat),
                         icon: "chart.bar.fill",
                         color: .blue
                     )
                     StatCard(
                         title: L10n.pending(lang),
-                        value: montantEnAttente.formatted2Decimals,
+                        value: montantEnAttente.formatted2Decimals(for: numberFormat),
                         subtitle: L10n.pendingInvoices(lang, count: facturesEnAttente.count),
                         icon: "clock.fill",
                         color: .orange
@@ -104,7 +105,7 @@ struct DashboardView: View {
                                             .foregroundStyle(.secondary)
                                     }
                                     Spacer()
-                                    Text(doc.totalFormatted)
+                                    Text(doc.currency.format(doc.totalTTC, lang: numberFormat))
                                         .font(.body.monospacedDigit())
                                         .fontWeight(.medium)
                                     StatusBadge(status: doc.status)
@@ -139,7 +140,7 @@ struct DashboardView: View {
                                             .foregroundStyle(.secondary)
                                     }
                                     Spacer()
-                                    Text(doc.totalFormatted)
+                                    Text(doc.currency.format(doc.totalTTC, lang: numberFormat))
                                         .font(.body.monospacedDigit())
                                         .fontWeight(.medium)
                                     StatusBadge(status: doc.status)
