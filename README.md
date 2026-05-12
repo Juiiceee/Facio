@@ -16,17 +16,17 @@ Native macOS app to create and manage professional invoices and quotes as PDF.
 
 ## Installation
 
-### Download the notarized .dmg
+### Download the .dmg
 
 1. Go to the [Releases page](https://github.com/Juiiceee/Facio/releases)
 2. Download the newest `Facio-<version>-macos-<arch>.dmg` asset and its `.sha256` file
 3. Open the `.dmg` and drag **Facio.app** into your **Applications** folder
 
-Do not use GitHub's automatically generated source-code ZIP or TAR archives as installers; they are not notarized app downloads.
+Do not use GitHub's automatically generated source-code ZIP or TAR archives as installers; they are not app downloads.
 
 ### Authorize the app
 
-DMG downloads are signed and notarized for macOS. If macOS blocks Facio, download the newest release that includes a DMG again from the official GitHub Releases page and compare the file against the published SHA-256 checksum before opening an issue.
+Release DMGs are Developer ID signed and notarized only when the release workflow has Apple signing secrets configured. Ad-hoc release builds are intended for internal testing and may require manual approval in macOS System Settings. If macOS blocks Facio, compare the file against the published SHA-256 checksum before opening an issue.
 
 **Verify a download:**
 

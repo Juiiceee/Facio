@@ -81,7 +81,8 @@ cp -r "dist/${APP_NAME}.app" "$STAGING/"
 ln -s /Applications "$STAGING/Applications"
 
 # Create the installation README
-cat > "$STAGING/README.txt" << 'README'
+if [ -n "${CODESIGN_IDENTITY:-}" ] && [ "${NOTARIZE:-0}" = "1" ]; then
+    cat > "$STAGING/README.txt" << 'README'
 INSTALL FACIO
 
 1. Drag Facio.app into the Applications folder.
@@ -92,6 +93,18 @@ If macOS blocks the app, download the newest release that includes a DMG again
 from the official GitHub Releases page and verify the published SHA-256
 checksum before opening an issue.
 README
+else
+    cat > "$STAGING/README.txt" << 'README'
+INSTALL FACIO
+
+1. Drag Facio.app into the Applications folder.
+2. Launch Facio from Applications.
+
+This installer was built without Developer ID signing and notarization. It is
+intended for internal testing or local use. macOS Gatekeeper may block it unless
+you explicitly allow the app in System Settings.
+README
+fi
 printf '\nInstaller architecture: macOS %s\n' "$ARCH" >> "$STAGING/README.txt"
 
 # Create the DMG
