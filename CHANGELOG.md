@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.8.2](https://github.com/Juiiceee/Facio/compare/Facio-v1.8.1...Facio-v1.8.2) (2026-05-12)
+
+
+### Corrections de bugs
+
+* **auth:** secure Supabase sessions ([d615670](https://github.com/Juiiceee/Facio/commit/d615670dca2132e17bbd1ec40ef0470c0e7360b0))
+* **data:** protect local JSON recovery ([f69a97a](https://github.com/Juiiceee/Facio/commit/f69a97a3e0e57ef3d7ea79e60078d6284f614ffb))
+* harden Facio audit findings ([#56](https://github.com/Juiiceee/Facio/issues/56)) ([da891a1](https://github.com/Juiiceee/Facio/commit/da891a131a41a866d894f44a4fa94901242a43e6))
+* **pdf:** isolate logo validation helpers ([1a2e597](https://github.com/Juiiceee/Facio/commit/1a2e5970f53b950c7c8e02f910a06c98725e0933))
+* **pdf:** sanitize exported documents ([fdce0c8](https://github.com/Juiiceee/Facio/commit/fdce0c8691e24712d2856b8650b5fe2515d9601c))
+* **release:** harden macOS publishing ([aa5a67d](https://github.com/Juiiceee/Facio/commit/aa5a67d54a82657c661448773b38b9158d49b7c0))
+* **sync:** harden Supabase data safety ([875eea8](https://github.com/Juiiceee/Facio/commit/875eea83696a9778bee9b38cfc506e3734898b61))
+
+
+### Documentation
+
+* add repository contributor guide ([5821f6d](https://github.com/Juiiceee/Facio/commit/5821f6d37cc9eec4ac88c06b79364c00b29794bc))
+
 ## [1.8.1](https://github.com/Juiiceee/Facio/compare/Facio-v1.8.0...Facio-v1.8.1) (2026-04-18)
 
 
