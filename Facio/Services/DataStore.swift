@@ -300,11 +300,28 @@ final class DataStore: Sendable {
     func deleteDocument(_ doc: Document) {
         guard documents.contains(where: { $0.id == doc.id }) else { return }
         let previousDocuments = documents
+        let affectedTimesheets = timesheets.filter {
+            $0.invoiceDocumentId == doc.id || doc.sourceTimesheetId == $0.id
+        }
+        let previousInvoiceMarkers = affectedTimesheets.map { ($0, $0.invoiceDocumentId, $0.billedAt, $0.updatedAt) }
         documents.removeAll { $0.id == doc.id }
+        for timesheet in affectedTimesheets {
+            timesheet.invoiceDocumentId = nil
+            timesheet.billedAt = nil
+            timesheet.updatedAt = Date()
+        }
         if persist(.documents, allowBlockedWrite: false) {
             syncService?.markDeleted(doc.id, for: .documents)
+            if !affectedTimesheets.isEmpty {
+                saveTimesheets()
+            }
         } else {
             documents = previousDocuments
+            for (timesheet, invoiceDocumentId, billedAt, updatedAt) in previousInvoiceMarkers {
+                timesheet.invoiceDocumentId = invoiceDocumentId
+                timesheet.billedAt = billedAt
+                timesheet.updatedAt = updatedAt
+            }
         }
     }
 
@@ -372,6 +389,122 @@ final class DataStore: Sendable {
         saveTimesheets()
     }
 
+    func timesheetExists(mois: Int, annee: Int, clientId: UUID?, excluding excludedId: UUID? = nil) -> Bool {
+        TimesheetPeriod.periodExists(
+            in: timesheets,
+            mois: mois,
+            annee: annee,
+            clientId: clientId,
+            excluding: excludedId
+        )
+    }
+
+    func canGenerateInvoice(for timesheet: TimesheetPeriod) -> Bool {
+        guard !timesheet.hasGeneratedInvoice, existingInvoice(for: timesheet) == nil else { return false }
+        guard timesheet.hasClient else { return false }
+        return !invoiceLineItems(for: timesheet, detailMode: .summary).isEmpty
+    }
+
+    func generateInvoice(
+        from timesheet: TimesheetPeriod,
+        detailMode: TimesheetInvoiceDetailMode
+    ) -> Document? {
+        if let existingInvoice = existingInvoice(for: timesheet) {
+            markTimesheet(timesheet, invoicedBy: existingInvoice, at: existingInvoice.dateCreation)
+            return existingInvoice
+        }
+        guard !timesheet.hasGeneratedInvoice, timesheet.hasClient else { return nil }
+
+        let company = companyInfo
+        let invoiceLanguage = company.langueParDefaut
+        let lineItems = invoiceLineItems(for: timesheet, detailMode: detailMode)
+        guard !lineItems.isEmpty else { return nil }
+
+        let creationDate = Date()
+        let currency = company.deviseParDefaut
+        let number = DocumentNumberService.nextNumber(
+            type: .facture,
+            existingDocuments: documents,
+            language: invoiceLanguage
+        )
+        let document = Document(
+            type: .facture,
+            number: number,
+            dateCreation: creationDate,
+            dateEcheance: dueDate(from: creationDate),
+            currency: currency,
+            blockchain: defaultBlockchain(for: currency)
+        )
+        document.langue = invoiceLanguage
+        document.sourceTimesheetId = timesheet.id
+        timesheet.applyClient(to: document)
+        document.lignes = lineItems
+
+        addDocument(document)
+        markTimesheet(timesheet, invoicedBy: document, at: creationDate)
+        return document
+    }
+
+    func existingInvoice(for timesheet: TimesheetPeriod) -> Document? {
+        if let invoiceDocumentId = timesheet.invoiceDocumentId,
+           let document = documents.first(where: { $0.id == invoiceDocumentId && $0.type == .facture }) {
+            return document
+        }
+        return documents.first { $0.type == .facture && $0.sourceTimesheetId == timesheet.id }
+    }
+
+    func invoiceLineItems(
+        for timesheet: TimesheetPeriod,
+        detailMode: TimesheetInvoiceDetailMode
+    ) -> [LineItem] {
+        TimesheetInvoiceService.lineItems(
+            for: timesheet,
+            company: companyInfo,
+            invoiceLanguage: companyInfo.langueParDefaut,
+            detailMode: detailMode,
+            adjacentHours: adjacentHours(for: timesheet)
+        )
+    }
+
+    private func markTimesheet(_ timesheet: TimesheetPeriod, invoicedBy document: Document, at date: Date) {
+        var timesheetChanged = false
+        if timesheet.invoiceDocumentId != document.id {
+            timesheet.invoiceDocumentId = document.id
+            timesheetChanged = true
+        }
+        if timesheet.billedAt == nil {
+            timesheet.billedAt = date
+            timesheetChanged = true
+        }
+        if timesheetChanged {
+            timesheetUpdated(timesheet)
+        }
+
+        if document.sourceTimesheetId != timesheet.id {
+            document.sourceTimesheetId = timesheet.id
+            documentUpdated(document)
+        }
+    }
+
+    private func dueDate(from creationDate: Date) -> Date {
+        Calendar.current.date(
+            byAdding: .day,
+            value: companyInfo.delaiPaiementJours,
+            to: creationDate
+        ) ?? creationDate
+    }
+
+    private func defaultBlockchain(for currency: CurrencyType) -> Blockchain? {
+        guard currency.requiresBlockchain else { return nil }
+        let compatible = Blockchain.compatibleBlockchains(for: currency)
+        guard !compatible.isEmpty else { return nil }
+        if let defaultBlockchain = companyInfo.blockchainParDefaut,
+           compatible.contains(defaultBlockchain) {
+            return defaultBlockchain
+        }
+        return compatible.first
+    }
+
     private func normalizedTimesheets(_ periods: [TimesheetPeriod]) -> [TimesheetPeriod] {
         for period in periods {
             period.normalizeCalendar()
@@ -408,7 +541,7 @@ final class DataStore: Sendable {
 
                 if jourMois == period.mois {
                     // Jour du mois courant → pousser vers les périodes adjacentes qui ont ce jour
-                    for adj in timesheets where adj.id != period.id {
+                    for adj in timesheets where adj.id != period.id && period.hasSameClientScope(as: adj) {
                         for awi in adj.semaines.indices {
                             for aji in adj.semaines[awi].jours.indices {
                                 if adj.semaines[awi].jours[aji].dateString == jour.dateString
@@ -422,7 +555,12 @@ final class DataStore: Sendable {
                     }
                 } else {
                     // Jour hors-mois → tirer depuis la période adjacente
-                    if let adj = timesheets.first(where: { $0.id != period.id && $0.mois == jourMois && $0.annee == jourAnnee }) {
+                    if let adj = timesheets.first(where: {
+                        $0.id != period.id
+                            && $0.mois == jourMois
+                            && $0.annee == jourAnnee
+                            && period.hasSameClientScope(as: $0)
+                    }) {
                         for aw in adj.semaines {
                             if let day = aw.jours.first(where: { $0.dateString == jour.dateString }) {
                                 if period.semaines[wi].jours[ji].heures != day.heures {
@@ -449,7 +587,12 @@ final class DataStore: Sendable {
         for week in period.semaines {
             for jour in week.jours where jour.mois != period.mois {
                 let jourAnnee = cal.component(.year, from: jour.date)
-                if let adj = timesheets.first(where: { $0.id != period.id && $0.mois == jour.mois && $0.annee == jourAnnee }) {
+                if let adj = timesheets.first(where: {
+                    $0.id != period.id
+                        && $0.mois == jour.mois
+                        && $0.annee == jourAnnee
+                        && period.hasSameClientScope(as: $0)
+                }) {
                     for w in adj.semaines {
                         if let d = w.jours.first(where: { $0.dateString == jour.dateString }) {
                             result[jour.dateString] = d.heures

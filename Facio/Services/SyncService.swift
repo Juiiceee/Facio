@@ -226,6 +226,7 @@ final class SyncService: Sendable {
                 "client_adresse": doc.clientAdresse,
                 "client_code_postal": doc.clientCodePostal,
                 "client_ville": doc.clientVille,
+                "source_timesheet_id": doc.sourceTimesheetId?.uuidString ?? NSNull(),
                 "notes": doc.notes,
                 "selected_wallet_id": doc.selectedWalletId?.uuidString ?? NSNull(),
                 "langue_raw_value": doc.langueRawValue,
@@ -412,6 +413,13 @@ final class SyncService: Sendable {
                 "nom": ts.nom,
                 "mois": ts.mois,
                 "annee": ts.annee,
+                "client_id": ts.clientId?.uuidString ?? NSNull(),
+                "client_nom": ts.clientNom,
+                "client_adresse": ts.clientAdresse,
+                "client_code_postal": ts.clientCodePostal,
+                "client_ville": ts.clientVille,
+                "invoice_document_id": ts.invoiceDocumentId?.uuidString ?? NSNull(),
+                "billed_at": ts.billedAt.map(syncDateString) ?? NSNull(),
                 "taux_normal": decimalPayload(ts.tauxNormal),
                 "taux_supplementaire": decimalPayload(ts.tauxSupplementaire),
                 "coefficient_net": decimalPayload(ts.coefficientNet),
@@ -496,6 +504,7 @@ final class SyncService: Sendable {
             doc.clientAdresse = json["client_adresse"] as? String ?? ""
             doc.clientCodePostal = json["client_code_postal"] as? String ?? ""
             doc.clientVille = json["client_ville"] as? String ?? ""
+            doc.sourceTimesheetId = (json["source_timesheet_id"] as? String).flatMap { UUID(uuidString: $0) }
             doc.notes = json["notes"] as? String ?? ""
             doc.selectedWalletId = (json["selected_wallet_id"] as? String).flatMap { UUID(uuidString: $0) }
             doc.langueRawValue = json["langue_raw_value"] as? String ?? "fr"
@@ -641,6 +650,13 @@ final class SyncService: Sendable {
             period.nom = json["nom"] as? String ?? ""
             period.mois = json["mois"] as? Int ?? 1
             period.annee = json["annee"] as? Int ?? 2026
+            period.clientId = (json["client_id"] as? String).flatMap { UUID(uuidString: $0) }
+            period.clientNom = json["client_nom"] as? String ?? ""
+            period.clientAdresse = json["client_adresse"] as? String ?? ""
+            period.clientCodePostal = json["client_code_postal"] as? String ?? ""
+            period.clientVille = json["client_ville"] as? String ?? ""
+            period.invoiceDocumentId = (json["invoice_document_id"] as? String).flatMap { UUID(uuidString: $0) }
+            period.billedAt = parseDate(json["billed_at"])
             period.tauxNormal = decimalValue(json["taux_normal"], default: 26.39)
             period.tauxSupplementaire = decimalValue(json["taux_supplementaire"], default: 39.59)
             period.coefficientNet = decimalValue(json["coefficient_net"], default: 0.756)
@@ -1087,6 +1103,7 @@ final class SyncService: Sendable {
       client_adresse TEXT NOT NULL DEFAULT '',
       client_code_postal TEXT NOT NULL DEFAULT '',
       client_ville TEXT NOT NULL DEFAULT '',
+      source_timesheet_id UUID,
       notes TEXT NOT NULL DEFAULT '',
       selected_wallet_id UUID,
       langue_raw_value TEXT NOT NULL DEFAULT 'fr',
@@ -1185,6 +1202,13 @@ final class SyncService: Sendable {
       nom TEXT NOT NULL DEFAULT '',
       mois INT NOT NULL DEFAULT 1,
       annee INT NOT NULL DEFAULT 2026,
+      client_id UUID,
+      client_nom TEXT NOT NULL DEFAULT '',
+      client_adresse TEXT NOT NULL DEFAULT '',
+      client_code_postal TEXT NOT NULL DEFAULT '',
+      client_ville TEXT NOT NULL DEFAULT '',
+      invoice_document_id UUID,
+      billed_at TIMESTAMPTZ,
       taux_normal NUMERIC NOT NULL DEFAULT 26.39,
       taux_supplementaire NUMERIC NOT NULL DEFAULT 39.59,
       coefficient_net NUMERIC NOT NULL DEFAULT 0.756,

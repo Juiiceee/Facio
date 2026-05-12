@@ -4,14 +4,27 @@ struct TimesheetListView: View {
     @Binding var selectedTimesheetId: UUID?
     @Environment(DataStore.self) private var dataStore
     @State private var showNewPeriod = false
+    @State private var showClientPicker = false
+    @State private var showInvoiceDetailOptions = false
     @State private var selectedMois: Int = Calendar.current.component(.month, from: Date())
     @State private var selectedAnnee: Int = Calendar.current.component(.year, from: Date())
+    @State private var selectedClientId: UUID?
+    @State private var pendingInvoiceTimesheet: TimesheetPeriod?
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
     private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
 
     private var timesheets: [TimesheetPeriod] {
-        dataStore.timesheets.sorted { ($0.annee, $0.mois) > ($1.annee, $1.mois) }
+        dataStore.timesheets.sorted {
+            if $0.annee != $1.annee { return $0.annee > $1.annee }
+            if $0.mois != $1.mois { return $0.mois > $1.mois }
+            return $0.clientDisplayName.localizedCaseInsensitiveCompare($1.clientDisplayName) == .orderedAscending
+        }
+    }
+
+    private var selectedClient: ClientInfo? {
+        guard let selectedClientId else { return nil }
+        return dataStore.clients.first { $0.id == selectedClientId }
     }
 
     private var moisLabels: [String] {
@@ -21,8 +34,8 @@ struct TimesheetListView: View {
     }
 
     /// Verifie si une periode existe deja pour ce mois/annee
-    private func periodeExiste(mois: Int, annee: Int) -> Bool {
-        dataStore.timesheets.contains { $0.mois == mois && $0.annee == annee }
+    private func periodeExiste(mois: Int, annee: Int, clientId: UUID?) -> Bool {
+        dataStore.timesheetExists(mois: mois, annee: annee, clientId: clientId)
     }
 
     var body: some View {
@@ -37,11 +50,11 @@ struct TimesheetListView: View {
                     .tag(ts.id)
                     .contextMenu {
                         Button {
-                            genererFacture(ts)
+                            presentInvoiceOptions(for: ts)
                         } label: {
                             Label(L10n.generateInvoice(lang), systemImage: "doc.text")
                         }
-                        .disabled(!canGenerateInvoice(ts))
+                        .disabled(!dataStore.canGenerateInvoice(for: ts))
                         Divider()
                         Button(role: .destructive) {
                             if selectedTimesheetId == ts.id { selectedTimesheetId = nil }
@@ -62,6 +75,7 @@ struct TimesheetListView: View {
                     let now = Date()
                     selectedMois = cal.component(.month, from: now)
                     selectedAnnee = cal.component(.year, from: now)
+                    selectedClientId = nil
                     showNewPeriod = true
                 } label: {
                     Label(L10n.newPeriod(lang), systemImage: "plus")
@@ -70,6 +84,28 @@ struct TimesheetListView: View {
                     newPeriodPopover
                 }
             }
+        }
+        .sheet(isPresented: $showClientPicker) {
+            ClientPickerSheet(clients: dataStore.clients) { client in
+                selectedClientId = client.id
+                showClientPicker = false
+            }
+        }
+        .confirmationDialog(
+            L10n.invoiceDetailMode(lang),
+            isPresented: $showInvoiceDetailOptions,
+            titleVisibility: .visible,
+            presenting: pendingInvoiceTimesheet
+        ) { ts in
+            Button(TimesheetInvoiceDetailMode.summary.label(for: lang)) {
+                genererFacture(ts, detailMode: .summary)
+            }
+            Button(TimesheetInvoiceDetailMode.daily.label(for: lang)) {
+                genererFacture(ts, detailMode: .daily)
+            }
+            Button(L10n.cancel(lang), role: .cancel) {}
+        } message: { _ in
+            Text(L10n.chooseInvoiceDetail(lang))
         }
         .overlay {
             if timesheets.isEmpty {
@@ -107,11 +143,34 @@ struct TimesheetListView: View {
                 .frame(width: 80)
             }
 
-            if periodeExiste(mois: selectedMois, annee: selectedAnnee) {
+            HStack(spacing: 12) {
+                Text(L10n.selectClientForPeriod(lang))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    showClientPicker = true
+                } label: {
+                    Label(
+                        selectedClient?.displayName ?? L10n.selectClientForPeriod(lang),
+                        systemImage: "person.crop.circle"
+                    )
+                }
+            }
+
+            if selectedClientId == nil {
+                HStack(spacing: 6) {
+                    Image(systemName: "person.crop.circle.badge.exclamationmark")
+                        .foregroundStyle(.orange)
+                    Text(L10n.clientRequired(lang))
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                }
+            } else if periodeExiste(mois: selectedMois, annee: selectedAnnee, clientId: selectedClientId) {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
-                    Text(L10n.periodExists(lang))
+                    Text(L10n.periodExistsForClient(lang))
                         .foregroundStyle(.orange)
                         .font(.caption)
                 }
@@ -124,19 +183,20 @@ struct TimesheetListView: View {
                 .buttonStyle(.bordered)
 
                 Button(L10n.create(lang)) {
-                    creerPeriode(mois: selectedMois, annee: selectedAnnee)
+                    creerPeriode(mois: selectedMois, annee: selectedAnnee, client: selectedClient)
                     showNewPeriod = false
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(periodeExiste(mois: selectedMois, annee: selectedAnnee))
+                .disabled(selectedClient == nil || periodeExiste(mois: selectedMois, annee: selectedAnnee, clientId: selectedClientId))
             }
         }
         .padding(20)
-        .frame(width: 300)
+        .frame(width: 360)
     }
 
-    private func creerPeriode(mois: Int, annee: Int) {
-        let ts = TimesheetPeriod(mois: mois, annee: annee)
+    private func creerPeriode(mois: Int, annee: Int, client: ClientInfo?) {
+        guard let client else { return }
+        let ts = TimesheetPeriod(mois: mois, annee: annee, client: client)
 
         // Copier les taux depuis la derniere periode
         if let last = timesheets.first {
@@ -151,130 +211,13 @@ struct TimesheetListView: View {
         selectedTimesheetId = ts.id
     }
 
-    private func genererFacture(_ ts: TimesheetPeriod) {
-        if let existingInvoice = existingInvoice(for: ts) {
-            markTimesheet(ts, invoicedBy: existingInvoice, at: existingInvoice.dateCreation)
-            return
-        }
-        guard !ts.hasGeneratedInvoice else { return }
-
-        let company = dataStore.companyInfo
-        let invoiceLanguage = company.langueParDefaut
-        let lineItems = invoiceLineItems(for: ts, company: company, invoiceLanguage: invoiceLanguage)
-        guard !lineItems.isEmpty else { return }
-
-        let creationDate = Date()
-        let currency = company.deviseParDefaut
-        let number = DocumentNumberService.nextNumber(
-            type: .facture,
-            existingDocuments: dataStore.documents,
-            language: invoiceLanguage
-        )
-        let doc = Document(
-            type: .facture,
-            number: number,
-            dateCreation: creationDate,
-            dateEcheance: dueDate(from: creationDate),
-            currency: currency,
-            blockchain: defaultBlockchain(for: currency)
-        )
-        doc.langue = invoiceLanguage
-        doc.sourceTimesheetId = ts.id
-        doc.lignes = lineItems
-
-        dataStore.addDocument(doc)
-        markTimesheet(ts, invoicedBy: doc, at: creationDate)
+    private func presentInvoiceOptions(for ts: TimesheetPeriod) {
+        pendingInvoiceTimesheet = ts
+        showInvoiceDetailOptions = true
     }
 
-    private func canGenerateInvoice(_ ts: TimesheetPeriod) -> Bool {
-        guard !ts.hasGeneratedInvoice, existingInvoice(for: ts) == nil else { return false }
-        return hasBillableInvoiceLines(for: ts)
-    }
-
-    private func existingInvoice(for ts: TimesheetPeriod) -> Document? {
-        if let invoiceDocumentId = ts.invoiceDocumentId,
-           let document = dataStore.documents.first(where: { $0.id == invoiceDocumentId && $0.type == .facture }) {
-            return document
-        }
-        return dataStore.documents.first { $0.type == .facture && $0.sourceTimesheetId == ts.id }
-    }
-
-    private func hasBillableInvoiceLines(for ts: TimesheetPeriod) -> Bool {
-        let adj = dataStore.adjacentHours(for: ts)
-        return ts.totalHeuresNormalesCrossPeriod(adjacentHours: adj) > 0
-            || ts.totalHeuresSupCrossPeriod(adjacentHours: adj) > 0
-    }
-
-    private func invoiceLineItems(
-        for ts: TimesheetPeriod,
-        company: CompanyInfo,
-        invoiceLanguage: AppLanguage
-    ) -> [LineItem] {
-        let adj = dataStore.adjacentHours(for: ts)
-        let heuresNorm = ts.totalHeuresNormalesCrossPeriod(adjacentHours: adj)
-        let heuresSup = ts.totalHeuresSupCrossPeriod(adjacentHours: adj)
-        var lineItems: [LineItem] = []
-
-        if heuresNorm > 0 {
-            lineItems.append(LineItem(
-                designation: L10n.workHours(invoiceLanguage),
-                quantite: heuresNorm,
-                prixUnitaire: ts.tauxNormal,
-                tauxTVA: company.tauxTVAParDefaut,
-                ordre: lineItems.count
-            ))
-        }
-
-        if heuresSup > 0 {
-            lineItems.append(LineItem(
-                designation: L10n.overtimeLabel(invoiceLanguage),
-                quantite: heuresSup,
-                prixUnitaire: ts.tauxSupplementaire,
-                tauxTVA: company.tauxTVAParDefaut,
-                ordre: lineItems.count
-            ))
-        }
-
-        return lineItems
-    }
-
-    private func markTimesheet(_ ts: TimesheetPeriod, invoicedBy doc: Document, at date: Date) {
-        var timesheetChanged = false
-        if ts.invoiceDocumentId != doc.id {
-            ts.invoiceDocumentId = doc.id
-            timesheetChanged = true
-        }
-        if ts.billedAt == nil {
-            ts.billedAt = date
-            timesheetChanged = true
-        }
-        if timesheetChanged {
-            dataStore.timesheetUpdated(ts)
-        }
-
-        if doc.sourceTimesheetId != ts.id {
-            doc.sourceTimesheetId = ts.id
-            dataStore.documentUpdated(doc)
-        }
-    }
-
-    private func dueDate(from creationDate: Date) -> Date {
-        Calendar.current.date(
-            byAdding: .day,
-            value: dataStore.companyInfo.delaiPaiementJours,
-            to: creationDate
-        ) ?? creationDate
-    }
-
-    private func defaultBlockchain(for currency: CurrencyType) -> Blockchain? {
-        guard currency.requiresBlockchain else { return nil }
-        let compatible = Blockchain.compatibleBlockchains(for: currency)
-        guard !compatible.isEmpty else { return nil }
-        if let defaultBlockchain = dataStore.companyInfo.blockchainParDefaut,
-           compatible.contains(defaultBlockchain) {
-            return defaultBlockchain
-        }
-        return compatible.first
+    private func genererFacture(_ ts: TimesheetPeriod, detailMode: TimesheetInvoiceDetailMode) {
+        _ = dataStore.generateInvoice(from: ts, detailMode: detailMode)
     }
 }
 
@@ -304,6 +247,10 @@ private struct TimesheetRowView: View {
                 }
             }
             HStack(spacing: 8) {
+                Text(timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName)
+                    .font(.caption)
+                    .foregroundStyle(timesheet.clientDisplayName.isEmpty ? .tertiary : .secondary)
+                    .lineLimit(1)
                 Text("\(heuresMois.formatted2Decimals(for: numberFormat))h")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -311,6 +258,11 @@ private struct TimesheetRowView: View {
                     Text(L10n.overtimeHoursShort(lang, value: heuresSup.formatted2Decimals(for: numberFormat)))
                         .font(.caption)
                         .foregroundStyle(.orange)
+                }
+                if timesheet.hasGeneratedInvoice {
+                    Text(L10n.invoiced(lang))
+                        .font(.caption)
+                        .foregroundStyle(.green)
                 }
             }
         }

@@ -13,6 +13,11 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     var updatedAt: Date = Date()
     var invoiceDocumentId: UUID?
     var billedAt: Date?
+    var clientId: UUID?
+    var clientNom: String = ""
+    var clientAdresse: String = ""
+    var clientCodePostal: String = ""
+    var clientVille: String = ""
 
     // Parametres de calcul
     var tauxNormal: Decimal = 26.39
@@ -35,6 +40,11 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     var totalBrut: Decimal { coutNormal + coutSupplementaire }
     var totalNet: Decimal { totalBrut * coefficientNet }
     var hasGeneratedInvoice: Bool { invoiceDocumentId != nil || billedAt != nil }
+    var hasClient: Bool { clientId != nil || !clientNom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    var clientDisplayName: String {
+        clientNom.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     // MARK: - Cross-period overtime (heures sup inter-mois)
 
@@ -79,6 +89,63 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         return "\(f.monthSymbols[mois - 1].capitalized) \(annee)"
     }
 
+    func title(for lang: AppLanguage) -> String {
+        let month = moisLabel(for: lang)
+        guard !clientDisplayName.isEmpty else { return month }
+        return "\(month) - \(clientDisplayName)"
+    }
+
+    func applyClient(_ client: ClientInfo) {
+        clientId = client.id
+        clientNom = client.nom
+        clientAdresse = client.adresse
+        clientCodePostal = client.codePostal
+        clientVille = client.ville
+        refreshDefaultName()
+    }
+
+    func clearClient() {
+        clientId = nil
+        clientNom = ""
+        clientAdresse = ""
+        clientCodePostal = ""
+        clientVille = ""
+        refreshDefaultName()
+    }
+
+    func applyClient(to document: Document) {
+        document.clientNom = clientNom
+        document.clientAdresse = clientAdresse
+        document.clientCodePostal = clientCodePostal
+        document.clientVille = clientVille
+    }
+
+    func hasSameClientScope(as other: TimesheetPeriod) -> Bool {
+        switch (clientId, other.clientId) {
+        case let (lhs?, rhs?):
+            return lhs == rhs
+        case (nil, nil):
+            return true
+        default:
+            return false
+        }
+    }
+
+    static func periodExists(
+        in periods: [TimesheetPeriod],
+        mois: Int,
+        annee: Int,
+        clientId: UUID?,
+        excluding excludedId: UUID? = nil
+    ) -> Bool {
+        periods.contains {
+            $0.id != excludedId
+                && $0.mois == mois
+                && $0.annee == annee
+                && $0.clientId == clientId
+        }
+    }
+
     // MARK: - Init
 
     init() {
@@ -94,6 +161,11 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         self.createdAt = Date()
         self.semaines = TimesheetPeriod.genererSemaines(mois: mois, annee: annee)
         self.nom = moisLabel
+    }
+
+    convenience init(mois: Int, annee: Int, client: ClientInfo) {
+        self.init(mois: mois, annee: annee)
+        applyClient(client)
     }
 
     /// Genere les semaines calendaires pour un mois
@@ -199,11 +271,15 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
             changed = true
         }
         if nom.isEmpty {
-            nom = moisLabel
+            refreshDefaultName()
             changed = true
         }
 
         return changed
+    }
+
+    private func refreshDefaultName() {
+        nom = title(for: .fr)
     }
 
     private static func preferredDay(existing: TimesheetDay, candidate: TimesheetDay) -> TimesheetDay {
@@ -221,6 +297,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     enum CodingKeys: String, CodingKey {
         case id, nom, mois, annee, semaines, createdAt, updatedAt
         case invoiceDocumentId, billedAt
+        case clientId, clientNom, clientAdresse, clientCodePostal, clientVille
         case tauxNormal, tauxSupplementaire, coefficientNet, seuilHebdo
     }
 
@@ -234,6 +311,11 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         createdAt = c.decodeOrDefault(Date.self, forKey: .createdAt, default: Date())
         invoiceDocumentId = try? c.decode(UUID.self, forKey: .invoiceDocumentId)
         billedAt = try? c.decode(Date.self, forKey: .billedAt)
+        clientId = try? c.decode(UUID.self, forKey: .clientId)
+        clientNom = c.decodeOrDefault(String.self, forKey: .clientNom, default: "")
+        clientAdresse = c.decodeOrDefault(String.self, forKey: .clientAdresse, default: "")
+        clientCodePostal = c.decodeOrDefault(String.self, forKey: .clientCodePostal, default: "")
+        clientVille = c.decodeOrDefault(String.self, forKey: .clientVille, default: "")
         updatedAt = c.decodeOrDefault(Date.self, forKey: .updatedAt, default: createdAt)
         tauxNormal = c.decodeOrDefault(Decimal.self, forKey: .tauxNormal, default: 26.39)
         tauxSupplementaire = c.decodeOrDefault(Decimal.self, forKey: .tauxSupplementaire, default: 39.59)
@@ -253,6 +335,11 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         try c.encode(updatedAt, forKey: .updatedAt)
         try c.encodeIfPresent(invoiceDocumentId, forKey: .invoiceDocumentId)
         try c.encodeIfPresent(billedAt, forKey: .billedAt)
+        try c.encodeIfPresent(clientId, forKey: .clientId)
+        try c.encode(clientNom, forKey: .clientNom)
+        try c.encode(clientAdresse, forKey: .clientAdresse)
+        try c.encode(clientCodePostal, forKey: .clientCodePostal)
+        try c.encode(clientVille, forKey: .clientVille)
         try c.encode(tauxNormal, forKey: .tauxNormal)
         try c.encode(tauxSupplementaire, forKey: .tauxSupplementaire)
         try c.encode(coefficientNet, forKey: .coefficientNet)

@@ -4,6 +4,8 @@ struct TimesheetEditorView: View {
     let timesheet: TimesheetPeriod
     @Environment(DataStore.self) private var dataStore
     @State private var hourInputMode: TimesheetHourInputMode = .decimal
+    @State private var showClientPicker = false
+    @State private var showInvoiceDetailOptions = false
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -13,6 +15,7 @@ struct TimesheetEditorView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                clientSection
                 resumeSection
                 hourInputModeControl
 
@@ -24,10 +27,78 @@ struct TimesheetEditorView: View {
             }
             .padding(24)
         }
-        .navigationTitle(timesheet.moisLabel(for: lang))
+        .navigationTitle(timesheet.title(for: lang))
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showInvoiceDetailOptions = true
+                } label: {
+                    Label(L10n.generateInvoice(lang), systemImage: "doc.text")
+                }
+                .disabled(!dataStore.canGenerateInvoice(for: timesheet))
+            }
+        }
+        .sheet(isPresented: $showClientPicker) {
+            ClientPickerSheet(clients: dataStore.clients) { client in
+                guard !timesheet.hasGeneratedInvoice else { return }
+                guard !dataStore.timesheetExists(
+                    mois: timesheet.mois,
+                    annee: timesheet.annee,
+                    clientId: client.id,
+                    excluding: timesheet.id
+                ) else { return }
+                timesheet.applyClient(client)
+                dataStore.timesheetUpdated(timesheet, syncSharedWeeks: true)
+                showClientPicker = false
+            }
+        }
+        .confirmationDialog(
+            L10n.invoiceDetailMode(lang),
+            isPresented: $showInvoiceDetailOptions,
+            titleVisibility: .visible
+        ) {
+            Button(TimesheetInvoiceDetailMode.summary.label(for: lang)) {
+                genererFacture(detailMode: .summary)
+            }
+            Button(TimesheetInvoiceDetailMode.daily.label(for: lang)) {
+                genererFacture(detailMode: .daily)
+            }
+            Button(L10n.cancel(lang), role: .cancel) {}
+        } message: {
+            Text(L10n.chooseInvoiceDetail(lang))
+        }
     }
 
     // MARK: - Resume
+
+    private var clientSection: some View {
+        GroupBox(L10n.selectClientForPeriod(lang)) {
+            HStack(spacing: 12) {
+                Label(
+                    timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName,
+                    systemImage: "person.crop.circle"
+                )
+                .foregroundStyle(timesheet.clientDisplayName.isEmpty ? .secondary : .primary)
+
+                Spacer()
+
+                if timesheet.hasGeneratedInvoice {
+                    Text(L10n.invoiced(lang))
+                        .foregroundStyle(.green)
+                } else {
+                    Button {
+                        showClientPicker = true
+                    } label: {
+                        Label(
+                            timesheet.hasClient ? L10n.changeClient(lang) : L10n.selectClientForPeriod(lang),
+                            systemImage: "person.crop.circle.badge.plus"
+                        )
+                    }
+                }
+            }
+            .padding(8)
+        }
+    }
 
     private var resumeSection: some View {
         let adj = adjHours
@@ -213,5 +284,9 @@ struct TimesheetEditorView: View {
                 .foregroundStyle(.secondary)
             DecimalField(placeholder: placeholder, value: value)
         }
+    }
+
+    private func genererFacture(detailMode: TimesheetInvoiceDetailMode) {
+        _ = dataStore.generateInvoice(from: timesheet, detailMode: detailMode)
     }
 }

@@ -69,6 +69,26 @@ extension L10n {
     static func noPeriod(_ l: AppLanguage) -> String { l == .fr ? "Aucune periode" : "No period" }
     static func clickToCreatePeriod(_ l: AppLanguage) -> String { l == .fr ? "Cliquez sur + pour creer une nouvelle periode de suivi." : "Click + to create a new tracking period." }
     static func generateInvoice(_ l: AppLanguage) -> String { l == .fr ? "Generer une facture" : "Generate invoice" }
+    static func invoiceDetailMode(_ l: AppLanguage) -> String { l == .fr ? "Detail de facturation" : "Invoice detail" }
+    static func invoiceSummaryMode(_ l: AppLanguage) -> String { l == .fr ? "Resume" : "Summary" }
+    static func invoiceDailyMode(_ l: AppLanguage) -> String { l == .fr ? "Detail par date" : "By date" }
+    static func chooseInvoiceDetail(_ l: AppLanguage) -> String {
+        l == .fr ? "Choisissez le niveau de detail de la facture." : "Choose the invoice detail level."
+    }
+    static func selectClientForPeriod(_ l: AppLanguage) -> String { l == .fr ? "Selectionner un client" : "Select client" }
+    static func changeClient(_ l: AppLanguage) -> String { l == .fr ? "Changer de client" : "Change client" }
+    static func clientRequired(_ l: AppLanguage) -> String { l == .fr ? "Selectionnez un client" : "Select a client" }
+    static func periodExistsForClient(_ l: AppLanguage) -> String {
+        l == .fr ? "Cette periode existe deja pour ce client" : "This period already exists for this client"
+    }
+    static func invoiced(_ l: AppLanguage) -> String { l == .fr ? "Facturee" : "Invoiced" }
+    static func notInvoiced(_ l: AppLanguage) -> String { l == .fr ? "Non facturee" : "Not invoiced" }
     static func workHours(_ l: AppLanguage) -> String { l == .fr ? "Heures de travail" : "Work hours" }
     static func overtimeLabel(_ l: AppLanguage) -> String { l == .fr ? "Heures supplementaires" : "Overtime hours" }
+    static func workHoursOnDate(_ l: AppLanguage, date: String) -> String {
+        l == .fr ? "Heures de travail - \(date)" : "Work hours - \(date)"
+    }
+    static func overtimeHoursOnDate(_ l: AppLanguage, date: String) -> String {
+        l == .fr ? "Heures supplementaires - \(date)" : "Overtime hours - \(date)"
+    }
 }

@@ -55,6 +55,10 @@ enum FacioRegressionSuite {
         RegressionCase(name: "timesheet normalize calendar restores shape and keeps stored hours", run: timesheetNormalizeCalendarRestoresShapeAndKeepsStoredHours),
         RegressionCase(name: "timesheet period decodes old payloads and normalizes calendar", run: timesheetPeriodDecodesOldPayloadsAndNormalizesCalendar),
         RegressionCase(name: "timesheet invoice markers set generated invoice state", run: timesheetInvoiceMarkersSetGeneratedInvoiceState),
+        RegressionCase(name: "timesheet periods are unique per client and month", run: timesheetPeriodsAreUniquePerClientAndMonth),
+        RegressionCase(name: "timesheet shared weeks are scoped by client", run: timesheetSharedWeeksAreScopedByClient),
+        RegressionCase(name: "timesheet invoice summary applies client snapshot", run: timesheetInvoiceSummaryAppliesClientSnapshot),
+        RegressionCase(name: "timesheet invoice daily lines split normal and overtime by date", run: timesheetInvoiceDailyLinesSplitNormalAndOvertimeByDate),
         RegressionCase(name: "timesheet cross-period overtime assigns overflow to current month", run: timesheetCrossPeriodOvertimeAssignsOverflowToCurrentMonth),
         RegressionCase(name: "date and decimal formatting are stable across languages", run: dateAndDecimalFormattingAreStableAcrossLanguages)
     ]
@@ -314,6 +318,9 @@ enum FacioRegressionSuite {
         try expectEqual(period.semaines.count, TimesheetPeriod.genererSemaines(mois: 3, annee: 2026).count)
         try expect(period.invoiceDocumentId == nil, "old payload should not invent invoice id")
         try expect(period.billedAt == nil, "old payload should not invent billed date")
+        try expect(period.clientId == nil, "old payload should not invent client id")
+        try expectEqual(period.clientNom, "")
+        try expect(!period.hasClient, "old payload should not be marked with a client")
         try expect(!period.hasGeneratedInvoice, "old payload should not be marked invoiced")
         try expectEqual(period.nom, "Mars 2026")
     }
@@ -329,6 +336,98 @@ enum FacioRegressionSuite {
         period.invoiceDocumentId = nil
         period.billedAt = Date()
         try expect(period.hasGeneratedInvoice, "billed date should mark period invoiced")
+    }
+
+    private static func timesheetPeriodsAreUniquePerClientAndMonth() throws {
+        let clientA = UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")!
+        let clientB = UUID(uuidString: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")!
+        let period = TimesheetPeriod(mois: 5, annee: 2026)
+        period.clientId = clientA
+        period.clientNom = "Client A"
+
+        try expect(
+            TimesheetPeriod.periodExists(in: [period], mois: 5, annee: 2026, clientId: clientA),
+            "same client and month should be detected as duplicate"
+        )
+        try expect(
+            !TimesheetPeriod.periodExists(in: [period], mois: 5, annee: 2026, clientId: clientB),
+            "different client should be allowed in same month"
+        )
+        try expect(
+            !TimesheetPeriod.periodExists(in: [period], mois: 5, annee: 2026, clientId: clientA, excluding: period.id),
+            "current period should be excluded when changing its own client"
+        )
+    }
+
+    private static func timesheetSharedWeeksAreScopedByClient() throws {
+        let clientA = ClientInfo(nom: "Client A")
+        let clientB = ClientInfo(nom: "Client B")
+        let marchA = TimesheetPeriod(mois: 3, annee: 2026, client: clientA)
+        let aprilA = TimesheetPeriod(mois: 4, annee: 2026, client: clientA)
+        let aprilB = TimesheetPeriod(mois: 4, annee: 2026, client: clientB)
+        let legacyMarch = TimesheetPeriod(mois: 3, annee: 2026)
+        let legacyApril = TimesheetPeriod(mois: 4, annee: 2026)
+
+        try expect(marchA.hasSameClientScope(as: aprilA), "same client should share adjacent weeks")
+        try expect(!marchA.hasSameClientScope(as: aprilB), "different clients must not share adjacent weeks")
+        try expect(!marchA.hasSameClientScope(as: legacyMarch), "client-scoped period must not share with legacy period")
+        try expect(legacyMarch.hasSameClientScope(as: legacyApril), "legacy periods should keep previous adjacent behavior")
+    }
+
+    private static func timesheetInvoiceSummaryAppliesClientSnapshot() throws {
+        let company = CompanyInfo()
+        company.tauxTVAParDefaut = decimal("20")
+        let client = ClientInfo(nom: "Client A", adresse: "1 rue A", codePostal: "75001", ville: "Paris")
+        let period = TimesheetPeriod(mois: 4, annee: 2026, client: client)
+        period.semaines[0].jours[2].heures = decimal("7")
+
+        let lineItems = TimesheetInvoiceService.lineItems(
+            for: period,
+            company: company,
+            invoiceLanguage: .fr,
+            detailMode: .summary,
+            adjacentHours: [:]
+        )
+        let document = Document(type: .facture, number: "Facture_2026_01")
+        document.sourceTimesheetId = period.id
+        period.applyClient(to: document)
+
+        try expectEqual(lineItems.count, 1)
+        try expectEqual(lineItems[0].designation, "Heures de travail")
+        try expectDecimal(lineItems[0].quantite, equals: "7")
+        try expectEqual(document.clientNom, "Client A")
+        try expectEqual(document.clientAdresse, "1 rue A")
+        try expectEqual(document.sourceTimesheetId, period.id)
+    }
+
+    private static func timesheetInvoiceDailyLinesSplitNormalAndOvertimeByDate() throws {
+        let company = CompanyInfo()
+        let period = TimesheetPeriod(mois: 4, annee: 2026)
+        period.tauxNormal = decimal("26.39")
+        period.tauxSupplementaire = decimal("39.59")
+        var adjacentHours: [String: Decimal] = [:]
+
+        adjacentHours[period.semaines[0].jours[0].dateString] = decimal("15")
+        adjacentHours[period.semaines[0].jours[1].dateString] = decimal("15")
+        period.semaines[0].jours[2].heures = decimal("10")
+
+        let allocations = TimesheetInvoiceService.dailyAllocations(for: period, adjacentHours: adjacentHours)
+        let lineItems = TimesheetInvoiceService.lineItems(
+            for: period,
+            company: company,
+            invoiceLanguage: .fr,
+            detailMode: .daily,
+            adjacentHours: adjacentHours
+        )
+
+        try expectEqual(allocations.count, 1)
+        try expectDecimal(allocations[0].normalHours, equals: "5")
+        try expectDecimal(allocations[0].overtimeHours, equals: "5")
+        try expectEqual(lineItems.count, 2)
+        try expectEqual(lineItems[0].designation, "Heures de travail - 01/04/2026")
+        try expectEqual(lineItems[1].designation, "Heures supplementaires - 01/04/2026")
+        try expectDecimal(lineItems[0].prixUnitaire, equals: "26.39")
+        try expectDecimal(lineItems[1].prixUnitaire, equals: "39.59")
     }
 
     private static func timesheetCrossPeriodOvertimeAssignsOverflowToCurrentMonth() throws {
