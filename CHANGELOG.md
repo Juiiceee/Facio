@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.3](https://github.com/Juiiceee/Facio/compare/Facio-v1.8.2...Facio-v1.8.3) (2026-05-12)
+
+
+### Corrections de bugs
+
+* **release:** allow ad-hoc publishing without Apple secrets ([176bb52](https://github.com/Juiiceee/Facio/commit/176bb52f47057bb01cde1c3b02ff94e968e9b0d0))
+
 ## [1.8.2](https://github.com/Juiiceee/Facio/compare/Facio-v1.8.1...Facio-v1.8.2) (2026-05-12)
 
 
