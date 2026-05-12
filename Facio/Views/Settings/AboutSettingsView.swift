@@ -95,6 +95,7 @@ struct AboutSettingsView: View {
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
                             .background(.quaternary)
+                            .contentShape(RoundedRectangle(cornerRadius: 8))
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                         .buttonStyle(.plain)
@@ -135,6 +136,7 @@ struct AboutSettingsView: View {
                             .padding(.vertical, 8)
                             .background(.red.opacity(0.1))
                             .foregroundStyle(.red)
+                            .contentShape(RoundedRectangle(cornerRadius: 8))
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                         .buttonStyle(.plain)
@@ -152,6 +154,7 @@ struct AboutSettingsView: View {
                             .padding(.vertical, 8)
                             .background(.red.opacity(0.1))
                             .foregroundStyle(.red)
+                            .contentShape(RoundedRectangle(cornerRadius: 8))
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                         .buttonStyle(.plain)
@@ -205,6 +208,7 @@ struct AboutSettingsView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(.quaternary)
+            .contentShape(RoundedRectangle(cornerRadius: 8))
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)

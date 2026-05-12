@@ -47,6 +47,8 @@ struct TimesheetListView: View {
                     numberFormat: numberFormat,
                     adjacentHours: dataStore.adjacentHours(for: ts)
                 )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                     .tag(ts.id)
                     .contextMenu {
                         Button {
@@ -268,5 +270,7 @@ private struct TimesheetRowView: View {
         }
         .padding(.vertical, 4)
         .frame(minHeight: 44)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 }

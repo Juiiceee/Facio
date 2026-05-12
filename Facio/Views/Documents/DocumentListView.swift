@@ -193,5 +193,7 @@ struct DocumentRowView: View {
                 .frame(minWidth: 80, alignment: .trailing)
         }
         .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 }

@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct DashboardView: View {
+    var onSelectDocument: (Document) -> Void = { _ in }
+
     @Environment(DataStore.self) private var dataStore
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
@@ -108,21 +110,12 @@ struct DashboardView: View {
                                 .foregroundStyle(.secondary)
                         } else {
                             ForEach(factures.prefix(5)) { doc in
-                                HStack {
-                                    VStack(alignment: .leading) {
-                                        Text(doc.number)
-                                            .fontWeight(.medium)
-                                        Text(doc.clientNom)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    Text(doc.currency.formatAccounting(doc.totalTTC, lang: numberFormat))
-                                        .font(.body.monospacedDigit())
-                                        .fontWeight(.medium)
-                                    StatusBadge(status: doc.status)
+                                Button {
+                                    onSelectDocument(doc)
+                                } label: {
+                                    documentRow(doc)
                                 }
-                                .padding(.vertical, 4)
+                                .buttonStyle(.plain)
                                 if doc.id != factures.prefix(5).last?.id {
                                     Divider()
                                 }
@@ -143,21 +136,12 @@ struct DashboardView: View {
                                 .foregroundStyle(.secondary)
                         } else {
                             ForEach(devis.prefix(5)) { doc in
-                                HStack {
-                                    VStack(alignment: .leading) {
-                                        Text(doc.number)
-                                            .fontWeight(.medium)
-                                        Text(doc.clientNom)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    Text(doc.currency.formatAccounting(doc.totalTTC, lang: numberFormat))
-                                        .font(.body.monospacedDigit())
-                                        .fontWeight(.medium)
-                                    StatusBadge(status: doc.status)
+                                Button {
+                                    onSelectDocument(doc)
+                                } label: {
+                                    documentRow(doc)
                                 }
-                                .padding(.vertical, 4)
+                                .buttonStyle(.plain)
                                 if doc.id != devis.prefix(5).last?.id {
                                     Divider()
                                 }
@@ -182,6 +166,26 @@ struct DashboardView: View {
     private func missingConversionSubtitle(_ summary: AccountingRevenueSummary) -> String? {
         guard summary.missingConversionCount > 0 else { return nil }
         return L10n.missingConversions(lang, count: summary.missingConversionCount)
+    }
+
+    private func documentRow(_ doc: Document) -> some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(doc.number)
+                    .fontWeight(.medium)
+                Text(doc.clientNom)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(doc.currency.formatAccounting(doc.totalTTC, lang: numberFormat))
+                .font(.body.monospacedDigit())
+                .fontWeight(.medium)
+            StatusBadge(status: doc.status)
+        }
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 }
 

@@ -239,6 +239,8 @@ struct SyncSettingsView: View {
                                         showApiKey.toggle()
                                     } label: {
                                         Image(systemName: showApiKey ? "eye.slash" : "eye")
+                                            .frame(width: 28, height: 28)
+                                            .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.borderless)
                                 }

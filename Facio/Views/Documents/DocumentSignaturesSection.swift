@@ -79,6 +79,8 @@ private struct SignatureRowView: View {
             } label: {
                 Image(systemName: "trash")
                     .font(.caption)
+                    .frame(width: 32, height: 28)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
         }

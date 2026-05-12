@@ -86,7 +86,10 @@ struct ContentView: View {
         case .clients:
             ClientListView()
         case .dashboard:
-            DashboardView()
+            DashboardView { document in
+                selectedSection = document.type == .facture ? .factures : .devis
+                selectedDocumentId = document.id
+            }
         case .parametres:
             SettingsInlineView()
         case .none:

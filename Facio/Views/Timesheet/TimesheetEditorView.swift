@@ -6,6 +6,8 @@ struct TimesheetEditorView: View {
     @State private var hourInputMode: TimesheetHourInputMode = .decimal
     @State private var showClientPicker = false
     @State private var showInvoiceDetailOptions = false
+    @State private var hourFieldFocusRequest: TimeFieldFocusRequest?
+    @State private var hourFieldFocusNonce = 0
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -76,29 +78,32 @@ struct TimesheetEditorView: View {
 
     private var clientSection: some View {
         GroupBox(L10n.selectClientForPeriod(lang)) {
-            HStack(spacing: 12) {
-                Label(
-                    timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName,
-                    systemImage: "person.crop.circle"
-                )
-                .foregroundStyle(timesheet.clientDisplayName.isEmpty ? .secondary : .primary)
+            Button {
+                showClientPicker = true
+            } label: {
+                HStack(spacing: 12) {
+                    Label(
+                        timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName,
+                        systemImage: "person.crop.circle"
+                    )
+                    .foregroundStyle(timesheet.clientDisplayName.isEmpty ? .secondary : .primary)
 
-                Spacer()
+                    Spacer()
 
-                if timesheet.hasGeneratedInvoice {
-                    Text(L10n.invoiced(lang))
-                        .foregroundStyle(.green)
-                }
+                    if timesheet.hasGeneratedInvoice {
+                        Text(L10n.invoiced(lang))
+                            .foregroundStyle(.green)
+                    }
 
-                Button {
-                    showClientPicker = true
-                } label: {
                     Label(
                         timesheet.hasClient ? L10n.changeClient(lang) : L10n.selectClientForPeriod(lang),
                         systemImage: "person.crop.circle.badge.plus"
                     )
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
             .padding(8)
         }
     }
@@ -240,11 +245,18 @@ struct TimesheetEditorView: View {
                                     }
                                 ),
                                 mode: hourInputMode,
-                                lang: lang
+                                lang: lang,
+                                focusID: jour.id,
+                                focusRequest: hourFieldFocusRequest
                             )
                             .opacity(estDansMois ? 1.0 : 0.5)
                         }
                         .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            hourFieldFocusNonce += 1
+                            hourFieldFocusRequest = TimeFieldFocusRequest(id: jour.id, nonce: hourFieldFocusNonce)
+                        }
                     }
                 }
             }

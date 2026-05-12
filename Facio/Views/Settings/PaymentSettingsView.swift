@@ -150,6 +150,8 @@ private struct WalletRow: View {
                     } label: {
                         Image(systemName: "minus.circle.fill")
                             .foregroundStyle(.red)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }

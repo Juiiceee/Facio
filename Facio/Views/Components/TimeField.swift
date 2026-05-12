@@ -7,6 +7,11 @@ enum TimesheetHourInputMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+struct TimeFieldFocusRequest: Equatable {
+    let id: UUID
+    let nonce: Int
+}
+
 /// TextField pour saisir des heures en decimal ou en duree horaire explicite.
 /// Les valeurs sont toujours stockees en heures decimales.
 struct TimeField: View {
@@ -14,6 +19,8 @@ struct TimeField: View {
     @Binding var value: Decimal
     let mode: TimesheetHourInputMode
     let lang: AppLanguage
+    var focusID: UUID? = nil
+    var focusRequest: TimeFieldFocusRequest? = nil
 
     @State private var text: String = ""
     @State private var validationError: String?
@@ -24,6 +31,11 @@ struct TimeField: View {
             .textFieldStyle(.roundedBorder)
             .multilineTextAlignment(.trailing)
             .focused($isFocused)
+            .frame(maxWidth: .infinity, minHeight: 28)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isFocused = true
+            }
             .overlay {
                 if validationError != nil {
                     RoundedRectangle(cornerRadius: 6)
@@ -51,6 +63,10 @@ struct TimeField: View {
                 if !isFocused {
                     syncTextFromValue()
                 }
+            }
+            .onChange(of: focusRequest) { _, request in
+                guard let focusID, request?.id == focusID else { return }
+                isFocused = true
             }
             .onSubmit {
                 applyValue()

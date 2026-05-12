@@ -84,9 +84,10 @@ struct LineItemRowView: View {
                 } label: {
                     Image(systemName: "trash")
                         .foregroundStyle(.red.opacity(0.7))
+                        .frame(width: 32, height: 28)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
-                .frame(width: 32)
             }
             .padding(.vertical, 2)
         }
