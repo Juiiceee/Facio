@@ -17,6 +17,17 @@ extension L10n {
     static func currencyPayment(_ l: AppLanguage) -> String { l == .fr ? "Devise & Paiement" : "Currency & Payment" }
     static func payment(_ l: AppLanguage) -> String { l == .fr ? "Paiement" : "Payment" }
     static func blockchainNone(_ l: AppLanguage) -> String { l == .fr ? "Aucune" : "None" }
+    static func accountingConversion(_ l: AppLanguage) -> String { l == .fr ? "Conversion comptable" : "Accounting conversion" }
+    static func accountingCurrency(_ l: AppLanguage) -> String { l == .fr ? "Devise comptable" : "Accounting currency" }
+    static func exchangeRate(_ l: AppLanguage) -> String { l == .fr ? "Taux de conversion" : "Exchange rate" }
+    static func accountingTotal(_ l: AppLanguage) -> String { l == .fr ? "Total comptable" : "Accounting total" }
+    static func exchangeRateHint(_ l: AppLanguage, source: String, target: String) -> String {
+        l == .fr ? "1 \(source) = ... \(target)" : "1 \(source) = ... \(target)"
+    }
+    static func exchangeRateRequiredForDashboard(_ l: AppLanguage) -> String {
+        l == .fr ? "Renseignez ce taux pour inclure cette facture dans le CA du tableau de bord."
+        : "Enter this rate to include this invoice in dashboard revenue."
+    }
 
     // Destinataire
     static func recipientSection(_ l: AppLanguage) -> String { l == .fr ? "DESTINATAIRE" : "RECIPIENT" }

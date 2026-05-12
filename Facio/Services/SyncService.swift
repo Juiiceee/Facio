@@ -222,6 +222,9 @@ final class SyncService: Sendable {
                 "payment_mode_raw_value": doc.paymentModeRawValue,
                 "currency_raw_value": doc.currencyRawValue,
                 "blockchain_raw_value": doc.blockchainRawValue ?? "",
+                "accounting_currency_raw_value": doc.accountingCurrencyRawValue ?? "",
+                "accounting_exchange_rate": doc.accountingExchangeRate.map(decimalPayload) ?? NSNull(),
+                "accounting_exchange_rate_date": doc.accountingExchangeRateDate.map(syncDateString) ?? NSNull(),
                 "client_nom": doc.clientNom,
                 "client_adresse": doc.clientAdresse,
                 "client_code_postal": doc.clientCodePostal,
@@ -343,6 +346,7 @@ final class SyncService: Sendable {
             "taux_tva_par_defaut": decimalPayload(company.tauxTVAParDefaut),
             "delai_paiement_jours": company.delaiPaiementJours,
             "devise_par_defaut_raw_value": company.deviseParDefautRawValue,
+            "devise_comptable_raw_value": company.deviseComptableRawValue,
             "blockchain_par_defaut_raw_value": company.blockchainParDefautRawValue ?? "",
             "langue_par_defaut_raw_value": company.langueParDefautRawValue,
             "format_date_raw_value": company.formatDateRawValue,
@@ -500,6 +504,10 @@ final class SyncService: Sendable {
             doc.currencyRawValue = json["currency_raw_value"] as? String ?? "EUR"
             let blockchainRaw = json["blockchain_raw_value"] as? String ?? ""
             doc.blockchainRawValue = blockchainRaw.isEmpty ? nil : blockchainRaw
+            let accountingCurrencyRaw = json["accounting_currency_raw_value"] as? String ?? ""
+            doc.accountingCurrencyRawValue = accountingCurrencyRaw.isEmpty ? nil : accountingCurrencyRaw
+            doc.accountingExchangeRate = decimalValueOrNil(json["accounting_exchange_rate"])
+            doc.accountingExchangeRateDate = parseDate(json["accounting_exchange_rate_date"])
             doc.clientNom = json["client_nom"] as? String ?? ""
             doc.clientAdresse = json["client_adresse"] as? String ?? ""
             doc.clientCodePostal = json["client_code_postal"] as? String ?? ""
@@ -597,6 +605,7 @@ final class SyncService: Sendable {
         company.tauxTVAParDefaut = decimalValue(json["taux_tva_par_defaut"])
         company.delaiPaiementJours = json["delai_paiement_jours"] as? Int ?? 30
         company.deviseParDefautRawValue = json["devise_par_defaut_raw_value"] as? String ?? "USDC"
+        company.deviseComptableRawValue = json["devise_comptable_raw_value"] as? String ?? "EUR"
         let blockRaw = json["blockchain_par_defaut_raw_value"] as? String ?? ""
         company.blockchainParDefautRawValue = blockRaw.isEmpty ? Blockchain.solana.rawValue : blockRaw
         company.langueParDefautRawValue = json["langue_par_defaut_raw_value"] as? String ?? "fr"
@@ -993,6 +1002,12 @@ final class SyncService: Sendable {
         return defaultValue
     }
 
+    private func decimalValueOrNil(_ value: Any?) -> Decimal? {
+        guard let value else { return nil }
+        if value is NSNull { return nil }
+        return decimalValue(value)
+    }
+
     private func shouldPull(_ key: SyncDataKey, dirtySnapshot: SyncState, generation: Int) -> Bool {
         shouldApplyPull(key, dirtySnapshot: dirtySnapshot, generation: generation)
     }
@@ -1034,6 +1049,7 @@ final class SyncService: Sendable {
             && company.tauxTVAParDefaut == 0
             && company.delaiPaiementJours == 30
             && company.deviseParDefautRawValue == "USDC"
+            && company.deviseComptableRawValue == "EUR"
             && (company.blockchainParDefautRawValue ?? "Solana") == "Solana"
             && company.langueParDefautRawValue == "fr"
             && company.formatDateRawValue == "fr"
@@ -1099,6 +1115,9 @@ final class SyncService: Sendable {
       payment_mode_raw_value TEXT NOT NULL DEFAULT 'Aucun',
       currency_raw_value TEXT NOT NULL DEFAULT 'EUR',
       blockchain_raw_value TEXT NOT NULL DEFAULT '',
+      accounting_currency_raw_value TEXT NOT NULL DEFAULT '',
+      accounting_exchange_rate NUMERIC,
+      accounting_exchange_rate_date TIMESTAMPTZ,
       client_nom TEXT NOT NULL DEFAULT '',
       client_adresse TEXT NOT NULL DEFAULT '',
       client_code_postal TEXT NOT NULL DEFAULT '',
@@ -1166,6 +1185,7 @@ final class SyncService: Sendable {
       taux_tva_par_defaut NUMERIC NOT NULL DEFAULT 0,
       delai_paiement_jours INT NOT NULL DEFAULT 30,
       devise_par_defaut_raw_value TEXT NOT NULL DEFAULT 'USDC',
+      devise_comptable_raw_value TEXT NOT NULL DEFAULT 'EUR',
       blockchain_par_defaut_raw_value TEXT NOT NULL DEFAULT '',
       langue_par_defaut_raw_value TEXT NOT NULL DEFAULT 'fr',
       format_date_raw_value TEXT NOT NULL DEFAULT 'fr',

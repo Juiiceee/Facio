@@ -40,7 +40,6 @@ struct TimesheetEditorView: View {
         }
         .sheet(isPresented: $showClientPicker) {
             ClientPickerSheet(clients: dataStore.clients) { client in
-                guard !timesheet.hasGeneratedInvoice else { return }
                 guard !dataStore.timesheetExists(
                     mois: timesheet.mois,
                     annee: timesheet.annee,
@@ -48,6 +47,10 @@ struct TimesheetEditorView: View {
                     excluding: timesheet.id
                 ) else { return }
                 timesheet.applyClient(client)
+                if let invoice = dataStore.existingInvoice(for: timesheet) {
+                    timesheet.applyClient(to: invoice)
+                    dataStore.documentUpdated(invoice)
+                }
                 dataStore.timesheetUpdated(timesheet, syncSharedWeeks: true)
                 showClientPicker = false
             }
@@ -85,15 +88,15 @@ struct TimesheetEditorView: View {
                 if timesheet.hasGeneratedInvoice {
                     Text(L10n.invoiced(lang))
                         .foregroundStyle(.green)
-                } else {
-                    Button {
-                        showClientPicker = true
-                    } label: {
-                        Label(
-                            timesheet.hasClient ? L10n.changeClient(lang) : L10n.selectClientForPeriod(lang),
-                            systemImage: "person.crop.circle.badge.plus"
-                        )
-                    }
+                }
+
+                Button {
+                    showClientPicker = true
+                } label: {
+                    Label(
+                        timesheet.hasClient ? L10n.changeClient(lang) : L10n.selectClientForPeriod(lang),
+                        systemImage: "person.crop.circle.badge.plus"
+                    )
                 }
             }
             .padding(8)

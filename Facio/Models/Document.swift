@@ -12,6 +12,9 @@ final class Document: Identifiable, Codable, Hashable {
     var currencyRawValue: String = "EUR"
     var blockchainRawValue: String?
     var paymentModeRawValue: String = "Aucun"
+    var accountingCurrencyRawValue: String?
+    var accountingExchangeRate: Decimal?
+    var accountingExchangeRateDate: Date?
 
     // Client embarque (copie figee)
     var clientNom: String = ""
@@ -66,9 +69,21 @@ final class Document: Identifiable, Codable, Hashable {
     var currency: CurrencyType {
         get { decodedCurrency }
         set {
+            let previousCurrency = decodedCurrency
             currencyRawValue = newValue.rawValue
             normalizePaymentConfiguration()
+            if previousCurrency != newValue {
+                clearAccountingConversion()
+            }
         }
+    }
+
+    var accountingCurrency: CurrencyType? {
+        get {
+            guard let raw = accountingCurrencyRawValue else { return nil }
+            return CurrencyType(rawValue: raw)
+        }
+        set { accountingCurrencyRawValue = newValue?.rawValue }
     }
 
     var paymentMode: PaymentMode {
@@ -202,6 +217,40 @@ final class Document: Identifiable, Codable, Hashable {
         totalHT + totalTVA
     }
 
+    func accountingTotal(referenceCurrency: CurrencyType) -> Decimal? {
+        if currency == referenceCurrency {
+            return totalTTC
+        }
+
+        guard accountingCurrency == referenceCurrency,
+              let accountingExchangeRate,
+              accountingExchangeRate > 0 else {
+            return nil
+        }
+        return totalTTC * accountingExchangeRate
+    }
+
+    func needsAccountingConversion(referenceCurrency: CurrencyType) -> Bool {
+        currency != referenceCurrency
+    }
+
+    func setAccountingExchangeRate(_ rate: Decimal?, referenceCurrency: CurrencyType) {
+        accountingCurrency = referenceCurrency
+        guard let rate, rate > 0 else {
+            accountingExchangeRate = nil
+            accountingExchangeRateDate = nil
+            return
+        }
+        accountingExchangeRate = rate
+        accountingExchangeRateDate = Date()
+    }
+
+    func clearAccountingConversion() {
+        accountingCurrencyRawValue = nil
+        accountingExchangeRate = nil
+        accountingExchangeRateDate = nil
+    }
+
     /// Resume formate du total
     var totalFormatted: String {
         currency.formatAccounting(totalTTC, lang: .fr)
@@ -295,6 +344,7 @@ final class Document: Identifiable, Codable, Hashable {
     enum CodingKeys: String, CodingKey {
         case id, typeRawValue, number, dateCreation, dateEcheance, statusRawValue
         case currencyRawValue, blockchainRawValue, paymentModeRawValue
+        case accountingCurrencyRawValue, accountingExchangeRate, accountingExchangeRateDate
         case clientNom, clientAdresse, clientCodePostal, clientVille
         case lignes, transactionSignatures, sourceTimesheetId
         case createdAt, updatedAt, notes, selectedWalletId, langueRawValue
@@ -315,6 +365,9 @@ final class Document: Identifiable, Codable, Hashable {
         currencyRawValue = container.decodeOrDefault(String.self, forKey: .currencyRawValue, default: CurrencyType.eur.rawValue)
         blockchainRawValue = try container.decodeIfPresent(String.self, forKey: .blockchainRawValue)
         paymentModeRawValue = container.decodeOrDefault(String.self, forKey: .paymentModeRawValue, default: PaymentMode.aucun.rawValue)
+        accountingCurrencyRawValue = try container.decodeIfPresent(String.self, forKey: .accountingCurrencyRawValue)
+        accountingExchangeRate = try container.decodeIfPresent(Decimal.self, forKey: .accountingExchangeRate)
+        accountingExchangeRateDate = try container.decodeIfPresent(Date.self, forKey: .accountingExchangeRateDate)
         clientNom = container.decodeOrDefault(String.self, forKey: .clientNom, default: "")
         clientAdresse = container.decodeOrDefault(String.self, forKey: .clientAdresse, default: "")
         clientCodePostal = container.decodeOrDefault(String.self, forKey: .clientCodePostal, default: "")
@@ -341,6 +394,9 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encode(currencyRawValue, forKey: .currencyRawValue)
         try container.encodeIfPresent(blockchainRawValue, forKey: .blockchainRawValue)
         try container.encode(paymentModeRawValue, forKey: .paymentModeRawValue)
+        try container.encodeIfPresent(accountingCurrencyRawValue, forKey: .accountingCurrencyRawValue)
+        try container.encodeIfPresent(accountingExchangeRate, forKey: .accountingExchangeRate)
+        try container.encodeIfPresent(accountingExchangeRateDate, forKey: .accountingExchangeRateDate)
         try container.encode(clientNom, forKey: .clientNom)
         try container.encode(clientAdresse, forKey: .clientAdresse)
         try container.encode(clientCodePostal, forKey: .clientCodePostal)

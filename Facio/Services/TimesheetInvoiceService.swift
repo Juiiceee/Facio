@@ -123,24 +123,50 @@ struct TimesheetInvoiceService {
         adjacentHours: [String: Decimal]
     ) -> [LineItem] {
         var lineItems: [LineItem] = []
+        let shouldSplitOvertime = timesheet.tauxNormal != timesheet.tauxSupplementaire
 
-        for allocation in dailyAllocations(for: timesheet, adjacentHours: adjacentHours) {
-            let dateLabel = allocation.day.date.formattedDate(for: invoiceLanguage)
+        for week in timesheet.semaines {
+            var hoursBeforeDay: Decimal = 0
+            var weeklyOvertimeHours: Decimal = 0
 
-            if allocation.normalHours > 0 {
-                lineItems.append(LineItem(
-                    designation: L10n.workHoursOnDate(invoiceLanguage, date: dateLabel),
-                    quantite: allocation.normalHours,
-                    prixUnitaire: timesheet.tauxNormal,
-                    tauxTVA: company.tauxTVAParDefaut,
-                    ordre: lineItems.count
-                ))
+            for day in week.jours {
+                let dayHours = day.mois == timesheet.mois
+                    ? day.heures
+                    : adjacentHours[day.dateString] ?? day.heures
+
+                defer {
+                    hoursBeforeDay += dayHours
+                }
+
+                guard day.mois == timesheet.mois, dayHours > 0 else { continue }
+
+                let remainingNormalHours = max(timesheet.seuilHebdo - hoursBeforeDay, 0)
+                let normalHours = min(dayHours, remainingNormalHours)
+                let overtimeHours = dayHours - normalHours
+                let billedDayHours = shouldSplitOvertime ? normalHours : dayHours
+
+                if billedDayHours > 0 {
+                    lineItems.append(LineItem(
+                        designation: L10n.workHoursOnDate(invoiceLanguage, date: day.date.formattedDate(for: invoiceLanguage)),
+                        quantite: billedDayHours,
+                        prixUnitaire: timesheet.tauxNormal,
+                        tauxTVA: company.tauxTVAParDefaut,
+                        ordre: lineItems.count
+                    ))
+                }
+
+                if shouldSplitOvertime {
+                    weeklyOvertimeHours += overtimeHours
+                }
             }
 
-            if allocation.overtimeHours > 0 {
+            if shouldSplitOvertime, weeklyOvertimeHours > 0 {
                 lineItems.append(LineItem(
-                    designation: L10n.overtimeHoursOnDate(invoiceLanguage, date: dateLabel),
-                    quantite: allocation.overtimeHours,
+                    designation: L10n.overtimeHoursForWeek(
+                        invoiceLanguage,
+                        dateRange: weekRangeLabel(week, lang: invoiceLanguage)
+                    ),
+                    quantite: weeklyOvertimeHours,
                     prixUnitaire: timesheet.tauxSupplementaire,
                     tauxTVA: company.tauxTVAParDefaut,
                     ordre: lineItems.count
@@ -149,5 +175,12 @@ struct TimesheetInvoiceService {
         }
 
         return lineItems
+    }
+
+    private static func weekRangeLabel(_ week: TimesheetWeek, lang: AppLanguage) -> String {
+        guard let first = week.jours.first, let last = week.jours.last else {
+            return L10n.week(lang, number: week.numero)
+        }
+        return "\(first.date.formattedDate(for: lang)) - \(last.date.formattedDate(for: lang))"
     }
 }

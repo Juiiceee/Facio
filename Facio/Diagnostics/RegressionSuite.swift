@@ -45,6 +45,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "currency precision keeps crypto amounts", run: currencyPrecisionKeepsCryptoAmounts),
         RegressionCase(name: "accounting currency format keeps document totals readable", run: accountingCurrencyFormatKeepsDocumentTotalsReadable),
         RegressionCase(name: "document totals include VAT and line ordering", run: documentTotalsIncludeVATAndLineOrdering),
+        RegressionCase(name: "document decodes old payloads without accounting conversion", run: documentDecodesOldPayloadsWithoutAccountingConversion),
+        RegressionCase(name: "accounting revenue converts known rates and reports missing ones", run: accountingRevenueConvertsKnownRatesAndReportsMissingOnes),
         RegressionCase(name: "fiat document drops crypto payment configuration", run: fiatDocumentDropsCryptoPaymentConfiguration),
         RegressionCase(name: "crypto payment selects only compatible non-blank wallets", run: cryptoPaymentSelectsOnlyCompatibleNonBlankWallets),
         RegressionCase(name: "bitcoin payment is crypto but not Solana Pay eligible", run: bitcoinPaymentIsCryptoButNotSolanaPayEligible),
@@ -58,7 +60,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "timesheet periods are unique per client and month", run: timesheetPeriodsAreUniquePerClientAndMonth),
         RegressionCase(name: "timesheet shared weeks are scoped by client", run: timesheetSharedWeeksAreScopedByClient),
         RegressionCase(name: "timesheet invoice summary applies client snapshot", run: timesheetInvoiceSummaryAppliesClientSnapshot),
-        RegressionCase(name: "timesheet invoice daily lines split normal and overtime by date", run: timesheetInvoiceDailyLinesSplitNormalAndOvertimeByDate),
+        RegressionCase(name: "timesheet invoice daily lines group overtime by week", run: timesheetInvoiceDailyLinesGroupOvertimeByWeek),
+        RegressionCase(name: "timesheet invoice daily lines do not split equal rates", run: timesheetInvoiceDailyLinesDoNotSplitEqualRates),
         RegressionCase(name: "timesheet cross-period overtime assigns overflow to current month", run: timesheetCrossPeriodOvertimeAssignsOverflowToCurrentMonth),
         RegressionCase(name: "date and decimal formatting are stable across languages", run: dateAndDecimalFormattingAreStableAcrossLanguages)
     ]
@@ -163,6 +166,39 @@ enum FacioRegressionSuite {
         try expectDecimal(document.totalTTC, equals: "165")
     }
 
+    private static func documentDecodesOldPayloadsWithoutAccountingConversion() throws {
+        let data = Data(#"{"typeRawValue":"Facture","currencyRawValue":"USDC"}"#.utf8)
+
+        let document = try JSONDecoder().decode(Document.self, from: data)
+
+        try expectEqual(document.currency, .usdc)
+        try expect(document.accountingCurrency == nil, "old payload should not invent accounting currency")
+        try expect(document.accountingExchangeRate == nil, "old payload should not invent exchange rate")
+        try expect(document.accountingExchangeRateDate == nil, "old payload should not invent exchange rate date")
+        try expect(document.accountingTotal(referenceCurrency: .eur) == nil, "cross-currency old payload should need a rate")
+    }
+
+    private static func accountingRevenueConvertsKnownRatesAndReportsMissingOnes() throws {
+        let eurInvoice = Document(type: .facture, currency: .eur)
+        eurInvoice.ajouterLigne(LineItem(quantite: decimal("1000"), prixUnitaire: decimal("1")))
+
+        let usdcInvoice = Document(type: .facture, currency: .usdc)
+        usdcInvoice.ajouterLigne(LineItem(quantite: decimal("1000"), prixUnitaire: decimal("1")))
+        usdcInvoice.setAccountingExchangeRate(decimal("0.92"), referenceCurrency: .eur)
+
+        let btcInvoice = Document(type: .facture, currency: .btc)
+        btcInvoice.ajouterLigne(LineItem(quantite: decimal("1"), prixUnitaire: decimal("1")))
+
+        let summary = AccountingRevenueService.summary(
+            for: [eurInvoice, usdcInvoice, btcInvoice],
+            referenceCurrency: .eur
+        )
+
+        try expectDecimal(summary.total, equals: "1920")
+        try expectEqual(summary.convertedCount, 2)
+        try expectEqual(summary.missingConversionCount, 1)
+    }
+
     private static func fiatDocumentDropsCryptoPaymentConfiguration() throws {
         let document = Document(type: .facture, number: "F-002", currency: .eur, blockchain: .solana)
 
@@ -218,6 +254,7 @@ enum FacioRegressionSuite {
         document.langue = .en
         document.paymentMode = .crypto
         document.selectedWalletId = wallet.id
+        document.setAccountingExchangeRate(decimal("0.92"), referenceCurrency: .eur)
         document.ajouterLigne(LineItem(designation: "Task", quantite: decimal("1.5"), prixUnitaire: decimal("80"), tauxTVA: decimal("20")))
 
         let copy = document.dupliquer()
@@ -232,6 +269,7 @@ enum FacioRegressionSuite {
         try expectEqual(copy.blockchain, .solana)
         try expectEqual(copy.paymentMode, .crypto)
         try expectEqual(copy.selectedWalletId, wallet.id)
+        try expect(copy.accountingExchangeRate == nil, "duplicated document should not reuse accounting exchange rate")
         try expectEqual(copy.lignes.count, 1)
         try expect(copy.lignes[0].id != document.lignes[0].id, "duplicated line should get a new id")
         try expectDecimal(copy.totalTTC, equals: "144")
@@ -400,7 +438,7 @@ enum FacioRegressionSuite {
         try expectEqual(document.sourceTimesheetId, period.id)
     }
 
-    private static func timesheetInvoiceDailyLinesSplitNormalAndOvertimeByDate() throws {
+    private static func timesheetInvoiceDailyLinesGroupOvertimeByWeek() throws {
         let company = CompanyInfo()
         let period = TimesheetPeriod(mois: 4, annee: 2026)
         period.tauxNormal = decimal("26.39")
@@ -425,9 +463,34 @@ enum FacioRegressionSuite {
         try expectDecimal(allocations[0].overtimeHours, equals: "5")
         try expectEqual(lineItems.count, 2)
         try expectEqual(lineItems[0].designation, "Heures de travail - 01/04/2026")
-        try expectEqual(lineItems[1].designation, "Heures supplementaires - 01/04/2026")
+        try expectEqual(lineItems[1].designation, "Heures supplementaires - 30/03/2026 - 05/04/2026")
         try expectDecimal(lineItems[0].prixUnitaire, equals: "26.39")
         try expectDecimal(lineItems[1].prixUnitaire, equals: "39.59")
+    }
+
+    private static func timesheetInvoiceDailyLinesDoNotSplitEqualRates() throws {
+        let company = CompanyInfo()
+        let period = TimesheetPeriod(mois: 4, annee: 2026)
+        period.tauxNormal = decimal("50")
+        period.tauxSupplementaire = decimal("50")
+        var adjacentHours: [String: Decimal] = [:]
+
+        adjacentHours[period.semaines[0].jours[0].dateString] = decimal("15")
+        adjacentHours[period.semaines[0].jours[1].dateString] = decimal("15")
+        period.semaines[0].jours[2].heures = decimal("10")
+
+        let lineItems = TimesheetInvoiceService.lineItems(
+            for: period,
+            company: company,
+            invoiceLanguage: .fr,
+            detailMode: .daily,
+            adjacentHours: adjacentHours
+        )
+
+        try expectEqual(lineItems.count, 1)
+        try expectEqual(lineItems[0].designation, "Heures de travail - 01/04/2026")
+        try expectDecimal(lineItems[0].quantite, equals: "10")
+        try expectDecimal(lineItems[0].prixUnitaire, equals: "50")
     }
 
     private static func timesheetCrossPeriodOvertimeAssignsOverflowToCurrentMonth() throws {

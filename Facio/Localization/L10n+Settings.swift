@@ -51,6 +51,7 @@ extension L10n {
     static func defaultRate(_ l: AppLanguage) -> String { l == .fr ? "Taux par defaut" : "Default rate" }
     static func currency(_ l: AppLanguage) -> String { l == .fr ? "Devise" : "Currency" }
     static func defaultCurrency(_ l: AppLanguage) -> String { l == .fr ? "Devise par defaut" : "Default currency" }
+    static func accountingCurrencySetting(_ l: AppLanguage) -> String { l == .fr ? "Devise comptable" : "Accounting currency" }
     static func defaultBlockchain(_ l: AppLanguage) -> String { l == .fr ? "Blockchain par defaut" : "Default blockchain" }
     static func paymentDelay(_ l: AppLanguage) -> String { l == .fr ? "Delai de paiement" : "Payment delay" }
     static func defaultDelay(_ l: AppLanguage) -> String { l == .fr ? "Delai par defaut" : "Default delay" }

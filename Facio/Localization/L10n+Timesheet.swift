@@ -91,4 +91,7 @@ extension L10n {
     static func overtimeHoursOnDate(_ l: AppLanguage, date: String) -> String {
         l == .fr ? "Heures supplementaires - \(date)" : "Overtime hours - \(date)"
     }
+    static func overtimeHoursForWeek(_ l: AppLanguage, dateRange: String) -> String {
+        l == .fr ? "Heures supplementaires - \(dateRange)" : "Overtime hours - \(dateRange)"
+    }
 }

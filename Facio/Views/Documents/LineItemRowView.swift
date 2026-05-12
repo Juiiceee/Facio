@@ -97,6 +97,7 @@ struct LineItemRowView: View {
 struct DecimalField: View {
     let placeholder: String
     @Binding var value: Decimal
+    var maximumFractionDigits: Int = 2
     @State private var text: String = ""
     @FocusState private var isFocused: Bool
 
@@ -132,7 +133,7 @@ struct DecimalField: View {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 2
+        formatter.maximumFractionDigits = maximumFractionDigits
         formatter.decimalSeparator = ","
         formatter.groupingSeparator = ""
         return formatter.string(from: d as NSDecimalNumber) ?? "\(d)"

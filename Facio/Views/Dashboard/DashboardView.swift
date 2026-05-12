@@ -5,6 +5,7 @@ struct DashboardView: View {
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
     private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
+    private var accountingCurrency: CurrencyType { dataStore.companyInfo.deviseComptable }
 
     private var allDocuments: [Document] {
         dataStore.documents.sorted { $0.dateCreation > $1.dateCreation }
@@ -27,26 +28,35 @@ struct DashboardView: View {
     }
 
     // CA du mois en cours
-    private var caMoisEnCours: Decimal {
+    private var caMoisEnCours: AccountingRevenueSummary {
         let calendar = Calendar.current
         let now = Date()
-        return facturesPayees
+        let documents = facturesPayees
             .filter { calendar.isDate($0.dateCreation, equalTo: now, toGranularity: .month) }
-            .reduce(Decimal.zero) { $0 + $1.totalTTC }
+        return AccountingRevenueService.summary(
+            for: documents,
+            referenceCurrency: accountingCurrency
+        )
     }
 
     // CA de l'annee en cours
-    private var caAnneeEnCours: Decimal {
+    private var caAnneeEnCours: AccountingRevenueSummary {
         let calendar = Calendar.current
         let now = Date()
-        return facturesPayees
+        let documents = facturesPayees
             .filter { calendar.isDate($0.dateCreation, equalTo: now, toGranularity: .year) }
-            .reduce(Decimal.zero) { $0 + $1.totalTTC }
+        return AccountingRevenueService.summary(
+            for: documents,
+            referenceCurrency: accountingCurrency
+        )
     }
 
     // Montant en attente
-    private var montantEnAttente: Decimal {
-        facturesEnAttente.reduce(Decimal.zero) { $0 + $1.totalTTC }
+    private var montantEnAttente: AccountingRevenueSummary {
+        AccountingRevenueService.summary(
+            for: facturesEnAttente,
+            referenceCurrency: accountingCurrency
+        )
     }
 
     var body: some View {
@@ -58,20 +68,22 @@ struct DashboardView: View {
                 ], spacing: 16) {
                     StatCard(
                         title: L10n.revenueThisMonth(lang),
-                        value: caMoisEnCours.formatted2Decimals(for: numberFormat),
+                        value: accountingCurrency.formatAccounting(caMoisEnCours.total, lang: numberFormat),
+                        subtitle: missingConversionSubtitle(caMoisEnCours),
                         icon: "chart.line.uptrend.xyaxis",
                         color: .green
                     )
                     StatCard(
                         title: L10n.revenueThisYear(lang),
-                        value: caAnneeEnCours.formatted2Decimals(for: numberFormat),
+                        value: accountingCurrency.formatAccounting(caAnneeEnCours.total, lang: numberFormat),
+                        subtitle: missingConversionSubtitle(caAnneeEnCours),
                         icon: "chart.bar.fill",
                         color: .blue
                     )
                     StatCard(
                         title: L10n.pending(lang),
-                        value: montantEnAttente.formatted2Decimals(for: numberFormat),
-                        subtitle: L10n.pendingInvoices(lang, count: facturesEnAttente.count),
+                        value: accountingCurrency.formatAccounting(montantEnAttente.total, lang: numberFormat),
+                        subtitle: pendingSubtitle,
                         icon: "clock.fill",
                         color: .orange
                     )
@@ -158,6 +170,18 @@ struct DashboardView: View {
             .padding(24)
         }
         .navigationTitle(L10n.dashboard(lang))
+    }
+
+    private var pendingSubtitle: String {
+        if montantEnAttente.missingConversionCount > 0 {
+            return "\(L10n.pendingInvoices(lang, count: facturesEnAttente.count)) - \(L10n.missingConversions(lang, count: montantEnAttente.missingConversionCount))"
+        }
+        return L10n.pendingInvoices(lang, count: facturesEnAttente.count)
+    }
+
+    private func missingConversionSubtitle(_ summary: AccountingRevenueSummary) -> String? {
+        guard summary.missingConversionCount > 0 else { return nil }
+        return L10n.missingConversions(lang, count: summary.missingConversionCount)
     }
 }
 

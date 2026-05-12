@@ -93,6 +93,7 @@ final class CompanyInfo: Identifiable, Codable {
     var tauxTVAParDefaut: Decimal = 0
     var delaiPaiementJours: Int = 30
     var deviseParDefautRawValue: String = "USDC"
+    var deviseComptableRawValue: String = "EUR"
     var blockchainParDefautRawValue: String? = "Solana"
     var updatedAt: Date = Date()
 
@@ -132,6 +133,11 @@ final class CompanyInfo: Identifiable, Codable {
         set { deviseParDefautRawValue = newValue.rawValue }
     }
 
+    var deviseComptable: CurrencyType {
+        get { CurrencyType(rawValue: deviseComptableRawValue) ?? .eur }
+        set { deviseComptableRawValue = newValue.rawValue }
+    }
+
     var blockchainParDefaut: Blockchain? {
         get {
             guard let raw = blockchainParDefautRawValue else { return nil }
@@ -164,7 +170,7 @@ final class CompanyInfo: Identifiable, Codable {
     enum CodingKeys: String, CodingKey {
         case id, nom, adresse, codePostal, ville, siret, telephone, email, logoData
         case nomBanque, iban, bic, titulaireCompte, wallets, prestations
-        case tauxTVAParDefaut, delaiPaiementJours, deviseParDefautRawValue, blockchainParDefautRawValue
+        case tauxTVAParDefaut, delaiPaiementJours, deviseParDefautRawValue, deviseComptableRawValue, blockchainParDefautRawValue
         case updatedAt
         case langueParDefautRawValue, formatDateRawValue, formatNombreRawValue
         case couleurAccentHex
@@ -190,6 +196,7 @@ final class CompanyInfo: Identifiable, Codable {
         tauxTVAParDefaut = container.decodeOrDefault(Decimal.self, forKey: .tauxTVAParDefaut, default: 0)
         delaiPaiementJours = container.decodeOrDefault(Int.self, forKey: .delaiPaiementJours, default: 30)
         deviseParDefautRawValue = container.decodeOrDefault(String.self, forKey: .deviseParDefautRawValue, default: CurrencyType.usdc.rawValue)
+        deviseComptableRawValue = container.decodeOrDefault(String.self, forKey: .deviseComptableRawValue, default: CurrencyType.eur.rawValue)
         let defaultBlockchain = container
             .decodeOrDefault(String.self, forKey: .blockchainParDefautRawValue, default: Blockchain.solana.rawValue)
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -221,6 +228,7 @@ final class CompanyInfo: Identifiable, Codable {
         try container.encode(tauxTVAParDefaut, forKey: .tauxTVAParDefaut)
         try container.encode(delaiPaiementJours, forKey: .delaiPaiementJours)
         try container.encode(deviseParDefautRawValue, forKey: .deviseParDefautRawValue)
+        try container.encode(deviseComptableRawValue, forKey: .deviseComptableRawValue)
         try container.encodeIfPresent(blockchainParDefautRawValue, forKey: .blockchainParDefautRawValue)
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(langueParDefautRawValue, forKey: .langueParDefautRawValue)

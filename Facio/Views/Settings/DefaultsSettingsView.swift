@@ -59,6 +59,19 @@ struct DefaultsSettingsView: View {
                         .frame(maxWidth: 200)
                     }
 
+                    settingsRow(L10n.accountingCurrencySetting(lang)) {
+                        Picker("", selection: Binding(
+                            get: { company.deviseComptable },
+                            set: { company.deviseComptable = $0; dataStore.companyUpdated() }
+                        )) {
+                            ForEach(CurrencyType.allCases) { devise in
+                                Text(devise.label).tag(devise)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(maxWidth: 200)
+                    }
+
                     if company.deviseParDefaut.requiresBlockchain {
                         let compatible = Blockchain.compatibleBlockchains(for: company.deviseParDefaut)
 

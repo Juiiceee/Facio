@@ -43,6 +43,15 @@ struct DocumentEditorView: View {
         dataStore.documentUpdated(document)
     }
 
+    private func prepareAccountingConversionIfNeeded() {
+        let referenceCurrency = company.deviseComptable
+        if document.currency == referenceCurrency {
+            document.clearAccountingConversion()
+        } else if document.accountingCurrency == nil {
+            document.accountingCurrency = referenceCurrency
+        }
+    }
+
     private func presentAddSignatureSheet() {
         signatureCountBeforeSheet = document.transactionSignatures.count
         showAddSignature = true
@@ -54,6 +63,7 @@ struct DocumentEditorView: View {
                 enTeteSection
                 datesSection
                 deviseSection
+                accountingConversionSection
                 clientSection
                 DocumentLineItemsSection(document: document, company: company, lang: lang) {
                     saveDocument()
@@ -191,6 +201,7 @@ struct DocumentEditorView: View {
                             get: { document.status },
                             set: { newStatus in
                                 document.status = newStatus
+                                prepareAccountingConversionIfNeeded()
                                 saveDocument()
                                 if newStatus == .payee && document.currency.isCrypto
                                     && document.transactionSignatures.isEmpty {
@@ -243,7 +254,11 @@ struct DocumentEditorView: View {
                 HStack(spacing: 24) {
                     CurrencyPicker(selection: Binding(
                         get: { document.currency },
-                        set: { document.currency = $0; saveDocument() }
+                        set: {
+                            document.currency = $0
+                            prepareAccountingConversionIfNeeded()
+                            saveDocument()
+                        }
                     ))
 
                     Picker(L10n.payment(lang), selection: Binding(
@@ -274,6 +289,80 @@ struct DocumentEditorView: View {
                 }
             }
             .padding(8)
+        }
+    }
+
+    @ViewBuilder
+    private var accountingConversionSection: some View {
+        let referenceCurrency = company.deviseComptable
+        if document.type == .facture && document.needsAccountingConversion(referenceCurrency: referenceCurrency) {
+            GroupBox(L10n.accountingConversion(lang)) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 24) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L10n.accountingCurrency(lang))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Text(referenceCurrency.label)
+                                .font(.headline)
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L10n.exchangeRate(lang))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            HStack(spacing: 8) {
+                                Text("1 \(document.currency.label) =")
+                                    .foregroundStyle(.secondary)
+                                DecimalField(
+                                    placeholder: L10n.exchangeRateHint(
+                                        lang,
+                                        source: document.currency.label,
+                                        target: referenceCurrency.label
+                                    ),
+                                    value: Binding(
+                                        get: {
+                                            document.accountingCurrency == referenceCurrency
+                                                ? document.accountingExchangeRate ?? 0
+                                                : 0
+                                        },
+                                        set: { newValue in
+                                            document.setAccountingExchangeRate(
+                                                newValue > 0 ? newValue : nil,
+                                                referenceCurrency: referenceCurrency
+                                            )
+                                            saveDocument()
+                                        }
+                                    ),
+                                    maximumFractionDigits: 8
+                                )
+                                .frame(maxWidth: 140)
+                                Text(referenceCurrency.label)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        if let total = document.accountingTotal(referenceCurrency: referenceCurrency) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(L10n.accountingTotal(lang))
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Text(referenceCurrency.formatAccounting(total, lang: dataStore.companyInfo.formatNombre))
+                                    .font(.headline.monospacedDigit())
+                            }
+                        }
+
+                        Spacer()
+                    }
+
+                    if document.accountingTotal(referenceCurrency: referenceCurrency) == nil {
+                        Text(L10n.exchangeRateRequiredForDashboard(lang))
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                }
+                .padding(8)
+            }
         }
     }
 
