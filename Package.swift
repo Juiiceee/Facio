@@ -16,7 +16,10 @@ let package = Package(
             ],
             path: "Facio",
             exclude: ["Resources/AppIcon.icns"],
-            resources: [.copy("Resources/solanaLogo.png")]
+            resources: [.copy("Resources/solanaLogo.png")],
+            swiftSettings: [
+                .define("FACIO_REGRESSION_TESTS", .when(configuration: .debug))
+            ]
         )
     ]
 )

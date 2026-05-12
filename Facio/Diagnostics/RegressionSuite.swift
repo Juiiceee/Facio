@@ -1,0 +1,392 @@
+#if FACIO_REGRESSION_TESTS
+import Darwin
+import Foundation
+
+enum FacioRegressionSuite {
+    private static let trigger = "--run-regressions"
+
+    static func runIfRequested() {
+        guard CommandLine.arguments.contains(trigger) else { return }
+
+        let results = runAll()
+        let failures = results.filter { !$0.passed }
+
+        print("Facio regression suite")
+        for result in results {
+            if result.passed {
+                print("PASS \(result.name)")
+            } else {
+                print("FAIL \(result.name): \(result.message ?? "unknown failure")")
+            }
+        }
+        print("Summary: \(results.count - failures.count) passed, \(failures.count) failed")
+
+        Darwin.exit(failures.isEmpty ? EXIT_SUCCESS : EXIT_FAILURE)
+    }
+
+    private static func runAll() -> [RegressionResult] {
+        cases.map { testCase in
+            do {
+                try testCase.run()
+                return RegressionResult(name: testCase.name, passed: true, message: nil)
+            } catch let failure as RegressionFailure {
+                return RegressionResult(name: testCase.name, passed: false, message: failure.message)
+            } catch {
+                return RegressionResult(name: testCase.name, passed: false, message: String(describing: error))
+            }
+        }
+    }
+
+    private static let cases: [RegressionCase] = [
+        RegressionCase(name: "decimal hour input keeps decimal fractions", run: decimalHourInputKeepsDecimalFractions),
+        RegressionCase(name: "time hour input requires explicit time syntax for minutes", run: timeHourInputRequiresExplicitTimeSyntaxForMinutes),
+        RegressionCase(name: "hour input formatting matches selected mode and language", run: hourInputFormattingMatchesSelectedModeAndLanguage),
+        RegressionCase(name: "currency precision keeps crypto amounts", run: currencyPrecisionKeepsCryptoAmounts),
+        RegressionCase(name: "document totals include VAT and line ordering", run: documentTotalsIncludeVATAndLineOrdering),
+        RegressionCase(name: "fiat document drops crypto payment configuration", run: fiatDocumentDropsCryptoPaymentConfiguration),
+        RegressionCase(name: "crypto payment selects only compatible non-blank wallets", run: cryptoPaymentSelectsOnlyCompatibleNonBlankWallets),
+        RegressionCase(name: "bitcoin payment is crypto but not Solana Pay eligible", run: bitcoinPaymentIsCryptoButNotSolanaPayEligible),
+        RegressionCase(name: "document duplication keeps payment and line data without reusing identity", run: documentDuplicationKeepsPaymentAndLineDataWithoutReusingIdentity),
+        RegressionCase(name: "sync state tracks pending deletes as dirty data", run: syncStateTracksPendingDeletesAsDirtyData),
+        RegressionCase(name: "sync state decodes old payloads without pending delete arrays", run: syncStateDecodesOldPayloadsWithoutPendingDeleteArrays),
+        RegressionCase(name: "timesheet calendar generation uses whole weeks", run: timesheetCalendarGenerationUsesWholeWeeks),
+        RegressionCase(name: "timesheet normalize calendar restores shape and keeps stored hours", run: timesheetNormalizeCalendarRestoresShapeAndKeepsStoredHours),
+        RegressionCase(name: "timesheet period decodes old payloads and normalizes calendar", run: timesheetPeriodDecodesOldPayloadsAndNormalizesCalendar),
+        RegressionCase(name: "timesheet invoice markers set generated invoice state", run: timesheetInvoiceMarkersSetGeneratedInvoiceState),
+        RegressionCase(name: "timesheet cross-period overtime assigns overflow to current month", run: timesheetCrossPeriodOvertimeAssignsOverflowToCurrentMonth),
+        RegressionCase(name: "date and decimal formatting are stable across languages", run: dateAndDecimalFormattingAreStableAcrossLanguages)
+    ]
+
+    private static func decimalHourInputKeepsDecimalFractions() throws {
+        try expectDecimal(TimesheetHourInputParser.parse("6,5", mode: .decimal), equals: "6.5")
+        try expectDecimal(TimesheetHourInputParser.parse("6.5", mode: .decimal), equals: "6.5")
+        try expectDecimal(TimesheetHourInputParser.parse(".5", mode: .decimal), equals: "0.5")
+        try expectDecimal(TimesheetHourInputParser.parse(" 1 234,25 ", mode: .decimal), equals: "1234.25")
+        try expectDecimal(TimesheetHourInputParser.parse("", mode: .decimal), equals: "0")
+
+        try expect(TimesheetHourInputParser.parse("6:30", mode: .decimal) == nil, "6:30 must be rejected in decimal mode")
+        try expect(TimesheetHourInputParser.parse("6h30", mode: .decimal) == nil, "6h30 must be rejected in decimal mode")
+        try expect(TimesheetHourInputParser.parse("6,5,1", mode: .decimal) == nil, "multiple separators must be rejected")
+    }
+
+    private static func timeHourInputRequiresExplicitTimeSyntaxForMinutes() throws {
+        try expectDecimal(TimesheetHourInputParser.parse("6:30", mode: .time), equals: "6.5")
+        try expectDecimal(TimesheetHourInputParser.parse("6h30", mode: .time), equals: "6.5")
+        try expectDecimal(TimesheetHourInputParser.parse("6h", mode: .time), equals: "6")
+        try expectDecimal(TimesheetHourInputParser.parse("6", mode: .time), equals: "6")
+
+        try expect(TimesheetHourInputParser.parse("6,5", mode: .time) == nil, "decimal comma must be rejected in time mode")
+        try expect(TimesheetHourInputParser.parse("6.5", mode: .time) == nil, "decimal dot must be rejected in time mode")
+        try expect(TimesheetHourInputParser.parse("6:70", mode: .time) == nil, "minutes over 59 must be rejected")
+        try expect(TimesheetHourInputParser.parse(":30", mode: .time) == nil, "missing hours must be rejected")
+    }
+
+    private static func hourInputFormattingMatchesSelectedModeAndLanguage() throws {
+        let sixAndAHalf = decimal("6.5")
+
+        try expectEqual(TimesheetHourInputParser.format(sixAndAHalf, mode: .decimal, lang: .fr), "6,5")
+        try expectEqual(TimesheetHourInputParser.format(sixAndAHalf, mode: .decimal, lang: .en), "6.5")
+        try expectEqual(TimesheetHourInputParser.format(sixAndAHalf, mode: .time, lang: .fr), "6h30")
+        try expectEqual(TimesheetHourInputParser.format(sixAndAHalf, mode: .time, lang: .en), "6:30")
+        try expectEqual(TimesheetHourInputParser.format(decimal("6"), mode: .time, lang: .fr), "6")
+    }
+
+    private static func currencyPrecisionKeepsCryptoAmounts() throws {
+        try expectEqual(CurrencyType.eur.maximumFractionDigits, 2)
+        try expectEqual(CurrencyType.usd.maximumFractionDigits, 2)
+        try expectEqual(CurrencyType.usdc.maximumFractionDigits, 6)
+        try expectEqual(CurrencyType.usdt.maximumFractionDigits, 6)
+        try expectEqual(CurrencyType.btc.maximumFractionDigits, 8)
+        try expectEqual(CurrencyType.eth.maximumFractionDigits, 8)
+
+        try expect(CurrencyType.usdc.supportsSolanaPay, "USDC should support Solana Pay")
+        try expect(CurrencyType.usdt.supportsSolanaPay, "USDT should support Solana Pay")
+        try expect(!CurrencyType.btc.supportsSolanaPay, "BTC should not support Solana Pay")
+        try expect(!CurrencyType.eth.supportsSolanaPay, "ETH should not support Solana Pay")
+
+        try expectEqual(CurrencyType.btc.formatNumber(decimal("0.00000001"), lang: .en, usesGroupingSeparator: false), "0.00000001")
+        try expectEqual(CurrencyType.usdc.formatNumber(decimal("1.234567"), lang: .en, usesGroupingSeparator: false), "1.234567")
+        try expectEqual(CurrencyType.eur.formatNumber(decimal("1234.5"), lang: .fr, usesGroupingSeparator: false), "1234,50")
+    }
+
+    private static func documentTotalsIncludeVATAndLineOrdering() throws {
+        let document = Document(type: .facture, number: "F-001")
+        let first = LineItem(
+            designation: "Development",
+            quantite: decimal("2"),
+            prixUnitaire: decimal("100"),
+            tauxTVA: decimal("20")
+        )
+        let second = LineItem(
+            designation: "Support",
+            quantite: decimal("3"),
+            prixUnitaire: decimal("50"),
+            tauxTVA: decimal("10")
+        )
+
+        document.ajouterLigne(first)
+        document.ajouterLigne(second)
+
+        try expectDecimal(document.totalHT, equals: "350")
+        try expectDecimal(document.totalTVA, equals: "55")
+        try expectDecimal(document.totalTTC, equals: "405")
+        try expectEqual(document.lignesTriees.map(\.designation), ["Development", "Support"])
+
+        let lineToDelete = try require(document.lignes.first, "expected a line to delete")
+        document.supprimerLigne(lineToDelete)
+
+        try expectEqual(document.lignes.count, 1)
+        try expectEqual(document.lignes[0].ordre, 0)
+        try expectDecimal(document.totalTTC, equals: "165")
+    }
+
+    private static func fiatDocumentDropsCryptoPaymentConfiguration() throws {
+        let document = Document(type: .facture, number: "F-002", currency: .eur, blockchain: .solana)
+
+        try expect(document.blockchain == nil, "fiat currency should clear blockchain")
+
+        document.paymentMode = .crypto
+
+        try expectEqual(document.paymentMode, .aucun)
+        try expect(document.blockchain == nil, "fiat crypto mode should clear blockchain")
+        try expect(document.selectedWalletId == nil, "fiat crypto mode should clear selected wallet")
+        try expect(!document.isSolanaPayEligible, "fiat document must not be Solana Pay eligible")
+    }
+
+    private static func cryptoPaymentSelectsOnlyCompatibleNonBlankWallets() throws {
+        let blankSolana = WalletEntry(blockchain: .solana, address: "   ", label: "Blank")
+        let solana = WalletEntry(blockchain: .solana, address: " SolAddr ", label: "Solana")
+        let ethereum = WalletEntry(blockchain: .ethereum, address: "0xabc", label: "Ethereum")
+        let wallets = [blankSolana, solana, ethereum]
+
+        let document = Document(type: .facture, number: "F-003", currency: .usdc, blockchain: .solana)
+        document.paymentMode = .crypto
+        document.selectedWalletId = blankSolana.id
+        document.normalizePaymentConfiguration(availableWallets: wallets)
+
+        try expect(document.selectedWalletId == nil, "blank selected wallet should be cleared")
+        try expectEqual(document.paymentWallets(from: wallets).map(\.id), [solana.id])
+        try expectEqual(document.selectedPaymentWallet(from: wallets)?.id, solana.id)
+        try expectEqual(document.selectedPaymentWalletAddress(from: wallets), "SolAddr")
+        try expect(document.isSolanaPayEligible, "USDC on Solana should be Solana Pay eligible")
+        try expectEqual(document.solanaPayWalletAddress(from: wallets), "SolAddr")
+    }
+
+    private static func bitcoinPaymentIsCryptoButNotSolanaPayEligible() throws {
+        let wallet = WalletEntry(blockchain: .bitcoin, address: "bc1test", label: "BTC")
+        let document = Document(type: .facture, number: "F-004", currency: .btc, blockchain: .bitcoin)
+
+        document.paymentMode = .crypto
+        document.selectedWalletId = wallet.id
+        document.normalizePaymentConfiguration(availableWallets: [wallet])
+
+        try expectEqual(document.paymentMode, .crypto)
+        try expectEqual(document.blockchain, .bitcoin)
+        try expectEqual(document.selectedPaymentWalletAddress(from: [wallet]), "bc1test")
+        try expect(!document.isSolanaPayEligible, "BTC should not be Solana Pay eligible")
+        try expect(document.solanaPayWalletAddress(from: [wallet]) == nil, "BTC should not expose Solana Pay address")
+    }
+
+    private static func documentDuplicationKeepsPaymentAndLineDataWithoutReusingIdentity() throws {
+        let wallet = WalletEntry(blockchain: .solana, address: "SolAddr", label: "Main")
+        let document = Document(type: .devis, number: "D-001", currency: .usdc, blockchain: .solana)
+        document.clientNom = "Client"
+        document.notes = "Notes"
+        document.langue = .en
+        document.paymentMode = .crypto
+        document.selectedWalletId = wallet.id
+        document.ajouterLigne(LineItem(designation: "Task", quantite: decimal("1.5"), prixUnitaire: decimal("80"), tauxTVA: decimal("20")))
+
+        let copy = document.dupliquer()
+
+        try expect(copy.id != document.id, "copy should get a new id")
+        try expectEqual(copy.type, .devis)
+        try expectEqual(copy.number, "")
+        try expectEqual(copy.clientNom, "Client")
+        try expectEqual(copy.notes, "Notes")
+        try expectEqual(copy.langue, .en)
+        try expectEqual(copy.currency, .usdc)
+        try expectEqual(copy.blockchain, .solana)
+        try expectEqual(copy.paymentMode, .crypto)
+        try expectEqual(copy.selectedWalletId, wallet.id)
+        try expectEqual(copy.lignes.count, 1)
+        try expect(copy.lignes[0].id != document.lignes[0].id, "duplicated line should get a new id")
+        try expectDecimal(copy.totalTTC, equals: "144")
+    }
+
+    private static func syncStateTracksPendingDeletesAsDirtyData() throws {
+        let documentId = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let clientId = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
+        var state = SyncState()
+
+        state.enqueueDelete(id: documentId, for: .documents)
+        state.enqueueDelete(id: documentId, for: .documents)
+        state.enqueueDelete(id: clientId, for: .clients)
+        state.enqueueDelete(id: UUID(), for: .company)
+
+        try expectEqual(state.pendingDeleteIds(for: .documents), [documentId.uuidString])
+        try expectEqual(state.pendingDeleteIds(for: .clients), [clientId.uuidString])
+        try expectEqual(state.pendingDeleteIds(for: .company), [])
+        try expect(state.isDirty(.documents), "document pending delete should mark documents dirty")
+        try expect(state.isDirty(.clients), "client pending delete should mark clients dirty")
+        try expect(state.hasDirtyData, "pending deletes should count as dirty data")
+
+        state.setPendingDeleteIds([], for: .documents)
+        try expect(!state.isDirty(.documents), "cleared document pending deletes should not remain dirty")
+        try expect(state.isDirty(.clients), "client pending delete should remain dirty")
+    }
+
+    private static func syncStateDecodesOldPayloadsWithoutPendingDeleteArrays() throws {
+        let data = Data(#"{"documentsDirty":true,"migrationCompleted":true}"#.utf8)
+
+        let state = try JSONDecoder().decode(SyncState.self, from: data)
+
+        try expect(state.documentsDirty, "old dirty flag should decode")
+        try expect(state.migrationCompleted, "old migration flag should decode")
+        try expectEqual(state.pendingDeleteIds(for: .documents), [])
+        try expectEqual(state.pendingDeleteIds(for: .clients), [])
+        try expectEqual(state.pendingDeleteIds(for: .timesheets), [])
+        try expect(state.isDirty(.documents), "documents should remain dirty")
+        try expect(!state.isDirty(.clients), "clients should remain clean")
+    }
+
+    private static func timesheetCalendarGenerationUsesWholeWeeks() throws {
+        let weeks = TimesheetPeriod.genererSemaines(mois: 3, annee: 2026)
+
+        try expectEqual(weeks.count, 6)
+        try expect(weeks.allSatisfy { $0.jours.count == 7 }, "every generated week should contain seven days")
+        try expectEqual(weeks.first?.jours.first?.dateString, "2026-02-23")
+        try expectEqual(weeks.first?.jours.last?.dateString, "2026-03-01")
+        try expectEqual(weeks.last?.jours.first?.dateString, "2026-03-30")
+        try expectEqual(weeks.last?.jours.last?.dateString, "2026-04-05")
+    }
+
+    private static func timesheetNormalizeCalendarRestoresShapeAndKeepsStoredHours() throws {
+        let period = TimesheetPeriod(mois: 3, annee: 2026)
+        let expectedWeekCount = period.semaines.count
+        var preservedDay = period.semaines[1].jours[2]
+        preservedDay.heures = decimal("7.5")
+        let storedDayId = preservedDay.id
+        let storedDate = preservedDay.dateString
+        let storedWeekId = UUID()
+
+        period.nom = ""
+        period.semaines = [
+            TimesheetWeek(id: storedWeekId, numero: 99, jours: [preservedDay]),
+            TimesheetWeek(id: UUID(), numero: 99, jours: [preservedDay])
+        ]
+
+        try expect(period.normalizeCalendar(), "normalization should report a change")
+        try expectEqual(period.semaines.count, expectedWeekCount)
+        try expectEqual(period.nom, "Mars 2026")
+
+        let restoredDay = try require(period.semaines.flatMap(\.jours).first { $0.dateString == storedDate }, "stored day should be restored")
+        try expectEqual(restoredDay.id, storedDayId)
+        try expectDecimal(restoredDay.heures, equals: "7.5")
+    }
+
+    private static func timesheetPeriodDecodesOldPayloadsAndNormalizesCalendar() throws {
+        let data = Data(#"{"mois":3,"annee":2026,"semaines":[]}"#.utf8)
+
+        let period = try JSONDecoder().decode(TimesheetPeriod.self, from: data)
+
+        try expectEqual(period.mois, 3)
+        try expectEqual(period.annee, 2026)
+        try expectEqual(period.semaines.count, TimesheetPeriod.genererSemaines(mois: 3, annee: 2026).count)
+        try expect(period.invoiceDocumentId == nil, "old payload should not invent invoice id")
+        try expect(period.billedAt == nil, "old payload should not invent billed date")
+        try expect(!period.hasGeneratedInvoice, "old payload should not be marked invoiced")
+        try expectEqual(period.nom, "Mars 2026")
+    }
+
+    private static func timesheetInvoiceMarkersSetGeneratedInvoiceState() throws {
+        let period = TimesheetPeriod(mois: 4, annee: 2026)
+
+        try expect(!period.hasGeneratedInvoice, "new period should not be marked invoiced")
+
+        period.invoiceDocumentId = UUID()
+        try expect(period.hasGeneratedInvoice, "invoice id should mark period invoiced")
+
+        period.invoiceDocumentId = nil
+        period.billedAt = Date()
+        try expect(period.hasGeneratedInvoice, "billed date should mark period invoiced")
+    }
+
+    private static func timesheetCrossPeriodOvertimeAssignsOverflowToCurrentMonth() throws {
+        var firstWeek = try require(TimesheetPeriod.genererSemaines(mois: 3, annee: 2026).first, "expected first week")
+        var adjacentHours: [String: Decimal] = [:]
+
+        for day in firstWeek.jours.prefix(6) {
+            adjacentHours[day.dateString] = decimal("7")
+        }
+        firstWeek.jours[6].heures = decimal("4")
+
+        try expectDecimal(
+            firstWeek.heuresSupPourMois(moisPeriode: 3, seuil: decimal("35"), adjacentHours: adjacentHours),
+            equals: "4"
+        )
+        try expectDecimal(
+            firstWeek.heuresNormalesPourMois(moisPeriode: 3, seuil: decimal("35"), adjacentHours: adjacentHours),
+            equals: "0"
+        )
+    }
+
+    private static func dateAndDecimalFormattingAreStableAcrossLanguages() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let date = calendar.date(from: DateComponents(year: 2026, month: 3, day: 2, hour: 12))!
+        let amount = decimal("1234.5")
+
+        try expectEqual(date.formattedDate(for: .fr), "02/03/2026")
+        try expectEqual(date.formattedDate(for: .en), "03/02/2026")
+        try expectEqual(date.yearMonthFormatted, "2026_03")
+        try expectEqual(amount.formatted2Decimals(for: .fr), "1 234,50")
+        try expectEqual(amount.formatted2Decimals(for: .en), "1,234.50")
+        try expectEqual(decimal("1234.6").formattedNoDecimals(for: .en), "1,235")
+    }
+
+    private static func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {
+        guard condition() else { throw RegressionFailure(message: message) }
+    }
+
+    private static func expectEqual<T: Equatable>(_ actual: @autoclosure () -> T, _ expected: @autoclosure () -> T) throws {
+        let actualValue = actual()
+        let expectedValue = expected()
+        guard actualValue == expectedValue else {
+            throw RegressionFailure(message: "expected \(expectedValue), got \(actualValue)")
+        }
+    }
+
+    private static func expectDecimal(_ actual: Decimal?, equals expected: String) throws {
+        try expectEqual(actual, decimal(expected))
+    }
+
+    private static func expectDecimal(_ actual: Decimal, equals expected: String) throws {
+        try expectEqual(actual, decimal(expected))
+    }
+
+    private static func require<T>(_ value: T?, _ message: String) throws -> T {
+        guard let value else { throw RegressionFailure(message: message) }
+        return value
+    }
+
+    private static func decimal(_ string: String) -> Decimal {
+        Decimal(string: string, locale: Locale(identifier: "en_US_POSIX"))!
+    }
+}
+
+private struct RegressionCase: Sendable {
+    let name: String
+    let run: @Sendable () throws -> Void
+}
+
+private struct RegressionResult {
+    let name: String
+    let passed: Bool
+    let message: String?
+}
+
+private struct RegressionFailure: Error {
+    let message: String
+}
+#endif

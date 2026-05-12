@@ -11,6 +11,10 @@ struct FacioApp: App {
     @State private var showFirstLaunch = false
 
     init() {
+        #if FACIO_REGRESSION_TESTS
+        FacioRegressionSuite.runIfRequested()
+        #endif
+
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
