@@ -34,10 +34,7 @@ extension L10n {
     static func hourInputDecimalMode(_ l: AppLanguage) -> String { l == .fr ? "Decimal" : "Decimal" }
     static func hourInputTimeMode(_ l: AppLanguage) -> String { l == .fr ? "Horaire" : "Time" }
     static func hourInputPlaceholder(_ l: AppLanguage, mode: TimesheetHourInputMode) -> String {
-        switch mode {
-        case .decimal: return l == .fr ? "6,5" : "6.5"
-        case .time: return l == .fr ? "6h30" : "6:30"
-        }
+        ""
     }
     static func hourInputHelp(_ l: AppLanguage, mode: TimesheetHourInputMode) -> String {
         switch mode {

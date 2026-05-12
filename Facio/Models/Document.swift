@@ -204,7 +204,7 @@ final class Document: Identifiable, Codable, Hashable {
 
     /// Resume formate du total
     var totalFormatted: String {
-        currency.format(totalTTC)
+        currency.formatAccounting(totalTTC, lang: .fr)
     }
 
     // MARK: - Init

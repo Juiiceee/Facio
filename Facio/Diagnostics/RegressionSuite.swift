@@ -41,7 +41,9 @@ enum FacioRegressionSuite {
         RegressionCase(name: "decimal hour input keeps decimal fractions", run: decimalHourInputKeepsDecimalFractions),
         RegressionCase(name: "time hour input requires explicit time syntax for minutes", run: timeHourInputRequiresExplicitTimeSyntaxForMinutes),
         RegressionCase(name: "hour input formatting matches selected mode and language", run: hourInputFormattingMatchesSelectedModeAndLanguage),
+        RegressionCase(name: "hour input placeholder stays empty", run: hourInputPlaceholderStaysEmpty),
         RegressionCase(name: "currency precision keeps crypto amounts", run: currencyPrecisionKeepsCryptoAmounts),
+        RegressionCase(name: "accounting currency format keeps document totals readable", run: accountingCurrencyFormatKeepsDocumentTotalsReadable),
         RegressionCase(name: "document totals include VAT and line ordering", run: documentTotalsIncludeVATAndLineOrdering),
         RegressionCase(name: "fiat document drops crypto payment configuration", run: fiatDocumentDropsCryptoPaymentConfiguration),
         RegressionCase(name: "crypto payment selects only compatible non-blank wallets", run: cryptoPaymentSelectsOnlyCompatibleNonBlankWallets),
@@ -91,6 +93,13 @@ enum FacioRegressionSuite {
         try expectEqual(TimesheetHourInputParser.format(decimal("6"), mode: .time, lang: .fr), "6")
     }
 
+    private static func hourInputPlaceholderStaysEmpty() throws {
+        try expectEqual(L10n.hourInputPlaceholder(.fr, mode: .decimal), "")
+        try expectEqual(L10n.hourInputPlaceholder(.fr, mode: .time), "")
+        try expectEqual(L10n.hourInputPlaceholder(.en, mode: .decimal), "")
+        try expectEqual(L10n.hourInputPlaceholder(.en, mode: .time), "")
+    }
+
     private static func currencyPrecisionKeepsCryptoAmounts() throws {
         try expectEqual(CurrencyType.eur.maximumFractionDigits, 2)
         try expectEqual(CurrencyType.usd.maximumFractionDigits, 2)
@@ -107,6 +116,16 @@ enum FacioRegressionSuite {
         try expectEqual(CurrencyType.btc.formatNumber(decimal("0.00000001"), lang: .en, usesGroupingSeparator: false), "0.00000001")
         try expectEqual(CurrencyType.usdc.formatNumber(decimal("1.234567"), lang: .en, usesGroupingSeparator: false), "1.234567")
         try expectEqual(CurrencyType.eur.formatNumber(decimal("1234.5"), lang: .fr, usesGroupingSeparator: false), "1234,50")
+    }
+
+    private static func accountingCurrencyFormatKeepsDocumentTotalsReadable() throws {
+        try expectEqual(CurrencyType.usdc.accountingMaximumFractionDigits, 2)
+        try expectEqual(CurrencyType.usdt.accountingMaximumFractionDigits, 2)
+        try expectEqual(CurrencyType.btc.accountingMaximumFractionDigits, 8)
+
+        try expectEqual(CurrencyType.usdc.formatAccounting(decimal("1221.225667"), lang: .fr), "1\u{202F}221,23 USDC")
+        try expectEqual(CurrencyType.usdc.formatAccounting(decimal("1221.225667"), lang: .en), "1,221.23 USDC")
+        try expectEqual(CurrencyType.btc.formatAccounting(decimal("0.00000001"), lang: .en), "0.00000001 ₿")
     }
 
     private static func documentTotalsIncludeVATAndLineOrdering() throws {

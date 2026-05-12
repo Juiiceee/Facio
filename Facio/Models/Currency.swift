@@ -70,6 +70,20 @@ enum CurrencyType: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    var accountingMinimumFractionDigits: Int {
+        switch self {
+        case .btc, .eth: return 0
+        case .eur, .usd, .usdc, .usdt: return 2
+        }
+    }
+
+    var accountingMaximumFractionDigits: Int {
+        switch self {
+        case .btc, .eth: return 8
+        case .eur, .usd, .usdc, .usdt: return 2
+        }
+    }
+
     /// Formatage du montant avec symbole
     func format(_ amount: Decimal) -> String {
         format(amount, lang: .fr)
@@ -87,17 +101,45 @@ enum CurrencyType: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    func formatNumber(_ amount: Decimal, lang: AppLanguage, usesGroupingSeparator: Bool = true) -> String {
+    func formatAccounting(_ amount: Decimal, lang: AppLanguage) -> String {
+        let formatted = formatAccountingNumber(amount, lang: lang)
+
+        switch self {
+        case .eur: return "\(formatted) €"
+        case .usd: return "$\(formatted)"
+        case .usdc, .usdt: return "\(formatted) \(rawValue)"
+        case .btc: return "\(formatted) ₿"
+        case .eth: return "\(formatted) Ξ"
+        }
+    }
+
+    func formatNumber(
+        _ amount: Decimal,
+        lang: AppLanguage,
+        usesGroupingSeparator: Bool = true,
+        minimumFractionDigits: Int? = nil,
+        maximumFractionDigits: Int? = nil
+    ) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.locale = Locale(identifier: lang == .fr ? "fr_FR" : "en_US")
-        formatter.minimumFractionDigits = minimumFractionDigits
-        formatter.maximumFractionDigits = maximumFractionDigits
+        formatter.minimumFractionDigits = minimumFractionDigits ?? self.minimumFractionDigits
+        formatter.maximumFractionDigits = maximumFractionDigits ?? self.maximumFractionDigits
         formatter.usesGroupingSeparator = usesGroupingSeparator
         if lang == .fr, usesGroupingSeparator {
             formatter.groupingSeparator = "\u{202F}" // narrow non-breaking space
         }
 
         return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
+    }
+
+    func formatAccountingNumber(_ amount: Decimal, lang: AppLanguage, usesGroupingSeparator: Bool = true) -> String {
+        formatNumber(
+            amount,
+            lang: lang,
+            usesGroupingSeparator: usesGroupingSeparator,
+            minimumFractionDigits: accountingMinimumFractionDigits,
+            maximumFractionDigits: accountingMaximumFractionDigits
+        )
     }
 }

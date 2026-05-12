@@ -888,8 +888,12 @@ struct PDFGenerator {
         document.currency.formatNumber(value, lang: lang, usesGroupingSeparator: usesGroupingSeparator)
     }
 
+    private func formatAccountingCurrencyNumber(_ value: Decimal, usesGroupingSeparator: Bool = true) -> String {
+        document.currency.formatAccountingNumber(value, lang: lang, usesGroupingSeparator: usesGroupingSeparator)
+    }
+
     /// Formate un Decimal avec separateur de milliers.
     private func formatSpaced(_ value: Decimal) -> String {
-        formatCurrencyNumber(value)
+        formatAccountingCurrencyNumber(value)
     }
 }

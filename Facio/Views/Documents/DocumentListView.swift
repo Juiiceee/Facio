@@ -186,7 +186,7 @@ struct DocumentRowView: View {
                 }
             }
 
-            Text(document.currency.format(document.totalTTC, lang: numberFormat))
+            Text(document.currency.formatAccounting(document.totalTTC, lang: numberFormat))
                 .font(.body.monospacedDigit())
                 .fontWeight(.medium)
                 .lineLimit(1)

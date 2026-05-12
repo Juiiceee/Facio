@@ -105,7 +105,7 @@ struct DashboardView: View {
                                             .foregroundStyle(.secondary)
                                     }
                                     Spacer()
-                                    Text(doc.currency.format(doc.totalTTC, lang: numberFormat))
+                                    Text(doc.currency.formatAccounting(doc.totalTTC, lang: numberFormat))
                                         .font(.body.monospacedDigit())
                                         .fontWeight(.medium)
                                     StatusBadge(status: doc.status)
@@ -140,7 +140,7 @@ struct DashboardView: View {
                                             .foregroundStyle(.secondary)
                                     }
                                     Spacer()
-                                    Text(doc.currency.format(doc.totalTTC, lang: numberFormat))
+                                    Text(doc.currency.formatAccounting(doc.totalTTC, lang: numberFormat))
                                         .font(.body.monospacedDigit())
                                         .fontWeight(.medium)
                                     StatusBadge(status: doc.status)

@@ -5,6 +5,7 @@ struct TotalsView: View {
     @Environment(DataStore.self) private var dataStore
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+    private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
 
     /// Ventilation TVA par taux
     private var tvaBreakdown: [(rate: Decimal, amount: Decimal)] {
@@ -25,20 +26,20 @@ struct TotalsView: View {
 
             GroupBox {
                 VStack(alignment: .trailing, spacing: 8) {
-                    totalRow(label: L10n.totalHT(lang), value: document.currency.format(document.totalHT), isDetail: false)
+                    totalRow(label: L10n.totalHT(lang), value: document.currency.formatAccounting(document.totalHT, lang: numberFormat), isDetail: false)
 
                     // Ventilation TVA
                     if tvaBreakdown.count > 1 {
                         ForEach(tvaBreakdown, id: \.rate) { entry in
                             totalRow(
                                 label: L10n.vatRate(lang, rate: "\(entry.rate as NSDecimalNumber)"),
-                                value: document.currency.format(entry.amount),
+                                value: document.currency.formatAccounting(entry.amount, lang: numberFormat),
                                 isDetail: true
                             )
                         }
                     }
 
-                    totalRow(label: L10n.totalTVA(lang), value: document.currency.format(document.totalTVA), isDetail: false)
+                    totalRow(label: L10n.totalTVA(lang), value: document.currency.formatAccounting(document.totalTVA, lang: numberFormat), isDetail: false)
 
                     Divider()
 
@@ -46,7 +47,7 @@ struct TotalsView: View {
                         Text(L10n.totalTTC(lang))
                             .font(.headline)
                         Spacer()
-                        Text(document.totalFormatted)
+                        Text(document.currency.formatAccounting(document.totalTTC, lang: numberFormat))
                             .font(.title3.monospacedDigit())
                             .fontWeight(.bold)
                     }
