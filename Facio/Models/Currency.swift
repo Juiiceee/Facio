@@ -51,17 +51,46 @@ enum CurrencyType: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    var supportsSolanaPay: Bool {
+        solanaMintAddress != nil
+    }
+
+    var minimumFractionDigits: Int {
+        switch self {
+        case .eur, .usd, .usdc, .usdt: return 2
+        case .btc, .eth: return 0
+        }
+    }
+
+    var maximumFractionDigits: Int {
+        switch self {
+        case .eur, .usd: return 2
+        case .usdc, .usdt: return 6
+        case .btc, .eth: return 8
+        }
+    }
+
+    var accountingMinimumFractionDigits: Int {
+        switch self {
+        case .btc, .eth: return 0
+        case .eur, .usd, .usdc, .usdt: return 2
+        }
+    }
+
+    var accountingMaximumFractionDigits: Int {
+        switch self {
+        case .btc, .eth: return 8
+        case .eur, .usd, .usdc, .usdt: return 2
+        }
+    }
+
     /// Formatage du montant avec symbole
     func format(_ amount: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.locale = Locale(identifier: "fr_FR")
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        formatter.groupingSeparator = " "
-        formatter.decimalSeparator = ","
+        format(amount, lang: .fr)
+    }
 
-        let formatted = formatter.string(from: amount as NSDecimalNumber) ?? "0,00"
+    func format(_ amount: Decimal, lang: AppLanguage) -> String {
+        let formatted = formatNumber(amount, lang: lang)
 
         switch self {
         case .eur: return "\(formatted) €"
@@ -70,5 +99,47 @@ enum CurrencyType: String, Codable, CaseIterable, Identifiable {
         case .btc: return "\(formatted) ₿"
         case .eth: return "\(formatted) Ξ"
         }
+    }
+
+    func formatAccounting(_ amount: Decimal, lang: AppLanguage) -> String {
+        let formatted = formatAccountingNumber(amount, lang: lang)
+
+        switch self {
+        case .eur: return "\(formatted) €"
+        case .usd: return "$\(formatted)"
+        case .usdc, .usdt: return "\(formatted) \(rawValue)"
+        case .btc: return "\(formatted) ₿"
+        case .eth: return "\(formatted) Ξ"
+        }
+    }
+
+    func formatNumber(
+        _ amount: Decimal,
+        lang: AppLanguage,
+        usesGroupingSeparator: Bool = true,
+        minimumFractionDigits: Int? = nil,
+        maximumFractionDigits: Int? = nil
+    ) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = Locale(identifier: lang == .fr ? "fr_FR" : "en_US")
+        formatter.minimumFractionDigits = minimumFractionDigits ?? self.minimumFractionDigits
+        formatter.maximumFractionDigits = maximumFractionDigits ?? self.maximumFractionDigits
+        formatter.usesGroupingSeparator = usesGroupingSeparator
+        if lang == .fr, usesGroupingSeparator {
+            formatter.groupingSeparator = "\u{202F}" // narrow non-breaking space
+        }
+
+        return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
+    }
+
+    func formatAccountingNumber(_ amount: Decimal, lang: AppLanguage, usesGroupingSeparator: Bool = true) -> String {
+        formatNumber(
+            amount,
+            lang: lang,
+            usesGroupingSeparator: usesGroupingSeparator,
+            minimumFractionDigits: accountingMinimumFractionDigits,
+            maximumFractionDigits: accountingMaximumFractionDigits
+        )
     }
 }

@@ -8,13 +8,9 @@ struct DefaultsSettingsView: View {
     }
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+    private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
 
-    private let tauxTVAOptions: [(label: String, value: Decimal)] = [
-        ("0 %", 0),
-        ("5,5 %", 5.5),
-        ("10 %", 10),
-        ("20 %", 20)
-    ]
+    private let tauxTVAOptions: [Decimal] = [0, 5.5, 10, 20]
 
     var body: some View {
         VStack(spacing: 20) {
@@ -27,10 +23,10 @@ struct DefaultsSettingsView: View {
                     settingsRow(L10n.defaultRate(lang)) {
                         Picker("", selection: Binding(
                             get: { company.tauxTVAParDefaut },
-                            set: { company.tauxTVAParDefaut = $0; dataStore.save() }
+                            set: { company.tauxTVAParDefaut = $0; dataStore.companyUpdated() }
                         )) {
-                            ForEach(tauxTVAOptions, id: \.value) { option in
-                                Text(option.label).tag(option.value)
+                            ForEach(tauxTVAOptions, id: \.self) { option in
+                                Text(percentLabel(option)).tag(option)
                             }
                         }
                         .labelsHidden()
@@ -51,13 +47,8 @@ struct DefaultsSettingsView: View {
                             get: { company.deviseParDefaut },
                             set: { newValue in
                                 company.deviseParDefaut = newValue
-                                if !newValue.requiresBlockchain {
-                                    company.blockchainParDefaut = nil
-                                } else if company.blockchainParDefaut == nil {
-                                    let compatible = Blockchain.compatibleBlockchains(for: newValue)
-                                    company.blockchainParDefaut = compatible.first
-                                }
-                                dataStore.save()
+                                normalizeDefaultBlockchain(for: newValue)
+                                dataStore.companyUpdated()
                             }
                         )) {
                             ForEach(CurrencyType.allCases) { devise in
@@ -74,7 +65,7 @@ struct DefaultsSettingsView: View {
                         settingsRow(L10n.defaultBlockchain(lang)) {
                             Picker("", selection: Binding(
                                 get: { company.blockchainParDefaut ?? compatible.first ?? .solana },
-                                set: { company.blockchainParDefaut = $0; dataStore.save() }
+                                set: { company.blockchainParDefaut = $0; dataStore.companyUpdated() }
                             )) {
                                 ForEach(compatible) { chain in
                                     Text(chain.label).tag(chain)
@@ -103,7 +94,7 @@ struct DefaultsSettingsView: View {
                             L10n.days(lang, count: company.delaiPaiementJours),
                             value: Binding(
                                 get: { company.delaiPaiementJours },
-                                set: { company.delaiPaiementJours = $0; dataStore.save() }
+                                set: { company.delaiPaiementJours = $0; dataStore.companyUpdated() }
                             ),
                             in: 0...120,
                             step: 5
@@ -126,5 +117,22 @@ struct DefaultsSettingsView: View {
                 .foregroundStyle(.secondary)
             content()
         }
+    }
+
+    private func percentLabel(_ value: Decimal) -> String {
+        "\(value.formattedDecimal(maxFractionDigits: 2, for: numberFormat)) %"
+    }
+
+    private func normalizeDefaultBlockchain(for currency: CurrencyType) {
+        guard currency.requiresBlockchain else {
+            company.blockchainParDefaut = nil
+            return
+        }
+
+        let compatible = Blockchain.compatibleBlockchains(for: currency)
+        if let current = company.blockchainParDefaut, compatible.contains(current) {
+            return
+        }
+        company.blockchainParDefaut = compatible.first
     }
 }

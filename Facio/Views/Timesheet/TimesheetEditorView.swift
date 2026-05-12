@@ -3,6 +3,7 @@ import SwiftUI
 struct TimesheetEditorView: View {
     let timesheet: TimesheetPeriod
     @Environment(DataStore.self) private var dataStore
+    @State private var hourInputMode: TimesheetHourInputMode = .decimal
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -13,6 +14,7 @@ struct TimesheetEditorView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 resumeSection
+                hourInputModeControl
 
                 ForEach(Array(timesheet.semaines.enumerated()), id: \.element.id) { weekIndex, week in
                     weekSection(weekIndex: weekIndex, week: week)
@@ -68,6 +70,25 @@ struct TimesheetEditorView: View {
         .padding(.vertical, 8)
     }
 
+    private var hourInputModeControl: some View {
+        HStack(spacing: 12) {
+            Label(L10n.hourInputMode(lang), systemImage: "clock.badge")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Picker("", selection: $hourInputMode) {
+                Text(L10n.hourInputDecimalMode(lang)).tag(TimesheetHourInputMode.decimal)
+                Text(L10n.hourInputTimeMode(lang)).tag(TimesheetHourInputMode.time)
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .frame(width: 220)
+            .help(L10n.hourInputHelp(lang, mode: hourInputMode))
+
+            Spacer()
+        }
+    }
+
     // MARK: - Semaine
 
     private func weekSection(weekIndex: Int, week: TimesheetWeek) -> some View {
@@ -95,11 +116,11 @@ struct TimesheetEditorView: View {
                         Label("\(heuresMoisSemaine.formatted2Decimals)h", systemImage: "clock")
                             .font(.subheadline.monospacedDigit())
                             .fontWeight(.medium)
-                        Text("N: \(normSemaine.formatted2Decimals)h")
+                        Text(L10n.normalHoursShort(lang, value: normSemaine.formatted2Decimals))
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.blue)
                         if supSemaine > 0 {
-                            Text("S: +\(supSemaine.formatted2Decimals)h")
+                            Text(L10n.overtimeHoursShort(lang, value: supSemaine.formatted2Decimals))
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.orange)
                                 .fontWeight(.medium)
@@ -128,7 +149,7 @@ struct TimesheetEditorView: View {
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundStyle(estDansMois ? .primary : .tertiary)
                             TimeField(
-                                placeholder: "0",
+                                placeholder: L10n.hourInputPlaceholder(lang, mode: hourInputMode),
                                 value: Binding(
                                     get: {
                                         guard weekIndex < timesheet.semaines.count,
@@ -141,10 +162,11 @@ struct TimesheetEditorView: View {
                                               dayIndex < timesheet.semaines[weekIndex].jours.count
                                         else { return }
                                         timesheet.semaines[weekIndex].jours[dayIndex].heures = newVal
-                                        dataStore.save()
-                                        dataStore.syncSharedWeeks(for: timesheet)
+                                        dataStore.timesheetUpdated(timesheet, syncSharedWeeks: true)
                                     }
-                                )
+                                ),
+                                mode: hourInputMode,
+                                lang: lang
                             )
                             .opacity(estDansMois ? 1.0 : 0.5)
                         }
@@ -165,19 +187,19 @@ struct TimesheetEditorView: View {
             ], spacing: 12) {
                 settingsField(L10n.weeklyThreshold(lang), placeholder: "35", value: Binding(
                     get: { timesheet.seuilHebdo },
-                    set: { timesheet.seuilHebdo = $0; dataStore.save() }
+                    set: { timesheet.seuilHebdo = $0; dataStore.timesheetUpdated(timesheet) }
                 ))
                 settingsField(L10n.normalRate(lang), placeholder: "26,39", value: Binding(
                     get: { timesheet.tauxNormal },
-                    set: { timesheet.tauxNormal = $0; dataStore.save() }
+                    set: { timesheet.tauxNormal = $0; dataStore.timesheetUpdated(timesheet) }
                 ))
                 settingsField(L10n.overtimeRate(lang), placeholder: "39,59", value: Binding(
                     get: { timesheet.tauxSupplementaire },
-                    set: { timesheet.tauxSupplementaire = $0; dataStore.save() }
+                    set: { timesheet.tauxSupplementaire = $0; dataStore.timesheetUpdated(timesheet) }
                 ))
                 settingsField(L10n.netCoeff(lang), placeholder: "0,756", value: Binding(
                     get: { timesheet.coefficientNet },
-                    set: { timesheet.coefficientNet = $0; dataStore.save() }
+                    set: { timesheet.coefficientNet = $0; dataStore.timesheetUpdated(timesheet) }
                 ))
             }
             .padding(8)

@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 swift build                    # Debug build
 swift run                      # Build + run the app
-./scripts/build-app.sh 1.0.0  # Build release .app bundle in dist/
+CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" ./scripts/build-app.sh 1.0.0
+ALLOW_AD_HOC_SIGNING=1 ./scripts/build-app.sh 1.0.0  # Local-only unsigned distribution build
 ```
 
 No test suite is configured. No linter is configured.

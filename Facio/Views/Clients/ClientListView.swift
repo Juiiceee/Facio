@@ -112,10 +112,10 @@ struct ClientDetailView: View {
         }
         .formStyle(.grouped)
         .padding()
-        .onChange(of: client.nom) { dataStore.save() }
-        .onChange(of: client.adresse) { dataStore.save() }
-        .onChange(of: client.codePostal) { dataStore.save() }
-        .onChange(of: client.ville) { dataStore.save() }
-        .onChange(of: client.email) { dataStore.save() }
+        .onChange(of: client.nom) { dataStore.clientUpdated(client) }
+        .onChange(of: client.adresse) { dataStore.clientUpdated(client) }
+        .onChange(of: client.codePostal) { dataStore.clientUpdated(client) }
+        .onChange(of: client.ville) { dataStore.clientUpdated(client) }
+        .onChange(of: client.email) { dataStore.clientUpdated(client) }
     }
 }

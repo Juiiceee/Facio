@@ -1,198 +1,5 @@
 import Foundation
 
-// MARK: - Jour de la semaine
-
-enum JourSemaine: Int, Codable, CaseIterable, Identifiable {
-    case lundi = 0, mardi, mercredi, jeudi, vendredi, samedi, dimanche
-
-    var id: Int { rawValue }
-
-    var label: String {
-        switch self {
-        case .lundi: return "Lundi"
-        case .mardi: return "Mardi"
-        case .mercredi: return "Mercredi"
-        case .jeudi: return "Jeudi"
-        case .vendredi: return "Vendredi"
-        case .samedi: return "Samedi"
-        case .dimanche: return "Dimanche"
-        }
-    }
-
-    var shortLabel: String {
-        switch self {
-        case .lundi: return "Lun"
-        case .mardi: return "Mar"
-        case .mercredi: return "Mer"
-        case .jeudi: return "Jeu"
-        case .vendredi: return "Ven"
-        case .samedi: return "Sam"
-        case .dimanche: return "Dim"
-        }
-    }
-
-    func label(for lang: AppLanguage) -> String {
-        L10n.weekdayLabel(rawValue, lang)
-    }
-
-    func shortLabel(for lang: AppLanguage) -> String {
-        L10n.weekdayShort(rawValue, lang)
-    }
-}
-
-// MARK: - Entree journaliere
-
-struct TimesheetDay: Identifiable, Codable, Hashable {
-    var id: UUID = UUID()
-    /// Date du jour (sans heure)
-    var dateString: String  // "2026-03-01" — stocke comme string pour serialisation fiable
-    var heures: Decimal = 0
-
-    var date: Date {
-        TimesheetDay.dateFormatter.date(from: dateString) ?? Date()
-    }
-
-    var jourSemaine: JourSemaine {
-        let cal = Calendar(identifier: .gregorian)
-        var weekday = cal.component(.weekday, from: date) - 2  // dimanche=1 en Calendar, on veut lundi=0
-        if weekday < 0 { weekday = 6 }
-        return JourSemaine(rawValue: weekday) ?? .lundi
-    }
-
-    /// Jour du mois (ex: "26", "1", "15")
-    var jourDuMois: Int {
-        Calendar(identifier: .gregorian).component(.day, from: date)
-    }
-
-    /// Mois (1-12)
-    var mois: Int {
-        Calendar(identifier: .gregorian).component(.month, from: date)
-    }
-
-    static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.locale = Locale(identifier: "fr_FR")
-        return f
-    }()
-
-    init(date: Date, heures: Decimal = 0) {
-        self.id = UUID()
-        self.dateString = TimesheetDay.dateFormatter.string(from: date)
-        self.heures = heures
-    }
-
-    // MARK: - Codable (backwards-compatible)
-
-    enum CodingKeys: String, CodingKey {
-        case id, dateString, heures
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
-        dateString = container.decodeOrDefault(
-            String.self,
-            forKey: .dateString,
-            default: TimesheetDay.dateFormatter.string(from: Date())
-        )
-        heures = container.decodeOrDefault(Decimal.self, forKey: .heures, default: 0)
-    }
-}
-
-// MARK: - Semaine calendaire
-
-struct TimesheetWeek: Identifiable, Codable, Hashable {
-    var id: UUID = UUID()
-    var numero: Int = 1
-    /// 7 jours (lundi a dimanche) avec leurs vraies dates
-    var jours: [TimesheetDay] = []
-
-    init() {}
-
-    /// Total heures de la semaine
-    var totalHeures: Decimal {
-        jours.reduce(0) { $0 + $1.heures }
-    }
-
-    func heuresNormales(seuil: Decimal = 35) -> Decimal {
-        min(totalHeures, seuil)
-    }
-
-    func heuresSupplementaires(seuil: Decimal = 35) -> Decimal {
-        max(totalHeures - seuil, 0)
-    }
-
-    /// Calcule les heures sup attribuables au mois courant dans cette semaine,
-    /// en tenant compte des heures des jours d'un mois adjacent (chronologiquement).
-    /// Les jours sont ordonnés lun→dim. Les premières `seuil` heures sont normales,
-    /// le reste est overtime, réparti par mois selon l'ordre chronologique.
-    func heuresSupPourMois(moisPeriode: Int, seuil: Decimal = 35, adjacentHours: [String: Decimal]) -> Decimal {
-        var heuresPrecedentes: Decimal = 0
-        var heuresMoisCourant: Decimal = 0
-        var moisCourantCommence = false
-
-        for jour in jours {
-            let h: Decimal
-            if jour.mois == moisPeriode {
-                h = jour.heures
-                heuresMoisCourant += h
-                moisCourantCommence = true
-            } else {
-                h = adjacentHours[jour.dateString] ?? jour.heures
-                if !moisCourantCommence {
-                    // Jours d'un autre mois avant le mois courant
-                    heuresPrecedentes += h
-                }
-                // Jours après le mois courant n'affectent pas l'overtime de CE mois
-            }
-        }
-        return max(0, heuresPrecedentes + heuresMoisCourant - seuil) - max(0, heuresPrecedentes - seuil)
-    }
-
-    /// Heures normales du mois courant dans cette semaine (cross-période)
-    func heuresNormalesPourMois(moisPeriode: Int, seuil: Decimal = 35, adjacentHours: [String: Decimal]) -> Decimal {
-        let heuresMois = jours.filter { $0.mois == moisPeriode }.reduce(Decimal(0)) { $0 + $1.heures }
-        let sup = heuresSupPourMois(moisPeriode: moisPeriode, seuil: seuil, adjacentHours: adjacentHours)
-        return heuresMois - sup
-    }
-
-    /// Le lundi de cette semaine
-    var dateDebut: Date? {
-        jours.first?.date
-    }
-
-    /// Label : "26 fev - 02 mar"
-    var label: String {
-        guard let first = jours.first, let last = jours.last else { return "Semaine \(numero)" }
-        let f = DateFormatter()
-        f.dateFormat = "dd MMM"
-        f.locale = Locale(identifier: "fr_FR")
-        return "\(f.string(from: first.date)) — \(f.string(from: last.date))"
-    }
-
-    func label(for lang: AppLanguage) -> String {
-        guard let first = jours.first, let last = jours.last else { return L10n.week(lang, number: numero) }
-        let f = DateFormatter()
-        f.dateFormat = "dd MMM"
-        f.locale = Locale(identifier: lang == .fr ? "fr_FR" : "en_US")
-        return "\(f.string(from: first.date)) — \(f.string(from: last.date))"
-    }
-
-    // MARK: - Codable
-
-    enum CodingKeys: String, CodingKey {
-        case id, numero, jours
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
-        numero = container.decodeOrDefault(Int.self, forKey: .numero, default: 1)
-        jours = container.decodeOrDefault([TimesheetDay].self, forKey: .jours, default: [])
-    }
-}
-
 // MARK: - Periode (mois)
 
 @Observable
@@ -204,6 +11,8 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     var semaines: [TimesheetWeek] = []
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
+    var invoiceDocumentId: UUID?
+    var billedAt: Date?
 
     // Parametres de calcul
     var tauxNormal: Decimal = 26.39
@@ -225,6 +34,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     var coutSupplementaire: Decimal { totalHeuresSupplementaires * tauxSupplementaire }
     var totalBrut: Decimal { coutNormal + coutSupplementaire }
     var totalNet: Decimal { totalBrut * coefficientNet }
+    var hasGeneratedInvoice: Bool { invoiceDocumentId != nil || billedAt != nil }
 
     // MARK: - Cross-period overtime (heures sup inter-mois)
 
@@ -334,10 +144,83 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         return semaines
     }
 
+    /// Restores the canonical calendar shape for the period and merges persisted hours by date.
+    @discardableResult
+    func normalizeCalendar() -> Bool {
+        let expected = TimesheetPeriod.genererSemaines(mois: mois, annee: annee)
+        guard !expected.isEmpty else { return false }
+
+        var daysByDate: [String: TimesheetDay] = [:]
+        var weeksByStartDate: [String: TimesheetWeek] = [:]
+        var weeksByNumber: [Int: TimesheetWeek] = [:]
+        var changed = semaines.count != expected.count
+
+        for week in semaines {
+            if let startDate = week.jours.first?.dateString {
+                if weeksByStartDate[startDate] == nil {
+                    weeksByStartDate[startDate] = week
+                } else {
+                    changed = true
+                }
+            }
+            if weeksByNumber[week.numero] == nil {
+                weeksByNumber[week.numero] = week
+            }
+
+            for day in week.jours {
+                if let existing = daysByDate[day.dateString] {
+                    daysByDate[day.dateString] = TimesheetPeriod.preferredDay(existing: existing, candidate: day)
+                    changed = true
+                } else {
+                    daysByDate[day.dateString] = day
+                }
+            }
+        }
+
+        var normalized = expected
+        for weekIndex in normalized.indices {
+            let expectedStartDate = normalized[weekIndex].jours.first?.dateString
+            let storedWeek = expectedStartDate.flatMap { weeksByStartDate[$0] }
+                ?? weeksByNumber[normalized[weekIndex].numero]
+            if let storedWeek {
+                normalized[weekIndex].id = storedWeek.id
+            }
+
+            for dayIndex in normalized[weekIndex].jours.indices {
+                let dateString = normalized[weekIndex].jours[dayIndex].dateString
+                guard let storedDay = daysByDate[dateString] else { continue }
+                normalized[weekIndex].jours[dayIndex].id = storedDay.id
+                normalized[weekIndex].jours[dayIndex].heures = storedDay.heures
+            }
+        }
+
+        if semaines != normalized {
+            semaines = normalized
+            changed = true
+        }
+        if nom.isEmpty {
+            nom = moisLabel
+            changed = true
+        }
+
+        return changed
+    }
+
+    private static func preferredDay(existing: TimesheetDay, candidate: TimesheetDay) -> TimesheetDay {
+        if existing.heures == 0, candidate.heures != 0 {
+            return candidate
+        }
+        if candidate.heures == 0 {
+            return existing
+        }
+        return candidate
+    }
+
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
         case id, nom, mois, annee, semaines, createdAt, updatedAt
+        case invoiceDocumentId, billedAt
         case tauxNormal, tauxSupplementaire, coefficientNet, seuilHebdo
     }
 
@@ -349,36 +232,14 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         annee = c.decodeOrDefault(Int.self, forKey: .annee, default: Calendar.current.component(.year, from: Date()))
         semaines = c.decodeOrDefault([TimesheetWeek].self, forKey: .semaines, default: [])
         createdAt = c.decodeOrDefault(Date.self, forKey: .createdAt, default: Date())
-
-        // Reparer les semaines si le timesheet a ete tronque
-        let expected = TimesheetPeriod.genererSemaines(mois: mois, annee: annee)
-        if semaines.count < expected.count {
-            // Creer un index dateString -> heures des jours deja saisis
-            var heuresParDate: [String: Decimal] = [:]
-            for w in semaines {
-                for j in w.jours where j.heures != 0 {
-                    heuresParDate[j.dateString] = j.heures
-                }
-            }
-            // Remettre les heures dans les semaines regenerees
-            var fixed = expected
-            for wi in fixed.indices {
-                for ji in fixed[wi].jours.indices {
-                    if let h = heuresParDate[fixed[wi].jours[ji].dateString] {
-                        fixed[wi].jours[ji].heures = h
-                    }
-                }
-            }
-            semaines = fixed
-        }
-        if nom.isEmpty {
-            nom = moisLabel
-        }
+        invoiceDocumentId = try? c.decode(UUID.self, forKey: .invoiceDocumentId)
+        billedAt = try? c.decode(Date.self, forKey: .billedAt)
         updatedAt = c.decodeOrDefault(Date.self, forKey: .updatedAt, default: createdAt)
         tauxNormal = c.decodeOrDefault(Decimal.self, forKey: .tauxNormal, default: 26.39)
         tauxSupplementaire = c.decodeOrDefault(Decimal.self, forKey: .tauxSupplementaire, default: 39.59)
         coefficientNet = c.decodeOrDefault(Decimal.self, forKey: .coefficientNet, default: 0.756)
         seuilHebdo = c.decodeOrDefault(Decimal.self, forKey: .seuilHebdo, default: 35)
+        normalizeCalendar()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -390,6 +251,8 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         try c.encode(semaines, forKey: .semaines)
         try c.encode(createdAt, forKey: .createdAt)
         try c.encode(updatedAt, forKey: .updatedAt)
+        try c.encodeIfPresent(invoiceDocumentId, forKey: .invoiceDocumentId)
+        try c.encodeIfPresent(billedAt, forKey: .billedAt)
         try c.encode(tauxNormal, forKey: .tauxNormal)
         try c.encode(tauxSupplementaire, forKey: .tauxSupplementaire)
         try c.encode(coefficientNet, forKey: .coefficientNet)

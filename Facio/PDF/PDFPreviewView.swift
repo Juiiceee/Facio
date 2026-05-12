@@ -31,6 +31,8 @@ struct PDFPreviewSheet: View {
     let company: CompanyInfo
     @Environment(\.dismiss) private var dismiss
     @Environment(DataStore.self) private var dataStore
+    @State private var showPDFGenerationAlert = false
+    @State private var showPDFExportAlert = false
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -68,13 +70,30 @@ struct PDFPreviewSheet: View {
             }
         }
         .frame(minWidth: 650, minHeight: 850)
+        .alert(L10n.pdfGenerationError(lang), isPresented: $showPDFGenerationAlert) {
+            Button(L10n.understood(lang), role: .cancel) {}
+        } message: {
+            Text(L10n.cannotGeneratePDF(lang))
+        }
+        .alert(L10n.pdfExportError(lang), isPresented: $showPDFExportAlert) {
+            Button(L10n.understood(lang), role: .cancel) {}
+        } message: {
+            Text(L10n.cannotExportPDF(lang))
+        }
     }
 
     private func exportPDF() {
         let pdfData = PDFGenerator(document: document, company: company).generate()
-        guard !pdfData.isEmpty else { return }
+        guard !pdfData.isEmpty else {
+            showPDFGenerationAlert = true
+            return
+        }
+
         Task {
-            await ExportService.exportPDF(data: pdfData, defaultFilename: document.number, language: lang)
+            let result = await ExportService.exportPDF(data: pdfData, defaultFilename: document.number, language: lang)
+            if result == .failed {
+                showPDFExportAlert = true
+            }
         }
     }
 }

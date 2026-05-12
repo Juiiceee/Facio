@@ -29,9 +29,12 @@ extension L10n {
     static func txPrefix(_ l: AppLanguage) -> String { "TX: " }
     static func bankTransfer(_ l: AppLanguage) -> String { l == .fr ? "Virement bancaire" : "Bank transfer" }
     static func cryptoTransfer(_ l: AppLanguage) -> String { l == .fr ? "Transfert Cryptomonnaie" : "Cryptocurrency transfer" }
-    static func walletAddress(_ l: AppLanguage) -> String { l == .fr ? "Wallet adresse:" : "Wallet address:" }
+    static func walletAddress(_ l: AppLanguage) -> String { l == .fr ? "Adresse wallet:" : "Wallet address:" }
     static func accountHolder(_ l: AppLanguage) -> String { l == .fr ? "Titulaire: " : "Holder: " }
+    static func siret(_ l: AppLanguage) -> String { "SIRET" }
+    static func phoneShort(_ l: AppLanguage) -> String { l == .fr ? "Tel" : "Phone" }
     static func scanToPay(_ l: AppLanguage) -> String { l == .fr ? "Scanner pour payer" : "Scan to pay" }
     static func companyFallback(_ l: AppLanguage) -> String { l == .fr ? "ENTREPRISE" : "COMPANY" }
     static func notesLabel(_ l: AppLanguage) -> String { l == .fr ? "NOTES" : "NOTES" }
+    static func defaultPDFName(_ l: AppLanguage) -> String { l == .fr ? "document" : "document" }
 }

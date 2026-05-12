@@ -54,8 +54,7 @@ struct ContentView: View {
         case .heures:
             TimesheetListView(selectedTimesheetId: $selectedTimesheetId)
         case .clients, .dashboard, .parametres, .none:
-            Text("")
-                .navigationSplitViewColumnWidth(0)
+            EmptyView()
         }
     }
 

@@ -33,7 +33,7 @@ jobs:
 
   build:
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -126,28 +126,30 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
           VERSION="${{ needs.release-please.outputs.version }}"
+          ARCH="$(uname -m)"
           ./scripts/create-dmg.sh "$VERSION"
-          printf 'DMG_NAME=Facio-%s.dmg\n' "$VERSION" >> "$GITHUB_ENV"
+          printf 'DMG_NAME=Facio-%s-macos-%s.dmg\n' "$VERSION" "$ARCH" >> "$GITHUB_ENV"
+          printf 'RELEASE_ARCH=%s\n' "$ARCH" >> "$GITHUB_ENV"
 
-      - name: Create ZIP, checksums, and provenance
+      - name: Create release provenance
         run: |
           VERSION="${{ needs.release-please.outputs.version }}"
           TAG="${{ needs.release-please.outputs.tag_name }}"
-          ZIP_PATH="dist/Facio-${VERSION}-mac.zip"
-          ZIP_CHECKSUM_PATH="${ZIP_PATH}.sha256"
-          DMG_CHECKSUM_PATH="dist/Facio-${VERSION}.dmg.sha256"
+          DMG_PATH="dist/${DMG_NAME}"
+          DMG_CHECKSUM_PATH="${DMG_PATH}.sha256"
 
-          ditto -c -k --keepParent dist/Facio.app "$ZIP_PATH"
-          shasum -a 256 "$ZIP_PATH" > "$ZIP_CHECKSUM_PATH"
+          test -s "$DMG_PATH"
+          test -s "$DMG_CHECKSUM_PATH"
 
           {
             echo "tag=${TAG}"
             echo "version=${VERSION}"
             echo "commit=${GITHUB_SHA}"
+            echo "artifact=${DMG_NAME}"
+            echo "architecture=${RELEASE_ARCH}"
             echo "runner_os=${RUNNER_OS}"
             echo "workflow=${GITHUB_WORKFLOW}"
             echo "run_id=${GITHUB_RUN_ID}"
-            echo "zip_sha256=$(awk '{print $1}' "$ZIP_CHECKSUM_PATH")"
             echo "dmg_sha256=$(awk '{print $1}' "$DMG_CHECKSUM_PATH")"
             swift --version | head -n 1 | sed 's/^/swift=/'
             xcodebuild -version | tr '\n' ' ' | sed 's/[[:space:]]*$//' | sed 's/^/xcode=/'
@@ -162,8 +164,6 @@ jobs:
           TAG="${{ needs.release-please.outputs.tag_name }}"
 
           gh release upload "$TAG" \
-            "dist/Facio-${VERSION}-mac.zip" \
-            "dist/Facio-${VERSION}-mac.zip.sha256" \
             "dist/${DMG_NAME}" \
             "dist/${DMG_NAME}.sha256" \
             "dist/Facio-${VERSION}-provenance.txt" \

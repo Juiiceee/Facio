@@ -2,33 +2,43 @@ import AppKit
 import Foundation
 
 struct ExportService {
+    enum ExportResult: Equatable {
+        case success
+        case cancelled
+        case failed
+    }
+
     /// Exporte des données PDF via un dialogue de sauvegarde
     @MainActor
     @discardableResult
-    static func exportPDF(data: Data, defaultFilename: String, language: AppLanguage = .fr) async -> Bool {
+    static func exportPDF(data: Data, defaultFilename: String, language: AppLanguage = .fr) async -> ExportResult {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.pdf]
-        panel.nameFieldStringValue = sanitizedPDFFilename(defaultFilename)
+        panel.nameFieldStringValue = sanitizedPDFFilename(defaultFilename, language: language)
         panel.title = L10n.exportDocument(language)
         panel.message = L10n.chooseSaveLocation(language)
         panel.canCreateDirectories = true
 
         let response = panel.runModal()
-        guard response == .OK, let url = panel.url else {
-            return false
+        guard response == .OK else {
+            return .cancelled
+        }
+
+        guard let url = panel.url else {
+            return .failed
         }
 
         do {
             try data.write(to: url, options: [.atomic])
             // Ouvrir le fichier dans l'application par défaut
             NSWorkspace.shared.open(url)
-            return true
+            return .success
         } catch {
-            return false
+            return .failed
         }
     }
 
-    private static func sanitizedPDFFilename(_ filename: String) -> String {
+    private static func sanitizedPDFFilename(_ filename: String, language: AppLanguage) -> String {
         let baseName = (filename as NSString).deletingPathExtension
         let sanitizedScalars = baseName.unicodeScalars.map { scalar -> Character in
             if CharacterSet.alphanumerics.contains(scalar)
@@ -43,7 +53,7 @@ struct ExportService {
             .joined(separator: "-")
             .trimmingCharacters(in: CharacterSet(charactersIn: " ._-"))
 
-        let safeBase = collapsed.isEmpty ? "document" : String(collapsed.prefix(120))
+        let safeBase = collapsed.isEmpty ? L10n.defaultPDFName(language) : String(collapsed.prefix(120))
         return "\(safeBase).pdf"
     }
 }

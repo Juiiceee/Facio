@@ -20,7 +20,7 @@ struct LanguageSettingsView: View {
                     settingsRow(L10n.defaultLanguage(lang)) {
                         Picker("", selection: Binding(
                             get: { company.langueParDefaut },
-                            set: { company.langueParDefaut = $0; dataStore.save() }
+                            set: { company.langueParDefaut = $0; dataStore.companyUpdated() }
                         )) {
                             ForEach(AppLanguage.allCases) { l in
                                 Text(l.label).tag(l)
@@ -46,7 +46,7 @@ struct LanguageSettingsView: View {
                     settingsRow(L10n.dateFormat(lang)) {
                         Picker("", selection: Binding(
                             get: { company.formatDate },
-                            set: { company.formatDate = $0; dataStore.save() }
+                            set: { company.formatDate = $0; dataStore.companyUpdated() }
                         )) {
                             Text("dd/MM/yyyy (02/04/2026)").tag(AppLanguage.fr)
                             Text("MM/dd/yyyy (04/02/2026)").tag(AppLanguage.en)
@@ -67,7 +67,7 @@ struct LanguageSettingsView: View {
                     settingsRow(L10n.numberFormat(lang)) {
                         Picker("", selection: Binding(
                             get: { company.formatNombre },
-                            set: { company.formatNombre = $0; dataStore.save() }
+                            set: { company.formatNombre = $0; dataStore.companyUpdated() }
                         )) {
                             Text("1 234,56 (FR)").tag(AppLanguage.fr)
                             Text("1,234.56 (EN)").tag(AppLanguage.en)

@@ -283,7 +283,7 @@
         <a href="#demo">Demo</a>
         <a href="#currencies">Currencies</a>
         <a href="https://github.com/Juiiceee/Facio">GitHub</a>
-        <a href="https://github.com/Juiiceee/Facio/releases/latest" class="btn-nav">Download</a>
+        <a href="https://github.com/Juiiceee/Facio/releases" class="btn-nav" id="download-nav">Download</a>
       </div>
     </div>
   </nav>
@@ -299,16 +299,16 @@
           Facio is a native macOS app — no account, no subscription.
         </p>
         <div class="hero-actions">
-          <a href="https://github.com/Juiiceee/Facio/releases/latest" class="btn-primary" id="download-btn">
+          <a href="https://github.com/Juiiceee/Facio/releases" class="btn-primary" id="download-btn">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 12l-4.5-4.5 1.06-1.06L7 9.88V2h2v7.88l2.44-2.44L12.5 7.5 8 12z"/><path d="M2 13h12v1.5H2z"/></svg>
-            Download for Mac
+            Download DMG
           </a>
           <a href="https://github.com/Juiiceee/Facio" class="btn-secondary">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
             View on GitHub
           </a>
         </div>
-        <p class="hero-meta">Latest release: <a href="https://github.com/Juiiceee/Facio/releases" id="version-tag">—</a></p>
+        <p class="hero-meta"><span id="release-label">Installer:</span> <a href="https://github.com/Juiiceee/Facio/releases" id="version-tag">notarized DMG releases</a></p>
       </div>
 
       <div>
@@ -396,7 +396,7 @@
       <div class="demo-row">
         <div class="demo-video" onclick="openLightbox('videos/pay.mov')">
           <video autoplay muted loop playsinline>
-            <source src="videos/pay.mov" type="video/mp4" />
+            <source src="videos/pay.mov" type="video/quicktime" />
           </video>
           <button class="expand-btn">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1h4v1.5h-2.5v2.5h-1.5v-4zm9 0h4v4h-1.5v-2.5h-2.5v-1.5zm-9 9h1.5v2.5h2.5v1.5h-4v-4zm10.5 2.5v-2.5h1.5v4h-4v-1.5h2.5z"/></svg>
@@ -453,7 +453,7 @@
       <div class="demo-row reverse">
         <div class="demo-video" onclick="openLightbox('videos/timesheet.mov')">
           <video autoplay muted loop playsinline>
-            <source src="videos/timesheet.mov" type="video/mp4" />
+            <source src="videos/timesheet.mov" type="video/quicktime" />
           </video>
           <button class="expand-btn">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1h4v1.5h-2.5v2.5h-1.5v-4zm9 0h4v4h-1.5v-2.5h-2.5v-1.5zm-9 9h1.5v2.5h2.5v1.5h-4v-4zm10.5 2.5v-2.5h1.5v4h-4v-1.5h2.5z"/></svg>
@@ -514,14 +514,14 @@
     <img src="icon.png" alt="Facio" style="width:80px; height:80px; border-radius:18px; margin-bottom:24px; box-shadow:0 8px 32px rgba(123,94,167,0.25);" />
     <h2>Ready to invoice?</h2>
     <p>Download Facio for free. Up and running in seconds, no account needed.</p>
-    <a href="https://github.com/Juiiceee/Facio/releases/latest" class="btn-primary" style="font-size:18px; padding: 16px 36px;" id="download-btn-2">
+    <a href="https://github.com/Juiiceee/Facio/releases" class="btn-primary" style="font-size:18px; padding: 16px 36px;" id="download-btn-2">
       <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 12l-4.5-4.5 1.06-1.06L7 9.88V2h2v7.88l2.44-2.44L12.5 7.5 8 12z"/><path d="M2 13h12v1.5H2z"/></svg>
-      Download Facio for free
+      Download notarized DMG
     </a>
-    <p style="font-size:13px; margin:16px 0 0;">Release downloads are signed, notarized, and published with SHA-256 checksums.</p>
+    <p style="font-size:13px; margin:16px 0 0;">Public installer DMGs are signed, notarized, and published with SHA-256 checksums.</p>
     <div class="requirements">
       <span>🍎 macOS 15 Sequoia+</span>
-      <span>💻 Apple Silicon &amp; Intel</span>
+      <span>💻 Architecture in DMG filename</span>
       <span>🆓 Free</span>
     </div>
   </section>
@@ -540,18 +540,29 @@
   </footer>
 
   <script>
-    // Version from GitHub API
+    // Link directly only when the latest release has a downloadable DMG asset.
+    const releasesUrl = 'https://github.com/Juiiceee/Facio/releases';
+    const downloadLinks = [
+      document.getElementById('download-nav'),
+      document.getElementById('download-btn'),
+      document.getElementById('download-btn-2')
+    ].filter(Boolean);
+
     fetch('https://api.github.com/repos/Juiiceee/Facio/releases/latest')
       .then(r => r.json())
       .then(data => {
         if (!data.tag_name) return;
+        const assets = Array.isArray(data.assets) ? data.assets : [];
+        const asset = assets.find(a => /-macos-[A-Za-z0-9_]+\.dmg$/.test(a.name))
+          || assets.find(a => a.name.endsWith('.dmg'));
+        if (!asset?.browser_download_url) return;
+
+        document.getElementById('release-label').textContent = 'Latest DMG:';
         document.getElementById('version-tag').textContent = data.tag_name;
-        document.getElementById('version-tag').href = data.html_url;
-        const asset = data.assets?.find(a => a.name.endsWith('.dmg') || a.name.endsWith('.zip'));
-        if (asset) {
-          document.getElementById('download-btn').href = asset.browser_download_url;
-          document.getElementById('download-btn-2').href = asset.browser_download_url;
-        }
+        document.getElementById('version-tag').href = asset.browser_download_url;
+        downloadLinks.forEach(link => {
+          link.href = asset.browser_download_url || releasesUrl;
+        });
       })
       .catch(() => {});
 

@@ -83,12 +83,23 @@ struct DocumentListView: View {
     // MARK: - Actions
 
     private func creerDocument() {
+        let company = dataStore.companyInfo
+        let creationDate = Date()
+        let currency = company.deviseParDefaut
         let number = DocumentNumberService.nextNumber(
             type: documentType,
             existingDocuments: allDocuments,
-            language: lang
+            language: company.langueParDefaut
         )
-        let document = Document(type: documentType, number: number)
+        let document = Document(
+            type: documentType,
+            number: number,
+            dateCreation: creationDate,
+            dateEcheance: dueDate(from: creationDate),
+            currency: currency,
+            blockchain: defaultBlockchain(for: currency)
+        )
+        document.langue = company.langueParDefaut
         dataStore.addDocument(document)
         selectedDocumentId = document.id
     }
@@ -120,6 +131,25 @@ struct DocumentListView: View {
         )
         dataStore.addDocument(facture)
     }
+
+    private func dueDate(from creationDate: Date) -> Date {
+        Calendar.current.date(
+            byAdding: .day,
+            value: dataStore.companyInfo.delaiPaiementJours,
+            to: creationDate
+        ) ?? creationDate
+    }
+
+    private func defaultBlockchain(for currency: CurrencyType) -> Blockchain? {
+        guard currency.requiresBlockchain else { return nil }
+        let compatible = Blockchain.compatibleBlockchains(for: currency)
+        guard !compatible.isEmpty else { return nil }
+        if let defaultBlockchain = dataStore.companyInfo.blockchainParDefaut,
+           compatible.contains(defaultBlockchain) {
+            return defaultBlockchain
+        }
+        return compatible.first
+    }
 }
 
 // MARK: - Document Row
@@ -129,6 +159,8 @@ struct DocumentRowView: View {
     @Environment(DataStore.self) private var dataStore
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+    private var dateFormat: AppLanguage { dataStore.companyInfo.formatDate }
+    private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -147,14 +179,14 @@ struct DocumentRowView: View {
                         .foregroundStyle(document.clientNom.isEmpty ? .tertiary : .secondary)
                         .lineLimit(1)
                     Spacer()
-                    Text(document.dateCreation.frenchFormatted)
+                    Text(document.dateCreation.formattedDate(for: dateFormat))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
             }
 
-            Text(document.totalFormatted)
+            Text(document.currency.formatAccounting(document.totalTTC, lang: numberFormat))
                 .font(.body.monospacedDigit())
                 .fontWeight(.medium)
                 .lineLimit(1)

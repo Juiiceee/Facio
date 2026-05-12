@@ -22,10 +22,34 @@ extension L10n {
     static func totalHours(_ l: AppLanguage) -> String { l == .fr ? "Total heures" : "Total hours" }
     static func normalHours(_ l: AppLanguage) -> String { l == .fr ? "Normales" : "Normal" }
     static func overtimeHours(_ l: AppLanguage) -> String { l == .fr ? "Supplementaires" : "Overtime" }
+    static func normalHoursShort(_ l: AppLanguage, value: String) -> String { l == .fr ? "N: \(value)h" : "N: \(value)h" }
+    static func overtimeHoursShort(_ l: AppLanguage, value: String) -> String { l == .fr ? "S: +\(value)h" : "OT: +\(value)h" }
     static func normalCost(_ l: AppLanguage) -> String { l == .fr ? "Cout normal" : "Normal cost" }
     static func overtimeCost(_ l: AppLanguage) -> String { l == .fr ? "Cout sup." : "Overtime cost" }
     static func grossTotal(_ l: AppLanguage) -> String { l == .fr ? "Total brut" : "Gross total" }
     static func netTotal(_ l: AppLanguage) -> String { l == .fr ? "Total net" : "Net total" }
+
+    // Saisie des heures
+    static func hourInputMode(_ l: AppLanguage) -> String { l == .fr ? "Saisie des heures" : "Hour input" }
+    static func hourInputDecimalMode(_ l: AppLanguage) -> String { l == .fr ? "Decimal" : "Decimal" }
+    static func hourInputTimeMode(_ l: AppLanguage) -> String { l == .fr ? "Horaire" : "Time" }
+    static func hourInputPlaceholder(_ l: AppLanguage, mode: TimesheetHourInputMode) -> String {
+        ""
+    }
+    static func hourInputHelp(_ l: AppLanguage, mode: TimesheetHourInputMode) -> String {
+        switch mode {
+        case .decimal:
+            return l == .fr ? "6,5 ou 6.5 = 6,5 heures" : "6.5 or 6,5 = 6.5 hours"
+        case .time:
+            return l == .fr ? "Utilisez 6:30 ou 6h30 pour 6 heures 30" : "Use 6:30 or 6h30 for 6 hours 30"
+        }
+    }
+    static func hourInputInvalidDecimal(_ l: AppLanguage) -> String {
+        l == .fr ? "Nombre decimal invalide" : "Invalid decimal number"
+    }
+    static func hourInputInvalidTime(_ l: AppLanguage) -> String {
+        l == .fr ? "Format horaire invalide : utilisez 6:30 ou 6h30" : "Invalid time format: use 6:30 or 6h30"
+    }
 
     // Semaine
     static func week(_ l: AppLanguage, number: Int) -> String { l == .fr ? "Semaine \(number)" : "Week \(number)" }

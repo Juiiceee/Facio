@@ -15,14 +15,16 @@ struct SolanaPayService {
         companyName: String,
         documentNumber: String
     ) -> CGImage? {
+        let walletAddress = walletAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !walletAddress.isEmpty,
+              amount > .zero,
+              currency.supportsSolanaPay,
+              let mint = currency.solanaMintAddress
+        else { return nil }
+
         do {
             let recipient = try PublicKey(string: walletAddress)
-
-            let splToken: PublicKey? = if let mint = currency.solanaMintAddress {
-                try PublicKey(string: mint)
-            } else {
-                nil
-            }
+            let splToken = try PublicKey(string: mint)
 
             let request = TransferRequest(
                 recipient: recipient,

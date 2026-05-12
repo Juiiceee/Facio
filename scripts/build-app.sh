@@ -16,8 +16,9 @@ require_command() {
     fi
 }
 
-if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){2}([-+][0-9A-Za-z.-]+)?$ ]]; then
-    echo "Erreur: version invalide: $VERSION" >&2
+if [[ ! "$VERSION" =~ ^[0-9]+[.][0-9]+[.][0-9]+$ ]]; then
+    echo "Erreur: version invalide pour CFBundleShortVersionString: $VERSION" >&2
+    echo "       Format attendu: MAJOR.MINOR.PATCH, sans prerelease ni metadata." >&2
     exit 1
 fi
 
@@ -91,9 +92,12 @@ if [ -f "Facio/Resources/AppIcon.icns" ]; then
     echo "    Icone copiee."
 else
     echo "    Pas d'icone trouvee, generation..."
-    swift scripts/generate-icon.swift || true
+    swift scripts/generate-icon.swift
     if [ -f "Facio/Resources/AppIcon.icns" ]; then
         cp "Facio/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+    else
+        echo "Erreur: generation de l'icone echouee." >&2
+        exit 1
     fi
 fi
 

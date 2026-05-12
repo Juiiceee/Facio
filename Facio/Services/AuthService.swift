@@ -8,6 +8,30 @@ private struct SessionData: Codable {
     var refreshToken: String = ""
     var userId: String = ""
     var userEmail: String = ""
+
+    enum CodingKeys: String, CodingKey {
+        case accessToken, refreshToken, userId, userEmail
+    }
+
+    init(
+        accessToken: String = "",
+        refreshToken: String = "",
+        userId: String = "",
+        userEmail: String = ""
+    ) {
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
+        self.userId = userId
+        self.userEmail = userEmail
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        accessToken = container.decodeOrDefault(String.self, forKey: .accessToken, default: "")
+        refreshToken = container.decodeOrDefault(String.self, forKey: .refreshToken, default: "")
+        userId = container.decodeOrDefault(String.self, forKey: .userId, default: "")
+        userEmail = container.decodeOrDefault(String.self, forKey: .userEmail, default: "")
+    }
 }
 
 /// Gere l'authentification Supabase via OTP (code par email).
@@ -33,13 +57,18 @@ final class AuthService: Sendable {
         static let refreshToken = "refreshToken"
     }
 
+    private struct LogoutContext {
+        let url: URL
+        let apiKey: String
+        let accessToken: String
+    }
+
     private let sessionURL: URL
 
     init() {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("Facio", isDirectory: true)
+        let dir = Self.storageDirectory
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        sessionURL = dir.appendingPathComponent("auth_session.json")
+        sessionURL = Self.defaultSessionURL
 
         // Restaurer l'etat non sensible depuis le fichier, puis les tokens depuis Keychain.
         if let data = try? Data(contentsOf: sessionURL),
@@ -54,7 +83,9 @@ final class AuthService: Sendable {
 
         accessToken = (try? KeychainService.string(for: KeychainAccount.accessToken)) ?? ""
         refreshToken = (try? KeychainService.string(for: KeychainAccount.refreshToken)) ?? ""
+        upgradeStoredTokenAccessibility()
         isAuthenticated = !accessToken.isEmpty && !userId.isEmpty
+        observeSupabaseConfigurationChanges()
     }
 
     // MARK: - OTP : Envoyer le code
@@ -188,22 +219,118 @@ final class AuthService: Sendable {
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode >= 200 && httpResponse.statusCode < 300,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            else {
-                signOut()
+            guard let httpResponse = response as? HTTPURLResponse else {
+                error = "Reponse Supabase invalide"
                 return
             }
-            handleAuthResponse(json)
+
+            if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+                guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    error = "Reponse Supabase invalide"
+                    return
+                }
+                handleAuthResponse(json)
+                return
+            }
+
+            if httpResponse.statusCode == 400 || httpResponse.statusCode == 401 {
+                await signOutAndWait()
+                return
+            }
+
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let msg = json["msg"] as? String ?? json["error_description"] as? String ?? json["message"] as? String {
+                error = msg
+            } else {
+                error = "Erreur de rafraichissement de session (HTTP \(httpResponse.statusCode))"
+            }
         } catch {
-            // Pas de reseau — garder la session
+            self.error = error.localizedDescription
         }
     }
 
     // MARK: - Deconnexion
 
     func signOut() {
+        let context = makeLogoutContext()
+        Task { @MainActor in
+            await finishSignOut(using: context)
+        }
+    }
+
+    func signOutAndWait() async {
+        await finishSignOut(using: makeLogoutContext())
+    }
+
+    nonisolated static func clearStoredSession() {
+        try? FileManager.default.removeItem(at: defaultSessionURL)
+        try? KeychainService.deleteAll()
+    }
+
+    // MARK: - Helpers
+
+    private nonisolated static var storageDirectory: URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        return appSupport.appendingPathComponent("Facio", isDirectory: true)
+    }
+
+    private nonisolated static var defaultSessionURL: URL {
+        storageDirectory.appendingPathComponent("auth_session.json")
+    }
+
+    private func observeSupabaseConfigurationChanges() {
+        _ = NotificationCenter.default.addObserver(
+            forName: SyncConfig.supabaseConfigurationDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let configuration = SyncConfig.supabaseConfiguration(from: notification) else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let context = self.makeLogoutContext(configuration: configuration)
+                await self.finishSignOut(using: context)
+            }
+        }
+    }
+
+    private func makeLogoutContext(
+        configuration: SyncConfig.SupabaseConfiguration = SyncConfig.currentSupabaseConfiguration
+    ) -> LogoutContext? {
+        guard !accessToken.isEmpty,
+              let url = buildURL(path: "/auth/v1/logout", baseURL: configuration.url, reportErrors: false)
+        else { return nil }
+        return LogoutContext(url: url, apiKey: configuration.apiKey, accessToken: accessToken)
+    }
+
+    private func finishSignOut(using context: LogoutContext?) async {
+        let signedOutAccessToken = context?.accessToken
+        isAuthenticated = false
+        awaitingOTP = false
+        pendingEmail = ""
+
+        if let context {
+            await revokeSupabaseSession(using: context)
+        }
+
+        if let signedOutAccessToken, accessToken != signedOutAccessToken {
+            return
+        }
+
+        clearLocalSession()
+    }
+
+    private func revokeSupabaseSession(using context: LogoutContext) async {
+        var request = URLRequest(url: context.url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 8
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue(context.apiKey, forHTTPHeaderField: "apikey")
+        request.addValue("Bearer \(context.accessToken)", forHTTPHeaderField: "Authorization")
+
+        _ = try? await URLSession.shared.data(for: request)
+    }
+
+    private func clearLocalSession() {
         accessToken = ""
         refreshToken = ""
         userId = ""
@@ -211,12 +338,21 @@ final class AuthService: Sendable {
         isAuthenticated = false
         awaitingOTP = false
         pendingEmail = ""
-        try? FileManager.default.removeItem(at: sessionURL)
-        try? KeychainService.delete(account: KeychainAccount.accessToken)
-        try? KeychainService.delete(account: KeychainAccount.refreshToken)
+        Self.clearStoredSession()
     }
 
-    // MARK: - Helpers
+    private func upgradeStoredTokenAccessibility() {
+        do {
+            if !accessToken.isEmpty {
+                try KeychainService.set(accessToken, for: KeychainAccount.accessToken)
+            }
+            if !refreshToken.isEmpty {
+                try KeychainService.set(refreshToken, for: KeychainAccount.refreshToken)
+            }
+        } catch {
+            self.error = "Erreur de migration de la session"
+        }
+    }
 
     private func handleAuthResponse(_ json: [String: Any]) {
         if let token = json["access_token"] as? String {
@@ -250,8 +386,16 @@ final class AuthService: Sendable {
 
     private func persistTokens() {
         do {
-            try KeychainService.set(accessToken, for: KeychainAccount.accessToken)
-            try KeychainService.set(refreshToken, for: KeychainAccount.refreshToken)
+            if accessToken.isEmpty {
+                try KeychainService.delete(account: KeychainAccount.accessToken)
+            } else {
+                try KeychainService.set(accessToken, for: KeychainAccount.accessToken)
+            }
+            if refreshToken.isEmpty {
+                try KeychainService.delete(account: KeychainAccount.refreshToken)
+            } else {
+                try KeychainService.set(refreshToken, for: KeychainAccount.refreshToken)
+            }
         } catch {
             self.error = "Erreur d'enregistrement de la session"
         }
@@ -270,39 +414,40 @@ final class AuthService: Sendable {
         }
     }
 
-    private func buildURL(path: String) -> URL? {
-        guard var components = URLComponents(string: SyncConfig.url.trimmingCharacters(in: .whitespacesAndNewlines)),
+    private func buildURL(path: String, baseURL: String? = nil, reportErrors: Bool = true) -> URL? {
+        let rawBaseURL = (baseURL ?? SyncConfig.url).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard var components = URLComponents(string: rawBaseURL),
               let scheme = components.scheme?.lowercased(),
               let host = components.host,
               !host.isEmpty else {
-            error = "URL Supabase invalide"
+            if reportErrors { error = "URL Supabase invalide" }
             return nil
         }
 
         guard components.user == nil,
               components.password == nil,
               components.fragment == nil else {
-            error = "URL Supabase invalide"
+            if reportErrors { error = "URL Supabase invalide" }
             return nil
         }
 
         if scheme == "http" {
             #if DEBUG
             guard isLocalhost(host) else {
-                error = "URL Supabase non securisee"
+                if reportErrors { error = "URL Supabase non securisee" }
                 return nil
             }
             #else
-            error = "URL Supabase non securisee"
+            if reportErrors { error = "URL Supabase non securisee" }
             return nil
             #endif
         } else if scheme != "https" {
-            error = "URL Supabase invalide"
+            if reportErrors { error = "URL Supabase invalide" }
             return nil
         }
 
         guard let pathComponents = URLComponents(string: path) else {
-            error = "URL Supabase invalide"
+            if reportErrors { error = "URL Supabase invalide" }
             return nil
         }
 

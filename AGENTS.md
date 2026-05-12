@@ -26,9 +26,9 @@ swift run
 Builds and launches the macOS app locally.
 
 ```bash
-./scripts/build-app.sh 1.0.0
+CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" ./scripts/build-app.sh 1.0.0
 ```
-Builds a release `.app` bundle in `dist/Facio.app` and signs it ad hoc unless `CODESIGN_IDENTITY` is set.
+Builds a release `.app` bundle in `dist/Facio.app`. For local-only builds without a Developer ID certificate, run `ALLOW_AD_HOC_SIGNING=1 ./scripts/build-app.sh 1.0.0`.
 
 ```bash
 ./scripts/create-dmg.sh 1.0.0

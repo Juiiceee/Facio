@@ -22,6 +22,7 @@ final class Document: Identifiable, Codable, Hashable {
     // Relations
     var lignes: [LineItem] = []
     var transactionSignatures: [TransactionSignature] = []
+    var sourceTimesheetId: UUID?
 
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
@@ -63,21 +64,124 @@ final class Document: Identifiable, Codable, Hashable {
     }
 
     var currency: CurrencyType {
-        get { CurrencyType(rawValue: currencyRawValue) ?? .eur }
-        set { currencyRawValue = newValue.rawValue }
+        get { decodedCurrency }
+        set {
+            currencyRawValue = newValue.rawValue
+            normalizePaymentConfiguration()
+        }
     }
 
     var paymentMode: PaymentMode {
-        get { PaymentMode(rawValue: paymentModeRawValue) ?? .aucun }
-        set { paymentModeRawValue = newValue.rawValue }
+        get {
+            let mode = decodedPaymentMode
+            return mode == .crypto && !decodedCurrency.isCrypto ? .aucun : mode
+        }
+        set {
+            paymentModeRawValue = newValue.rawValue
+            normalizePaymentConfiguration()
+        }
     }
 
     var blockchain: Blockchain? {
         get {
-            guard let raw = blockchainRawValue else { return nil }
-            return Blockchain(rawValue: raw)
+            guard let chain = decodedBlockchain else { return nil }
+            return Blockchain.compatibleBlockchains(for: decodedCurrency).contains(chain) ? chain : nil
         }
-        set { blockchainRawValue = newValue?.rawValue }
+        set {
+            blockchainRawValue = newValue?.rawValue
+            normalizePaymentConfiguration()
+        }
+    }
+
+    private var decodedCurrency: CurrencyType {
+        CurrencyType(rawValue: currencyRawValue) ?? .eur
+    }
+
+    private var decodedPaymentMode: PaymentMode {
+        PaymentMode(rawValue: paymentModeRawValue) ?? .aucun
+    }
+
+    private var decodedBlockchain: Blockchain? {
+        guard let raw = blockchainRawValue else { return nil }
+        return Blockchain(rawValue: raw)
+    }
+
+    func normalizePaymentConfiguration(availableWallets wallets: [WalletEntry] = []) {
+        if CurrencyType(rawValue: currencyRawValue) == nil {
+            currencyRawValue = CurrencyType.eur.rawValue
+        }
+        if PaymentMode(rawValue: paymentModeRawValue) == nil {
+            paymentModeRawValue = PaymentMode.aucun.rawValue
+        }
+
+        let currency = decodedCurrency
+        if !currency.isCrypto {
+            blockchainRawValue = nil
+            selectedWalletId = nil
+            if decodedPaymentMode == .crypto {
+                paymentModeRawValue = PaymentMode.aucun.rawValue
+            }
+            return
+        }
+
+        let compatibleChains = Blockchain.compatibleBlockchains(for: currency)
+        guard !compatibleChains.isEmpty else {
+            blockchainRawValue = nil
+            selectedWalletId = nil
+            return
+        }
+
+        if let chain = decodedBlockchain {
+            if !compatibleChains.contains(chain) {
+                blockchainRawValue = nil
+                selectedWalletId = nil
+            }
+        } else if blockchainRawValue != nil {
+            blockchainRawValue = nil
+            selectedWalletId = nil
+        }
+
+        guard decodedPaymentMode == .crypto else {
+            selectedWalletId = nil
+            return
+        }
+        guard let chain = blockchain, !wallets.isEmpty else { return }
+
+        let walletIds = Set(paymentWallets(from: wallets, for: chain).map(\.id))
+        if let selectedWalletId, !walletIds.contains(selectedWalletId) {
+            self.selectedWalletId = nil
+        }
+    }
+
+    func paymentAddress(for wallet: WalletEntry) -> String {
+        wallet.address.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func paymentWallets(from wallets: [WalletEntry], for chain: Blockchain? = nil) -> [WalletEntry] {
+        guard let chain = chain ?? blockchain else { return [] }
+        return wallets.filter {
+            $0.blockchain == chain && !paymentAddress(for: $0).isEmpty
+        }
+    }
+
+    func selectedPaymentWallet(from wallets: [WalletEntry]) -> WalletEntry? {
+        guard paymentMode == .crypto else { return nil }
+        let walletsForChain = paymentWallets(from: wallets)
+        return walletsForChain.first { $0.id == selectedWalletId } ?? walletsForChain.first
+    }
+
+    func selectedPaymentWalletAddress(from wallets: [WalletEntry]) -> String? {
+        guard let wallet = selectedPaymentWallet(from: wallets) else { return nil }
+        return paymentAddress(for: wallet)
+    }
+
+    var isSolanaPayEligible: Bool {
+        paymentMode == .crypto && blockchain == .solana && currency.supportsSolanaPay
+    }
+
+    func solanaPayWalletAddress(from wallets: [WalletEntry]) -> String? {
+        guard isSolanaPayEligible else { return nil }
+        return selectedPaymentWalletAddress(from: wallets)
     }
 
     // MARK: - Computed totaux
@@ -100,7 +204,7 @@ final class Document: Identifiable, Codable, Hashable {
 
     /// Resume formate du total
     var totalFormatted: String {
-        currency.format(totalTTC)
+        currency.formatAccounting(totalTTC, lang: .fr)
     }
 
     // MARK: - Init
@@ -123,6 +227,7 @@ final class Document: Identifiable, Codable, Hashable {
         self.blockchainRawValue = blockchain?.rawValue
         self.createdAt = Date()
         self.updatedAt = Date()
+        normalizePaymentConfiguration()
     }
 
     // MARK: - Actions
@@ -160,6 +265,9 @@ final class Document: Identifiable, Codable, Hashable {
         copie.clientVille = clientVille
         copie.notes = notes
         copie.langueRawValue = langueRawValue
+        copie.paymentModeRawValue = paymentModeRawValue
+        copie.selectedWalletId = selectedWalletId
+        copie.normalizePaymentConfiguration()
 
         for ligne in lignesTriees {
             let nouvelleLigne = LineItem(
@@ -188,7 +296,7 @@ final class Document: Identifiable, Codable, Hashable {
         case id, typeRawValue, number, dateCreation, dateEcheance, statusRawValue
         case currencyRawValue, blockchainRawValue, paymentModeRawValue
         case clientNom, clientAdresse, clientCodePostal, clientVille
-        case lignes, transactionSignatures
+        case lignes, transactionSignatures, sourceTimesheetId
         case createdAt, updatedAt, notes, selectedWalletId, langueRawValue
     }
 
@@ -213,11 +321,13 @@ final class Document: Identifiable, Codable, Hashable {
         clientVille = container.decodeOrDefault(String.self, forKey: .clientVille, default: "")
         lignes = container.decodeOrDefault([LineItem].self, forKey: .lignes, default: [])
         transactionSignatures = container.decodeOrDefault([TransactionSignature].self, forKey: .transactionSignatures, default: [])
+        sourceTimesheetId = try? container.decode(UUID.self, forKey: .sourceTimesheetId)
         createdAt = container.decodeOrDefault(Date.self, forKey: .createdAt, default: dateCreation)
         updatedAt = container.decodeOrDefault(Date.self, forKey: .updatedAt, default: createdAt)
         notes = container.decodeOrDefault(String.self, forKey: .notes, default: "")
         selectedWalletId = try? container.decode(UUID.self, forKey: .selectedWalletId)
         langueRawValue = container.decodeOrDefault(String.self, forKey: .langueRawValue, default: AppLanguage.fr.rawValue)
+        normalizePaymentConfiguration()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -237,6 +347,7 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encode(clientVille, forKey: .clientVille)
         try container.encode(lignes, forKey: .lignes)
         try container.encode(transactionSignatures, forKey: .transactionSignatures)
+        try container.encodeIfPresent(sourceTimesheetId, forKey: .sourceTimesheetId)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(notes, forKey: .notes)

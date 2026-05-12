@@ -11,38 +11,43 @@ struct FacioApp: App {
     @State private var showFirstLaunch = false
 
     init() {
+        #if FACIO_REGRESSION_TESTS
+        FacioRegressionSuite.runIfRequested()
+        #endif
+
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
 
     var body: some Scene {
         WindowGroup {
+            let lang = dataStore.companyInfo.langueParDefaut
             ContentView()
                 .environment(dataStore)
                 .environment(syncService)
                 .environment(authService)
                 .environment(networkMonitor)
                 .frame(minWidth: 1200, minHeight: 650)
-                .alert("Bienvenue sur Facio !", isPresented: $showFirstLaunch) {
-                    Button("Compris") {
+                .alert(L10n.firstLaunchTitle(lang), isPresented: $showFirstLaunch) {
+                    Button(L10n.understood(lang)) {
                         UserDefaults.standard.set(true, forKey: "facio_has_launched")
                     }
                 } message: {
-                    Text("Vous pouvez supprimer le fichier DMG de vos telechargements, Facio est installe.")
+                    Text(L10n.firstLaunchMessage(lang))
                 }
                 .alert(
-                    "Nouvelle version disponible",
+                    L10n.updateAvailableTitle(lang),
                     isPresented: Binding(
                         get: { updateService.isUpdateAvailable },
                         set: { _ in }
                     )
                 ) {
                     if let url = updateService.releaseURL {
-                        Link("Telecharger", destination: url)
+                        Link(L10n.download(lang), destination: url)
                     }
-                    Button("Plus tard", role: .cancel) {}
+                    Button(L10n.later(lang), role: .cancel) {}
                 } message: {
-                    Text("Facio \(updateService.latestVersion ?? "") est disponible. Telechargez la derniere version sur GitHub.")
+                    Text(L10n.updateAvailableMessage(lang, version: updateService.latestVersion ?? ""))
                 }
                 .onAppear {
                     if !UserDefaults.standard.bool(forKey: "facio_has_launched") {

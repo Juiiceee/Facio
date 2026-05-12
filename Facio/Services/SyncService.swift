@@ -1,141 +1,5 @@
 import Foundation
 import Observation
-import Security
-
-// MARK: - Sync State
-
-struct SyncState: Codable {
-    var documentsDirty: Bool = false
-    var clientsDirty: Bool = false
-    var companyDirty: Bool = false
-    var timesheetsDirty: Bool = false
-    var lastFullSyncAt: Date?
-    var migrationCompleted: Bool = false
-}
-
-// MARK: - Sync Config
-
-struct SyncConfig {
-    // DB partagee par defaut — lue depuis ~/.facio_config
-    static var defaultURL: String { Secrets.supabaseURL }
-    static var defaultAPIKey: String { Secrets.supabaseAnonKey }
-
-    // Cles UserDefaults
-    private static let customURLKey = "supabase_custom_url"
-    private static let customAPIKeyKey = "supabase_custom_api_key"
-    private static let useCustomKey = "supabase_use_custom"
-    private static let enabledKey = "sync_enabled"
-
-    /// Sync activee
-    static var isEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: enabledKey) }
-        set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
-    }
-
-    /// Utiliser une DB custom au lieu de la DB partagee
-    static var useCustomDB: Bool {
-        get { UserDefaults.standard.bool(forKey: useCustomKey) }
-        set { UserDefaults.standard.set(newValue, forKey: useCustomKey) }
-    }
-
-    /// URL custom
-    static var customURL: String {
-        get { UserDefaults.standard.string(forKey: customURLKey) ?? "" }
-        set { UserDefaults.standard.set(newValue, forKey: customURLKey) }
-    }
-
-    /// API key custom
-    static var customAPIKey: String {
-        get {
-            if let keychainValue = SyncKeychain.string(for: customAPIKeyKey) {
-                return keychainValue
-            }
-            guard let legacyValue = UserDefaults.standard.string(forKey: customAPIKeyKey),
-                  !legacyValue.isEmpty
-            else { return "" }
-            if SyncKeychain.set(legacyValue, for: customAPIKeyKey) {
-                UserDefaults.standard.removeObject(forKey: customAPIKeyKey)
-            }
-            return legacyValue
-        }
-        set {
-            if newValue.isEmpty {
-                SyncKeychain.delete(customAPIKeyKey)
-                UserDefaults.standard.removeObject(forKey: customAPIKeyKey)
-            } else if !SyncKeychain.set(newValue, for: customAPIKeyKey) {
-                UserDefaults.standard.set(newValue, forKey: customAPIKeyKey)
-            } else {
-                UserDefaults.standard.removeObject(forKey: customAPIKeyKey)
-            }
-        }
-    }
-
-    /// URL effective (custom ou par defaut)
-    static var url: String {
-        useCustomDB && !customURL.isEmpty ? customURL : defaultURL
-    }
-
-    /// API key effective
-    static var apiKey: String {
-        useCustomDB && !customAPIKey.isEmpty ? customAPIKey : defaultAPIKey
-    }
-
-    static var isConfigured: Bool {
-        !url.isEmpty && !apiKey.isEmpty
-    }
-}
-
-private enum SyncKeychain {
-    private static let service = "app.facio.sync"
-
-    static func string(for account: String) -> String? {
-        var query = baseQuery(account: account)
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        guard status == errSecSuccess,
-              let data = item as? Data
-        else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-
-    @discardableResult
-    static func set(_ value: String, for account: String) -> Bool {
-        guard let data = value.data(using: .utf8) else { return false }
-        let query = baseQuery(account: account)
-        let update = [kSecValueData as String: data]
-        let status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
-        if status == errSecSuccess { return true }
-        guard status == errSecItemNotFound else { return false }
-
-        var add = query
-        add[kSecValueData as String] = data
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
-    }
-
-    static func delete(_ account: String) {
-        SecItemDelete(baseQuery(account: account) as CFDictionary)
-    }
-
-    private static func baseQuery(account: String) -> [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-    }
-}
-
-extension TimesheetWeek {
-    init(id: UUID = UUID(), numero: Int = 1, jours: [TimesheetDay] = []) {
-        self.id = id
-        self.numero = numero
-        self.jours = jours
-    }
-}
 
 // MARK: - Sync Service
 
@@ -161,6 +25,8 @@ final class SyncService: Sendable {
     }()
 
     private var debounceTask: Task<Void, Never>?
+    private var isPushingDirty = false
+    private var dirtyGeneration = 0
     private let syncStateURL: URL
 
     init() {
@@ -188,15 +54,27 @@ final class SyncService: Sendable {
     // MARK: - Mark Dirty
 
     func markDirty(_ key: String) {
-        switch key {
-        case "documents": syncState.documentsDirty = true
-        case "clients": syncState.clientsDirty = true
-        case "company": syncState.companyDirty = true
-        case "timesheets": syncState.timesheetsDirty = true
-        default: break
-        }
-        saveSyncState()
+        guard let dataKey = SyncDataKey(rawValue: key) else { return }
+        markDirty(dataKey)
+    }
 
+    func markDirty(_ key: SyncDataKey) {
+        syncState.setDirty(true, for: key)
+        dirtyGeneration += 1
+        saveSyncState()
+        scheduleDirtyPush()
+    }
+
+    func markDeleted(_ id: UUID, for key: SyncDataKey) {
+        guard key == .documents || key == .clients || key == .timesheets else { return }
+        syncState.enqueueDelete(id: id, for: key)
+        syncState.setDirty(true, for: key)
+        dirtyGeneration += 1
+        saveSyncState()
+        scheduleDirtyPush()
+    }
+
+    private func scheduleDirtyPush() {
         debounceTask?.cancel()
         debounceTask = Task {
             try? await Task.sleep(for: .seconds(2))
@@ -211,6 +89,13 @@ final class SyncService: Sendable {
     func pushAllDirty() async {
         guard SyncConfig.isEnabled, SyncConfig.isConfigured,
               authService?.isAuthenticated == true else { return }
+        guard !isPushingDirty else { return }
+
+        isPushingDirty = true
+        let generation = dirtyGeneration
+        defer { isPushingDirty = false }
+
+        let failedDeleteKeys = await pushPendingParentDeletes()
 
         let storageDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
             .appendingPathComponent("Facio", isDirectory: true)
@@ -218,32 +103,104 @@ final class SyncService: Sendable {
         if syncState.documentsDirty {
             if let data = try? Data(contentsOf: storageDir.appendingPathComponent("documents.json")),
                let docs = try? decoder.decode([Document].self, from: data) {
-                if await pushDocuments(docs) { syncState.documentsDirty = false }
+                if await pushDocuments(docs), dirtyGeneration == generation, !failedDeleteKeys.contains(.documents) {
+                    syncState.setDirty(false, for: .documents)
+                }
+            } else {
+                lastError = "Lecture locale impossible: documents.json"
             }
         }
 
         if syncState.clientsDirty {
             if let data = try? Data(contentsOf: storageDir.appendingPathComponent("clients.json")),
                let clients = try? decoder.decode([ClientInfo].self, from: data) {
-                if await pushClients(clients) { syncState.clientsDirty = false }
+                if await pushClients(clients), dirtyGeneration == generation, !failedDeleteKeys.contains(.clients) {
+                    syncState.setDirty(false, for: .clients)
+                }
+            } else {
+                lastError = "Lecture locale impossible: clients.json"
             }
         }
 
         if syncState.companyDirty {
             if let data = try? Data(contentsOf: storageDir.appendingPathComponent("company.json")),
                let company = try? decoder.decode(CompanyInfo.self, from: data) {
-                if await pushCompany(company) { syncState.companyDirty = false }
+                if await pushCompany(company), dirtyGeneration == generation {
+                    syncState.setDirty(false, for: .company)
+                }
+            } else {
+                lastError = "Lecture locale impossible: company.json"
             }
         }
 
         if syncState.timesheetsDirty {
             if let data = try? Data(contentsOf: storageDir.appendingPathComponent("timesheets.json")),
                let timesheets = try? decoder.decode([TimesheetPeriod].self, from: data) {
-                if await pushTimesheets(timesheets) { syncState.timesheetsDirty = false }
+                if await pushTimesheets(timesheets), dirtyGeneration == generation, !failedDeleteKeys.contains(.timesheets) {
+                    syncState.setDirty(false, for: .timesheets)
+                }
+            } else {
+                lastError = "Lecture locale impossible: timesheets.json"
             }
         }
 
         saveSyncState()
+        if dirtyGeneration != generation && syncState.hasDirtyData {
+            debounceTask?.cancel()
+            debounceTask = Task { await pushAllDirty() }
+        }
+    }
+
+    private func pushPendingParentDeletes() async -> Set<SyncDataKey> {
+        var failedKeys = Set<SyncDataKey>()
+
+        if await pushPendingDeleteIds(for: .documents, table: "documents") == false {
+            failedKeys.insert(.documents)
+        }
+        if await pushPendingDeleteIds(for: .clients, table: "clients") == false {
+            failedKeys.insert(.clients)
+        }
+        if await pushPendingDeleteIds(for: .timesheets, table: "timesheet_periods") == false {
+            failedKeys.insert(.timesheets)
+        }
+
+        return failedKeys
+    }
+
+    private func pushPendingDeleteIds(for key: SyncDataKey, table: String) async -> Bool {
+        let ids = syncState.pendingDeleteIds(for: key)
+        guard !ids.isEmpty else { return true }
+
+        var remaining: [String] = []
+        var didRemoveFromQueue = false
+        var failureMessage: String?
+
+        for id in ids {
+            guard UUID(uuidString: id) != nil else {
+                didRemoveFromQueue = true
+                continue
+            }
+
+            if await supabaseDelete(table: table, filter: "id=eq.\(id)") {
+                didRemoveFromQueue = true
+            } else {
+                failureMessage = failureMessage ?? lastError
+                remaining.append(id)
+            }
+        }
+
+        if didRemoveFromQueue {
+            syncState.setPendingDeleteIds(remaining, for: key)
+            saveSyncState()
+        }
+
+        if let failureMessage {
+            lastError = failureMessage
+        } else if didRemoveFromQueue && remaining.isEmpty {
+            lastSyncDate = Date()
+        }
+
+        return remaining.isEmpty
     }
 
     // MARK: - Push Documents
@@ -251,29 +208,16 @@ final class SyncService: Sendable {
     private func pushDocuments(_ docs: [Document]) async -> Bool {
         guard let userId = authService?.userId, !userId.isEmpty else { return false }
 
-        // 1. Get remote document IDs to detect deletions
-        let remoteIds = await fetchRemoteIds(table: "documents")
-
-        // 2. Delete remote docs that don't exist locally
-        //    BUT skip deletion if local is empty and remote has data
-        //    (this means a reset happened — we don't want to wipe the DB)
-        let localIds = Set(docs.map { $0.id.uuidString })
-        let toDelete = remoteIds.subtracting(localIds)
-        if !docs.isEmpty || remoteIds.isEmpty {
-            for id in toDelete {
-                guard await supabaseDelete(table: "documents", filter: "id=eq.\(id)") else { return false }
-            }
-        }
-
-        // 3. Upsert each document
+        // Parent rows are never deleted from a whole-collection dirty push.
+        // Cross-device deletes need explicit tombstones to avoid erasing newer remote rows.
         for doc in docs {
             let body: [String: Any] = [
                 "id": doc.id.uuidString,
                 "user_id": userId,
                 "type_raw_value": doc.typeRawValue,
                 "number": doc.number,
-                "date_creation": ISO8601DateFormatter().string(from: doc.dateCreation),
-                "date_echeance": ISO8601DateFormatter().string(from: doc.dateEcheance),
+                "date_creation": syncDateString(doc.dateCreation),
+                "date_echeance": syncDateString(doc.dateEcheance),
                 "status_raw_value": doc.statusRawValue,
                 "payment_mode_raw_value": doc.paymentModeRawValue,
                 "currency_raw_value": doc.currencyRawValue,
@@ -285,8 +229,8 @@ final class SyncService: Sendable {
                 "notes": doc.notes,
                 "selected_wallet_id": doc.selectedWalletId?.uuidString ?? NSNull(),
                 "langue_raw_value": doc.langueRawValue,
-                "created_at": ISO8601DateFormatter().string(from: doc.createdAt),
-                "updated_at": ISO8601DateFormatter().string(from: doc.updatedAt),
+                "created_at": syncDateString(doc.createdAt),
+                "updated_at": syncDateString(doc.updatedAt),
             ]
             guard await supabaseUpsert(table: "documents", body: body, onConflict: "id") else { return false }
 
@@ -298,16 +242,19 @@ final class SyncService: Sendable {
                         "user_id": userId,
                         "document_id": doc.id.uuidString,
                         "designation": li.designation,
-                        "quantite": NSDecimalNumber(decimal: li.quantite).doubleValue,
-                        "prix_unitaire": NSDecimalNumber(decimal: li.prixUnitaire).doubleValue,
-                        "taux_tva": NSDecimalNumber(decimal: li.tauxTVA).doubleValue,
+                        "quantite": decimalPayload(li.quantite),
+                        "prix_unitaire": decimalPayload(li.prixUnitaire),
+                        "taux_tva": decimalPayload(li.tauxTVA),
                         "ordre": li.ordre,
                     ]
                 }
                 guard await supabaseBatchUpsert(table: "line_items", rows: lineItems, onConflict: "id") else { return false }
             }
             let localLineItemIds = Set(doc.lignes.map { $0.id.uuidString })
-            let remoteLineItemIds = await fetchRemoteIds(table: "line_items", query: "select=id&document_id=eq.\(doc.id.uuidString)")
+            guard let remoteLineItemIds = await fetchRemoteIdsOrFail(
+                table: "line_items",
+                query: "select=id&document_id=eq.\(doc.id.uuidString)"
+            ) else { return false }
             for id in remoteLineItemIds.subtracting(localLineItemIds) {
                 guard await supabaseDelete(table: "line_items", filter: "id=eq.\(id)") else { return false }
             }
@@ -319,15 +266,18 @@ final class SyncService: Sendable {
                         "user_id": userId,
                         "document_id": doc.id.uuidString,
                         "signature": ts.signature,
-                        "date": ISO8601DateFormatter().string(from: ts.date),
-                        "montant": NSDecimalNumber(decimal: ts.montant).doubleValue,
+                        "date": syncDateString(ts.date),
+                        "montant": decimalPayload(ts.montant),
                         "blockchain_raw_value": ts.blockchainRawValue,
                     ]
                 }
                 guard await supabaseBatchUpsert(table: "transaction_signatures", rows: sigs, onConflict: "id") else { return false }
             }
             let localSignatureIds = Set(doc.transactionSignatures.map { $0.id.uuidString })
-            let remoteSignatureIds = await fetchRemoteIds(table: "transaction_signatures", query: "select=id&document_id=eq.\(doc.id.uuidString)")
+            guard let remoteSignatureIds = await fetchRemoteIdsOrFail(
+                table: "transaction_signatures",
+                query: "select=id&document_id=eq.\(doc.id.uuidString)"
+            ) else { return false }
             for id in remoteSignatureIds.subtracting(localSignatureIds) {
                 guard await supabaseDelete(table: "transaction_signatures", filter: "id=eq.\(id)") else { return false }
             }
@@ -343,14 +293,6 @@ final class SyncService: Sendable {
     private func pushClients(_ clients: [ClientInfo]) async -> Bool {
         guard let userId = authService?.userId, !userId.isEmpty else { return false }
 
-        let remoteIds = await fetchRemoteIds(table: "clients")
-        let localIds = Set(clients.map { $0.id.uuidString })
-        if !clients.isEmpty || remoteIds.isEmpty {
-            for id in remoteIds.subtracting(localIds) {
-                guard await supabaseDelete(table: "clients", filter: "id=eq.\(id)") else { return false }
-            }
-        }
-
         for client in clients {
             let body: [String: Any] = [
                 "id": client.id.uuidString,
@@ -360,8 +302,8 @@ final class SyncService: Sendable {
                 "code_postal": client.codePostal,
                 "ville": client.ville,
                 "email": client.email,
-                "created_at": ISO8601DateFormatter().string(from: client.createdAt),
-                "updated_at": ISO8601DateFormatter().string(from: client.updatedAt),
+                "created_at": syncDateString(client.createdAt),
+                "updated_at": syncDateString(client.updatedAt),
             ]
             guard await supabaseUpsert(table: "clients", body: body, onConflict: "id") else { return false }
         }
@@ -397,7 +339,7 @@ final class SyncService: Sendable {
             "iban": company.iban,
             "bic": company.bic,
             "titulaire_compte": company.titulaireCompte,
-            "taux_tva_par_defaut": NSDecimalNumber(decimal: company.tauxTVAParDefaut).doubleValue,
+            "taux_tva_par_defaut": decimalPayload(company.tauxTVAParDefaut),
             "delai_paiement_jours": company.delaiPaiementJours,
             "devise_par_defaut_raw_value": company.deviseParDefautRawValue,
             "blockchain_par_defaut_raw_value": company.blockchainParDefautRawValue ?? "",
@@ -405,7 +347,7 @@ final class SyncService: Sendable {
             "format_date_raw_value": company.formatDateRawValue,
             "format_nombre_raw_value": company.formatNombreRawValue,
             "couleur_accent_hex": company.couleurAccentHex ?? NSNull(),
-            "updated_at": ISO8601DateFormatter().string(from: company.updatedAt),
+            "updated_at": syncDateString(company.updatedAt),
         ]
         guard await supabaseUpsert(table: "company_info", body: body, onConflict: "id") else { return false }
 
@@ -423,7 +365,10 @@ final class SyncService: Sendable {
             guard await supabaseBatchUpsert(table: "wallets", rows: wallets, onConflict: "id") else { return false }
         }
         let localWalletIds = Set(company.wallets.map { $0.id.uuidString })
-        let remoteWalletIds = await fetchRemoteIds(table: "wallets", query: "select=id&company_id=eq.\(company.id.uuidString)")
+        guard let remoteWalletIds = await fetchRemoteIdsOrFail(
+            table: "wallets",
+            query: "select=id&company_id=eq.\(company.id.uuidString)"
+        ) else { return false }
         for id in remoteWalletIds.subtracting(localWalletIds) {
             guard await supabaseDelete(table: "wallets", filter: "id=eq.\(id)") else { return false }
         }
@@ -435,14 +380,17 @@ final class SyncService: Sendable {
                     "user_id": userId,
                     "company_id": company.id.uuidString,
                     "designation": p.designation,
-                    "prix_unitaire": NSDecimalNumber(decimal: p.prixUnitaire).doubleValue,
-                    "taux_tva": NSDecimalNumber(decimal: p.tauxTVA).doubleValue,
+                    "prix_unitaire": decimalPayload(p.prixUnitaire),
+                    "taux_tva": decimalPayload(p.tauxTVA),
                 ]
             }
             guard await supabaseBatchUpsert(table: "prestation_presets", rows: presets, onConflict: "id") else { return false }
         }
         let localPresetIds = Set(company.prestations.map { $0.id.uuidString })
-        let remotePresetIds = await fetchRemoteIds(table: "prestation_presets", query: "select=id&company_id=eq.\(company.id.uuidString)")
+        guard let remotePresetIds = await fetchRemoteIdsOrFail(
+            table: "prestation_presets",
+            query: "select=id&company_id=eq.\(company.id.uuidString)"
+        ) else { return false }
         for id in remotePresetIds.subtracting(localPresetIds) {
             guard await supabaseDelete(table: "prestation_presets", filter: "id=eq.\(id)") else { return false }
         }
@@ -457,14 +405,6 @@ final class SyncService: Sendable {
     private func pushTimesheets(_ timesheets: [TimesheetPeriod]) async -> Bool {
         guard let userId = authService?.userId, !userId.isEmpty else { return false }
 
-        let remoteIds = await fetchRemoteIds(table: "timesheet_periods")
-        let localIds = Set(timesheets.map { $0.id.uuidString })
-        if !timesheets.isEmpty || remoteIds.isEmpty {
-            for id in remoteIds.subtracting(localIds) {
-                guard await supabaseDelete(table: "timesheet_periods", filter: "id=eq.\(id)") else { return false }
-            }
-        }
-
         for ts in timesheets {
             let body: [String: Any] = [
                 "id": ts.id.uuidString,
@@ -472,12 +412,12 @@ final class SyncService: Sendable {
                 "nom": ts.nom,
                 "mois": ts.mois,
                 "annee": ts.annee,
-                "taux_normal": NSDecimalNumber(decimal: ts.tauxNormal).doubleValue,
-                "taux_supplementaire": NSDecimalNumber(decimal: ts.tauxSupplementaire).doubleValue,
-                "coefficient_net": NSDecimalNumber(decimal: ts.coefficientNet).doubleValue,
-                "seuil_hebdo": NSDecimalNumber(decimal: ts.seuilHebdo).doubleValue,
-                "created_at": ISO8601DateFormatter().string(from: ts.createdAt),
-                "updated_at": ISO8601DateFormatter().string(from: ts.updatedAt),
+                "taux_normal": decimalPayload(ts.tauxNormal),
+                "taux_supplementaire": decimalPayload(ts.tauxSupplementaire),
+                "coefficient_net": decimalPayload(ts.coefficientNet),
+                "seuil_hebdo": decimalPayload(ts.seuilHebdo),
+                "created_at": syncDateString(ts.createdAt),
+                "updated_at": syncDateString(ts.updatedAt),
             ]
             guard await supabaseUpsert(table: "timesheet_periods", body: body, onConflict: "id") else { return false }
 
@@ -498,19 +438,25 @@ final class SyncService: Sendable {
                             "user_id": userId,
                             "week_id": week.id.uuidString,
                             "date_string": day.dateString,
-                            "heures": NSDecimalNumber(decimal: day.heures).doubleValue,
+                            "heures": decimalPayload(day.heures),
                         ]
                     }
                     guard await supabaseBatchUpsert(table: "timesheet_days", rows: days, onConflict: "id") else { return false }
                 }
-                let remoteDayIds = await fetchRemoteIds(table: "timesheet_days", query: "select=id&week_id=eq.\(week.id.uuidString)")
+                guard let remoteDayIds = await fetchRemoteIdsOrFail(
+                    table: "timesheet_days",
+                    query: "select=id&week_id=eq.\(week.id.uuidString)"
+                ) else { return false }
                 for id in remoteDayIds.subtracting(localDayIds) {
                     guard await supabaseDelete(table: "timesheet_days", filter: "id=eq.\(id)") else { return false }
                 }
             }
 
             let localWeekIds = Set(ts.semaines.map { $0.id.uuidString })
-            let remoteWeekIds = await fetchRemoteIds(table: "timesheet_weeks", query: "select=id&period_id=eq.\(ts.id.uuidString)")
+            guard let remoteWeekIds = await fetchRemoteIdsOrFail(
+                table: "timesheet_weeks",
+                query: "select=id&period_id=eq.\(ts.id.uuidString)"
+            ) else { return false }
             for id in remoteWeekIds.subtracting(localWeekIds) {
                 guard await supabaseDelete(table: "timesheet_weeks", filter: "id=eq.\(id)") else { return false }
             }
@@ -537,8 +483,10 @@ final class SyncService: Sendable {
             doc.id = id
             doc.typeRawValue = json["type_raw_value"] as? String ?? "Facture"
             doc.number = json["number"] as? String ?? ""
-            doc.dateCreation = parseDate(json["date_creation"]) ?? Date()
-            doc.dateEcheance = parseDate(json["date_echeance"]) ?? Date()
+            doc.dateCreation = parseDate(json["date_creation"]) ?? doc.dateCreation
+            doc.dateEcheance = parseDate(json["date_echeance"])
+                ?? Calendar.current.date(byAdding: .day, value: 30, to: doc.dateCreation)
+                ?? doc.dateCreation
             doc.statusRawValue = json["status_raw_value"] as? String ?? "Brouillon"
             doc.paymentModeRawValue = json["payment_mode_raw_value"] as? String ?? "Aucun"
             doc.currencyRawValue = json["currency_raw_value"] as? String ?? "EUR"
@@ -551,8 +499,8 @@ final class SyncService: Sendable {
             doc.notes = json["notes"] as? String ?? ""
             doc.selectedWalletId = (json["selected_wallet_id"] as? String).flatMap { UUID(uuidString: $0) }
             doc.langueRawValue = json["langue_raw_value"] as? String ?? "fr"
-            doc.createdAt = parseDate(json["created_at"]) ?? Date()
-            doc.updatedAt = parseDate(json["updated_at"]) ?? Date()
+            doc.createdAt = parseDate(json["created_at"]) ?? doc.dateCreation
+            doc.updatedAt = parseDate(json["updated_at"]) ?? doc.createdAt
 
             // Parse line_items
             if let lineItemsJson = json["line_items"] as? [[String: Any]] {
@@ -560,9 +508,9 @@ final class SyncService: Sendable {
                     guard (li["id"] as? String).flatMap({ UUID(uuidString: $0) }) != nil else { return nil }
                     return LineItem(
                         designation: li["designation"] as? String ?? "",
-                        quantite: Decimal(li["quantite"] as? Double ?? 0),
-                        prixUnitaire: Decimal(li["prix_unitaire"] as? Double ?? 0),
-                        tauxTVA: Decimal(li["taux_tva"] as? Double ?? 0),
+                        quantite: decimalValue(li["quantite"]),
+                        prixUnitaire: decimalValue(li["prix_unitaire"]),
+                        tauxTVA: decimalValue(li["taux_tva"]),
                         ordre: li["ordre"] as? Int ?? 0
                     )
                 }
@@ -580,8 +528,8 @@ final class SyncService: Sendable {
                     guard let sigId = (sig["id"] as? String).flatMap({ UUID(uuidString: $0) }) else { return nil }
                     var ts = TransactionSignature(
                         signature: sig["signature"] as? String ?? "",
-                        date: parseDate(sig["date"]) ?? Date(),
-                        montant: Decimal(sig["montant"] as? Double ?? 0),
+                        date: parseDate(sig["date"]) ?? doc.dateCreation,
+                        montant: decimalValue(sig["montant"]),
                         blockchain: Blockchain(rawValue: sig["blockchain_raw_value"] as? String ?? "Solana") ?? .solana
                     )
                     ts.id = sigId
@@ -607,8 +555,8 @@ final class SyncService: Sendable {
             client.codePostal = json["code_postal"] as? String ?? ""
             client.ville = json["ville"] as? String ?? ""
             client.email = json["email"] as? String ?? ""
-            client.createdAt = parseDate(json["created_at"]) ?? Date()
-            client.updatedAt = parseDate(json["updated_at"]) ?? Date()
+            client.createdAt = parseDate(json["created_at"]) ?? client.createdAt
+            client.updatedAt = parseDate(json["updated_at"]) ?? client.createdAt
             clients.append(client)
         }
         return clients
@@ -637,16 +585,16 @@ final class SyncService: Sendable {
         company.iban = json["iban"] as? String ?? ""
         company.bic = json["bic"] as? String ?? ""
         company.titulaireCompte = json["titulaire_compte"] as? String ?? ""
-        company.tauxTVAParDefaut = Decimal(json["taux_tva_par_defaut"] as? Double ?? 0)
+        company.tauxTVAParDefaut = decimalValue(json["taux_tva_par_defaut"])
         company.delaiPaiementJours = json["delai_paiement_jours"] as? Int ?? 30
         company.deviseParDefautRawValue = json["devise_par_defaut_raw_value"] as? String ?? "USDC"
         let blockRaw = json["blockchain_par_defaut_raw_value"] as? String ?? ""
-        company.blockchainParDefautRawValue = blockRaw.isEmpty ? nil : blockRaw
+        company.blockchainParDefautRawValue = blockRaw.isEmpty ? Blockchain.solana.rawValue : blockRaw
         company.langueParDefautRawValue = json["langue_par_defaut_raw_value"] as? String ?? "fr"
         company.formatDateRawValue = json["format_date_raw_value"] as? String ?? "fr"
         company.formatNombreRawValue = json["format_nombre_raw_value"] as? String ?? "fr"
         company.couleurAccentHex = json["couleur_accent_hex"] as? String
-        company.updatedAt = parseDate(json["updated_at"]) ?? Date()
+        company.updatedAt = parseDate(json["updated_at"]) ?? company.updatedAt
 
         // Wallets
         if let walletsJson = json["wallets"] as? [[String: Any]] {
@@ -668,8 +616,8 @@ final class SyncService: Sendable {
                 guard let pId = (p["id"] as? String).flatMap({ UUID(uuidString: $0) }) else { return nil }
                 var preset = DesignationPreset(
                     designation: p["designation"] as? String ?? "",
-                    prixUnitaire: Decimal(p["prix_unitaire"] as? Double ?? 0),
-                    tauxTVA: Decimal(p["taux_tva"] as? Double ?? 0)
+                    prixUnitaire: decimalValue(p["prix_unitaire"]),
+                    tauxTVA: decimalValue(p["taux_tva"])
                 )
                 preset.id = pId
                 return preset
@@ -693,12 +641,12 @@ final class SyncService: Sendable {
             period.nom = json["nom"] as? String ?? ""
             period.mois = json["mois"] as? Int ?? 1
             period.annee = json["annee"] as? Int ?? 2026
-            period.tauxNormal = Decimal(json["taux_normal"] as? Double ?? 26.39)
-            period.tauxSupplementaire = Decimal(json["taux_supplementaire"] as? Double ?? 39.59)
-            period.coefficientNet = Decimal(json["coefficient_net"] as? Double ?? 0.756)
-            period.seuilHebdo = Decimal(json["seuil_hebdo"] as? Double ?? 35)
-            period.createdAt = parseDate(json["created_at"]) ?? Date()
-            period.updatedAt = parseDate(json["updated_at"]) ?? Date()
+            period.tauxNormal = decimalValue(json["taux_normal"], default: 26.39)
+            period.tauxSupplementaire = decimalValue(json["taux_supplementaire"], default: 39.59)
+            period.coefficientNet = decimalValue(json["coefficient_net"], default: 0.756)
+            period.seuilHebdo = decimalValue(json["seuil_hebdo"], default: 35)
+            period.createdAt = parseDate(json["created_at"]) ?? period.createdAt
+            period.updatedAt = parseDate(json["updated_at"]) ?? period.createdAt
 
             // Weeks
             if let weeksJson = json["timesheet_weeks"] as? [[String: Any]] {
@@ -713,7 +661,7 @@ final class SyncService: Sendable {
                         week.jours = daysJson.compactMap { d in
                             let dateStr = d["date_string"] as? String ?? ""
                             guard let date = TimesheetDay.dateFormatter.date(from: dateStr) else { return nil }
-                            var day = TimesheetDay(date: date, heures: Decimal(d["heures"] as? Double ?? 0))
+                            var day = TimesheetDay(date: date, heures: decimalValue(d["heures"]))
                             if let dId = (d["id"] as? String).flatMap({ UUID(uuidString: $0) }) {
                                 day.id = dId
                             }
@@ -735,42 +683,83 @@ final class SyncService: Sendable {
     /// Reinitialise le sync state (apres un reset app)
     func resetSyncState() {
         syncState = SyncState()
+        dirtyGeneration += 1
         saveSyncState()
     }
 
     func fullSync(dataStore: DataStore) async {
         guard SyncConfig.isEnabled, SyncConfig.isConfigured,
               authService?.isAuthenticated == true else { return }
+        guard !isSyncing else { return }
 
         isSyncing = true
+        defer { isSyncing = false }
 
-        // Push local changes first (but skip empty collections to avoid
-        // deleting remote data after a local reset)
+        // Push local changes first. If a collection is still dirty after push,
+        // keep local data authoritative and skip the remote pull for that key.
         await pushAllDirty()
+        let dirtyAfterPush = syncState
 
         // Pull remote data
-        if let docs = await pullDocuments() {
-            dataStore.documents = docs
-            dataStore.saveLocal(key: "documents")
-        }
-        if let clients = await pullClients() {
-            dataStore.clients = clients
-            dataStore.saveLocal(key: "clients")
-        }
-        if let company = await pullCompany() {
-            if !companyLooksRecoveredBlank(company) || companyLooksRecoveredBlank(dataStore.companyInfo) {
-                dataStore.companyInfo = company
-                dataStore.saveLocal(key: "company")
+        let pullGeneration = dirtyGeneration
+        var skippedPulledData = false
+        var localSaveFailed = false
+        var keysToMarkDirtyAfterPull = Set<SyncDataKey>()
+
+        if shouldPull(.documents, dirtySnapshot: dirtyAfterPush, generation: pullGeneration),
+           let docs = await pullDocuments() {
+            if shouldPreserveLocalCollectionOnFirstSync(remoteCount: docs.count, localCount: dataStore.documents.count) {
+                keysToMarkDirtyAfterPull.insert(.documents)
+                skippedPulledData = true
+            } else if shouldApplyPull(.documents, dirtySnapshot: dirtyAfterPush, generation: pullGeneration) {
+                localSaveFailed = !dataStore.applyPulledDocuments(docs) || localSaveFailed
+            } else {
+                skippedPulledData = true
             }
         }
-        if let timesheets = await pullTimesheets() {
-            dataStore.timesheets = timesheets
-            dataStore.saveLocal(key: "timesheets")
+        if shouldPull(.clients, dirtySnapshot: dirtyAfterPush, generation: pullGeneration),
+           let clients = await pullClients() {
+            if shouldPreserveLocalCollectionOnFirstSync(remoteCount: clients.count, localCount: dataStore.clients.count) {
+                keysToMarkDirtyAfterPull.insert(.clients)
+                skippedPulledData = true
+            } else if shouldApplyPull(.clients, dirtySnapshot: dirtyAfterPush, generation: pullGeneration) {
+                localSaveFailed = !dataStore.applyPulledClients(clients) || localSaveFailed
+            } else {
+                skippedPulledData = true
+            }
+        }
+        if shouldPull(.company, dirtySnapshot: dirtyAfterPush, generation: pullGeneration),
+           let company = await pullCompany() {
+            if !companyLooksRecoveredBlank(company) || companyLooksRecoveredBlank(dataStore.companyInfo) {
+                if shouldApplyPull(.company, dirtySnapshot: dirtyAfterPush, generation: pullGeneration) {
+                    localSaveFailed = !dataStore.applyPulledCompany(company) || localSaveFailed
+                } else {
+                    skippedPulledData = true
+                }
+            }
+        }
+        if shouldPull(.timesheets, dirtySnapshot: dirtyAfterPush, generation: pullGeneration),
+           let timesheets = await pullTimesheets() {
+            if shouldPreserveLocalCollectionOnFirstSync(remoteCount: timesheets.count, localCount: dataStore.timesheets.count) {
+                keysToMarkDirtyAfterPull.insert(.timesheets)
+                skippedPulledData = true
+            } else if shouldApplyPull(.timesheets, dirtySnapshot: dirtyAfterPush, generation: pullGeneration) {
+                localSaveFailed = !dataStore.applyPulledTimesheets(timesheets) || localSaveFailed
+            } else {
+                skippedPulledData = true
+            }
+        }
+        for key in keysToMarkDirtyAfterPull {
+            markDirty(key)
+        }
+        if dirtyAfterPush.hasDirtyData || skippedPulledData || dirtyGeneration != pullGeneration {
+            lastError = "Synchronisation partielle: des donnees locales restent a envoyer."
+        } else if localSaveFailed {
+            lastError = "Synchronisation partielle: sauvegarde locale impossible."
         }
 
         syncState.lastFullSyncAt = Date()
         lastSyncDate = Date()
-        isSyncing = false
         saveSyncState()
     }
 
@@ -858,12 +847,23 @@ final class SyncService: Sendable {
         }
     }
 
-    private func fetchRemoteIds(table: String) async -> Set<String> {
-        await fetchRemoteIds(table: table, query: "select=id")
+    private func fetchRemoteIds(table: String) async throws -> Set<String> {
+        try await fetchRemoteIds(table: table, query: "select=id")
     }
 
-    private func fetchRemoteIds(table: String, query: String) async -> Set<String> {
-        guard let url = buildURL(path: "/rest/v1/\(table)?\(query)") else { return [] }
+    private func fetchRemoteIdsOrFail(table: String, query: String) async -> Set<String>? {
+        do {
+            return try await fetchRemoteIds(table: table, query: query)
+        } catch {
+            lastError = error.localizedDescription
+            return nil
+        }
+    }
+
+    private func fetchRemoteIds(table: String, query: String, retryOn401: Bool = true) async throws -> Set<String> {
+        guard let url = buildURL(path: "/rest/v1/\(table)?\(query)") else {
+            throw RemoteIdFetchError.invalidURL(table: table)
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -871,13 +871,34 @@ final class SyncService: Sendable {
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode >= 200 && httpResponse.statusCode < 300,
-                  let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
-            else { return [] }
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw RemoteIdFetchError.invalidResponse(table: table)
+            }
+
+            if httpResponse.statusCode == 401 && retryOn401 {
+                await authService?.refreshSession()
+                guard authService?.isAuthenticated == true else {
+                    throw RemoteIdFetchError.httpStatus(table: table, statusCode: httpResponse.statusCode, message: nil)
+                }
+                return try await fetchRemoteIds(table: table, query: query, retryOn401: false)
+            }
+
+            guard httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
+                throw RemoteIdFetchError.httpStatus(
+                    table: table,
+                    statusCode: httpResponse.statusCode,
+                    message: errorMessage(from: data)
+                )
+            }
+
+            guard let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+                throw RemoteIdFetchError.invalidPayload(table: table)
+            }
             return Set(jsonArray.compactMap { $0["id"] as? String })
+        } catch let error as RemoteIdFetchError {
+            throw error
         } catch {
-            return []
+            throw RemoteIdFetchError.requestFailed(table: table, error: error)
         }
     }
 
@@ -925,9 +946,54 @@ final class SyncService: Sendable {
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
     }
 
+    private func syncDateString(_ date: Date) -> String {
+        Self.iso8601Formatter.string(from: date)
+    }
+
     private func parseDate(_ value: Any?) -> Date? {
         guard let str = value as? String else { return nil }
-        return ISO8601DateFormatter().date(from: str)
+        return Self.iso8601FractionalFormatter.date(from: str)
+            ?? Self.iso8601Formatter.date(from: str)
+    }
+
+    private func decimalPayload(_ value: Decimal) -> String {
+        NSDecimalNumber(decimal: value).stringValue
+    }
+
+    private func decimalValue(_ value: Any?, default defaultValue: Decimal = 0) -> Decimal {
+        if let decimal = value as? Decimal {
+            return decimal
+        }
+        if let number = value as? NSDecimalNumber {
+            return number.decimalValue
+        }
+        if let number = value as? NSNumber {
+            return number.decimalValue
+        }
+        if let string = value as? String {
+            let normalized = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            return Decimal(string: normalized, locale: Self.decimalLocale) ?? defaultValue
+        }
+        return defaultValue
+    }
+
+    private func shouldPull(_ key: SyncDataKey, dirtySnapshot: SyncState, generation: Int) -> Bool {
+        shouldApplyPull(key, dirtySnapshot: dirtySnapshot, generation: generation)
+    }
+
+    private func shouldApplyPull(_ key: SyncDataKey, dirtySnapshot: SyncState, generation: Int) -> Bool {
+        !dirtySnapshot.isDirty(key)
+            && !syncState.isDirty(key)
+            && dirtyGeneration == generation
+    }
+
+    private func shouldPreserveLocalCollectionOnFirstSync(remoteCount: Int, localCount: Int) -> Bool {
+        syncState.lastFullSyncAt == nil && remoteCount == 0 && localCount > 0
+    }
+
+    private func errorMessage(from data: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return json["message"] as? String ?? json["msg"] as? String
     }
 
     private func companyLooksRecoveredBlank(_ company: CompanyInfo) -> Bool {
@@ -956,6 +1022,47 @@ final class SyncService: Sendable {
             && company.langueParDefautRawValue == "fr"
             && company.formatDateRawValue == "fr"
             && company.formatNombreRawValue == "fr"
+    }
+
+    private static let iso8601Formatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    private static let iso8601FractionalFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let decimalLocale = Locale(identifier: "en_US_POSIX")
+
+    private enum RemoteIdFetchError: LocalizedError {
+        case invalidURL(table: String)
+        case invalidResponse(table: String)
+        case httpStatus(table: String, statusCode: Int, message: String?)
+        case invalidPayload(table: String)
+        case requestFailed(table: String, error: Error)
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidURL(let table):
+                return "URL Supabase invalide pour \(table)."
+            case .invalidResponse(let table):
+                return "Reponse Supabase invalide pendant la lecture des IDs \(table)."
+            case .httpStatus(let table, let statusCode, let message):
+                if let message, !message.isEmpty {
+                    return "Lecture des IDs \(table) impossible: HTTP \(statusCode) - \(message)"
+                } else {
+                    return "Lecture des IDs \(table) impossible: HTTP \(statusCode)"
+                }
+            case .invalidPayload(let table):
+                return "Payload Supabase invalide pendant la lecture des IDs \(table)."
+            case .requestFailed(let table, let error):
+                return "Lecture des IDs \(table) impossible: \(error.localizedDescription)"
+            }
+        }
     }
 
     // MARK: - SQL Schema (shown in settings for custom DB setup)

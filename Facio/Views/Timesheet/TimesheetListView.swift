@@ -8,6 +8,7 @@ struct TimesheetListView: View {
     @State private var selectedAnnee: Int = Calendar.current.component(.year, from: Date())
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+    private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
 
     private var timesheets: [TimesheetPeriod] {
         dataStore.timesheets.sorted { ($0.annee, $0.mois) > ($1.annee, $1.mois) }
@@ -27,7 +28,12 @@ struct TimesheetListView: View {
     var body: some View {
         List(selection: $selectedTimesheetId) {
             ForEach(timesheets) { ts in
-                TimesheetRowView(timesheet: ts, lang: lang, adjacentHours: dataStore.adjacentHours(for: ts))
+                TimesheetRowView(
+                    timesheet: ts,
+                    lang: lang,
+                    numberFormat: numberFormat,
+                    adjacentHours: dataStore.adjacentHours(for: ts)
+                )
                     .tag(ts.id)
                     .contextMenu {
                         Button {
@@ -35,6 +41,7 @@ struct TimesheetListView: View {
                         } label: {
                             Label(L10n.generateInvoice(lang), systemImage: "doc.text")
                         }
+                        .disabled(!canGenerateInvoice(ts))
                         Divider()
                         Button(role: .destructive) {
                             if selectedTimesheetId == ts.id { selectedTimesheetId = nil }
@@ -145,44 +152,129 @@ struct TimesheetListView: View {
     }
 
     private func genererFacture(_ ts: TimesheetPeriod) {
-        let adj = dataStore.adjacentHours(for: ts)
-        let heuresNorm = ts.totalHeuresNormalesCrossPeriod(adjacentHours: adj)
-        let heuresSup = ts.totalHeuresSupCrossPeriod(adjacentHours: adj)
+        if let existingInvoice = existingInvoice(for: ts) {
+            markTimesheet(ts, invoicedBy: existingInvoice, at: existingInvoice.dateCreation)
+            return
+        }
+        guard !ts.hasGeneratedInvoice else { return }
 
+        let company = dataStore.companyInfo
+        let invoiceLanguage = company.langueParDefaut
+        let lineItems = invoiceLineItems(for: ts, company: company, invoiceLanguage: invoiceLanguage)
+        guard !lineItems.isEmpty else { return }
+
+        let creationDate = Date()
+        let currency = company.deviseParDefaut
         let number = DocumentNumberService.nextNumber(
             type: .facture,
             existingDocuments: dataStore.documents,
-            language: lang
+            language: invoiceLanguage
         )
         let doc = Document(
             type: .facture,
             number: number,
-            dateCreation: Date(),
-            currency: dataStore.companyInfo.deviseParDefaut,
-            blockchain: dataStore.companyInfo.blockchainParDefaut
+            dateCreation: creationDate,
+            dateEcheance: dueDate(from: creationDate),
+            currency: currency,
+            blockchain: defaultBlockchain(for: currency)
         )
+        doc.langue = invoiceLanguage
+        doc.sourceTimesheetId = ts.id
+        doc.lignes = lineItems
+
+        dataStore.addDocument(doc)
+        markTimesheet(ts, invoicedBy: doc, at: creationDate)
+    }
+
+    private func canGenerateInvoice(_ ts: TimesheetPeriod) -> Bool {
+        guard !ts.hasGeneratedInvoice, existingInvoice(for: ts) == nil else { return false }
+        return hasBillableInvoiceLines(for: ts)
+    }
+
+    private func existingInvoice(for ts: TimesheetPeriod) -> Document? {
+        if let invoiceDocumentId = ts.invoiceDocumentId,
+           let document = dataStore.documents.first(where: { $0.id == invoiceDocumentId && $0.type == .facture }) {
+            return document
+        }
+        return dataStore.documents.first { $0.type == .facture && $0.sourceTimesheetId == ts.id }
+    }
+
+    private func hasBillableInvoiceLines(for ts: TimesheetPeriod) -> Bool {
+        let adj = dataStore.adjacentHours(for: ts)
+        return ts.totalHeuresNormalesCrossPeriod(adjacentHours: adj) > 0
+            || ts.totalHeuresSupCrossPeriod(adjacentHours: adj) > 0
+    }
+
+    private func invoiceLineItems(
+        for ts: TimesheetPeriod,
+        company: CompanyInfo,
+        invoiceLanguage: AppLanguage
+    ) -> [LineItem] {
+        let adj = dataStore.adjacentHours(for: ts)
+        let heuresNorm = ts.totalHeuresNormalesCrossPeriod(adjacentHours: adj)
+        let heuresSup = ts.totalHeuresSupCrossPeriod(adjacentHours: adj)
+        var lineItems: [LineItem] = []
 
         if heuresNorm > 0 {
-            doc.lignes.append(LineItem(
-                designation: L10n.workHours(lang),
+            lineItems.append(LineItem(
+                designation: L10n.workHours(invoiceLanguage),
                 quantite: heuresNorm,
                 prixUnitaire: ts.tauxNormal,
-                tauxTVA: dataStore.companyInfo.tauxTVAParDefaut,
-                ordre: 0
+                tauxTVA: company.tauxTVAParDefaut,
+                ordre: lineItems.count
             ))
         }
 
         if heuresSup > 0 {
-            doc.lignes.append(LineItem(
-                designation: L10n.overtimeLabel(lang),
+            lineItems.append(LineItem(
+                designation: L10n.overtimeLabel(invoiceLanguage),
                 quantite: heuresSup,
                 prixUnitaire: ts.tauxSupplementaire,
-                tauxTVA: dataStore.companyInfo.tauxTVAParDefaut,
-                ordre: 1
+                tauxTVA: company.tauxTVAParDefaut,
+                ordre: lineItems.count
             ))
         }
 
-        dataStore.addDocument(doc)
+        return lineItems
+    }
+
+    private func markTimesheet(_ ts: TimesheetPeriod, invoicedBy doc: Document, at date: Date) {
+        var timesheetChanged = false
+        if ts.invoiceDocumentId != doc.id {
+            ts.invoiceDocumentId = doc.id
+            timesheetChanged = true
+        }
+        if ts.billedAt == nil {
+            ts.billedAt = date
+            timesheetChanged = true
+        }
+        if timesheetChanged {
+            dataStore.timesheetUpdated(ts)
+        }
+
+        if doc.sourceTimesheetId != ts.id {
+            doc.sourceTimesheetId = ts.id
+            dataStore.documentUpdated(doc)
+        }
+    }
+
+    private func dueDate(from creationDate: Date) -> Date {
+        Calendar.current.date(
+            byAdding: .day,
+            value: dataStore.companyInfo.delaiPaiementJours,
+            to: creationDate
+        ) ?? creationDate
+    }
+
+    private func defaultBlockchain(for currency: CurrencyType) -> Blockchain? {
+        guard currency.requiresBlockchain else { return nil }
+        let compatible = Blockchain.compatibleBlockchains(for: currency)
+        guard !compatible.isEmpty else { return nil }
+        if let defaultBlockchain = dataStore.companyInfo.blockchainParDefaut,
+           compatible.contains(defaultBlockchain) {
+            return defaultBlockchain
+        }
+        return compatible.first
     }
 }
 
@@ -191,6 +283,7 @@ struct TimesheetListView: View {
 private struct TimesheetRowView: View {
     let timesheet: TimesheetPeriod
     let lang: AppLanguage
+    let numberFormat: AppLanguage
     let adjacentHours: [String: Decimal]
 
     var body: some View {
@@ -204,18 +297,18 @@ private struct TimesheetRowView: View {
                     .font(.headline)
                 Spacer()
                 if brut > 0 {
-                    Text(brut.formatted2Decimals)
+                    Text(brut.formatted2Decimals(for: numberFormat))
                         .font(.subheadline.monospacedDigit())
                         .fontWeight(.medium)
                         .foregroundStyle(.secondary)
                 }
             }
             HStack(spacing: 8) {
-                Text("\(heuresMois.formatted2Decimals)h")
+                Text("\(heuresMois.formatted2Decimals(for: numberFormat))h")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                 if heuresSup > 0 {
-                    Text("+\(heuresSup.formatted2Decimals)h sup")
+                    Text(L10n.overtimeHoursShort(lang, value: heuresSup.formatted2Decimals(for: numberFormat)))
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
