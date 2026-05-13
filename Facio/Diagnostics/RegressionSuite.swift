@@ -46,6 +46,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "accounting currency format keeps document totals readable", run: accountingCurrencyFormatKeepsDocumentTotalsReadable),
         RegressionCase(name: "document totals include VAT and line ordering", run: documentTotalsIncludeVATAndLineOrdering),
         RegressionCase(name: "document decodes old payloads without accounting conversion", run: documentDecodesOldPayloadsWithoutAccountingConversion),
+        RegressionCase(name: "client empty record detection trims all fields", run: clientEmptyRecordDetectionTrimsAllFields),
         RegressionCase(name: "accounting revenue converts known rates and reports missing ones", run: accountingRevenueConvertsKnownRatesAndReportsMissingOnes),
         RegressionCase(name: "fiat document drops crypto payment configuration", run: fiatDocumentDropsCryptoPaymentConfiguration),
         RegressionCase(name: "crypto payment selects only compatible non-blank wallets", run: cryptoPaymentSelectsOnlyCompatibleNonBlankWallets),
@@ -54,12 +55,15 @@ enum FacioRegressionSuite {
         RegressionCase(name: "sync state tracks pending deletes as dirty data", run: syncStateTracksPendingDeletesAsDirtyData),
         RegressionCase(name: "sync state decodes old payloads without pending delete arrays", run: syncStateDecodesOldPayloadsWithoutPendingDeleteArrays),
         RegressionCase(name: "timesheet calendar generation uses whole weeks", run: timesheetCalendarGenerationUsesWholeWeeks),
+        RegressionCase(name: "timesheet custom range generation uses whole weeks", run: timesheetCustomRangeGenerationUsesWholeWeeks),
         RegressionCase(name: "timesheet normalize calendar restores shape and keeps stored hours", run: timesheetNormalizeCalendarRestoresShapeAndKeepsStoredHours),
         RegressionCase(name: "timesheet period decodes old payloads and normalizes calendar", run: timesheetPeriodDecodesOldPayloadsAndNormalizesCalendar),
         RegressionCase(name: "timesheet invoice markers set generated invoice state", run: timesheetInvoiceMarkersSetGeneratedInvoiceState),
         RegressionCase(name: "timesheet periods are unique per client and month", run: timesheetPeriodsAreUniquePerClientAndMonth),
+        RegressionCase(name: "timesheet custom ranges overlap by client", run: timesheetCustomRangesOverlapByClient),
         RegressionCase(name: "timesheet shared weeks are scoped by client", run: timesheetSharedWeeksAreScopedByClient),
         RegressionCase(name: "timesheet invoice summary applies client snapshot", run: timesheetInvoiceSummaryAppliesClientSnapshot),
+        RegressionCase(name: "timesheet custom range counts previous weekly context", run: timesheetCustomRangeCountsPreviousWeeklyContext),
         RegressionCase(name: "timesheet invoice daily lines group overtime by week", run: timesheetInvoiceDailyLinesGroupOvertimeByWeek),
         RegressionCase(name: "timesheet invoice daily lines do not split equal rates", run: timesheetInvoiceDailyLinesDoNotSplitEqualRates),
         RegressionCase(name: "timesheet cross-period overtime assigns overflow to current month", run: timesheetCrossPeriodOvertimeAssignsOverflowToCurrentMonth),
@@ -175,7 +179,18 @@ enum FacioRegressionSuite {
         try expect(document.accountingCurrency == nil, "old payload should not invent accounting currency")
         try expect(document.accountingExchangeRate == nil, "old payload should not invent exchange rate")
         try expect(document.accountingExchangeRateDate == nil, "old payload should not invent exchange rate date")
+        try expectEqual(document.clientSiret, "")
+        try expectEqual(document.clientTva, "")
+        try expectEqual(document.clientApe, "")
         try expect(document.accountingTotal(referenceCurrency: .eur) == nil, "cross-currency old payload should need a rate")
+    }
+
+    private static func clientEmptyRecordDetectionTrimsAllFields() throws {
+        let empty = ClientInfo(nom: " ", adresse: "\n", codePostal: "\t", ville: "", email: "", siret: "", tva: "", ape: "")
+        try expect(empty.isEmptyRecord, "whitespace-only client should be considered empty")
+
+        let withSiret = ClientInfo(siret: "82501500100027")
+        try expect(!withSiret.isEmptyRecord, "client with any identifier should be kept")
     }
 
     private static func accountingRevenueConvertsKnownRatesAndReportsMissingOnes() throws {
@@ -250,6 +265,9 @@ enum FacioRegressionSuite {
         let wallet = WalletEntry(blockchain: .solana, address: "SolAddr", label: "Main")
         let document = Document(type: .devis, number: "D-001", currency: .usdc, blockchain: .solana)
         document.clientNom = "Client"
+        document.clientSiret = "82501500100027"
+        document.clientTva = "FR96825015001"
+        document.clientApe = "7112P"
         document.notes = "Notes"
         document.langue = .en
         document.paymentMode = .crypto
@@ -263,6 +281,9 @@ enum FacioRegressionSuite {
         try expectEqual(copy.type, .devis)
         try expectEqual(copy.number, "")
         try expectEqual(copy.clientNom, "Client")
+        try expectEqual(copy.clientSiret, "82501500100027")
+        try expectEqual(copy.clientTva, "FR96825015001")
+        try expectEqual(copy.clientApe, "7112P")
         try expectEqual(copy.notes, "Notes")
         try expectEqual(copy.langue, .en)
         try expectEqual(copy.currency, .usdc)
@@ -322,6 +343,19 @@ enum FacioRegressionSuite {
         try expectEqual(weeks.last?.jours.last?.dateString, "2026-04-05")
     }
 
+    private static func timesheetCustomRangeGenerationUsesWholeWeeks() throws {
+        let period = TimesheetPeriod(startDate: date("2026-04-24"), endDate: date("2026-05-12"))
+
+        try expect(period.isCustomRange, "custom date range should be marked custom")
+        try expectEqual(period.activeStartDateString, "2026-04-24")
+        try expectEqual(period.activeEndDateString, "2026-05-12")
+        try expectEqual(period.semaines.count, 4)
+        try expectEqual(period.semaines.first?.jours.first?.dateString, "2026-04-20")
+        try expectEqual(period.semaines.last?.jours.last?.dateString, "2026-05-17")
+        try expect(!period.isBillableDateString("2026-04-23"), "day before range should be context only")
+        try expect(period.isBillableDateString("2026-05-12"), "range end should be billable")
+    }
+
     private static func timesheetNormalizeCalendarRestoresShapeAndKeepsStoredHours() throws {
         let period = TimesheetPeriod(mois: 3, annee: 2026)
         let expectedWeekCount = period.semaines.count
@@ -358,6 +392,9 @@ enum FacioRegressionSuite {
         try expect(period.billedAt == nil, "old payload should not invent billed date")
         try expect(period.clientId == nil, "old payload should not invent client id")
         try expectEqual(period.clientNom, "")
+        try expectEqual(period.clientSiret, "")
+        try expectEqual(period.clientTva, "")
+        try expectEqual(period.clientApe, "")
         try expect(!period.hasClient, "old payload should not be marked with a client")
         try expect(!period.hasGeneratedInvoice, "old payload should not be marked invoiced")
         try expectEqual(period.nom, "Mars 2026")
@@ -397,6 +434,41 @@ enum FacioRegressionSuite {
         )
     }
 
+    private static func timesheetCustomRangesOverlapByClient() throws {
+        let clientA = UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")!
+        let clientB = UUID(uuidString: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")!
+        let april = TimesheetPeriod(mois: 4, annee: 2026)
+        april.clientId = clientA
+
+        try expect(
+            TimesheetPeriod.periodOverlaps(
+                in: [april],
+                startDate: date("2026-04-24"),
+                endDate: date("2026-05-12"),
+                clientId: clientA
+            ),
+            "custom range should overlap same client's monthly period"
+        )
+        try expect(
+            !TimesheetPeriod.periodOverlaps(
+                in: [april],
+                startDate: date("2026-04-24"),
+                endDate: date("2026-05-12"),
+                clientId: clientB
+            ),
+            "different client should be allowed on overlapping dates"
+        )
+        try expect(
+            !TimesheetPeriod.periodOverlaps(
+                in: [april],
+                startDate: date("2026-05-01"),
+                endDate: date("2026-05-12"),
+                clientId: clientA
+            ),
+            "non-overlapping range should be allowed for same client"
+        )
+    }
+
     private static func timesheetSharedWeeksAreScopedByClient() throws {
         let clientA = ClientInfo(nom: "Client A")
         let clientB = ClientInfo(nom: "Client B")
@@ -416,6 +488,9 @@ enum FacioRegressionSuite {
         let company = CompanyInfo()
         company.tauxTVAParDefaut = decimal("20")
         let client = ClientInfo(nom: "Client A", adresse: "1 rue A", codePostal: "75001", ville: "Paris")
+        client.siret = "82501500100027"
+        client.tva = "FR96825015001"
+        client.ape = "7112P"
         let period = TimesheetPeriod(mois: 4, annee: 2026, client: client)
         period.semaines[0].jours[2].heures = decimal("7")
 
@@ -435,7 +510,46 @@ enum FacioRegressionSuite {
         try expectDecimal(lineItems[0].quantite, equals: "7")
         try expectEqual(document.clientNom, "Client A")
         try expectEqual(document.clientAdresse, "1 rue A")
+        try expectEqual(document.clientSiret, "82501500100027")
+        try expectEqual(document.clientTva, "FR96825015001")
+        try expectEqual(document.clientApe, "7112P")
         try expectEqual(document.sourceTimesheetId, period.id)
+    }
+
+    private static func timesheetCustomRangeCountsPreviousWeeklyContext() throws {
+        let company = CompanyInfo()
+        let period = TimesheetPeriod(startDate: date("2026-04-10"), endDate: date("2026-04-20"))
+        period.tauxNormal = decimal("10")
+        period.tauxSupplementaire = decimal("20")
+        var adjacentHours: [String: Decimal] = [:]
+
+        let firstWeek = try require(period.semaines.first, "expected first custom week")
+        for day in firstWeek.jours.prefix(4) {
+            adjacentHours[day.dateString] = decimal("8")
+        }
+        for weekIndex in period.semaines.indices {
+            for dayIndex in period.semaines[weekIndex].jours.indices
+                where period.semaines[weekIndex].jours[dayIndex].dateString == "2026-04-10" {
+                period.semaines[weekIndex].jours[dayIndex].heures = decimal("8")
+            }
+        }
+
+        let allocations = TimesheetInvoiceService.dailyAllocations(for: period, adjacentHours: adjacentHours)
+        let lineItems = TimesheetInvoiceService.lineItems(
+            for: period,
+            company: company,
+            invoiceLanguage: .fr,
+            detailMode: .summary,
+            adjacentHours: adjacentHours
+        )
+
+        try expectEqual(allocations.count, 1)
+        try expectDecimal(allocations[0].normalHours, equals: "3")
+        try expectDecimal(allocations[0].overtimeHours, equals: "5")
+        try expectEqual(lineItems.count, 2)
+        try expectEqual(lineItems[0].designation, "Heures de travail - 10/04/2026 - 20/04/2026")
+        try expectDecimal(lineItems[0].quantite, equals: "3")
+        try expectDecimal(lineItems[1].quantite, equals: "5")
     }
 
     private static func timesheetInvoiceDailyLinesGroupOvertimeByWeek() throws {
@@ -549,6 +663,10 @@ enum FacioRegressionSuite {
     private static func require<T>(_ value: T?, _ message: String) throws -> T {
         guard let value else { throw RegressionFailure(message: message) }
         return value
+    }
+
+    private static func date(_ string: String) -> Date {
+        TimesheetDay.dateFormatter.date(from: string)!
     }
 
     private static func decimal(_ string: String) -> Decimal {

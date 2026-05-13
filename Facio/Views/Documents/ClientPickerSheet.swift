@@ -13,6 +13,9 @@ struct ClientPickerSheet: View {
     @State private var newCodePostal = ""
     @State private var newVille = ""
     @State private var newEmail = ""
+    @State private var newSiret = ""
+    @State private var newTva = ""
+    @State private var newApe = ""
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -25,7 +28,10 @@ struct ClientPickerSheet: View {
         let query = searchText.lowercased()
         return allClients.filter {
             $0.nom.lowercased().contains(query) ||
-            $0.ville.lowercased().contains(query)
+            $0.ville.lowercased().contains(query) ||
+            $0.siret.lowercased().contains(query) ||
+            $0.tva.lowercased().contains(query) ||
+            $0.ape.lowercased().contains(query)
         }
     }
 
@@ -72,6 +78,12 @@ struct ClientPickerSheet: View {
                     }
                     TextField(L10n.email(lang), text: $newEmail)
                         .textFieldStyle(.roundedBorder)
+                    TextField(L10n.siret(lang), text: $newSiret)
+                        .textFieldStyle(.roundedBorder)
+                    TextField(L10n.vatNumber(lang), text: $newTva)
+                        .textFieldStyle(.roundedBorder)
+                    TextField(L10n.apeCode(lang), text: $newApe)
+                        .textFieldStyle(.roundedBorder)
                     HStack {
                         Spacer()
                         Button(L10n.createAndSelect(lang)) {
@@ -80,7 +92,10 @@ struct ClientPickerSheet: View {
                                 adresse: newAdresse,
                                 codePostal: newCodePostal,
                                 ville: newVille,
-                                email: newEmail
+                                email: newEmail,
+                                siret: newSiret,
+                                tva: newTva,
+                                ape: newApe
                             )
                             dataStore.addClient(client)
                             onSelect(client)
@@ -107,6 +122,17 @@ struct ClientPickerSheet: View {
                         Text("\(client.adresse.isEmpty ? "" : "\(client.adresse), ")\(client.codePostal) \(client.ville)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+                    let identifiers = [
+                        client.siret.isEmpty ? nil : "\(L10n.siret(lang)): \(client.siret)",
+                        client.tva.isEmpty ? nil : "\(L10n.vatNumber(lang)): \(client.tva)",
+                        client.ape.isEmpty ? nil : "\(L10n.apeCode(lang)): \(client.ape)"
+                    ].compactMap { $0 }
+                    if !identifiers.isEmpty {
+                        Text(identifiers.joined(separator: " - "))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

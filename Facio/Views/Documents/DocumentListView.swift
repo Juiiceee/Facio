@@ -19,7 +19,10 @@ struct DocumentListView: View {
         let query = searchText.lowercased()
         return filtered.filter { doc in
             doc.number.lowercased().contains(query) ||
-            doc.clientNom.lowercased().contains(query)
+            doc.clientNom.lowercased().contains(query) ||
+            doc.clientSiret.lowercased().contains(query) ||
+            doc.clientTva.lowercased().contains(query) ||
+            doc.clientApe.lowercased().contains(query)
         }
     }
 

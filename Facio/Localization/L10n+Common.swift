@@ -23,6 +23,8 @@ extension L10n {
     static func city(_ l: AppLanguage) -> String { l == .fr ? "Ville" : "City" }
     static func email(_ l: AppLanguage) -> String { "Email" }
     static func phone(_ l: AppLanguage) -> String { l == .fr ? "Telephone" : "Phone" }
+    static func vatNumber(_ l: AppLanguage) -> String { l == .fr ? "Numero TVA" : "VAT number" }
+    static func apeCode(_ l: AppLanguage) -> String { l == .fr ? "Code APE" : "APE code" }
 
     // Labels generiques
     static func type(_ l: AppLanguage) -> String { "Type" }

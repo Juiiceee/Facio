@@ -9,6 +9,9 @@ final class ClientInfo: Identifiable, Codable, Hashable {
     var codePostal: String = ""
     var ville: String = ""
     var email: String = ""
+    var siret: String = ""
+    var tva: String = ""
+    var ape: String = ""
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
 
@@ -27,7 +30,10 @@ final class ClientInfo: Identifiable, Codable, Hashable {
         adresse: String = "",
         codePostal: String = "",
         ville: String = "",
-        email: String = ""
+        email: String = "",
+        siret: String = "",
+        tva: String = "",
+        ape: String = ""
     ) {
         self.id = UUID()
         self.nom = nom
@@ -35,6 +41,9 @@ final class ClientInfo: Identifiable, Codable, Hashable {
         self.codePostal = codePostal
         self.ville = ville
         self.email = email
+        self.siret = siret
+        self.tva = tva
+        self.ape = ape
         self.createdAt = Date()
     }
 
@@ -46,18 +55,28 @@ final class ClientInfo: Identifiable, Codable, Hashable {
         return "\(nom) — \(ville)"
     }
 
+    /// Vrai quand aucun champ utile n'est renseigne.
+    var isEmptyRecord: Bool {
+        [nom, adresse, codePostal, ville, email, siret, tva, ape].allSatisfy {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
     /// Applique les infos client sur un document
     func appliquer(sur document: Document) {
         document.clientNom = nom
         document.clientAdresse = adresse
         document.clientCodePostal = codePostal
         document.clientVille = ville
+        document.clientSiret = siret
+        document.clientTva = tva
+        document.clientApe = ape
     }
 
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case id, nom, adresse, codePostal, ville, email, createdAt, updatedAt
+        case id, nom, adresse, codePostal, ville, email, siret, tva, ape, createdAt, updatedAt
     }
 
     required init(from decoder: Decoder) throws {
@@ -68,6 +87,9 @@ final class ClientInfo: Identifiable, Codable, Hashable {
         codePostal = container.decodeOrDefault(String.self, forKey: .codePostal, default: "")
         ville = container.decodeOrDefault(String.self, forKey: .ville, default: "")
         email = container.decodeOrDefault(String.self, forKey: .email, default: "")
+        siret = container.decodeOrDefault(String.self, forKey: .siret, default: "")
+        tva = container.decodeOrDefault(String.self, forKey: .tva, default: "")
+        ape = container.decodeOrDefault(String.self, forKey: .ape, default: "")
         createdAt = container.decodeOrDefault(Date.self, forKey: .createdAt, default: Date())
         updatedAt = container.decodeOrDefault(Date.self, forKey: .updatedAt, default: createdAt)
     }
@@ -80,6 +102,9 @@ final class ClientInfo: Identifiable, Codable, Hashable {
         try container.encode(codePostal, forKey: .codePostal)
         try container.encode(ville, forKey: .ville)
         try container.encode(email, forKey: .email)
+        try container.encode(siret, forKey: .siret)
+        try container.encode(tva, forKey: .tva)
+        try container.encode(ape, forKey: .ape)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
     }

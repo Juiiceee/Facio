@@ -42,9 +42,8 @@ struct TimesheetEditorView: View {
         }
         .sheet(isPresented: $showClientPicker) {
             ClientPickerSheet(clients: dataStore.clients) { client in
-                guard !dataStore.timesheetExists(
-                    mois: timesheet.mois,
-                    annee: timesheet.annee,
+                guard !dataStore.timesheetOverlaps(
+                    timesheet,
                     clientId: client.id,
                     excluding: timesheet.id
                 ) else { return }
@@ -118,7 +117,7 @@ struct TimesheetEditorView: View {
         let brut = coutNorm + coutSup
         let net = brut * timesheet.coefficientNet
 
-        return GroupBox("\(L10n.summary(lang)) — \(timesheet.moisLabel(for: lang))") {
+        return GroupBox("\(L10n.summary(lang)) — \(timesheet.periodLabel(for: lang))") {
             LazyVGrid(columns: [
                 GridItem(.adaptive(minimum: 100, maximum: 160))
             ], spacing: 12) {
@@ -171,12 +170,11 @@ struct TimesheetEditorView: View {
     // MARK: - Semaine
 
     private func weekSection(weekIndex: Int, week: TimesheetWeek) -> some View {
-        let seuil = timesheet.seuilHebdo
         let adj = adjHours
 
-        // Heures du mois courant dans cette semaine
-        let heuresMoisSemaine = week.jours.filter { $0.mois == timesheet.mois }.reduce(Decimal(0)) { $0 + $1.heures }
-        let supSemaine = week.heuresSupPourMois(moisPeriode: timesheet.mois, seuil: seuil, adjacentHours: adj)
+        // Heures de la plage facturee dans cette semaine
+        let heuresMoisSemaine = timesheet.totalHeuresPourSemaine(week)
+        let supSemaine = timesheet.heuresSupPourSemaine(week, adjacentHours: adj)
         let normSemaine = heuresMoisSemaine - supSemaine
 
         return GroupBox {
@@ -219,7 +217,7 @@ struct TimesheetEditorView: View {
                 // Grille des jours
                 HStack(spacing: 0) {
                     ForEach(Array(week.jours.enumerated()), id: \.offset) { dayIndex, jour in
-                        let estDansMois = jour.mois == timesheet.mois
+                        let estDansMois = timesheet.isBillableDay(jour)
                         VStack(spacing: 4) {
                             Text(jour.jourSemaine.shortLabel(for: lang))
                                 .font(.caption2)

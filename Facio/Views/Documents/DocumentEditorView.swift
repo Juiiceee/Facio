@@ -437,6 +437,41 @@ struct DocumentEditorView: View {
                     .textFieldStyle(.roundedBorder)
                 }
             }
+
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.siret(lang))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    TextField(L10n.siret(lang), text: Binding(
+                        get: { document.clientSiret },
+                        set: { document.clientSiret = $0; scheduleSave() }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.vatNumber(lang))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    TextField(L10n.vatNumber(lang), text: Binding(
+                        get: { document.clientTva },
+                        set: { document.clientTva = $0; scheduleSave() }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.apeCode(lang))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    TextField(L10n.apeCode(lang), text: Binding(
+                        get: { document.clientApe },
+                        set: { document.clientApe = $0; scheduleSave() }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                }
+            }
         }
     }
 

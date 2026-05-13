@@ -427,6 +427,12 @@ struct PDFGenerator {
         let clientCityLine = addressLine(city: document.clientVille, postalCode: document.clientCodePostal)
         if !clientCityLine.isEmpty {
             drawText(clientCityLine, x: destX, y: ry, font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
+            ry += 13
+        }
+
+        for line in clientIdentifierLines {
+            drawText(line, x: destX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textBlack, context: context)
+            ry += 11
         }
 
         return max(cy, ry) + 15
@@ -871,6 +877,20 @@ struct PDFGenerator {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
+    }
+
+    private var clientIdentifierLines: [String] {
+        [
+            labeledClientIdentifier(label: L10n.siret(lang), value: document.clientSiret),
+            labeledClientIdentifier(label: L10n.vatNumber(lang), value: document.clientTva),
+            labeledClientIdentifier(label: L10n.apeCode(lang), value: document.clientApe)
+        ].compactMap { $0 }
+    }
+
+    private func labeledClientIdentifier(label: String, value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return "\(label): \(trimmed)"
     }
 
     /// Formate un Decimal avec 2 decimales sans separateur de milliers.

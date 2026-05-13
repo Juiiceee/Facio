@@ -63,6 +63,10 @@ extension L10n {
 
     // Liste periodes
     static func newPeriod(_ l: AppLanguage) -> String { l == .fr ? "Nouvelle periode" : "New period" }
+    static func monthlyPeriod(_ l: AppLanguage) -> String { l == .fr ? "Mois" : "Month" }
+    static func customPeriod(_ l: AppLanguage) -> String { l == .fr ? "Custom" : "Custom" }
+    static func startDate(_ l: AppLanguage) -> String { l == .fr ? "Debut" : "Start" }
+    static func endDate(_ l: AppLanguage) -> String { l == .fr ? "Fin" : "End" }
     static func month(_ l: AppLanguage) -> String { l == .fr ? "Mois" : "Month" }
     static func year(_ l: AppLanguage) -> String { l == .fr ? "Annee" : "Year" }
     static func periodExists(_ l: AppLanguage) -> String { l == .fr ? "Cette periode existe deja" : "This period already exists" }
@@ -81,10 +85,19 @@ extension L10n {
     static func periodExistsForClient(_ l: AppLanguage) -> String {
         l == .fr ? "Cette periode existe deja pour ce client" : "This period already exists for this client"
     }
+    static func periodOverlapsForClient(_ l: AppLanguage) -> String {
+        l == .fr ? "Cette plage chevauche deja une periode pour ce client" : "This range already overlaps a period for this client"
+    }
     static func invoiced(_ l: AppLanguage) -> String { l == .fr ? "Facturee" : "Invoiced" }
     static func notInvoiced(_ l: AppLanguage) -> String { l == .fr ? "Non facturee" : "Not invoiced" }
     static func workHours(_ l: AppLanguage) -> String { l == .fr ? "Heures de travail" : "Work hours" }
     static func overtimeLabel(_ l: AppLanguage) -> String { l == .fr ? "Heures supplementaires" : "Overtime hours" }
+    static func workHoursForPeriod(_ l: AppLanguage, period: String) -> String {
+        l == .fr ? "Heures de travail - \(period)" : "Work hours - \(period)"
+    }
+    static func overtimeForPeriod(_ l: AppLanguage, period: String) -> String {
+        l == .fr ? "Heures supplementaires - \(period)" : "Overtime hours - \(period)"
+    }
     static func workHoursOnDate(_ l: AppLanguage, date: String) -> String {
         l == .fr ? "Heures de travail - \(date)" : "Work hours - \(date)"
     }

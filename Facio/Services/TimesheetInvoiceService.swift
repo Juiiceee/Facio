@@ -56,11 +56,18 @@ struct TimesheetInvoiceService {
     ) -> [LineItem] {
         let heuresNorm = timesheet.totalHeuresNormalesCrossPeriod(adjacentHours: adjacentHours)
         let heuresSup = timesheet.totalHeuresSupCrossPeriod(adjacentHours: adjacentHours)
+        let periodLabel = timesheet.periodLabel(for: invoiceLanguage)
+        let workDesignation = timesheet.isCustomRange
+            ? L10n.workHoursForPeriod(invoiceLanguage, period: periodLabel)
+            : L10n.workHours(invoiceLanguage)
+        let overtimeDesignation = timesheet.isCustomRange
+            ? L10n.overtimeForPeriod(invoiceLanguage, period: periodLabel)
+            : L10n.overtimeLabel(invoiceLanguage)
         var lineItems: [LineItem] = []
 
         if heuresNorm > 0 {
             lineItems.append(LineItem(
-                designation: L10n.workHours(invoiceLanguage),
+                designation: workDesignation,
                 quantite: heuresNorm,
                 prixUnitaire: timesheet.tauxNormal,
                 tauxTVA: company.tauxTVAParDefaut,
@@ -70,7 +77,7 @@ struct TimesheetInvoiceService {
 
         if heuresSup > 0 {
             lineItems.append(LineItem(
-                designation: L10n.overtimeLabel(invoiceLanguage),
+                designation: overtimeDesignation,
                 quantite: heuresSup,
                 prixUnitaire: timesheet.tauxSupplementaire,
                 tauxTVA: company.tauxTVAParDefaut,
@@ -91,7 +98,7 @@ struct TimesheetInvoiceService {
             var hoursBeforeDay: Decimal = 0
 
             for day in week.jours {
-                let dayHours = day.mois == timesheet.mois
+                let dayHours = timesheet.isBillableDay(day)
                     ? day.heures
                     : adjacentHours[day.dateString] ?? day.heures
 
@@ -99,7 +106,7 @@ struct TimesheetInvoiceService {
                     hoursBeforeDay += dayHours
                 }
 
-                guard day.mois == timesheet.mois, dayHours > 0 else { continue }
+                guard timesheet.isBillableDay(day), dayHours > 0 else { continue }
 
                 let remainingNormalHours = max(timesheet.seuilHebdo - hoursBeforeDay, 0)
                 let normalHours = min(dayHours, remainingNormalHours)
@@ -130,7 +137,7 @@ struct TimesheetInvoiceService {
             var weeklyOvertimeHours: Decimal = 0
 
             for day in week.jours {
-                let dayHours = day.mois == timesheet.mois
+                let dayHours = timesheet.isBillableDay(day)
                     ? day.heures
                     : adjacentHours[day.dateString] ?? day.heures
 
@@ -138,7 +145,7 @@ struct TimesheetInvoiceService {
                     hoursBeforeDay += dayHours
                 }
 
-                guard day.mois == timesheet.mois, dayHours > 0 else { continue }
+                guard timesheet.isBillableDay(day), dayHours > 0 else { continue }
 
                 let remainingNormalHours = max(timesheet.seuilHebdo - hoursBeforeDay, 0)
                 let normalHours = min(dayHours, remainingNormalHours)

@@ -58,7 +58,7 @@ final class DataStore: Sendable {
 
     func load() {
         load([Document].self, key: .documents, from: documentsFileURL) { documents = $0 }
-        load([ClientInfo].self, key: .clients, from: clientsFileURL) { clients = $0 }
+        load([ClientInfo].self, key: .clients, from: clientsFileURL) { clients = normalizedClients($0) }
         load(CompanyInfo.self, key: .company, from: companyFileURL) { companyInfo = $0 }
         load([TimesheetPeriod].self, key: .timesheets, from: timesheetsFileURL) { timesheets = normalizedTimesheets($0) }
     }
@@ -156,14 +156,15 @@ final class DataStore: Sendable {
 
     @discardableResult
     func applyPulledClients(_ pulledClients: [ClientInfo]) -> Bool {
+        let normalized = normalizedClients(pulledClients)
         guard write(
             [ClientInfo].self,
-            pulledClients,
+            normalized,
             key: .clients,
             to: clientsFileURL,
             allowBlockedWrite: false
         ) else { return false }
-        clients = pulledClients
+        clients = normalized
         return true
     }
 
@@ -337,6 +338,7 @@ final class DataStore: Sendable {
     // MARK: - Client CRUD
 
     func addClient(_ client: ClientInfo) {
+        guard !client.isEmptyRecord else { return }
         clients.append(client)
         saveClients()
     }
@@ -352,12 +354,19 @@ final class DataStore: Sendable {
         }
     }
 
-    func clientUpdated(_ client: ClientInfo) {
+    @discardableResult
+    func clientUpdated(_ client: ClientInfo) -> Bool {
+        if client.isEmptyRecord {
+            deleteClient(client)
+            return false
+        }
         client.updatedAt = Date()
         saveClients()
+        return true
     }
 
     func clientUpdated() {
+        clients = normalizedClients(clients)
         saveClients()
     }
 
@@ -394,6 +403,26 @@ final class DataStore: Sendable {
             in: timesheets,
             mois: mois,
             annee: annee,
+            clientId: clientId,
+            excluding: excludedId
+        )
+    }
+
+    func timesheetOverlaps(startDate: Date, endDate: Date, clientId: UUID?, excluding excludedId: UUID? = nil) -> Bool {
+        TimesheetPeriod.periodOverlaps(
+            in: timesheets,
+            startDate: startDate,
+            endDate: endDate,
+            clientId: clientId,
+            excluding: excludedId
+        )
+    }
+
+    func timesheetOverlaps(_ timesheet: TimesheetPeriod, clientId: UUID?, excluding excludedId: UUID? = nil) -> Bool {
+        TimesheetPeriod.periodOverlaps(
+            in: timesheets,
+            startDateString: timesheet.activeStartDateString,
+            endDateString: timesheet.activeEndDateString,
             clientId: clientId,
             excluding: excludedId
         )
@@ -512,6 +541,10 @@ final class DataStore: Sendable {
         return periods
     }
 
+    private func normalizedClients(_ clients: [ClientInfo]) -> [ClientInfo] {
+        clients.filter { !$0.isEmptyRecord }
+    }
+
     // MARK: - Cross-period sync
 
     /// Synchronise les jours partagés entre périodes adjacentes.
@@ -525,22 +558,18 @@ final class DataStore: Sendable {
 
     @discardableResult
     private func syncSharedWeeks(for period: TimesheetPeriod, updatedAt now: Date) -> Bool {
-        let cal = Calendar(identifier: .gregorian)
         var didChange = false
 
         for wi in period.semaines.indices {
             let week = period.semaines[wi]
-            // Vérifier si c'est une semaine partagée
-            let hasOutOfMonthDays = week.jours.contains { $0.mois != period.mois }
-            guard hasOutOfMonthDays else { continue }
+            let hasContextDays = week.jours.contains { !period.isBillableDay($0) }
+            guard hasContextDays else { continue }
 
             for ji in week.jours.indices {
                 let jour = week.jours[ji]
-                let jourMois = jour.mois
-                let jourAnnee = cal.component(.year, from: jour.date)
 
-                if jourMois == period.mois {
-                    // Jour du mois courant → pousser vers les périodes adjacentes qui ont ce jour
+                if period.isBillableDay(jour) {
+                    // Jour facture dans cette periode -> pousser vers les autres periodes qui affichent ce jour en contexte.
                     for adj in timesheets where adj.id != period.id && period.hasSameClientScope(as: adj) {
                         for awi in adj.semaines.indices {
                             for aji in adj.semaines[awi].jours.indices {
@@ -554,11 +583,10 @@ final class DataStore: Sendable {
                         }
                     }
                 } else {
-                    // Jour hors-mois → tirer depuis la période adjacente
+                    // Jour hors plage -> tirer depuis la periode qui facture cette date.
                     if let adj = timesheets.first(where: {
                         $0.id != period.id
-                            && $0.mois == jourMois
-                            && $0.annee == jourAnnee
+                            && $0.isBillableDateString(jour.dateString)
                             && period.hasSameClientScope(as: $0)
                     }) {
                         for aw in adj.semaines {
@@ -581,16 +609,13 @@ final class DataStore: Sendable {
     /// Retourne les heures des jours hors-mois depuis les périodes adjacentes.
     /// Clé = dateString, Valeur = heures de la période qui possède ce jour.
     func adjacentHours(for period: TimesheetPeriod) -> [String: Decimal] {
-        let cal = Calendar(identifier: .gregorian)
         var result: [String: Decimal] = [:]
 
         for week in period.semaines {
-            for jour in week.jours where jour.mois != period.mois {
-                let jourAnnee = cal.component(.year, from: jour.date)
+            for jour in week.jours where !period.isBillableDay(jour) {
                 if let adj = timesheets.first(where: {
                     $0.id != period.id
-                        && $0.mois == jour.mois
-                        && $0.annee == jourAnnee
+                        && $0.isBillableDateString(jour.dateString)
                         && period.hasSameClientScope(as: $0)
                 }) {
                     for w in adj.semaines {

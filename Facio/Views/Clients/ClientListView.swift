@@ -17,7 +17,10 @@ struct ClientListView: View {
         return clients.filter {
             $0.nom.localizedCaseInsensitiveContains(searchText) ||
             $0.ville.localizedCaseInsensitiveContains(searchText) ||
-            $0.email.localizedCaseInsensitiveContains(searchText)
+            $0.email.localizedCaseInsensitiveContains(searchText) ||
+            $0.siret.localizedCaseInsensitiveContains(searchText) ||
+            $0.tva.localizedCaseInsensitiveContains(searchText) ||
+            $0.ape.localizedCaseInsensitiveContains(searchText)
         }
     }
 
@@ -57,6 +60,11 @@ struct ClientListView: View {
             }
         }
         .navigationTitle(L10n.sidebarClients(lang))
+        .onChange(of: dataStore.clients.map(\.id)) { _, ids in
+            if let selectedClient, !ids.contains(selectedClient.id) {
+                self.selectedClient = nil
+            }
+        }
     }
 
     private func createClient() {
@@ -77,6 +85,9 @@ struct ClientListView: View {
 
 struct ClientRow: View {
     let client: ClientInfo
+    @Environment(DataStore.self) private var dataStore
+
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -86,6 +97,17 @@ struct ClientRow: View {
                 Text("\(client.ville), \(client.codePostal)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+            let identifiers = [
+                client.siret.isEmpty ? nil : "\(L10n.siret(lang)): \(client.siret)",
+                client.tva.isEmpty ? nil : "\(L10n.vatNumber(lang)): \(client.tva)",
+                client.ape.isEmpty ? nil : "\(L10n.apeCode(lang)): \(client.ape)"
+            ].compactMap { $0 }
+            if !identifiers.isEmpty {
+                Text(identifiers.joined(separator: " - "))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
             }
         }
         .padding(.vertical, 2)
@@ -110,6 +132,9 @@ struct ClientDetailView: View {
                 TextField(L10n.postalCode(lang), text: Bindable(client).codePostal)
                 TextField(L10n.city(lang), text: Bindable(client).ville)
                 TextField(L10n.email(lang), text: Bindable(client).email)
+                TextField(L10n.siret(lang), text: Bindable(client).siret)
+                TextField(L10n.vatNumber(lang), text: Bindable(client).tva)
+                TextField(L10n.apeCode(lang), text: Bindable(client).ape)
             }
         }
         .formStyle(.grouped)
@@ -119,5 +144,8 @@ struct ClientDetailView: View {
         .onChange(of: client.codePostal) { dataStore.clientUpdated(client) }
         .onChange(of: client.ville) { dataStore.clientUpdated(client) }
         .onChange(of: client.email) { dataStore.clientUpdated(client) }
+        .onChange(of: client.siret) { dataStore.clientUpdated(client) }
+        .onChange(of: client.tva) { dataStore.clientUpdated(client) }
+        .onChange(of: client.ape) { dataStore.clientUpdated(client) }
     }
 }

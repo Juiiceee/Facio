@@ -1,13 +1,22 @@
 import SwiftUI
 
+private enum NewTimesheetPeriodMode: String, CaseIterable, Identifiable {
+    case month
+    case custom
+
+    var id: String { rawValue }
+}
+
 struct TimesheetListView: View {
     @Binding var selectedTimesheetId: UUID?
     @Environment(DataStore.self) private var dataStore
     @State private var showNewPeriod = false
-    @State private var showClientPicker = false
     @State private var showInvoiceDetailOptions = false
+    @State private var newPeriodMode: NewTimesheetPeriodMode = .month
     @State private var selectedMois: Int = Calendar.current.component(.month, from: Date())
     @State private var selectedAnnee: Int = Calendar.current.component(.year, from: Date())
+    @State private var selectedStartDate: Date = Date()
+    @State private var selectedEndDate: Date = Date()
     @State private var selectedClientId: UUID?
     @State private var pendingInvoiceTimesheet: TimesheetPeriod?
 
@@ -27,6 +36,10 @@ struct TimesheetListView: View {
         return dataStore.clients.first { $0.id == selectedClientId }
     }
 
+    private var clients: [ClientInfo] {
+        dataStore.clients.sorted { $0.nom < $1.nom }
+    }
+
     private var moisLabels: [String] {
         let f = DateFormatter()
         f.locale = Locale(identifier: lang == .fr ? "fr_FR" : "en_US")
@@ -36,6 +49,33 @@ struct TimesheetListView: View {
     /// Verifie si une periode existe deja pour ce mois/annee
     private func periodeExiste(mois: Int, annee: Int, clientId: UUID?) -> Bool {
         dataStore.timesheetExists(mois: mois, annee: annee, clientId: clientId)
+    }
+
+    private var selectedRangeOverlaps: Bool {
+        guard selectedClientId != nil else { return false }
+        return dataStore.timesheetOverlaps(
+            startDate: selectedPeriodStartDate,
+            endDate: selectedPeriodEndDate,
+            clientId: selectedClientId
+        )
+    }
+
+    private var selectedPeriodStartDate: Date {
+        switch newPeriodMode {
+        case .month:
+            return Self.monthStartDate(mois: selectedMois, annee: selectedAnnee)
+        case .custom:
+            return selectedStartDate
+        }
+    }
+
+    private var selectedPeriodEndDate: Date {
+        switch newPeriodMode {
+        case .month:
+            return Self.monthEndDate(mois: selectedMois, annee: selectedAnnee)
+        case .custom:
+            return selectedEndDate
+        }
     }
 
     var body: some View {
@@ -75,8 +115,11 @@ struct TimesheetListView: View {
                     // Reset au mois courant a chaque ouverture
                     let cal = Calendar.current
                     let now = Date()
+                    newPeriodMode = .month
                     selectedMois = cal.component(.month, from: now)
                     selectedAnnee = cal.component(.year, from: now)
+                    selectedStartDate = now
+                    selectedEndDate = now
                     selectedClientId = nil
                     showNewPeriod = true
                 } label: {
@@ -85,12 +128,6 @@ struct TimesheetListView: View {
                 .popover(isPresented: $showNewPeriod) {
                     newPeriodPopover
                 }
-            }
-        }
-        .sheet(isPresented: $showClientPicker) {
-            ClientPickerSheet(clients: dataStore.clients) { client in
-                selectedClientId = client.id
-                showClientPicker = false
             }
         }
         .confirmationDialog(
@@ -127,22 +164,55 @@ struct TimesheetListView: View {
             Text(L10n.newPeriod(lang))
                 .font(.headline)
 
-            HStack(spacing: 12) {
-                Picker(L10n.month(lang), selection: $selectedMois) {
-                    ForEach(1...12, id: \.self) { m in
-                        Text(moisLabels[m - 1]).tag(m)
-                    }
-                }
-                .labelsHidden()
-                .frame(width: 140)
+            Picker("", selection: $newPeriodMode) {
+                Text(L10n.monthlyPeriod(lang)).tag(NewTimesheetPeriodMode.month)
+                Text(L10n.customPeriod(lang)).tag(NewTimesheetPeriodMode.custom)
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
 
-                Picker(L10n.year(lang), selection: $selectedAnnee) {
-                    ForEach((selectedAnnee - 2)...(selectedAnnee + 1), id: \.self) { y in
-                        Text(String(y)).tag(y)
+            switch newPeriodMode {
+            case .month:
+                HStack(spacing: 12) {
+                    Picker(L10n.month(lang), selection: $selectedMois) {
+                        ForEach(1...12, id: \.self) { m in
+                            Text(moisLabels[m - 1]).tag(m)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 140)
+
+                    Picker(L10n.year(lang), selection: $selectedAnnee) {
+                        ForEach((selectedAnnee - 2)...(selectedAnnee + 1), id: \.self) { y in
+                            Text(String(y)).tag(y)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 80)
+                }
+            case .custom:
+                VStack(spacing: 10) {
+                    DatePicker(
+                        L10n.startDate(lang),
+                        selection: $selectedStartDate,
+                        displayedComponents: .date
+                    )
+                    DatePicker(
+                        L10n.endDate(lang),
+                        selection: $selectedEndDate,
+                        displayedComponents: .date
+                    )
+                }
+                .onChange(of: selectedStartDate) { _, startDate in
+                    if selectedEndDate < startDate {
+                        selectedEndDate = startDate
                     }
                 }
-                .labelsHidden()
-                .frame(width: 80)
+                .onChange(of: selectedEndDate) { _, endDate in
+                    if endDate < selectedStartDate {
+                        selectedStartDate = endDate
+                    }
+                }
             }
 
             HStack(spacing: 12) {
@@ -150,14 +220,17 @@ struct TimesheetListView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button {
-                    showClientPicker = true
-                } label: {
-                    Label(
-                        selectedClient?.displayName ?? L10n.selectClientForPeriod(lang),
-                        systemImage: "person.crop.circle"
-                    )
+                Picker(L10n.selectClientForPeriod(lang), selection: $selectedClientId) {
+                    Text(L10n.selectClientForPeriod(lang))
+                        .tag(UUID?.none)
+                    ForEach(clients) { client in
+                        Text(client.displayName)
+                            .tag(Optional(client.id))
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(maxWidth: 220)
             }
 
             if selectedClientId == nil {
@@ -168,11 +241,11 @@ struct TimesheetListView: View {
                         .foregroundStyle(.orange)
                         .font(.caption)
                 }
-            } else if periodeExiste(mois: selectedMois, annee: selectedAnnee, clientId: selectedClientId) {
+            } else if selectedRangeOverlaps {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
-                    Text(L10n.periodExistsForClient(lang))
+                    Text(L10n.periodOverlapsForClient(lang))
                         .foregroundStyle(.orange)
                         .font(.caption)
                 }
@@ -185,20 +258,26 @@ struct TimesheetListView: View {
                 .buttonStyle(.bordered)
 
                 Button(L10n.create(lang)) {
-                    creerPeriode(mois: selectedMois, annee: selectedAnnee, client: selectedClient)
+                    creerPeriode(client: selectedClient)
                     showNewPeriod = false
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(selectedClient == nil || periodeExiste(mois: selectedMois, annee: selectedAnnee, clientId: selectedClientId))
+                .disabled(selectedClient == nil || selectedRangeOverlaps)
             }
         }
         .padding(20)
-        .frame(width: 360)
+        .frame(width: 400)
     }
 
-    private func creerPeriode(mois: Int, annee: Int, client: ClientInfo?) {
+    private func creerPeriode(client: ClientInfo?) {
         guard let client else { return }
-        let ts = TimesheetPeriod(mois: mois, annee: annee, client: client)
+        let ts: TimesheetPeriod
+        switch newPeriodMode {
+        case .month:
+            ts = TimesheetPeriod(mois: selectedMois, annee: selectedAnnee, client: client)
+        case .custom:
+            ts = TimesheetPeriod(startDate: selectedStartDate, endDate: selectedEndDate, client: client)
+        }
 
         // Copier les taux depuis la derniere periode
         if let last = timesheets.first {
@@ -211,6 +290,15 @@ struct TimesheetListView: View {
         dataStore.addTimesheet(ts)
         dataStore.syncSharedWeeks(for: ts)
         selectedTimesheetId = ts.id
+    }
+
+    private static func monthStartDate(mois: Int, annee: Int) -> Date {
+        Calendar(identifier: .gregorian).date(from: DateComponents(year: annee, month: mois, day: 1)) ?? Date()
+    }
+
+    private static func monthEndDate(mois: Int, annee: Int) -> Date {
+        let start = monthStartDate(mois: mois, annee: annee)
+        return Calendar(identifier: .gregorian).date(byAdding: DateComponents(month: 1, day: -1), to: start) ?? start
     }
 
     private func presentInvoiceOptions(for ts: TimesheetPeriod) {
@@ -238,7 +326,7 @@ private struct TimesheetRowView: View {
 
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(timesheet.moisLabel(for: lang))
+                Text(timesheet.periodLabel(for: lang))
                     .font(.headline)
                 Spacer()
                 if brut > 0 {

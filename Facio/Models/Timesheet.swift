@@ -8,6 +8,8 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     var nom: String = ""
     var mois: Int = 1       // 1-12
     var annee: Int = 2026
+    var customStartDateString: String?
+    var customEndDateString: String?
     var semaines: [TimesheetWeek] = []
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
@@ -18,6 +20,9 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     var clientAdresse: String = ""
     var clientCodePostal: String = ""
     var clientVille: String = ""
+    var clientSiret: String = ""
+    var clientTva: String = ""
+    var clientApe: String = ""
 
     // Parametres de calcul
     var tauxNormal: Decimal = 26.39
@@ -46,18 +51,56 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         clientNom.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    var isCustomRange: Bool {
+        customStartDateString != nil && customEndDateString != nil
+    }
+
+    var activeStartDateString: String {
+        if let customStartDateString, !customStartDateString.isEmpty {
+            return customStartDateString
+        }
+        return TimesheetPeriod.monthStartDateString(mois: mois, annee: annee)
+    }
+
+    var activeEndDateString: String {
+        if let customEndDateString, !customEndDateString.isEmpty {
+            return customEndDateString
+        }
+        return TimesheetPeriod.monthEndDateString(mois: mois, annee: annee)
+    }
+
+    var activeStartDate: Date {
+        TimesheetDay.dateFormatter.date(from: activeStartDateString) ?? Date()
+    }
+
+    var activeEndDate: Date {
+        TimesheetDay.dateFormatter.date(from: activeEndDateString) ?? activeStartDate
+    }
+
+    func isBillableDay(_ day: TimesheetDay) -> Bool {
+        isBillableDateString(day.dateString)
+    }
+
+    func isBillableDateString(_ dateString: String) -> Bool {
+        dateString >= activeStartDateString && dateString <= activeEndDateString
+    }
+
     // MARK: - Cross-period overtime (heures sup inter-mois)
 
-    /// Total heures travaillées uniquement les jours du mois courant
+    /// Total heures travaillees uniquement dans la plage facturee.
     func totalHeuresDuMois() -> Decimal {
         semaines.reduce(Decimal(0)) { total, week in
-            total + week.jours.filter { $0.mois == mois }.reduce(Decimal(0)) { $0 + $1.heures }
+            total + week.jours.filter { isBillableDay($0) }.reduce(Decimal(0)) { $0 + $1.heures }
         }
     }
 
-    /// Heures sup cross-période (tenant compte des heures des mois adjacents)
+    func totalHeuresPourSemaine(_ week: TimesheetWeek) -> Decimal {
+        week.jours.filter { isBillableDay($0) }.reduce(Decimal(0)) { $0 + $1.heures }
+    }
+
+    /// Heures sup cross-periode (tenant compte des heures hors plage sur la meme semaine)
     func totalHeuresSupCrossPeriod(adjacentHours: [String: Decimal]) -> Decimal {
-        semaines.reduce(Decimal(0)) { $0 + $1.heuresSupPourMois(moisPeriode: mois, seuil: seuilHebdo, adjacentHours: adjacentHours) }
+        semaines.reduce(Decimal(0)) { $0 + heuresSupPourSemaine($1, adjacentHours: adjacentHours) }
     }
 
     /// Heures normales cross-période
@@ -89,10 +132,15 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         return "\(f.monthSymbols[mois - 1].capitalized) \(annee)"
     }
 
+    func periodLabel(for lang: AppLanguage) -> String {
+        guard isCustomRange else { return moisLabel(for: lang) }
+        return "\(activeStartDate.formattedDate(for: lang)) - \(activeEndDate.formattedDate(for: lang))"
+    }
+
     func title(for lang: AppLanguage) -> String {
-        let month = moisLabel(for: lang)
-        guard !clientDisplayName.isEmpty else { return month }
-        return "\(month) - \(clientDisplayName)"
+        let period = periodLabel(for: lang)
+        guard !clientDisplayName.isEmpty else { return period }
+        return "\(period) - \(clientDisplayName)"
     }
 
     func applyClient(_ client: ClientInfo) {
@@ -101,6 +149,9 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         clientAdresse = client.adresse
         clientCodePostal = client.codePostal
         clientVille = client.ville
+        clientSiret = client.siret
+        clientTva = client.tva
+        clientApe = client.ape
         refreshDefaultName()
     }
 
@@ -110,6 +161,9 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         clientAdresse = ""
         clientCodePostal = ""
         clientVille = ""
+        clientSiret = ""
+        clientTva = ""
+        clientApe = ""
         refreshDefaultName()
     }
 
@@ -118,6 +172,9 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         document.clientAdresse = clientAdresse
         document.clientCodePostal = clientCodePostal
         document.clientVille = clientVille
+        document.clientSiret = clientSiret
+        document.clientTva = clientTva
+        document.clientApe = clientApe
     }
 
     func hasSameClientScope(as other: TimesheetPeriod) -> Bool {
@@ -146,6 +203,38 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         }
     }
 
+    static func periodOverlaps(
+        in periods: [TimesheetPeriod],
+        startDate: Date,
+        endDate: Date,
+        clientId: UUID?,
+        excluding excludedId: UUID? = nil
+    ) -> Bool {
+        let range = normalizedDateRange(startDate: startDate, endDate: endDate)
+        return periodOverlaps(
+            in: periods,
+            startDateString: range.start,
+            endDateString: range.end,
+            clientId: clientId,
+            excluding: excludedId
+        )
+    }
+
+    static func periodOverlaps(
+        in periods: [TimesheetPeriod],
+        startDateString: String,
+        endDateString: String,
+        clientId: UUID?,
+        excluding excludedId: UUID? = nil
+    ) -> Bool {
+        periods.contains {
+            $0.id != excludedId
+                && $0.clientId == clientId
+                && startDateString <= $0.activeEndDateString
+                && endDateString >= $0.activeStartDateString
+        }
+    }
+
     // MARK: - Init
 
     init() {
@@ -168,19 +257,44 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         applyClient(client)
     }
 
+    init(startDate: Date, endDate: Date) {
+        self.id = UUID()
+        let range = TimesheetPeriod.normalizedDateRange(startDate: startDate, endDate: endDate)
+        self.customStartDateString = range.start
+        self.customEndDateString = range.end
+        self.mois = Calendar(identifier: .gregorian).component(.month, from: range.startDate)
+        self.annee = Calendar(identifier: .gregorian).component(.year, from: range.startDate)
+        self.nom = ""
+        self.createdAt = Date()
+        self.semaines = TimesheetPeriod.genererSemaines(startDate: range.startDate, endDate: range.endDate)
+        self.nom = periodLabel(for: .fr)
+    }
+
+    convenience init(startDate: Date, endDate: Date, client: ClientInfo) {
+        self.init(startDate: startDate, endDate: endDate)
+        applyClient(client)
+    }
+
     /// Genere les semaines calendaires pour un mois
     /// Chaque semaine va de lundi a dimanche
     /// La premiere semaine inclut les jours du mois precedent si le 1er n'est pas un lundi
     /// La derniere semaine inclut les jours du mois suivant si le dernier n'est pas un dimanche
     static func genererSemaines(mois: Int, annee: Int) -> [TimesheetWeek] {
+        let startDate = monthStartDate(mois: mois, annee: annee)
+        let endDate = monthEndDate(mois: mois, annee: annee)
+        return genererSemaines(startDate: startDate, endDate: endDate)
+    }
+
+    /// Genere les semaines calendaires couvrant une plage de dates.
+    /// Chaque semaine va de lundi a dimanche.
+    static func genererSemaines(startDate: Date, endDate: Date) -> [TimesheetWeek] {
         var cal = Calendar(identifier: .gregorian)
         cal.firstWeekday = 2 // Lundi = premier jour
         cal.locale = Locale(identifier: "fr_FR")
 
-        // Premier jour du mois
-        guard let premierJour = cal.date(from: DateComponents(year: annee, month: mois, day: 1)) else { return [] }
-        // Dernier jour du mois
-        guard let dernierJour = cal.date(byAdding: DateComponents(month: 1, day: -1), to: premierJour) else { return [] }
+        let range = normalizedDateRange(startDate: startDate, endDate: endDate)
+        let premierJour = range.startDate
+        let dernierJour = range.endDate
 
         // Trouver le lundi de la semaine du 1er
         var weekday = cal.component(.weekday, from: premierJour) - 2 // lundi=0
@@ -219,7 +333,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     /// Restores the canonical calendar shape for the period and merges persisted hours by date.
     @discardableResult
     func normalizeCalendar() -> Bool {
-        let expected = TimesheetPeriod.genererSemaines(mois: mois, annee: annee)
+        let expected = TimesheetPeriod.genererSemaines(startDate: activeStartDate, endDate: activeEndDate)
         guard !expected.isEmpty else { return false }
 
         var daysByDate: [String: TimesheetDay] = [:]
@@ -282,6 +396,57 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         nom = title(for: .fr)
     }
 
+    func heuresSupPourSemaine(_ week: TimesheetWeek, adjacentHours: [String: Decimal]) -> Decimal {
+        var hoursBeforeDay: Decimal = 0
+        var overtime: Decimal = 0
+
+        for day in week.jours {
+            let dayHours = isBillableDay(day)
+                ? day.heures
+                : adjacentHours[day.dateString] ?? day.heures
+
+            defer { hoursBeforeDay += dayHours }
+            guard isBillableDay(day), dayHours > 0 else { continue }
+
+            let remainingNormalHours = max(seuilHebdo - hoursBeforeDay, 0)
+            let normalHours = min(dayHours, remainingNormalHours)
+            overtime += dayHours - normalHours
+        }
+
+        return overtime
+    }
+
+    static func normalizedDateRange(startDate: Date, endDate: Date) -> (startDate: Date, endDate: Date, start: String, end: String) {
+        let cal = Calendar(identifier: .gregorian)
+        let start = cal.startOfDay(for: startDate)
+        let end = cal.startOfDay(for: endDate)
+        let lower = min(start, end)
+        let upper = max(start, end)
+        return (
+            startDate: lower,
+            endDate: upper,
+            start: TimesheetDay.dateFormatter.string(from: lower),
+            end: TimesheetDay.dateFormatter.string(from: upper)
+        )
+    }
+
+    private static func monthStartDate(mois: Int, annee: Int) -> Date {
+        Calendar(identifier: .gregorian).date(from: DateComponents(year: annee, month: mois, day: 1)) ?? Date()
+    }
+
+    private static func monthEndDate(mois: Int, annee: Int) -> Date {
+        let start = monthStartDate(mois: mois, annee: annee)
+        return Calendar(identifier: .gregorian).date(byAdding: DateComponents(month: 1, day: -1), to: start) ?? start
+    }
+
+    private static func monthStartDateString(mois: Int, annee: Int) -> String {
+        TimesheetDay.dateFormatter.string(from: monthStartDate(mois: mois, annee: annee))
+    }
+
+    private static func monthEndDateString(mois: Int, annee: Int) -> String {
+        TimesheetDay.dateFormatter.string(from: monthEndDate(mois: mois, annee: annee))
+    }
+
     private static func preferredDay(existing: TimesheetDay, candidate: TimesheetDay) -> TimesheetDay {
         if existing.heures == 0, candidate.heures != 0 {
             return candidate
@@ -295,9 +460,10 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case id, nom, mois, annee, semaines, createdAt, updatedAt
+        case id, nom, mois, annee, customStartDateString, customEndDateString, semaines, createdAt, updatedAt
         case invoiceDocumentId, billedAt
         case clientId, clientNom, clientAdresse, clientCodePostal, clientVille
+        case clientSiret, clientTva, clientApe
         case tauxNormal, tauxSupplementaire, coefficientNet, seuilHebdo
     }
 
@@ -307,6 +473,8 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         nom = c.decodeOrDefault(String.self, forKey: .nom, default: "")
         mois = c.decodeOrDefault(Int.self, forKey: .mois, default: Calendar.current.component(.month, from: Date()))
         annee = c.decodeOrDefault(Int.self, forKey: .annee, default: Calendar.current.component(.year, from: Date()))
+        customStartDateString = try c.decodeIfPresent(String.self, forKey: .customStartDateString)
+        customEndDateString = try c.decodeIfPresent(String.self, forKey: .customEndDateString)
         semaines = c.decodeOrDefault([TimesheetWeek].self, forKey: .semaines, default: [])
         createdAt = c.decodeOrDefault(Date.self, forKey: .createdAt, default: Date())
         invoiceDocumentId = try? c.decode(UUID.self, forKey: .invoiceDocumentId)
@@ -316,6 +484,9 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         clientAdresse = c.decodeOrDefault(String.self, forKey: .clientAdresse, default: "")
         clientCodePostal = c.decodeOrDefault(String.self, forKey: .clientCodePostal, default: "")
         clientVille = c.decodeOrDefault(String.self, forKey: .clientVille, default: "")
+        clientSiret = c.decodeOrDefault(String.self, forKey: .clientSiret, default: "")
+        clientTva = c.decodeOrDefault(String.self, forKey: .clientTva, default: "")
+        clientApe = c.decodeOrDefault(String.self, forKey: .clientApe, default: "")
         updatedAt = c.decodeOrDefault(Date.self, forKey: .updatedAt, default: createdAt)
         tauxNormal = c.decodeOrDefault(Decimal.self, forKey: .tauxNormal, default: 26.39)
         tauxSupplementaire = c.decodeOrDefault(Decimal.self, forKey: .tauxSupplementaire, default: 39.59)
@@ -330,6 +501,8 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         try c.encode(nom, forKey: .nom)
         try c.encode(mois, forKey: .mois)
         try c.encode(annee, forKey: .annee)
+        try c.encodeIfPresent(customStartDateString, forKey: .customStartDateString)
+        try c.encodeIfPresent(customEndDateString, forKey: .customEndDateString)
         try c.encode(semaines, forKey: .semaines)
         try c.encode(createdAt, forKey: .createdAt)
         try c.encode(updatedAt, forKey: .updatedAt)
@@ -340,6 +513,9 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         try c.encode(clientAdresse, forKey: .clientAdresse)
         try c.encode(clientCodePostal, forKey: .clientCodePostal)
         try c.encode(clientVille, forKey: .clientVille)
+        try c.encode(clientSiret, forKey: .clientSiret)
+        try c.encode(clientTva, forKey: .clientTva)
+        try c.encode(clientApe, forKey: .clientApe)
         try c.encode(tauxNormal, forKey: .tauxNormal)
         try c.encode(tauxSupplementaire, forKey: .tauxSupplementaire)
         try c.encode(coefficientNet, forKey: .coefficientNet)

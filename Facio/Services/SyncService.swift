@@ -229,6 +229,9 @@ final class SyncService: Sendable {
                 "client_adresse": doc.clientAdresse,
                 "client_code_postal": doc.clientCodePostal,
                 "client_ville": doc.clientVille,
+                "client_siret": doc.clientSiret,
+                "client_tva": doc.clientTva,
+                "client_ape": doc.clientApe,
                 "source_timesheet_id": doc.sourceTimesheetId?.uuidString ?? NSNull(),
                 "notes": doc.notes,
                 "selected_wallet_id": doc.selectedWalletId?.uuidString ?? NSNull(),
@@ -306,6 +309,9 @@ final class SyncService: Sendable {
                 "code_postal": client.codePostal,
                 "ville": client.ville,
                 "email": client.email,
+                "siret": client.siret,
+                "tva": client.tva,
+                "ape": client.ape,
                 "created_at": syncDateString(client.createdAt),
                 "updated_at": syncDateString(client.updatedAt),
             ]
@@ -417,11 +423,16 @@ final class SyncService: Sendable {
                 "nom": ts.nom,
                 "mois": ts.mois,
                 "annee": ts.annee,
+                "custom_start_date": ts.customStartDateString ?? "",
+                "custom_end_date": ts.customEndDateString ?? "",
                 "client_id": ts.clientId?.uuidString ?? NSNull(),
                 "client_nom": ts.clientNom,
                 "client_adresse": ts.clientAdresse,
                 "client_code_postal": ts.clientCodePostal,
                 "client_ville": ts.clientVille,
+                "client_siret": ts.clientSiret,
+                "client_tva": ts.clientTva,
+                "client_ape": ts.clientApe,
                 "invoice_document_id": ts.invoiceDocumentId?.uuidString ?? NSNull(),
                 "billed_at": ts.billedAt.map(syncDateString) ?? NSNull(),
                 "taux_normal": decimalPayload(ts.tauxNormal),
@@ -512,6 +523,9 @@ final class SyncService: Sendable {
             doc.clientAdresse = json["client_adresse"] as? String ?? ""
             doc.clientCodePostal = json["client_code_postal"] as? String ?? ""
             doc.clientVille = json["client_ville"] as? String ?? ""
+            doc.clientSiret = json["client_siret"] as? String ?? ""
+            doc.clientTva = json["client_tva"] as? String ?? ""
+            doc.clientApe = json["client_ape"] as? String ?? ""
             doc.sourceTimesheetId = (json["source_timesheet_id"] as? String).flatMap { UUID(uuidString: $0) }
             doc.notes = json["notes"] as? String ?? ""
             doc.selectedWalletId = (json["selected_wallet_id"] as? String).flatMap { UUID(uuidString: $0) }
@@ -572,6 +586,9 @@ final class SyncService: Sendable {
             client.codePostal = json["code_postal"] as? String ?? ""
             client.ville = json["ville"] as? String ?? ""
             client.email = json["email"] as? String ?? ""
+            client.siret = json["siret"] as? String ?? ""
+            client.tva = json["tva"] as? String ?? ""
+            client.ape = json["ape"] as? String ?? ""
             client.createdAt = parseDate(json["created_at"]) ?? client.createdAt
             client.updatedAt = parseDate(json["updated_at"]) ?? client.createdAt
             clients.append(client)
@@ -659,11 +676,18 @@ final class SyncService: Sendable {
             period.nom = json["nom"] as? String ?? ""
             period.mois = json["mois"] as? Int ?? 1
             period.annee = json["annee"] as? Int ?? 2026
+            let customStartDate = json["custom_start_date"] as? String ?? ""
+            let customEndDate = json["custom_end_date"] as? String ?? ""
+            period.customStartDateString = customStartDate.isEmpty ? nil : customStartDate
+            period.customEndDateString = customEndDate.isEmpty ? nil : customEndDate
             period.clientId = (json["client_id"] as? String).flatMap { UUID(uuidString: $0) }
             period.clientNom = json["client_nom"] as? String ?? ""
             period.clientAdresse = json["client_adresse"] as? String ?? ""
             period.clientCodePostal = json["client_code_postal"] as? String ?? ""
             period.clientVille = json["client_ville"] as? String ?? ""
+            period.clientSiret = json["client_siret"] as? String ?? ""
+            period.clientTva = json["client_tva"] as? String ?? ""
+            period.clientApe = json["client_ape"] as? String ?? ""
             period.invoiceDocumentId = (json["invoice_document_id"] as? String).flatMap { UUID(uuidString: $0) }
             period.billedAt = parseDate(json["billed_at"])
             period.tauxNormal = decimalValue(json["taux_normal"], default: 26.39)
@@ -1122,6 +1146,9 @@ final class SyncService: Sendable {
       client_adresse TEXT NOT NULL DEFAULT '',
       client_code_postal TEXT NOT NULL DEFAULT '',
       client_ville TEXT NOT NULL DEFAULT '',
+      client_siret TEXT NOT NULL DEFAULT '',
+      client_tva TEXT NOT NULL DEFAULT '',
+      client_ape TEXT NOT NULL DEFAULT '',
       source_timesheet_id UUID,
       notes TEXT NOT NULL DEFAULT '',
       selected_wallet_id UUID,
@@ -1162,6 +1189,9 @@ final class SyncService: Sendable {
       code_postal TEXT NOT NULL DEFAULT '',
       ville TEXT NOT NULL DEFAULT '',
       email TEXT NOT NULL DEFAULT '',
+      siret TEXT NOT NULL DEFAULT '',
+      tva TEXT NOT NULL DEFAULT '',
+      ape TEXT NOT NULL DEFAULT '',
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
@@ -1222,11 +1252,16 @@ final class SyncService: Sendable {
       nom TEXT NOT NULL DEFAULT '',
       mois INT NOT NULL DEFAULT 1,
       annee INT NOT NULL DEFAULT 2026,
+      custom_start_date TEXT NOT NULL DEFAULT '',
+      custom_end_date TEXT NOT NULL DEFAULT '',
       client_id UUID,
       client_nom TEXT NOT NULL DEFAULT '',
       client_adresse TEXT NOT NULL DEFAULT '',
       client_code_postal TEXT NOT NULL DEFAULT '',
       client_ville TEXT NOT NULL DEFAULT '',
+      client_siret TEXT NOT NULL DEFAULT '',
+      client_tva TEXT NOT NULL DEFAULT '',
+      client_ape TEXT NOT NULL DEFAULT '',
       invoice_document_id UUID,
       billed_at TIMESTAMPTZ,
       taux_normal NUMERIC NOT NULL DEFAULT 26.39,

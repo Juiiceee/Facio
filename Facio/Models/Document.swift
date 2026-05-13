@@ -21,6 +21,9 @@ final class Document: Identifiable, Codable, Hashable {
     var clientAdresse: String = ""
     var clientCodePostal: String = ""
     var clientVille: String = ""
+    var clientSiret: String = ""
+    var clientTva: String = ""
+    var clientApe: String = ""
 
     // Relations
     var lignes: [LineItem] = []
@@ -312,6 +315,9 @@ final class Document: Identifiable, Codable, Hashable {
         copie.clientAdresse = clientAdresse
         copie.clientCodePostal = clientCodePostal
         copie.clientVille = clientVille
+        copie.clientSiret = clientSiret
+        copie.clientTva = clientTva
+        copie.clientApe = clientApe
         copie.notes = notes
         copie.langueRawValue = langueRawValue
         copie.paymentModeRawValue = paymentModeRawValue
@@ -346,6 +352,7 @@ final class Document: Identifiable, Codable, Hashable {
         case currencyRawValue, blockchainRawValue, paymentModeRawValue
         case accountingCurrencyRawValue, accountingExchangeRate, accountingExchangeRateDate
         case clientNom, clientAdresse, clientCodePostal, clientVille
+        case clientSiret, clientTva, clientApe
         case lignes, transactionSignatures, sourceTimesheetId
         case createdAt, updatedAt, notes, selectedWalletId, langueRawValue
     }
@@ -372,6 +379,9 @@ final class Document: Identifiable, Codable, Hashable {
         clientAdresse = container.decodeOrDefault(String.self, forKey: .clientAdresse, default: "")
         clientCodePostal = container.decodeOrDefault(String.self, forKey: .clientCodePostal, default: "")
         clientVille = container.decodeOrDefault(String.self, forKey: .clientVille, default: "")
+        clientSiret = container.decodeOrDefault(String.self, forKey: .clientSiret, default: "")
+        clientTva = container.decodeOrDefault(String.self, forKey: .clientTva, default: "")
+        clientApe = container.decodeOrDefault(String.self, forKey: .clientApe, default: "")
         lignes = container.decodeOrDefault([LineItem].self, forKey: .lignes, default: [])
         transactionSignatures = container.decodeOrDefault([TransactionSignature].self, forKey: .transactionSignatures, default: [])
         sourceTimesheetId = try? container.decode(UUID.self, forKey: .sourceTimesheetId)
@@ -401,6 +411,9 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encode(clientAdresse, forKey: .clientAdresse)
         try container.encode(clientCodePostal, forKey: .clientCodePostal)
         try container.encode(clientVille, forKey: .clientVille)
+        try container.encode(clientSiret, forKey: .clientSiret)
+        try container.encode(clientTva, forKey: .clientTva)
+        try container.encode(clientApe, forKey: .clientApe)
         try container.encode(lignes, forKey: .lignes)
         try container.encode(transactionSignatures, forKey: .transactionSignatures)
         try container.encodeIfPresent(sourceTimesheetId, forKey: .sourceTimesheetId)
