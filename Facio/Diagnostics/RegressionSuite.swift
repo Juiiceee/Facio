@@ -53,6 +53,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "fiat document drops crypto payment configuration", run: fiatDocumentDropsCryptoPaymentConfiguration),
         RegressionCase(name: "bank transfer selects only usable bank accounts", run: bankTransferSelectsOnlyUsableBankAccounts),
         RegressionCase(name: "crypto payment selects only compatible non-blank wallets", run: cryptoPaymentSelectsOnlyCompatibleNonBlankWallets),
+        RegressionCase(name: "payment snapshot freezes exported bank account", run: paymentSnapshotFreezesExportedBankAccount),
+        RegressionCase(name: "paid invoices do not expose Solana Pay request", run: paidInvoicesDoNotExposeSolanaPayRequest),
         RegressionCase(name: "bitcoin payment is crypto but not Solana Pay eligible", run: bitcoinPaymentIsCryptoButNotSolanaPayEligible),
         RegressionCase(name: "document duplication keeps payment and line data without reusing identity", run: documentDuplicationKeepsPaymentAndLineDataWithoutReusingIdentity),
         RegressionCase(name: "sync state tracks pending deletes as dirty data", run: syncStateTracksPendingDeletesAsDirtyData),
@@ -66,6 +68,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "timesheet custom ranges overlap by client", run: timesheetCustomRangesOverlapByClient),
         RegressionCase(name: "timesheet shared weeks are scoped by client", run: timesheetSharedWeeksAreScopedByClient),
         RegressionCase(name: "timesheet invoice summary applies client snapshot", run: timesheetInvoiceSummaryAppliesClientSnapshot),
+        RegressionCase(name: "timesheet stale context hours are ignored without adjacent owner", run: timesheetStaleContextHoursAreIgnoredWithoutAdjacentOwner),
         RegressionCase(name: "timesheet custom range counts previous weekly context", run: timesheetCustomRangeCountsPreviousWeeklyContext),
         RegressionCase(name: "timesheet invoice daily lines group overtime by week", run: timesheetInvoiceDailyLinesGroupOvertimeByWeek),
         RegressionCase(name: "timesheet invoice daily lines do not split equal rates", run: timesheetInvoiceDailyLinesDoNotSplitEqualRates),
@@ -182,6 +185,7 @@ enum FacioRegressionSuite {
         try expect(document.accountingCurrency == nil, "old payload should not invent accounting currency")
         try expect(document.accountingExchangeRate == nil, "old payload should not invent exchange rate")
         try expect(document.accountingExchangeRateDate == nil, "old payload should not invent exchange rate date")
+        try expect(document.paymentSnapshot == nil, "old payload should not invent payment snapshot")
         try expectEqual(document.clientSiret, "")
         try expectEqual(document.clientTva, "")
         try expectEqual(document.clientApe, "")
@@ -295,6 +299,7 @@ enum FacioRegressionSuite {
         let document = Document(type: .facture, number: "F-003", currency: .usdc, blockchain: .solana)
         document.paymentMode = .crypto
         document.selectedWalletId = blankSolana.id
+        document.ajouterLigne(LineItem(quantite: decimal("1"), prixUnitaire: decimal("10")))
         document.normalizePaymentConfiguration(availableWallets: wallets)
 
         try expect(document.selectedWalletId == nil, "blank selected wallet should be cleared")
@@ -303,6 +308,53 @@ enum FacioRegressionSuite {
         try expectEqual(document.selectedPaymentWalletAddress(from: wallets), "SolAddr")
         try expect(document.isSolanaPayEligible, "USDC on Solana should be Solana Pay eligible")
         try expectEqual(document.solanaPayWalletAddress(from: wallets), "SolAddr")
+    }
+
+    private static func paymentSnapshotFreezesExportedBankAccount() throws {
+        let account = BankAccountEntry(
+            label: "Main",
+            bankName: "Wise",
+            iban: "FR761234",
+            bic: "TRWIBEB1",
+            accountHolder: "Facio"
+        )
+        let company = CompanyInfo()
+        company.bankAccounts = [account]
+
+        let document = Document(type: .facture, currency: .eur)
+        document.paymentMode = .virement
+        document.selectedBankAccountId = account.id
+
+        try expect(document.freezePaymentSnapshot(from: company), "first freeze should create a snapshot")
+
+        company.bankAccounts[0].iban = "FR769999"
+        company.bankAccounts[0].bic = "NEWBIC"
+
+        try expectEqual(document.paymentSnapshot?.iban, "FR761234")
+        try expectEqual(document.paymentSnapshot?.bic, "TRWIBEB1")
+        try expectEqual(document.selectedPaymentBankAccount(from: company.bankAccounts)?.trimmedIBAN, "FR769999")
+    }
+
+    private static func paidInvoicesDoNotExposeSolanaPayRequest() throws {
+        let wallet = WalletEntry(blockchain: .solana, address: "SolAddr", label: "Main")
+        let document = Document(type: .facture, number: "F-PAID", currency: .usdc, blockchain: .solana)
+
+        document.paymentMode = .crypto
+        document.selectedWalletId = wallet.id
+        document.ajouterLigne(LineItem(quantite: decimal("1"), prixUnitaire: decimal("10")))
+        document.normalizePaymentConfiguration(availableWallets: [wallet])
+
+        document.status = .envoyee
+        try expectEqual(document.solanaPayWalletAddress(from: [wallet]), "SolAddr")
+
+        document.status = .payee
+        try expect(document.solanaPayWalletAddress(from: [wallet]) == nil, "paid invoice should not expose payment QR data")
+
+        let zeroAmount = Document(type: .facture, number: "F-ZERO", currency: .usdc, blockchain: .solana)
+        zeroAmount.paymentMode = .crypto
+        zeroAmount.selectedWalletId = wallet.id
+        zeroAmount.normalizePaymentConfiguration(availableWallets: [wallet])
+        try expect(zeroAmount.solanaPayWalletAddress(from: [wallet]) == nil, "zero amount invoice should not expose payment QR data")
     }
 
     private static func bitcoinPaymentIsCryptoButNotSolanaPayEligible() throws {
@@ -466,6 +518,7 @@ enum FacioRegressionSuite {
         try expectEqual(period.clientApe, "")
         try expect(!period.hasClient, "old payload should not be marked with a client")
         try expect(!period.hasGeneratedInvoice, "old payload should not be marked invoiced")
+        try expectEqual(period.invoiceDetailMode, .summary)
         try expectEqual(period.nom, "Mars 2026")
     }
 
@@ -583,6 +636,31 @@ enum FacioRegressionSuite {
         try expectEqual(document.clientTva, "FR96825015001")
         try expectEqual(document.clientApe, "7112P")
         try expectEqual(document.sourceTimesheetId, period.id)
+    }
+
+    private static func timesheetStaleContextHoursAreIgnoredWithoutAdjacentOwner() throws {
+        let company = CompanyInfo()
+        let period = TimesheetPeriod(startDate: date("2026-04-10"), endDate: date("2026-04-10"))
+
+        for dayIndex in 0..<4 {
+            period.semaines[0].jours[dayIndex].heures = decimal("8")
+        }
+        period.semaines[0].jours[4].heures = decimal("8")
+
+        let allocations = TimesheetInvoiceService.dailyAllocations(for: period, adjacentHours: [:])
+        let lineItems = TimesheetInvoiceService.lineItems(
+            for: period,
+            company: company,
+            invoiceLanguage: .fr,
+            detailMode: .summary,
+            adjacentHours: [:]
+        )
+
+        try expectEqual(allocations.count, 1)
+        try expectDecimal(allocations[0].normalHours, equals: "8")
+        try expectDecimal(allocations[0].overtimeHours, equals: "0")
+        try expectEqual(lineItems.count, 1)
+        try expectDecimal(lineItems[0].quantite, equals: "8")
     }
 
     private static func timesheetCustomRangeCountsPreviousWeeklyContext() throws {

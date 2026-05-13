@@ -6,6 +6,7 @@ struct TimesheetEditorView: View {
     @State private var hourInputMode: TimesheetHourInputMode = .decimal
     @State private var showClientPicker = false
     @State private var showInvoiceDetailOptions = false
+    @State private var showClientOverlapAlert = false
     @State private var hourFieldFocusRequest: TimeFieldFocusRequest?
     @State private var hourFieldFocusNonce = 0
 
@@ -46,7 +47,10 @@ struct TimesheetEditorView: View {
                     timesheet,
                     clientId: client.id,
                     excluding: timesheet.id
-                ) else { return }
+                ) else {
+                    showClientOverlapAlert = true
+                    return
+                }
                 timesheet.applyClient(client)
                 if let invoice = dataStore.existingInvoice(for: timesheet) {
                     timesheet.applyClient(to: invoice)
@@ -70,6 +74,11 @@ struct TimesheetEditorView: View {
             Button(L10n.cancel(lang), role: .cancel) {}
         } message: {
             Text(L10n.chooseInvoiceDetail(lang))
+        }
+        .alert(L10n.cannotSelectClient(lang), isPresented: $showClientOverlapAlert) {
+            Button(L10n.understood(lang), role: .cancel) {}
+        } message: {
+            Text(L10n.periodOverlapsForClient(lang))
         }
     }
 

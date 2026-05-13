@@ -1,6 +1,37 @@
 import Foundation
 import Observation
 
+struct DocumentPaymentSnapshot: Codable, Hashable {
+    var paymentModeRawValue: String = PaymentMode.aucun.rawValue
+    var blockchainRawValue: String?
+    var walletAddress: String = ""
+    var bankName: String = ""
+    var iban: String = ""
+    var bic: String = ""
+    var accountHolder: String = ""
+    var createdAt: Date = Date()
+
+    var paymentMode: PaymentMode {
+        PaymentMode(rawValue: paymentModeRawValue) ?? .aucun
+    }
+
+    var blockchain: Blockchain? {
+        guard let blockchainRawValue else { return nil }
+        return Blockchain(rawValue: blockchainRawValue)
+    }
+
+    var hasUsablePaymentDetails: Bool {
+        switch paymentMode {
+        case .aucun:
+            return false
+        case .crypto:
+            return !walletAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .virement:
+            return !iban.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+}
+
 @Observable
 final class Document: Identifiable, Codable, Hashable {
     var id: UUID = UUID()
@@ -50,6 +81,9 @@ final class Document: Identifiable, Codable, Hashable {
     // Compte bancaire selectionne (quand plusieurs comptes sont configures)
     var selectedBankAccountId: UUID?
 
+    // Copie figee des informations de paiement utilisees pour les exports officiels.
+    var paymentSnapshot: DocumentPaymentSnapshot?
+
     // MARK: - Hashable
 
     static func == (lhs: Document, rhs: Document) -> Bool {
@@ -77,6 +111,7 @@ final class Document: Identifiable, Codable, Hashable {
         set {
             let previousCurrency = decodedCurrency
             currencyRawValue = newValue.rawValue
+            paymentSnapshot = nil
             normalizePaymentConfiguration()
             if previousCurrency != newValue {
                 clearAccountingConversion()
@@ -99,6 +134,7 @@ final class Document: Identifiable, Codable, Hashable {
         }
         set {
             paymentModeRawValue = newValue.rawValue
+            paymentSnapshot = nil
             normalizePaymentConfiguration()
         }
     }
@@ -110,6 +146,7 @@ final class Document: Identifiable, Codable, Hashable {
         }
         set {
             blockchainRawValue = newValue?.rawValue
+            paymentSnapshot = nil
             normalizePaymentConfiguration()
         }
     }
@@ -231,6 +268,10 @@ final class Document: Identifiable, Codable, Hashable {
         paymentMode == .crypto && blockchain == .solana && currency.supportsSolanaPay
     }
 
+    var shouldRenderPaymentRequest: Bool {
+        type == .facture && status != .payee && status != .annulee
+    }
+
     var isOverdue: Bool {
         guard type == .facture, status == .envoyee else { return false }
         let calendar = Calendar.current
@@ -238,8 +279,58 @@ final class Document: Identifiable, Codable, Hashable {
     }
 
     func solanaPayWalletAddress(from wallets: [WalletEntry]) -> String? {
-        guard isSolanaPayEligible else { return nil }
+        guard shouldRenderPaymentRequest, isSolanaPayEligible, totalTTC > 0 else { return nil }
+        if let paymentSnapshot,
+           paymentSnapshot.paymentMode == .crypto,
+           paymentSnapshot.blockchain == .solana {
+            let snapshotAddress = paymentSnapshot.walletAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+            return snapshotAddress.isEmpty ? nil : snapshotAddress
+        }
         return selectedPaymentWalletAddress(from: wallets)
+    }
+
+    @discardableResult
+    func freezePaymentSnapshot(from company: CompanyInfo, at date: Date = Date()) -> Bool {
+        switch paymentMode {
+        case .aucun:
+            if paymentSnapshot == nil { return false }
+            paymentSnapshot = nil
+            return true
+
+        case .crypto:
+            guard let address = selectedPaymentWalletAddress(from: company.wallets) else {
+                if paymentSnapshot == nil { return false }
+                paymentSnapshot = nil
+                return true
+            }
+            let snapshot = DocumentPaymentSnapshot(
+                paymentModeRawValue: PaymentMode.crypto.rawValue,
+                blockchainRawValue: blockchain?.rawValue,
+                walletAddress: address,
+                createdAt: date
+            )
+            guard paymentSnapshot != snapshot else { return false }
+            paymentSnapshot = snapshot
+            return true
+
+        case .virement:
+            guard let account = selectedPaymentBankAccount(from: company.bankAccounts) else {
+                if paymentSnapshot == nil { return false }
+                paymentSnapshot = nil
+                return true
+            }
+            let snapshot = DocumentPaymentSnapshot(
+                paymentModeRawValue: PaymentMode.virement.rawValue,
+                bankName: account.trimmedBankName,
+                iban: account.trimmedIBAN,
+                bic: account.trimmedBIC,
+                accountHolder: account.trimmedAccountHolder,
+                createdAt: date
+            )
+            guard paymentSnapshot != snapshot else { return false }
+            paymentSnapshot = snapshot
+            return true
+        }
     }
 
     // MARK: - Computed totaux
@@ -363,6 +454,7 @@ final class Document: Identifiable, Codable, Hashable {
         copie.paymentModeRawValue = paymentModeRawValue
         copie.selectedWalletId = selectedWalletId
         copie.selectedBankAccountId = selectedBankAccountId
+        copie.paymentSnapshot = nil
         copie.normalizePaymentConfiguration()
 
         for ligne in lignesTriees {
@@ -396,6 +488,7 @@ final class Document: Identifiable, Codable, Hashable {
         case clientSiret, clientTva, clientApe
         case lignes, transactionSignatures, sourceTimesheetId
         case createdAt, updatedAt, notes, selectedWalletId, selectedBankAccountId, langueRawValue
+        case paymentSnapshot
     }
 
     required init(from decoder: Decoder) throws {
@@ -432,6 +525,7 @@ final class Document: Identifiable, Codable, Hashable {
         selectedWalletId = try? container.decode(UUID.self, forKey: .selectedWalletId)
         selectedBankAccountId = try? container.decode(UUID.self, forKey: .selectedBankAccountId)
         langueRawValue = container.decodeOrDefault(String.self, forKey: .langueRawValue, default: AppLanguage.fr.rawValue)
+        paymentSnapshot = try? container.decode(DocumentPaymentSnapshot.self, forKey: .paymentSnapshot)
         normalizePaymentConfiguration()
     }
 
@@ -465,5 +559,6 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(selectedWalletId, forKey: .selectedWalletId)
         try container.encodeIfPresent(selectedBankAccountId, forKey: .selectedBankAccountId)
         try container.encode(langueRawValue, forKey: .langueRawValue)
+        try container.encodeIfPresent(paymentSnapshot, forKey: .paymentSnapshot)
     }
 }

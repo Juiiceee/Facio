@@ -11,6 +11,21 @@ struct AddSignatureSheet: View {
     @State private var date = Date()
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+    private var trimmedSignature: String {
+        signature.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var compatibleBlockchains: [Blockchain] {
+        if let documentBlockchain = document.blockchain {
+            return [documentBlockchain]
+        }
+        let chains = Blockchain.compatibleBlockchains(for: document.currency)
+        return chains.isEmpty ? Blockchain.allCases : chains
+    }
+
+    private var canAddProof: Bool {
+        !trimmedSignature.isEmpty && montant > 0
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,9 +35,7 @@ struct AddSignatureSheet: View {
         }
         .frame(minWidth: 500, minHeight: 300)
         .onAppear {
-            if let chain = document.blockchain {
-                selectedBlockchain = chain
-            }
+            selectedBlockchain = document.blockchain ?? compatibleBlockchains.first ?? .solana
             montant = document.totalTTC
         }
     }
@@ -41,7 +54,7 @@ struct AddSignatureSheet: View {
     private var form: some View {
         Form {
             Picker(L10n.blockchain(lang), selection: $selectedBlockchain) {
-                ForEach(Blockchain.allCases) { chain in
+                ForEach(compatibleBlockchains) { chain in
                     Text(chain.label).tag(chain)
                 }
             }
@@ -62,7 +75,7 @@ struct AddSignatureSheet: View {
             Spacer()
             Button(L10n.add(lang)) {
                 let tx = TransactionSignature(
-                    signature: signature,
+                    signature: trimmedSignature,
                     date: date,
                     montant: montant,
                     blockchain: selectedBlockchain
@@ -72,7 +85,7 @@ struct AddSignatureSheet: View {
                 dismiss()
             }
             .keyboardShortcut(.defaultAction)
-            .disabled(signature.isEmpty)
+            .disabled(!canAddProof)
         }
         .padding()
     }

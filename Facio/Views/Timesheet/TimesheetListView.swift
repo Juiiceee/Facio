@@ -279,8 +279,8 @@ struct TimesheetListView: View {
             ts = TimesheetPeriod(startDate: selectedStartDate, endDate: selectedEndDate, client: client)
         }
 
-        // Copier les taux depuis la derniere periode
-        if let last = timesheets.first {
+        // Copier les taux depuis la derniere periode du meme client.
+        if let last = timesheets.first(where: { $0.clientId == client.id }) {
             ts.tauxNormal = last.tauxNormal
             ts.tauxSupplementaire = last.tauxSupplementaire
             ts.coefficientNet = last.coefficientNet

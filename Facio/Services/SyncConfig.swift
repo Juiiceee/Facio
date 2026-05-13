@@ -79,16 +79,22 @@ struct SyncConfig {
 
     /// URL effective (custom ou par defaut)
     static var url: String {
-        useCustomDB && !customURL.isEmpty ? customURL : defaultURL
+        guard useCustomDB else { return defaultURL }
+        return customURL.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// API key effective
     static var apiKey: String {
-        useCustomDB && !customAPIKey.isEmpty ? customAPIKey : defaultAPIKey
+        guard useCustomDB else { return defaultAPIKey }
+        return customAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static var isConfigured: Bool {
-        !url.isEmpty && !apiKey.isEmpty
+        if useCustomDB {
+            return !customURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && !customAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        return !defaultURL.isEmpty && !defaultAPIKey.isEmpty
     }
 
     static var currentSupabaseConfiguration: SupabaseConfiguration {

@@ -47,6 +47,7 @@ extension L10n {
     static func noLines(_ l: AppLanguage) -> String { l == .fr ? "Aucune ligne. Ajoutez-en une ci-dessous." : "No line items. Add one below." }
     static func addEmptyLine(_ l: AppLanguage) -> String { l == .fr ? "Ajouter une ligne vide" : "Add empty line" }
     static func favoriteService(_ l: AppLanguage) -> String { l == .fr ? "Prestation favorite" : "Favorite service" }
+    static func unitShort(_ l: AppLanguage) -> String { l == .fr ? "u" : "unit" }
 
     // Paiement (UI)
     static func paymentBankSection(_ l: AppLanguage) -> String { l == .fr ? "Paiement — Virement bancaire" : "Payment — Bank transfer" }

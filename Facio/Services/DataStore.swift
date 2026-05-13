@@ -382,11 +382,19 @@ final class DataStore: Sendable {
     func deleteTimesheet(_ ts: TimesheetPeriod) {
         guard timesheets.contains(where: { $0.id == ts.id }) else { return }
         let previousTimesheets = timesheets
+        let previousDocuments = documents
+        let now = Date()
         timesheets.removeAll { $0.id == ts.id }
+        _ = syncAllSharedWeeks(updatedAt: now)
+        let documentsChanged = refreshLinkedInvoices(for: timesheets, updatedAt: now)
         if persist(.timesheets, allowBlockedWrite: false) {
             syncService?.markDeleted(ts.id, for: .timesheets)
+            if documentsChanged {
+                saveDocuments()
+            }
         } else {
             timesheets = previousTimesheets
+            documents = previousDocuments
         }
     }
 
@@ -394,7 +402,11 @@ final class DataStore: Sendable {
         let now = Date()
         timesheet.updatedAt = now
         if shouldSyncSharedWeeks {
-            _ = syncSharedWeeks(for: timesheet, updatedAt: now)
+            _ = syncAllSharedWeeks(updatedAt: now)
+        }
+        let refreshCandidates = shouldSyncSharedWeeks ? timesheets : [timesheet]
+        if refreshLinkedInvoices(for: refreshCandidates, updatedAt: now) {
+            saveDocuments()
         }
         saveTimesheets()
     }
@@ -430,7 +442,6 @@ final class DataStore: Sendable {
     }
 
     func canGenerateInvoice(for timesheet: TimesheetPeriod) -> Bool {
-        guard !timesheet.hasGeneratedInvoice, existingInvoice(for: timesheet) == nil else { return false }
         guard timesheet.hasClient else { return false }
         return !invoiceLineItems(for: timesheet, detailMode: .summary).isEmpty
     }
@@ -440,10 +451,15 @@ final class DataStore: Sendable {
         detailMode: TimesheetInvoiceDetailMode
     ) -> Document? {
         if let existingInvoice = existingInvoice(for: timesheet) {
+            timesheet.invoiceDetailMode = detailMode
             markTimesheet(timesheet, invoicedBy: existingInvoice, at: existingInvoice.dateCreation)
+            if refreshLinkedInvoice(for: timesheet, updatedAt: Date()) {
+                saveDocuments()
+            }
+            saveTimesheets()
             return existingInvoice
         }
-        guard !timesheet.hasGeneratedInvoice, timesheet.hasClient else { return nil }
+        guard timesheet.hasClient else { return nil }
 
         let company = companyInfo
         let invoiceLanguage = company.langueParDefaut
@@ -469,6 +485,7 @@ final class DataStore: Sendable {
         document.sourceTimesheetId = timesheet.id
         timesheet.applyClient(to: document)
         document.lignes = lineItems
+        timesheet.invoiceDetailMode = detailMode
 
         addDocument(document)
         markTimesheet(timesheet, invoicedBy: document, at: creationDate)
@@ -516,6 +533,86 @@ final class DataStore: Sendable {
         }
     }
 
+    @discardableResult
+    private func refreshLinkedInvoices(for periods: [TimesheetPeriod], updatedAt now: Date) -> Bool {
+        periods.reduce(false) { didChange, period in
+            refreshLinkedInvoice(for: period, updatedAt: now) || didChange
+        }
+    }
+
+    @discardableResult
+    private func refreshLinkedInvoice(for timesheet: TimesheetPeriod, updatedAt now: Date) -> Bool {
+        guard let invoice = existingInvoice(for: timesheet) else { return false }
+
+        let generatedLineItems = TimesheetInvoiceService.lineItems(
+            for: timesheet,
+            company: companyInfo,
+            invoiceLanguage: invoice.langue,
+            detailMode: timesheet.invoiceDetailMode,
+            adjacentHours: adjacentHours(for: timesheet)
+        )
+        let refreshedLineItems = preservingLineItemIds(generatedLineItems, from: invoice.lignes)
+
+        var changed = false
+        if !lineItemsMatch(invoice.lignes, refreshedLineItems) {
+            invoice.lignes = refreshedLineItems
+            changed = true
+        }
+
+        if invoiceClientSnapshotDiffers(from: timesheet) {
+            timesheet.applyClient(to: invoice)
+            changed = true
+        }
+
+        if invoice.sourceTimesheetId != timesheet.id {
+            invoice.sourceTimesheetId = timesheet.id
+            changed = true
+        }
+
+        if changed {
+            invoice.updatedAt = now
+        }
+        return changed
+    }
+
+    private func preservingLineItemIds(_ newItems: [LineItem], from existingItems: [LineItem]) -> [LineItem] {
+        var items = newItems
+        let existingSorted = existingItems.sorted { $0.ordre < $1.ordre }
+        for index in items.indices where index < existingSorted.count {
+            items[index].id = existingSorted[index].id
+        }
+        return items
+    }
+
+    private func lineItemsMatch(_ lhs: [LineItem], _ rhs: [LineItem]) -> Bool {
+        let lhsSorted = lhs.sorted { $0.ordre < $1.ordre }
+        let rhsSorted = rhs.sorted { $0.ordre < $1.ordre }
+        guard lhsSorted.count == rhsSorted.count else { return false }
+
+        for (left, right) in zip(lhsSorted, rhsSorted) {
+            if left.id != right.id
+                || left.designation != right.designation
+                || left.quantite != right.quantite
+                || left.prixUnitaire != right.prixUnitaire
+                || left.tauxTVA != right.tauxTVA
+                || left.ordre != right.ordre {
+                return false
+            }
+        }
+        return true
+    }
+
+    private func invoiceClientSnapshotDiffers(from timesheet: TimesheetPeriod) -> Bool {
+        guard let invoice = existingInvoice(for: timesheet) else { return false }
+        return invoice.clientNom != timesheet.clientNom
+            || invoice.clientAdresse != timesheet.clientAdresse
+            || invoice.clientCodePostal != timesheet.clientCodePostal
+            || invoice.clientVille != timesheet.clientVille
+            || invoice.clientSiret != timesheet.clientSiret
+            || invoice.clientTva != timesheet.clientTva
+            || invoice.clientApe != timesheet.clientApe
+    }
+
     private func dueDate(from creationDate: Date) -> Date {
         Calendar.current.date(
             byAdding: .day,
@@ -552,8 +649,21 @@ final class DataStore: Sendable {
     /// Pour chaque jour hors-mois dans la période, tire les heures depuis la période adjacente.
     /// Pour chaque jour du mois courant dans une semaine partagée, pousse les heures vers la période adjacente.
     func syncSharedWeeks(for period: TimesheetPeriod) {
-        if syncSharedWeeks(for: period, updatedAt: Date()) {
+        let now = Date()
+        let didSync = syncSharedWeeks(for: period, updatedAt: now)
+        let documentsChanged = refreshLinkedInvoices(for: timesheets, updatedAt: now)
+        if documentsChanged {
+            saveDocuments()
+        }
+        if didSync {
             saveTimesheets()
+        }
+    }
+
+    @discardableResult
+    private func syncAllSharedWeeks(updatedAt now: Date) -> Bool {
+        timesheets.reduce(false) { didChange, period in
+            syncSharedWeeks(for: period, updatedAt: now) || didChange
         }
     }
 
@@ -599,6 +709,10 @@ final class DataStore: Sendable {
                                 }
                             }
                         }
+                    } else if period.semaines[wi].jours[ji].heures != 0 {
+                        period.semaines[wi].jours[ji].heures = 0
+                        period.updatedAt = now
+                        didChange = true
                     }
                 }
             }
