@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.1](https://github.com/Juiiceee/Facio/compare/Facio-v1.10.0...Facio-v1.10.1) (2026-05-13)
+
+
+### Corrections de bugs
+
+* **audit:** resolve payment and timesheet regressions ([e69c12a](https://github.com/Juiiceee/Facio/commit/e69c12aa424f9d25c32a77105affc22c49d72711)), closes [#61](https://github.com/Juiiceee/Facio/issues/61)
+
 ## [1.10.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.9.0...Facio-v1.10.0) (2026-05-13)
 
 
