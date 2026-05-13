@@ -47,6 +47,9 @@ final class Document: Identifiable, Codable, Hashable {
     // Wallet selectionne (quand plusieurs sur le meme reseau)
     var selectedWalletId: UUID?
 
+    // Compte bancaire selectionne (quand plusieurs comptes sont configures)
+    var selectedBankAccountId: UUID?
+
     // MARK: - Hashable
 
     static func == (lhs: Document, rhs: Document) -> Bool {
@@ -124,7 +127,10 @@ final class Document: Identifiable, Codable, Hashable {
         return Blockchain(rawValue: raw)
     }
 
-    func normalizePaymentConfiguration(availableWallets wallets: [WalletEntry] = []) {
+    func normalizePaymentConfiguration(
+        availableWallets wallets: [WalletEntry] = [],
+        availableBankAccounts bankAccounts: [BankAccountEntry] = []
+    ) {
         if CurrencyType(rawValue: currencyRawValue) == nil {
             currencyRawValue = CurrencyType.eur.rawValue
         }
@@ -139,6 +145,7 @@ final class Document: Identifiable, Codable, Hashable {
             if decodedPaymentMode == .crypto {
                 paymentModeRawValue = PaymentMode.aucun.rawValue
             }
+            normalizeBankTransferSelection(availableBankAccounts: bankAccounts)
             return
         }
 
@@ -161,13 +168,29 @@ final class Document: Identifiable, Codable, Hashable {
 
         guard decodedPaymentMode == .crypto else {
             selectedWalletId = nil
+            normalizeBankTransferSelection(availableBankAccounts: bankAccounts)
             return
         }
+        selectedBankAccountId = nil
         guard let chain = blockchain, !wallets.isEmpty else { return }
 
         let walletIds = Set(paymentWallets(from: wallets, for: chain).map(\.id))
         if let selectedWalletId, !walletIds.contains(selectedWalletId) {
             self.selectedWalletId = nil
+        }
+    }
+
+    private func normalizeBankTransferSelection(availableBankAccounts bankAccounts: [BankAccountEntry]) {
+        guard decodedPaymentMode == .virement else {
+            selectedBankAccountId = nil
+            return
+        }
+
+        guard !bankAccounts.isEmpty else { return }
+
+        let accountIds = Set(paymentBankAccounts(from: bankAccounts).map(\.id))
+        if let selectedBankAccountId, !accountIds.contains(selectedBankAccountId) {
+            self.selectedBankAccountId = nil
         }
     }
 
@@ -191,6 +214,17 @@ final class Document: Identifiable, Codable, Hashable {
     func selectedPaymentWalletAddress(from wallets: [WalletEntry]) -> String? {
         guard let wallet = selectedPaymentWallet(from: wallets) else { return nil }
         return paymentAddress(for: wallet)
+    }
+
+    func paymentBankAccounts(from accounts: [BankAccountEntry]) -> [BankAccountEntry] {
+        guard paymentMode == .virement else { return [] }
+        return accounts.filter(\.canReceiveBankTransfer)
+    }
+
+    func selectedPaymentBankAccount(from accounts: [BankAccountEntry]) -> BankAccountEntry? {
+        guard paymentMode == .virement else { return nil }
+        let accountsForTransfer = paymentBankAccounts(from: accounts)
+        return accountsForTransfer.first { $0.id == selectedBankAccountId } ?? accountsForTransfer.first
     }
 
     var isSolanaPayEligible: Bool {
@@ -328,6 +362,7 @@ final class Document: Identifiable, Codable, Hashable {
         copie.langueRawValue = langueRawValue
         copie.paymentModeRawValue = paymentModeRawValue
         copie.selectedWalletId = selectedWalletId
+        copie.selectedBankAccountId = selectedBankAccountId
         copie.normalizePaymentConfiguration()
 
         for ligne in lignesTriees {
@@ -360,7 +395,7 @@ final class Document: Identifiable, Codable, Hashable {
         case clientNom, clientAdresse, clientCodePostal, clientVille
         case clientSiret, clientTva, clientApe
         case lignes, transactionSignatures, sourceTimesheetId
-        case createdAt, updatedAt, notes, selectedWalletId, langueRawValue
+        case createdAt, updatedAt, notes, selectedWalletId, selectedBankAccountId, langueRawValue
     }
 
     required init(from decoder: Decoder) throws {
@@ -395,6 +430,7 @@ final class Document: Identifiable, Codable, Hashable {
         updatedAt = container.decodeOrDefault(Date.self, forKey: .updatedAt, default: createdAt)
         notes = container.decodeOrDefault(String.self, forKey: .notes, default: "")
         selectedWalletId = try? container.decode(UUID.self, forKey: .selectedWalletId)
+        selectedBankAccountId = try? container.decode(UUID.self, forKey: .selectedBankAccountId)
         langueRawValue = container.decodeOrDefault(String.self, forKey: .langueRawValue, default: AppLanguage.fr.rawValue)
         normalizePaymentConfiguration()
     }
@@ -427,6 +463,7 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(notes, forKey: .notes)
         try container.encodeIfPresent(selectedWalletId, forKey: .selectedWalletId)
+        try container.encodeIfPresent(selectedBankAccountId, forKey: .selectedBankAccountId)
         try container.encode(langueRawValue, forKey: .langueRawValue)
     }
 }

@@ -110,6 +110,7 @@ final class DataStore: Sendable {
     }
 
     func saveCompany() {
+        companyInfo.normalizeBankAccountsFromLegacyFields()
         if persist(.company, allowBlockedWrite: false) {
             syncService?.markDirty(.company)
         }

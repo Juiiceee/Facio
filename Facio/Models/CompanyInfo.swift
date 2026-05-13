@@ -63,6 +63,70 @@ struct WalletEntry: Identifiable, Codable, Hashable {
     }
 }
 
+// MARK: - Entree compte bancaire
+
+struct BankAccountEntry: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var label: String = ""
+    var bankName: String = ""
+    var iban: String = ""
+    var bic: String = ""
+    var accountHolder: String = ""
+
+    var trimmedLabel: String { label.trimmingCharacters(in: .whitespacesAndNewlines) }
+    var trimmedBankName: String { bankName.trimmingCharacters(in: .whitespacesAndNewlines) }
+    var trimmedIBAN: String { iban.trimmingCharacters(in: .whitespacesAndNewlines) }
+    var trimmedBIC: String { bic.trimmingCharacters(in: .whitespacesAndNewlines) }
+    var trimmedAccountHolder: String { accountHolder.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    var isEmpty: Bool {
+        [
+            trimmedLabel,
+            trimmedBankName,
+            trimmedIBAN,
+            trimmedBIC,
+            trimmedAccountHolder,
+        ].allSatisfy(\.isEmpty)
+    }
+
+    var canReceiveBankTransfer: Bool {
+        !trimmedIBAN.isEmpty
+    }
+
+    var displayName: String {
+        if !trimmedLabel.isEmpty { return trimmedLabel }
+        if !trimmedBankName.isEmpty { return trimmedBankName }
+        if !trimmedAccountHolder.isEmpty { return trimmedAccountHolder }
+        if !trimmedIBAN.isEmpty {
+            return String(trimmedIBAN.suffix(min(8, trimmedIBAN.count)))
+        }
+        return ""
+    }
+
+    init(label: String = "", bankName: String = "", iban: String = "", bic: String = "", accountHolder: String = "") {
+        self.id = UUID()
+        self.label = label
+        self.bankName = bankName
+        self.iban = iban
+        self.bic = bic
+        self.accountHolder = accountHolder
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, label, bankName, iban, bic, accountHolder
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        label = container.decodeOrDefault(String.self, forKey: .label, default: "")
+        bankName = container.decodeOrDefault(String.self, forKey: .bankName, default: "")
+        iban = container.decodeOrDefault(String.self, forKey: .iban, default: "")
+        bic = container.decodeOrDefault(String.self, forKey: .bic, default: "")
+        accountHolder = container.decodeOrDefault(String.self, forKey: .accountHolder, default: "")
+    }
+}
+
 // MARK: - Infos Entreprise (singleton)
 
 @Observable
@@ -82,6 +146,9 @@ final class CompanyInfo: Identifiable, Codable {
     var iban: String = ""
     var bic: String = ""
     var titulaireCompte: String = ""
+
+    // Comptes bancaires (modulaire)
+    var bankAccounts: [BankAccountEntry] = []
 
     // Wallets crypto (modulaire)
     var wallets: [WalletEntry] = []
@@ -150,6 +217,46 @@ final class CompanyInfo: Identifiable, Codable {
         self.id = UUID()
     }
 
+    func syncLegacyBankFieldsFromPrimaryAccount() {
+        guard let primary = bankAccounts.first else {
+            nomBanque = ""
+            iban = ""
+            bic = ""
+            titulaireCompte = ""
+            return
+        }
+
+        nomBanque = primary.bankName
+        iban = primary.iban
+        bic = primary.bic
+        titulaireCompte = primary.accountHolder
+    }
+
+    func normalizeBankAccountsFromLegacyFields() {
+        let legacyValues = [
+            nomBanque,
+            iban,
+            bic,
+            titulaireCompte,
+        ].map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+        if bankAccounts.isEmpty && legacyValues.contains(where: { !$0.isEmpty }) {
+            bankAccounts = [
+                BankAccountEntry(
+                    label: nomBanque,
+                    bankName: nomBanque,
+                    iban: iban,
+                    bic: bic,
+                    accountHolder: titulaireCompte
+                )
+            ]
+        }
+
+        if !bankAccounts.isEmpty {
+            syncLegacyBankFieldsFromPrimaryAccount()
+        }
+    }
+
     /// Recupere le wallet pour un reseau donne
     func wallet(pour blockchain: Blockchain) -> WalletEntry? {
         wallets.first { $0.blockchain == blockchain }
@@ -169,7 +276,7 @@ final class CompanyInfo: Identifiable, Codable {
 
     enum CodingKeys: String, CodingKey {
         case id, nom, adresse, codePostal, ville, siret, telephone, email, logoData
-        case nomBanque, iban, bic, titulaireCompte, wallets, prestations
+        case nomBanque, iban, bic, titulaireCompte, bankAccounts, wallets, prestations
         case tauxTVAParDefaut, delaiPaiementJours, deviseParDefautRawValue, deviseComptableRawValue, blockchainParDefautRawValue
         case updatedAt
         case langueParDefautRawValue, formatDateRawValue, formatNombreRawValue
@@ -191,6 +298,8 @@ final class CompanyInfo: Identifiable, Codable {
         iban = container.decodeOrDefault(String.self, forKey: .iban, default: "")
         bic = container.decodeOrDefault(String.self, forKey: .bic, default: "")
         titulaireCompte = container.decodeOrDefault(String.self, forKey: .titulaireCompte, default: "")
+        bankAccounts = container.decodeOrDefault([BankAccountEntry].self, forKey: .bankAccounts, default: [])
+        normalizeBankAccountsFromLegacyFields()
         wallets = container.decodeOrDefault([WalletEntry].self, forKey: .wallets, default: [])
         prestations = container.decodeOrDefault([DesignationPreset].self, forKey: .prestations, default: [])
         tauxTVAParDefaut = container.decodeOrDefault(Decimal.self, forKey: .tauxTVAParDefaut, default: 0)
@@ -219,10 +328,12 @@ final class CompanyInfo: Identifiable, Codable {
         try container.encode(telephone, forKey: .telephone)
         try container.encode(email, forKey: .email)
         try container.encodeIfPresent(logoData, forKey: .logoData)
-        try container.encode(nomBanque, forKey: .nomBanque)
-        try container.encode(iban, forKey: .iban)
-        try container.encode(bic, forKey: .bic)
-        try container.encode(titulaireCompte, forKey: .titulaireCompte)
+        let primaryBankAccount = bankAccounts.first
+        try container.encode(primaryBankAccount?.bankName ?? nomBanque, forKey: .nomBanque)
+        try container.encode(primaryBankAccount?.iban ?? iban, forKey: .iban)
+        try container.encode(primaryBankAccount?.bic ?? bic, forKey: .bic)
+        try container.encode(primaryBankAccount?.accountHolder ?? titulaireCompte, forKey: .titulaireCompte)
+        try container.encode(bankAccounts, forKey: .bankAccounts)
         try container.encode(wallets, forKey: .wallets)
         try container.encode(prestations, forKey: .prestations)
         try container.encode(tauxTVAParDefaut, forKey: .tauxTVAParDefaut)

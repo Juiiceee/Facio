@@ -35,10 +35,16 @@ extension L10n {
 
     // Paiement
     static func fiatPayment(_ l: AppLanguage) -> String { l == .fr ? "Paiement Fiat" : "Fiat payment" }
+    static func bankAccounts(_ l: AppLanguage) -> String { l == .fr ? "Comptes bancaires" : "Bank accounts" }
+    static func bankAccount(_ l: AppLanguage) -> String { l == .fr ? "Compte bancaire" : "Bank account" }
+    static func noBankAccountConfiguredShort(_ l: AppLanguage) -> String { l == .fr ? "Aucun compte bancaire configure" : "No bank account configured" }
+    static func addBankAccount(_ l: AppLanguage) -> String { l == .fr ? "Ajouter un compte bancaire" : "Add bank account" }
+    static func bankAccountNamePlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Nom (ex: Pro, Wise EUR...)" : "Name (e.g. Business, Wise EUR...)" }
     static func bankName(_ l: AppLanguage) -> String { l == .fr ? "Nom de la banque" : "Bank name" }
     static func bankNamePlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Ex: Boursorama, BNP, Revolut..." : "Ex: Chase, Wise, Revolut..." }
     static func accountHolderLabel(_ l: AppLanguage) -> String { l == .fr ? "Titulaire du compte" : "Account holder" }
     static func accountHolderPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Nom du titulaire" : "Account holder name" }
+    static func bankAccountIbanRequired(_ l: AppLanguage) -> String { l == .fr ? "IBAN requis pour utiliser ce compte sur une facture" : "IBAN required before this account can be used on an invoice" }
     static func cryptoWallets(_ l: AppLanguage) -> String { l == .fr ? "Wallets Crypto" : "Crypto wallets" }
     static func noWalletConfiguredShort(_ l: AppLanguage) -> String { l == .fr ? "Aucun wallet configure" : "No wallet configured" }
     static func addWallet(_ l: AppLanguage) -> String { l == .fr ? "Ajouter un wallet" : "Add wallet" }

@@ -22,34 +22,83 @@ struct DocumentPaymentInfoView: View {
     private var bankTransferSection: some View {
         GroupBox(L10n.paymentBankSection(lang)) {
             VStack(alignment: .leading, spacing: 8) {
-                if !company.iban.isEmpty {
-                    HStack {
-                        Label(L10n.iban(lang), systemImage: "building.columns")
-                            .foregroundStyle(.secondary)
-                        Text(company.iban)
-                            .font(.system(.body, design: .monospaced))
-                            .textSelection(.enabled)
-                    }
-                    if !company.bic.isEmpty {
-                        HStack {
-                            Label(L10n.bic(lang), systemImage: "building.columns.fill")
-                                .foregroundStyle(.secondary)
-                            Text(company.bic)
-                                .font(.system(.body, design: .monospaced))
-                        }
-                    }
-                    if !company.titulaireCompte.isEmpty {
-                        HStack {
-                            Label(L10n.accountHolderLabel(lang), systemImage: "person")
-                                .foregroundStyle(.secondary)
-                            Text(company.titulaireCompte)
-                        }
-                    }
+                let bankAccounts = document.paymentBankAccounts(from: company.bankAccounts)
+
+                if bankAccounts.count > 1 {
+                    bankAccountPicker(bankAccounts)
+                    selectedBankAccountDetails(bankAccounts)
+                } else if let account = bankAccounts.first {
+                    bankAccountDetails(account)
                 } else {
-                    warningRow(L10n.noIBANConfigured(lang))
+                    warningRow(L10n.noBankAccountConfigured(lang))
                 }
             }
             .padding(8)
+        }
+    }
+
+    private func bankAccountPicker(_ accounts: [BankAccountEntry]) -> some View {
+        HStack {
+            Label(L10n.bankAccount(lang), systemImage: "building.columns")
+                .foregroundStyle(.secondary)
+            Picker("", selection: Binding(
+                get: {
+                    accounts.first { $0.id == document.selectedBankAccountId }?.id ?? accounts.first?.id ?? UUID()
+                },
+                set: {
+                    document.selectedBankAccountId = $0
+                    onSave()
+                }
+            )) {
+                ForEach(accounts) { account in
+                    Text(account.displayName.isEmpty ? L10n.bankAccount(lang) : account.displayName)
+                        .tag(account.id)
+                }
+            }
+            .labelsHidden()
+        }
+    }
+
+    @ViewBuilder
+    private func selectedBankAccountDetails(_ accounts: [BankAccountEntry]) -> some View {
+        if let selected = accounts.first(where: { $0.id == document.selectedBankAccountId }) ?? accounts.first {
+            bankAccountDetails(selected)
+        }
+    }
+
+    private func bankAccountDetails(_ account: BankAccountEntry) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !account.trimmedBankName.isEmpty || !account.trimmedLabel.isEmpty {
+                HStack {
+                    Label(account.displayName.isEmpty ? L10n.bankAccount(lang) : account.displayName, systemImage: "building.columns")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            HStack {
+                Label(L10n.iban(lang), systemImage: "number")
+                    .foregroundStyle(.secondary)
+                Text(account.trimmedIBAN)
+                    .font(.system(.body, design: .monospaced))
+                    .textSelection(.enabled)
+            }
+
+            if !account.trimmedBIC.isEmpty {
+                HStack {
+                    Label(L10n.bic(lang), systemImage: "building.columns.fill")
+                        .foregroundStyle(.secondary)
+                    Text(account.trimmedBIC)
+                        .font(.system(.body, design: .monospaced))
+                }
+            }
+
+            if !account.trimmedAccountHolder.isEmpty {
+                HStack {
+                    Label(L10n.accountHolderLabel(lang), systemImage: "person")
+                        .foregroundStyle(.secondary)
+                    Text(account.trimmedAccountHolder)
+                }
+            }
         }
     }
 

@@ -648,9 +648,7 @@ struct PDFGenerator {
         case .crypto:
             return document.selectedPaymentWalletAddress(from: company.wallets) != nil
         case .virement:
-            return !trimmedPaymentValue(company.iban).isEmpty
-                || !trimmedPaymentValue(company.bic).isEmpty
-                || !trimmedPaymentValue(company.titulaireCompte).isEmpty
+            return document.selectedPaymentBankAccount(from: company.bankAccounts) != nil
         }
     }
 
@@ -685,17 +683,23 @@ struct PDFGenerator {
             return height
         case .virement:
             var height: CGFloat = 12
-            let iban = trimmedPaymentValue(company.iban)
-            if !iban.isEmpty {
-                height += wrappedTextHeight("\(L10n.iban(lang)): \(iban)", font: PDFLayout.fontSmall, maxWidth: footerRightWidth, lineHeight: footerLineHeight)
-            }
-            let bic = trimmedPaymentValue(company.bic)
-            if !bic.isEmpty {
-                height += wrappedTextHeight("\(L10n.bic(lang)): \(bic)", font: PDFLayout.fontSmall, maxWidth: footerRightWidth, lineHeight: footerLineHeight)
-            }
-            let accountHolder = trimmedPaymentValue(company.titulaireCompte)
-            if !accountHolder.isEmpty {
-                height += wrappedTextHeight("\(L10n.accountHolder(lang))\(accountHolder)", font: PDFLayout.fontSmall, maxWidth: footerRightWidth, lineHeight: footerLineHeight)
+            if let account = document.selectedPaymentBankAccount(from: company.bankAccounts) {
+                let bankName = trimmedPaymentValue(account.trimmedBankName)
+                if !bankName.isEmpty {
+                    height += wrappedTextHeight(bankName, font: PDFLayout.fontSmall, maxWidth: footerRightWidth, lineHeight: footerLineHeight)
+                }
+                let iban = trimmedPaymentValue(account.trimmedIBAN)
+                if !iban.isEmpty {
+                    height += wrappedTextHeight("\(L10n.iban(lang)): \(iban)", font: PDFLayout.fontSmall, maxWidth: footerRightWidth, lineHeight: footerLineHeight)
+                }
+                let bic = trimmedPaymentValue(account.trimmedBIC)
+                if !bic.isEmpty {
+                    height += wrappedTextHeight("\(L10n.bic(lang)): \(bic)", font: PDFLayout.fontSmall, maxWidth: footerRightWidth, lineHeight: footerLineHeight)
+                }
+                let accountHolder = trimmedPaymentValue(account.trimmedAccountHolder)
+                if !accountHolder.isEmpty {
+                    height += wrappedTextHeight("\(L10n.accountHolder(lang))\(accountHolder)", font: PDFLayout.fontSmall, maxWidth: footerRightWidth, lineHeight: footerLineHeight)
+                }
             }
             return height
         }
@@ -775,22 +779,28 @@ struct PDFGenerator {
             ry = drawWrappedText(walletAddress, x: rightX, y: ry, font: PDFLayout.fontSmall,
                                  color: PDFLayout.textBlack, context: context, maxWidth: footerRightWidth,
                                  lineHeight: footerLineHeight)
-        } else {
+        } else if let account = document.selectedPaymentBankAccount(from: company.bankAccounts) {
             drawText(L10n.bankTransfer(lang), x: rightX, y: ry, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
             ry += 12
-            let iban = trimmedPaymentValue(company.iban)
+            let bankName = trimmedPaymentValue(account.trimmedBankName)
+            if !bankName.isEmpty {
+                ry = drawWrappedText(bankName, x: rightX, y: ry,
+                                     font: PDFLayout.fontSmall, color: PDFLayout.textBlack, context: context,
+                                     maxWidth: footerRightWidth, lineHeight: footerLineHeight)
+            }
+            let iban = trimmedPaymentValue(account.trimmedIBAN)
             if !iban.isEmpty {
                 ry = drawWrappedText("\(L10n.iban(lang)): \(iban)", x: rightX, y: ry,
                                      font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context,
                                      maxWidth: footerRightWidth, lineHeight: footerLineHeight)
             }
-            let bic = trimmedPaymentValue(company.bic)
+            let bic = trimmedPaymentValue(account.trimmedBIC)
             if !bic.isEmpty {
                 ry = drawWrappedText("\(L10n.bic(lang)): \(bic)", x: rightX, y: ry,
                                      font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context,
                                      maxWidth: footerRightWidth, lineHeight: footerLineHeight)
             }
-            let accountHolder = trimmedPaymentValue(company.titulaireCompte)
+            let accountHolder = trimmedPaymentValue(account.trimmedAccountHolder)
             if !accountHolder.isEmpty {
                 ry = drawWrappedText("\(L10n.accountHolder(lang))\(accountHolder)", x: rightX, y: ry,
                                      font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context,

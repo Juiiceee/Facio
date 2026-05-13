@@ -14,39 +14,27 @@ struct PaymentSettingsView: View {
             // MARK: - Paiement Fiat
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.fiatPayment(lang), systemImage: "building.columns")
+                    Label(L10n.bankAccounts(lang), systemImage: "building.columns")
                         .font(.headline)
 
-                    settingsRow(L10n.bankName(lang)) {
-                        TextField(L10n.bankNamePlaceholder(lang), text: Binding(
-                            get: { company.nomBanque },
-                            set: { company.nomBanque = $0; dataStore.companyUpdated() }
-                        ))
-                        .textFieldStyle(.roundedBorder)
+                    if company.bankAccounts.isEmpty {
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .foregroundStyle(.secondary)
+                            Text(L10n.noBankAccountConfiguredShort(lang))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
                     }
 
-                    settingsRow(L10n.iban(lang)) {
-                        TextField("FR76 0000 0000 0000 0000 0000 000", text: Binding(
-                            get: { company.iban },
-                            set: { company.iban = $0; dataStore.companyUpdated() }
-                        ))
-                        .textFieldStyle(.roundedBorder)
+                    ForEach(company.bankAccounts) { account in
+                        BankAccountRow(accountId: account.id, company: company, dataStore: dataStore)
                     }
 
-                    settingsRow(L10n.bic(lang)) {
-                        TextField("BNPAFRPP", text: Binding(
-                            get: { company.bic },
-                            set: { company.bic = $0; dataStore.companyUpdated() }
-                        ))
-                        .textFieldStyle(.roundedBorder)
-                    }
-
-                    settingsRow(L10n.accountHolderLabel(lang)) {
-                        TextField(L10n.accountHolderPlaceholder(lang), text: Binding(
-                            get: { company.titulaireCompte },
-                            set: { company.titulaireCompte = $0; dataStore.companyUpdated() }
-                        ))
-                        .textFieldStyle(.roundedBorder)
+                    Button {
+                        addBankAccount()
+                    } label: {
+                        Label(L10n.addBankAccount(lang), systemImage: "plus.circle")
                     }
                 }
                 .padding(12)
@@ -86,6 +74,121 @@ struct PaymentSettingsView: View {
         .padding(24)
     }
 
+    private func addWallet() {
+        let entry = WalletEntry(blockchain: .solana, address: "")
+        company.wallets.append(entry)
+        dataStore.companyUpdated()
+    }
+
+    private func addBankAccount() {
+        company.bankAccounts.append(BankAccountEntry())
+        company.syncLegacyBankFieldsFromPrimaryAccount()
+        dataStore.companyUpdated()
+    }
+}
+
+/// Ligne compte bancaire avec acces securise par ID (pas par index)
+private struct BankAccountRow: View {
+    let accountId: UUID
+    let company: CompanyInfo
+    let dataStore: DataStore
+
+    private var lang: AppLanguage { company.langueParDefaut }
+
+    private func safeIndex() -> Int? {
+        company.bankAccounts.firstIndex(where: { $0.id == accountId })
+    }
+
+    private var account: BankAccountEntry? {
+        company.bankAccounts.first(where: { $0.id == accountId })
+    }
+
+    private var iban: String {
+        account?.iban ?? ""
+    }
+
+    var body: some View {
+        if company.bankAccounts.contains(where: { $0.id == accountId }) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 12) {
+                    TextField(L10n.bankAccountNamePlaceholder(lang), text: Binding(
+                        get: { account?.label ?? "" },
+                        set: { setAccountValue(\.label, to: $0) }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 220)
+
+                    TextField(L10n.bankNamePlaceholder(lang), text: Binding(
+                        get: { account?.bankName ?? "" },
+                        set: { setAccountValue(\.bankName, to: $0) }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+
+                    Button {
+                        company.bankAccounts.removeAll { $0.id == accountId }
+                        company.syncLegacyBankFieldsFromPrimaryAccount()
+                        dataStore.companyUpdated()
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundStyle(.red)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                settingsRow(L10n.iban(lang)) {
+                    TextField("FR76 0000 0000 0000 0000 0000 000", text: Binding(
+                        get: { account?.iban ?? "" },
+                        set: { setAccountValue(\.iban, to: $0) }
+                    ))
+                    .font(.system(.body, design: .monospaced))
+                    .textFieldStyle(.roundedBorder)
+                }
+
+                HStack(spacing: 12) {
+                    settingsRow(L10n.bic(lang)) {
+                        TextField("BNPAFRPP", text: Binding(
+                            get: { account?.bic ?? "" },
+                            set: { setAccountValue(\.bic, to: $0) }
+                        ))
+                        .font(.system(.body, design: .monospaced))
+                        .textFieldStyle(.roundedBorder)
+                    }
+
+                    settingsRow(L10n.accountHolderLabel(lang)) {
+                        TextField(L10n.accountHolderPlaceholder(lang), text: Binding(
+                            get: { account?.accountHolder ?? "" },
+                            set: { setAccountValue(\.accountHolder, to: $0) }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                    }
+                }
+
+                if iban.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle")
+                        Text(L10n.bankAccountIbanRequired(lang))
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(10)
+            .background(.quaternary.opacity(0.3))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    private func setAccountValue(_ keyPath: WritableKeyPath<BankAccountEntry, String>, to newValue: String) {
+        if let i = safeIndex() {
+            company.bankAccounts[i][keyPath: keyPath] = newValue
+            company.syncLegacyBankFieldsFromPrimaryAccount()
+            dataStore.companyUpdated()
+        }
+    }
+
     private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
@@ -93,12 +196,6 @@ struct PaymentSettingsView: View {
                 .foregroundStyle(.secondary)
             content()
         }
-    }
-
-    private func addWallet() {
-        let entry = WalletEntry(blockchain: .solana, address: "")
-        company.wallets.append(entry)
-        dataStore.companyUpdated()
     }
 }
 

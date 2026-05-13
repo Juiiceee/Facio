@@ -48,8 +48,10 @@ enum FacioRegressionSuite {
         RegressionCase(name: "document decodes old payloads without accounting conversion", run: documentDecodesOldPayloadsWithoutAccountingConversion),
         RegressionCase(name: "sent invoices become overdue after due date", run: sentInvoicesBecomeOverdueAfterDueDate),
         RegressionCase(name: "client empty record detection trims all fields", run: clientEmptyRecordDetectionTrimsAllFields),
+        RegressionCase(name: "company migrates legacy bank fields into bank accounts", run: companyMigratesLegacyBankFieldsIntoBankAccounts),
         RegressionCase(name: "accounting revenue converts known rates and reports missing ones", run: accountingRevenueConvertsKnownRatesAndReportsMissingOnes),
         RegressionCase(name: "fiat document drops crypto payment configuration", run: fiatDocumentDropsCryptoPaymentConfiguration),
+        RegressionCase(name: "bank transfer selects only usable bank accounts", run: bankTransferSelectsOnlyUsableBankAccounts),
         RegressionCase(name: "crypto payment selects only compatible non-blank wallets", run: cryptoPaymentSelectsOnlyCompatibleNonBlankWallets),
         RegressionCase(name: "bitcoin payment is crypto but not Solana Pay eligible", run: bitcoinPaymentIsCryptoButNotSolanaPayEligible),
         RegressionCase(name: "document duplication keeps payment and line data without reusing identity", run: documentDuplicationKeepsPaymentAndLineDataWithoutReusingIdentity),
@@ -213,6 +215,20 @@ enum FacioRegressionSuite {
         try expect(!withSiret.isEmptyRecord, "client with any identifier should be kept")
     }
 
+    private static func companyMigratesLegacyBankFieldsIntoBankAccounts() throws {
+        let data = Data(#"{"nomBanque":"Wise","iban":"FR761234","bic":"TRWIBEB1","titulaireCompte":"Facio SAS"}"#.utf8)
+
+        let company = try JSONDecoder().decode(CompanyInfo.self, from: data)
+        let account = try require(company.bankAccounts.first, "legacy bank fields should create a bank account")
+
+        try expectEqual(company.bankAccounts.count, 1)
+        try expectEqual(account.label, "Wise")
+        try expectEqual(account.bankName, "Wise")
+        try expectEqual(account.iban, "FR761234")
+        try expectEqual(account.bic, "TRWIBEB1")
+        try expectEqual(account.accountHolder, "Facio SAS")
+    }
+
     private static func accountingRevenueConvertsKnownRatesAndReportsMissingOnes() throws {
         let eurInvoice = Document(type: .facture, currency: .eur)
         eurInvoice.ajouterLigne(LineItem(quantite: decimal("1000"), prixUnitaire: decimal("1")))
@@ -245,6 +261,29 @@ enum FacioRegressionSuite {
         try expect(document.blockchain == nil, "fiat crypto mode should clear blockchain")
         try expect(document.selectedWalletId == nil, "fiat crypto mode should clear selected wallet")
         try expect(!document.isSolanaPayEligible, "fiat document must not be Solana Pay eligible")
+    }
+
+    private static func bankTransferSelectsOnlyUsableBankAccounts() throws {
+        let blank = BankAccountEntry(label: "Blank", iban: "  ")
+        let main = BankAccountEntry(label: "EUR", bankName: "Wise", iban: " FR761234 ", bic: "BIC1", accountHolder: "Facio")
+        let secondary = BankAccountEntry(label: "USD", bankName: "Revolut", iban: "FR765678")
+        let accounts = [blank, main, secondary]
+
+        let document = Document(type: .facture, number: "F-BANK", currency: .eur)
+        document.paymentMode = .virement
+        document.selectedBankAccountId = blank.id
+        document.normalizePaymentConfiguration(availableBankAccounts: accounts)
+
+        try expect(document.selectedBankAccountId == nil, "blank selected bank account should be cleared")
+        try expectEqual(document.paymentBankAccounts(from: accounts).map(\.id), [main.id, secondary.id])
+        try expectEqual(document.selectedPaymentBankAccount(from: accounts)?.id, main.id)
+
+        document.selectedBankAccountId = secondary.id
+        document.normalizePaymentConfiguration(availableBankAccounts: accounts)
+        try expectEqual(document.selectedPaymentBankAccount(from: accounts)?.id, secondary.id)
+
+        document.paymentMode = .aucun
+        try expect(document.selectedBankAccountId == nil, "non-bank payment mode should clear selected bank account")
     }
 
     private static func cryptoPaymentSelectsOnlyCompatibleNonBlankWallets() throws {
@@ -314,6 +353,16 @@ enum FacioRegressionSuite {
         try expectEqual(copy.lignes.count, 1)
         try expect(copy.lignes[0].id != document.lignes[0].id, "duplicated line should get a new id")
         try expectDecimal(copy.totalTTC, equals: "144")
+
+        let bankAccount = BankAccountEntry(label: "Main", iban: "FR761234")
+        let bankDocument = Document(type: .facture, currency: .eur)
+        bankDocument.paymentMode = .virement
+        bankDocument.selectedBankAccountId = bankAccount.id
+
+        let bankCopy = bankDocument.dupliquer()
+
+        try expectEqual(bankCopy.paymentMode, .virement)
+        try expectEqual(bankCopy.selectedBankAccountId, bankAccount.id)
     }
 
     private static func syncStateTracksPendingDeletesAsDirtyData() throws {

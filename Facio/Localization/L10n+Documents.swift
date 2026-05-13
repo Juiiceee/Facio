@@ -51,6 +51,7 @@ extension L10n {
     // Paiement (UI)
     static func paymentBankSection(_ l: AppLanguage) -> String { l == .fr ? "Paiement — Virement bancaire" : "Payment — Bank transfer" }
     static func noIBANConfigured(_ l: AppLanguage) -> String { l == .fr ? "Aucun IBAN configure (voir Parametres > Paiement)" : "No IBAN configured (see Settings > Payment)" }
+    static func noBankAccountConfigured(_ l: AppLanguage) -> String { l == .fr ? "Aucun compte bancaire utilisable (voir Parametres > Paiement)" : "No usable bank account configured (see Settings > Payment)" }
     static func paymentCryptoSection(_ l: AppLanguage) -> String { l == .fr ? "Paiement — Crypto" : "Payment — Crypto" }
     static func network(_ l: AppLanguage) -> String { l == .fr ? "Reseau" : "Network" }
     static func wallet(_ l: AppLanguage) -> String { "Wallet" }

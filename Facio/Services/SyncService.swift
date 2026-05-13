@@ -235,6 +235,7 @@ final class SyncService: Sendable {
                 "source_timesheet_id": doc.sourceTimesheetId?.uuidString ?? NSNull(),
                 "notes": doc.notes,
                 "selected_wallet_id": doc.selectedWalletId?.uuidString ?? NSNull(),
+                "selected_bank_account_id": doc.selectedBankAccountId?.uuidString ?? NSNull(),
                 "langue_raw_value": doc.langueRawValue,
                 "created_at": syncDateString(doc.createdAt),
                 "updated_at": syncDateString(doc.updatedAt),
@@ -334,6 +335,7 @@ final class SyncService: Sendable {
         }
 
         let logoBase64 = company.logoData?.base64EncodedString() ?? ""
+        let primaryBankAccount = company.bankAccounts.first
         let body: [String: Any] = [
             "id": company.id.uuidString,
             "user_id": userId,
@@ -345,10 +347,10 @@ final class SyncService: Sendable {
             "telephone": company.telephone,
             "email": company.email,
             "logo_data": logoBase64,
-            "nom_banque": company.nomBanque,
-            "iban": company.iban,
-            "bic": company.bic,
-            "titulaire_compte": company.titulaireCompte,
+            "nom_banque": primaryBankAccount?.bankName ?? company.nomBanque,
+            "iban": primaryBankAccount?.iban ?? company.iban,
+            "bic": primaryBankAccount?.bic ?? company.bic,
+            "titulaire_compte": primaryBankAccount?.accountHolder ?? company.titulaireCompte,
             "taux_tva_par_defaut": decimalPayload(company.tauxTVAParDefaut),
             "delai_paiement_jours": company.delaiPaiementJours,
             "devise_par_defaut_raw_value": company.deviseParDefautRawValue,
@@ -382,6 +384,30 @@ final class SyncService: Sendable {
         ) else { return false }
         for id in remoteWalletIds.subtracting(localWalletIds) {
             guard await supabaseDelete(table: "wallets", filter: "id=eq.\(id)") else { return false }
+        }
+
+        if !company.bankAccounts.isEmpty {
+            let bankAccounts: [[String: Any]] = company.bankAccounts.map { account in
+                [
+                    "id": account.id.uuidString,
+                    "user_id": userId,
+                    "company_id": company.id.uuidString,
+                    "label": account.label,
+                    "bank_name": account.bankName,
+                    "iban": account.iban,
+                    "bic": account.bic,
+                    "account_holder": account.accountHolder,
+                ]
+            }
+            guard await supabaseBatchUpsert(table: "bank_accounts", rows: bankAccounts, onConflict: "id") else { return false }
+        }
+        let localBankAccountIds = Set(company.bankAccounts.map { $0.id.uuidString })
+        guard let remoteBankAccountIds = await fetchRemoteIdsOrFail(
+            table: "bank_accounts",
+            query: "select=id&company_id=eq.\(company.id.uuidString)"
+        ) else { return false }
+        for id in remoteBankAccountIds.subtracting(localBankAccountIds) {
+            guard await supabaseDelete(table: "bank_accounts", filter: "id=eq.\(id)") else { return false }
         }
 
         if !company.prestations.isEmpty {
@@ -529,6 +555,7 @@ final class SyncService: Sendable {
             doc.sourceTimesheetId = (json["source_timesheet_id"] as? String).flatMap { UUID(uuidString: $0) }
             doc.notes = json["notes"] as? String ?? ""
             doc.selectedWalletId = (json["selected_wallet_id"] as? String).flatMap { UUID(uuidString: $0) }
+            doc.selectedBankAccountId = (json["selected_bank_account_id"] as? String).flatMap { UUID(uuidString: $0) }
             doc.langueRawValue = json["langue_raw_value"] as? String ?? "fr"
             doc.createdAt = parseDate(json["created_at"]) ?? doc.dateCreation
             doc.updatedAt = parseDate(json["updated_at"]) ?? doc.createdAt
@@ -599,7 +626,7 @@ final class SyncService: Sendable {
     func pullCompany() async -> CompanyInfo? {
         guard let jsonArray = await supabaseGet(
             table: "company_info",
-            query: "select=*,wallets(*),prestation_presets(*)"
+            query: "select=*,wallets(*),bank_accounts(*),prestation_presets(*)"
         ), let json = jsonArray.first else { return nil }
 
         guard let id = (json["id"] as? String).flatMap({ UUID(uuidString: $0) }) else { return nil }
@@ -644,6 +671,23 @@ final class SyncService: Sendable {
                 return wallet
             }
         }
+
+        // Comptes bancaires
+        if let bankAccountsJson = json["bank_accounts"] as? [[String: Any]] {
+            company.bankAccounts = bankAccountsJson.compactMap { accountJson in
+                guard let accountId = (accountJson["id"] as? String).flatMap({ UUID(uuidString: $0) }) else { return nil }
+                var account = BankAccountEntry(
+                    label: accountJson["label"] as? String ?? "",
+                    bankName: accountJson["bank_name"] as? String ?? "",
+                    iban: accountJson["iban"] as? String ?? "",
+                    bic: accountJson["bic"] as? String ?? "",
+                    accountHolder: accountJson["account_holder"] as? String ?? ""
+                )
+                account.id = accountId
+                return account
+            }
+        }
+        company.normalizeBankAccountsFromLegacyFields()
 
         // Presets
         if let presetsJson = json["prestation_presets"] as? [[String: Any]] {
@@ -1068,6 +1112,7 @@ final class SyncService: Sendable {
         ]
         return textFields.allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             && company.logoData == nil
+            && company.bankAccounts.isEmpty
             && company.wallets.isEmpty
             && company.prestations.isEmpty
             && company.tauxTVAParDefaut == 0
@@ -1152,6 +1197,7 @@ final class SyncService: Sendable {
       source_timesheet_id UUID,
       notes TEXT NOT NULL DEFAULT '',
       selected_wallet_id UUID,
+      selected_bank_account_id UUID,
       langue_raw_value TEXT NOT NULL DEFAULT 'fr',
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -1235,7 +1281,19 @@ final class SyncService: Sendable {
       label TEXT NOT NULL DEFAULT ''
     );
 
-    -- 7. Prestations favorites
+    -- 7. Comptes bancaires
+    CREATE TABLE bank_accounts (
+      id UUID PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+      company_id UUID NOT NULL REFERENCES company_info(id) ON DELETE CASCADE,
+      label TEXT NOT NULL DEFAULT '',
+      bank_name TEXT NOT NULL DEFAULT '',
+      iban TEXT NOT NULL DEFAULT '',
+      bic TEXT NOT NULL DEFAULT '',
+      account_holder TEXT NOT NULL DEFAULT ''
+    );
+
+    -- 8. Prestations favorites
     CREATE TABLE prestation_presets (
       id UUID PRIMARY KEY,
       user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -1245,7 +1303,7 @@ final class SyncService: Sendable {
       taux_tva NUMERIC NOT NULL DEFAULT 0
     );
 
-    -- 8. Periodes de timesheet (mois)
+    -- 9. Periodes de timesheet (mois)
     CREATE TABLE timesheet_periods (
       id UUID PRIMARY KEY,
       user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -1272,7 +1330,7 @@ final class SyncService: Sendable {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
 
-    -- 9. Semaines de timesheet
+    -- 10. Semaines de timesheet
     CREATE TABLE timesheet_weeks (
       id UUID PRIMARY KEY,
       user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -1280,7 +1338,7 @@ final class SyncService: Sendable {
       numero INT NOT NULL DEFAULT 1
     );
 
-    -- 10. Jours de timesheet
+    -- 11. Jours de timesheet
     CREATE TABLE timesheet_days (
       id UUID PRIMARY KEY,
       user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -1296,6 +1354,7 @@ final class SyncService: Sendable {
     ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
     ALTER TABLE company_info ENABLE ROW LEVEL SECURITY;
     ALTER TABLE wallets ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE bank_accounts ENABLE ROW LEVEL SECURITY;
     ALTER TABLE prestation_presets ENABLE ROW LEVEL SECURITY;
     ALTER TABLE timesheet_periods ENABLE ROW LEVEL SECURITY;
     ALTER TABLE timesheet_weeks ENABLE ROW LEVEL SECURITY;
@@ -1341,6 +1400,16 @@ final class SyncService: Sendable {
       WITH CHECK (
         auth.uid() = user_id
         AND EXISTS (SELECT 1 FROM company_info WHERE company_info.id = wallets.company_id AND company_info.user_id = auth.uid())
+      );
+
+    CREATE POLICY "own_data" ON bank_accounts FOR ALL
+      USING (
+        auth.uid() = user_id
+        AND EXISTS (SELECT 1 FROM company_info WHERE company_info.id = bank_accounts.company_id AND company_info.user_id = auth.uid())
+      )
+      WITH CHECK (
+        auth.uid() = user_id
+        AND EXISTS (SELECT 1 FROM company_info WHERE company_info.id = bank_accounts.company_id AND company_info.user_id = auth.uid())
       );
 
     CREATE POLICY "own_data" ON prestation_presets FOR ALL
@@ -1395,6 +1464,7 @@ final class SyncService: Sendable {
     CREATE INDEX idx_line_items_document ON line_items(document_id);
     CREATE INDEX idx_tx_sigs_document ON transaction_signatures(document_id);
     CREATE INDEX idx_wallets_company ON wallets(company_id);
+    CREATE INDEX idx_bank_accounts_company ON bank_accounts(company_id);
     CREATE INDEX idx_presets_company ON prestation_presets(company_id);
     CREATE INDEX idx_weeks_period ON timesheet_weeks(period_id);
     CREATE INDEX idx_days_week ON timesheet_days(week_id);
