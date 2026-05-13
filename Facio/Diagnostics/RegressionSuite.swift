@@ -2,6 +2,7 @@
 import Darwin
 import Foundation
 
+@MainActor
 enum FacioRegressionSuite {
     private static let trigger = "--run-regressions"
 
@@ -54,6 +55,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "bank transfer selects only usable bank accounts", run: bankTransferSelectsOnlyUsableBankAccounts),
         RegressionCase(name: "crypto payment selects only compatible non-blank wallets", run: cryptoPaymentSelectsOnlyCompatibleNonBlankWallets),
         RegressionCase(name: "payment snapshot freezes exported bank account", run: paymentSnapshotFreezesExportedBankAccount),
+        RegressionCase(name: "payment snapshot survives codable round trip", run: paymentSnapshotSurvivesCodableRoundTrip),
         RegressionCase(name: "paid invoices do not expose Solana Pay request", run: paidInvoicesDoNotExposeSolanaPayRequest),
         RegressionCase(name: "bitcoin payment is crypto but not Solana Pay eligible", run: bitcoinPaymentIsCryptoButNotSolanaPayEligible),
         RegressionCase(name: "document duplication keeps payment and line data without reusing identity", run: documentDuplicationKeepsPaymentAndLineDataWithoutReusingIdentity),
@@ -63,13 +65,20 @@ enum FacioRegressionSuite {
         RegressionCase(name: "timesheet custom range generation uses whole weeks", run: timesheetCustomRangeGenerationUsesWholeWeeks),
         RegressionCase(name: "timesheet normalize calendar restores shape and keeps stored hours", run: timesheetNormalizeCalendarRestoresShapeAndKeepsStoredHours),
         RegressionCase(name: "timesheet period decodes old payloads and normalizes calendar", run: timesheetPeriodDecodesOldPayloadsAndNormalizesCalendar),
+        RegressionCase(name: "timesheet invoice detail mode survives codable round trip", run: timesheetInvoiceDetailModeSurvivesCodableRoundTrip),
         RegressionCase(name: "timesheet invoice markers set generated invoice state", run: timesheetInvoiceMarkersSetGeneratedInvoiceState),
         RegressionCase(name: "timesheet periods are unique per client and month", run: timesheetPeriodsAreUniquePerClientAndMonth),
         RegressionCase(name: "timesheet custom ranges overlap by client", run: timesheetCustomRangesOverlapByClient),
         RegressionCase(name: "timesheet shared weeks are scoped by client", run: timesheetSharedWeeksAreScopedByClient),
+        RegressionCase(name: "data store updates linked invoice when timesheet changes", run: dataStoreUpdatesLinkedInvoiceWhenTimesheetChanges),
+        RegressionCase(name: "data store reuses existing invoice when detail mode changes", run: dataStoreReusesExistingInvoiceWhenDetailModeChanges),
+        RegressionCase(name: "deleting linked invoice clears timesheet markers", run: deletingLinkedInvoiceClearsTimesheetMarkers),
+        RegressionCase(name: "shared week sync clears context after adjacent delete", run: sharedWeekSyncClearsContextAfterAdjacentDelete),
+        RegressionCase(name: "shared week sync clears context after client change", run: sharedWeekSyncClearsContextAfterClientChange),
         RegressionCase(name: "timesheet invoice summary applies client snapshot", run: timesheetInvoiceSummaryAppliesClientSnapshot),
         RegressionCase(name: "timesheet stale context hours are ignored without adjacent owner", run: timesheetStaleContextHoursAreIgnoredWithoutAdjacentOwner),
         RegressionCase(name: "timesheet custom range counts previous weekly context", run: timesheetCustomRangeCountsPreviousWeeklyContext),
+        RegressionCase(name: "timesheet custom range daily invoice bills only active dates", run: timesheetCustomRangeDailyInvoiceBillsOnlyActiveDates),
         RegressionCase(name: "timesheet invoice daily lines group overtime by week", run: timesheetInvoiceDailyLinesGroupOvertimeByWeek),
         RegressionCase(name: "timesheet invoice daily lines do not split equal rates", run: timesheetInvoiceDailyLinesDoNotSplitEqualRates),
         RegressionCase(name: "timesheet cross-period overtime assigns overflow to current month", run: timesheetCrossPeriodOvertimeAssignsOverflowToCurrentMonth),
@@ -335,6 +344,30 @@ enum FacioRegressionSuite {
         try expectEqual(document.selectedPaymentBankAccount(from: company.bankAccounts)?.trimmedIBAN, "FR769999")
     }
 
+    private static func paymentSnapshotSurvivesCodableRoundTrip() throws {
+        let wallet = WalletEntry(blockchain: .solana, address: "SolAddr", label: "Main")
+        let company = CompanyInfo()
+        company.wallets = [wallet]
+
+        let document = Document(type: .facture, number: "F-SNAP", currency: .usdc, blockchain: .solana)
+        document.paymentMode = .crypto
+        document.selectedWalletId = wallet.id
+        document.ajouterLigne(LineItem(quantite: decimal("1"), prixUnitaire: decimal("10")))
+        document.normalizePaymentConfiguration(availableWallets: company.wallets)
+        try expect(document.freezePaymentSnapshot(from: company), "crypto snapshot should be created")
+
+        let data = try JSONEncoder().encode(document)
+        let decoded = try JSONDecoder().decode(Document.self, from: data)
+
+        try expectEqual(decoded.paymentSnapshot?.paymentMode, .crypto)
+        try expectEqual(decoded.paymentSnapshot?.blockchain, .solana)
+        try expectEqual(decoded.paymentSnapshot?.walletAddress, "SolAddr")
+        try expectEqual(decoded.solanaPayWalletAddress(from: []), "SolAddr")
+
+        decoded.currency = .eur
+        try expect(decoded.paymentSnapshot == nil, "changing currency should clear stale payment snapshot")
+    }
+
     private static func paidInvoicesDoNotExposeSolanaPayRequest() throws {
         let wallet = WalletEntry(blockchain: .solana, address: "SolAddr", label: "Main")
         let document = Document(type: .facture, number: "F-PAID", currency: .usdc, blockchain: .solana)
@@ -402,6 +435,7 @@ enum FacioRegressionSuite {
         try expectEqual(copy.paymentMode, .crypto)
         try expectEqual(copy.selectedWalletId, wallet.id)
         try expect(copy.accountingExchangeRate == nil, "duplicated document should not reuse accounting exchange rate")
+        try expect(copy.paymentSnapshot == nil, "duplicated document should not reuse payment snapshot")
         try expectEqual(copy.lignes.count, 1)
         try expect(copy.lignes[0].id != document.lignes[0].id, "duplicated line should get a new id")
         try expectDecimal(copy.totalTTC, equals: "144")
@@ -522,6 +556,20 @@ enum FacioRegressionSuite {
         try expectEqual(period.nom, "Mars 2026")
     }
 
+    private static func timesheetInvoiceDetailModeSurvivesCodableRoundTrip() throws {
+        let period = TimesheetPeriod(mois: 4, annee: 2026)
+        period.invoiceDetailMode = .daily
+        period.invoiceDocumentId = UUID(uuidString: "11111111-1111-1111-1111-111111111111")
+        period.billedAt = date("2026-04-30")
+
+        let data = try JSONEncoder().encode(period)
+        let decoded = try JSONDecoder().decode(TimesheetPeriod.self, from: data)
+
+        try expectEqual(decoded.invoiceDetailMode, .daily)
+        try expectEqual(decoded.invoiceDocumentId, period.invoiceDocumentId)
+        try expect(decoded.billedAt != nil, "billed date should round-trip")
+    }
+
     private static func timesheetInvoiceMarkersSetGeneratedInvoiceState() throws {
         let period = TimesheetPeriod(mois: 4, annee: 2026)
 
@@ -604,6 +652,135 @@ enum FacioRegressionSuite {
         try expect(!marchA.hasSameClientScope(as: aprilB), "different clients must not share adjacent weeks")
         try expect(!marchA.hasSameClientScope(as: legacyMarch), "client-scoped period must not share with legacy period")
         try expect(legacyMarch.hasSameClientScope(as: legacyApril), "legacy periods should keep previous adjacent behavior")
+    }
+
+    private static func dataStoreUpdatesLinkedInvoiceWhenTimesheetChanges() throws {
+        try withTemporaryDataStore { store in
+            store.companyInfo.deviseParDefaut = .eur
+            store.companyInfo.tauxTVAParDefaut = 0
+
+            let clientA = ClientInfo(nom: "Client A", adresse: "1 rue A", codePostal: "75001", ville: "Paris")
+            let clientB = ClientInfo(nom: "Client B", adresse: "2 rue B", codePostal: "69000", ville: "Lyon")
+            let period = TimesheetPeriod(mois: 4, annee: 2026, client: clientA)
+            period.tauxNormal = decimal("10")
+            period.tauxSupplementaire = decimal("20")
+            try setHours(period, dateString: "2026-04-01", hours: decimal("8"))
+
+            store.addTimesheet(period)
+            let invoice = try require(store.generateInvoice(from: period, detailMode: .summary), "expected invoice to be generated")
+            let invoiceId = invoice.id
+            let lineId = try require(invoice.lignes.first?.id, "expected generated invoice line id")
+
+            try expectEqual(store.documents.count, 1)
+            try expectDecimal(invoice.lignes.first?.quantite, equals: "8")
+            try expectDecimal(invoice.lignes.first?.prixUnitaire, equals: "10")
+
+            period.applyClient(clientB)
+            period.tauxNormal = decimal("12")
+            try setHours(period, dateString: "2026-04-01", hours: decimal("10"))
+            store.timesheetUpdated(period)
+
+            let refreshed = try require(store.existingInvoice(for: period), "expected linked invoice to remain attached")
+            try expectEqual(store.documents.count, 1)
+            try expectEqual(refreshed.id, invoiceId)
+            try expectEqual(refreshed.clientNom, "Client B")
+            try expectEqual(refreshed.clientVille, "Lyon")
+            try expectEqual(refreshed.lignes.first?.id, lineId)
+            try expectDecimal(refreshed.lignes.first?.quantite, equals: "10")
+            try expectDecimal(refreshed.lignes.first?.prixUnitaire, equals: "12")
+        }
+    }
+
+    private static func dataStoreReusesExistingInvoiceWhenDetailModeChanges() throws {
+        try withTemporaryDataStore { store in
+            store.companyInfo.deviseParDefaut = .eur
+            store.companyInfo.tauxTVAParDefaut = 0
+
+            let client = ClientInfo(nom: "Client A")
+            let period = TimesheetPeriod(mois: 4, annee: 2026, client: client)
+            try setHours(period, dateString: "2026-04-01", hours: decimal("8"))
+
+            store.addTimesheet(period)
+            let invoice = try require(store.generateInvoice(from: period, detailMode: .summary), "expected summary invoice")
+            let invoiceId = invoice.id
+
+            try expectEqual(invoice.lignes.first?.designation, "Heures de travail")
+            try expectEqual(period.invoiceDetailMode, .summary)
+
+            let reused = try require(store.generateInvoice(from: period, detailMode: .daily), "expected existing invoice to be reused")
+
+            try expectEqual(reused.id, invoiceId)
+            try expectEqual(store.documents.count, 1)
+            try expectEqual(period.invoiceDetailMode, .daily)
+            try expectEqual(reused.lignes.first?.designation, "Heures de travail - 01/04/2026")
+        }
+    }
+
+    private static func deletingLinkedInvoiceClearsTimesheetMarkers() throws {
+        try withTemporaryDataStore { store in
+            store.companyInfo.deviseParDefaut = .eur
+
+            let client = ClientInfo(nom: "Client A")
+            let period = TimesheetPeriod(mois: 4, annee: 2026, client: client)
+            try setHours(period, dateString: "2026-04-01", hours: decimal("8"))
+
+            store.addTimesheet(period)
+            let invoice = try require(store.generateInvoice(from: period, detailMode: .summary), "expected invoice")
+
+            try expect(period.hasGeneratedInvoice, "period should be marked invoiced")
+            store.deleteDocument(invoice)
+
+            try expect(store.documents.isEmpty, "linked invoice should be deleted")
+            try expect(period.invoiceDocumentId == nil, "deleting invoice should clear invoice id")
+            try expect(period.billedAt == nil, "deleting invoice should clear billed date")
+            try expect(store.canGenerateInvoice(for: period), "period should be invoiceable again")
+        }
+    }
+
+    private static func sharedWeekSyncClearsContextAfterAdjacentDelete() throws {
+        try withTemporaryDataStore { store in
+            let client = ClientInfo(nom: "Client A")
+            let march = TimesheetPeriod(mois: 3, annee: 2026, client: client)
+            let april = TimesheetPeriod(mois: 4, annee: 2026, client: client)
+            try setHours(march, dateString: "2026-03-30", hours: decimal("8"))
+            try setHours(march, dateString: "2026-03-31", hours: decimal("7"))
+
+            store.addTimesheet(march)
+            store.addTimesheet(april)
+            store.syncSharedWeeks(for: march)
+
+            try expectDecimal(hours(in: april, dateString: "2026-03-30"), equals: "8")
+            try expectDecimal(store.adjacentHours(for: april)["2026-03-30"], equals: "8")
+
+            store.deleteTimesheet(march)
+
+            try expectDecimal(hours(in: april, dateString: "2026-03-30"), equals: "0")
+            try expect(store.adjacentHours(for: april)["2026-03-30"] == nil, "deleted adjacent period should remove context source")
+        }
+    }
+
+    private static func sharedWeekSyncClearsContextAfterClientChange() throws {
+        try withTemporaryDataStore { store in
+            let clientA = ClientInfo(nom: "Client A")
+            let clientB = ClientInfo(nom: "Client B")
+            let marchA = TimesheetPeriod(mois: 3, annee: 2026, client: clientA)
+            let april = TimesheetPeriod(mois: 4, annee: 2026, client: clientA)
+            try setHours(marchA, dateString: "2026-03-30", hours: decimal("8"))
+            try setHours(marchA, dateString: "2026-03-31", hours: decimal("8"))
+
+            store.addTimesheet(marchA)
+            store.addTimesheet(april)
+            store.syncSharedWeeks(for: marchA)
+
+            try expectDecimal(hours(in: april, dateString: "2026-03-30"), equals: "8")
+
+            april.applyClient(clientB)
+            store.timesheetUpdated(april, syncSharedWeeks: true)
+
+            try expectDecimal(hours(in: april, dateString: "2026-03-30"), equals: "0")
+            try expect(store.adjacentHours(for: april).isEmpty, "client change should clear previous client's context hours")
+            try expectDecimal(hours(in: marchA, dateString: "2026-03-30"), equals: "8")
+        }
     }
 
     private static func timesheetInvoiceSummaryAppliesClientSnapshot() throws {
@@ -699,6 +876,35 @@ enum FacioRegressionSuite {
         try expectDecimal(lineItems[1].quantite, equals: "5")
     }
 
+    private static func timesheetCustomRangeDailyInvoiceBillsOnlyActiveDates() throws {
+        let company = CompanyInfo()
+        let period = TimesheetPeriod(startDate: date("2026-04-10"), endDate: date("2026-04-10"))
+        period.tauxNormal = decimal("10")
+        period.tauxSupplementaire = decimal("20")
+        var adjacentHours: [String: Decimal] = [:]
+
+        for day in try require(period.semaines.first, "expected first custom week").jours.prefix(4) {
+            adjacentHours[day.dateString] = decimal("8")
+            try setHours(period, dateString: day.dateString, hours: decimal("8"))
+        }
+        try setHours(period, dateString: "2026-04-10", hours: decimal("8"))
+
+        let lineItems = TimesheetInvoiceService.lineItems(
+            for: period,
+            company: company,
+            invoiceLanguage: .fr,
+            detailMode: .daily,
+            adjacentHours: adjacentHours
+        )
+        let designations = lineItems.map(\.designation)
+
+        try expectEqual(lineItems.count, 2)
+        try expect(designations.contains("Heures de travail - 10/04/2026"), "daily invoice should bill the active date")
+        try expect(designations.contains("Heures supplementaires - 06/04/2026 - 12/04/2026"), "overtime should be grouped by week")
+        try expect(!designations.contains { $0.contains("06/04/2026") && $0.contains("travail") }, "context dates must not create work lines")
+        try expect(!designations.contains { $0.contains("09/04/2026") && $0.contains("travail") }, "context dates must not create work lines")
+    }
+
     private static func timesheetInvoiceDailyLinesGroupOvertimeByWeek() throws {
         let company = CompanyInfo()
         let period = TimesheetPeriod(mois: 4, annee: 2026)
@@ -787,6 +993,33 @@ enum FacioRegressionSuite {
         try expectEqual(decimal("1234.6").formattedNoDecimals(for: .en), "1,235")
     }
 
+    private static func withTemporaryDataStore(_ body: (DataStore) throws -> Void) throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("facio-regression-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try body(DataStore(storageDirectory: root))
+    }
+
+    private static func setHours(_ period: TimesheetPeriod, dateString: String, hours: Decimal) throws {
+        for weekIndex in period.semaines.indices {
+            for dayIndex in period.semaines[weekIndex].jours.indices
+                where period.semaines[weekIndex].jours[dayIndex].dateString == dateString {
+                period.semaines[weekIndex].jours[dayIndex].heures = hours
+                return
+            }
+        }
+        throw RegressionFailure(message: "date \(dateString) not found in period \(period.periodLabel(for: .fr))")
+    }
+
+    private static func hours(in period: TimesheetPeriod, dateString: String) throws -> Decimal {
+        for week in period.semaines {
+            if let day = week.jours.first(where: { $0.dateString == dateString }) {
+                return day.heures
+            }
+        }
+        throw RegressionFailure(message: "date \(dateString) not found in period \(period.periodLabel(for: .fr))")
+    }
+
     private static func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {
         guard condition() else { throw RegressionFailure(message: message) }
     }
@@ -823,7 +1056,7 @@ enum FacioRegressionSuite {
 
 private struct RegressionCase: Sendable {
     let name: String
-    let run: @Sendable () throws -> Void
+    let run: @MainActor @Sendable () throws -> Void
 }
 
 private struct RegressionResult {

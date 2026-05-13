@@ -26,8 +26,12 @@ final class DataStore: Sendable {
         d.dateDecodingStrategy = .iso8601
         return d
     }()
+    private let storageDirectoryOverride: URL?
 
     private var storageDirectory: URL {
+        if let storageDirectoryOverride {
+            return storageDirectoryOverride
+        }
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         return appSupport.appendingPathComponent("Facio", isDirectory: true)
     }
@@ -38,7 +42,8 @@ final class DataStore: Sendable {
     private var timesheetsFileURL: URL { storageDirectory.appendingPathComponent("timesheets.json") }
     private var writeBlockedKeys: Set<SyncDataKey> = []
 
-    init() {
+    init(storageDirectory: URL? = nil) {
+        self.storageDirectoryOverride = storageDirectory
         ensureStorageDirectory()
         load()
     }
