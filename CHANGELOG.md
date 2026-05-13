@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.10.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.9.0...Facio-v1.10.0) (2026-05-13)
+
+
+### Nouvelles fonctionnalites
+
+* **payments:** support multiple bank accounts ([81d6487](https://github.com/Juiiceee/Facio/commit/81d6487d69c744d35943a6417ddf668dbe477491))
+
+
+### Corrections de bugs
+
+* **ui:** polish clients and overdue invoices ([d949830](https://github.com/Juiiceee/Facio/commit/d9498301461e743e24237b7c84fe1ac99dbb2b35))
+
 ## [1.9.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.8.3...Facio-v1.9.0) (2026-05-13)
 
 
