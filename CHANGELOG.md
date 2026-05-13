@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.9.0](https://github.com/Juiiceee/Facio/compare/Facio-v1.8.3...Facio-v1.9.0) (2026-05-13)
+
+
+### Nouvelles fonctionnalites
+
+* **timesheets:** support client-scoped invoice generation ([84b21b5](https://github.com/Juiiceee/Facio/commit/84b21b5644b36aa67ec4eb38cc7c9ee833df4577))
+* **timesheets:** support custom billing ranges ([dbc1938](https://github.com/Juiiceee/Facio/commit/dbc193836924f43decfba1c7ecdace46b7d09907))
+
+
+### Corrections de bugs
+
+* **dashboard:** convert revenue to accounting currency ([2e816d3](https://github.com/Juiiceee/Facio/commit/2e816d33ac5fb38c842a5449ea703dc8b38f7e34))
+* **ui:** expand clickable hit areas ([35cbdcc](https://github.com/Juiiceee/Facio/commit/35cbdcce6c8d34385667a7c698693c961e5cc06f))
+* **ui:** remove empty split panels ([01e1151](https://github.com/Juiiceee/Facio/commit/01e1151a55319932335d5a8dd3e05c4efc50ec24))
+
 ## [1.8.3](https://github.com/Juiiceee/Facio/compare/Facio-v1.8.2...Facio-v1.8.3) (2026-05-12)
 
 
