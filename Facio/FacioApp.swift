@@ -3,17 +3,23 @@ import AppKit
 
 @main
 struct FacioApp: App {
-    @State private var dataStore = DataStore()
-    @State private var syncService = SyncService()
-    @State private var authService = AuthService()
-    @State private var networkMonitor = NetworkMonitor()
-    @State private var updateService = UpdateService()
+    @State private var dataStore: DataStore
+    @State private var syncService: SyncService
+    @State private var authService: AuthService
+    @State private var networkMonitor: NetworkMonitor
+    @State private var updateService: UpdateService
     @State private var showFirstLaunch = false
 
     init() {
         #if FACIO_REGRESSION_TESTS
         FacioRegressionSuite.runIfRequested()
         #endif
+
+        _dataStore = State(initialValue: DataStore())
+        _syncService = State(initialValue: SyncService())
+        _authService = State(initialValue: AuthService())
+        _networkMonitor = State(initialValue: NetworkMonitor())
+        _updateService = State(initialValue: UpdateService())
 
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate(ignoringOtherApps: true)

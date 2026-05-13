@@ -77,6 +77,7 @@ extension L10n {
     static func noDocuments(_ l: AppLanguage, type: String) -> String { l == .fr ? "Aucun \(type)" : "No \(type)" }
     static func clickToCreate(_ l: AppLanguage, type: String) -> String { l == .fr ? "Cliquez sur + pour creer un \(type)." : "Click + to create a \(type)." }
     static func noClient(_ l: AppLanguage) -> String { l == .fr ? "Sans client" : "No client" }
+    static func overdue(_ l: AppLanguage) -> String { l == .fr ? "Retard" : "Overdue" }
 
     // Etats vides
     static func noDocumentSelected(_ l: AppLanguage) -> String { l == .fr ? "Aucun document selectionne" : "No document selected" }

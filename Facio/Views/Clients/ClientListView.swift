@@ -9,7 +9,7 @@ struct ClientListView: View {
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     private var clients: [ClientInfo] {
-        dataStore.clients.sorted { $0.nom < $1.nom }
+        dataStore.clients.sorted { $0.displayName < $1.displayName }
     }
 
     private var filteredClients: [ClientInfo] {
@@ -27,31 +27,32 @@ struct ClientListView: View {
     var body: some View {
         HSplitView {
             // Liste
-            VStack(spacing: 0) {
-                List(filteredClients, selection: $selectedClient) { client in
-                    ClientRow(client: client)
-                        .tag(client)
-                        .contextMenu {
-                            Button(L10n.delete(lang), role: .destructive) {
-                                deleteClient(client)
-                            }
+            List(filteredClients, selection: $selectedClient) { client in
+                ClientRow(client: client)
+                    .tag(client)
+                    .contextMenu {
+                        Button(L10n.delete(lang), role: .destructive) {
+                            deleteClient(client)
                         }
-                }
-                .searchable(text: $searchText, prompt: L10n.searchClientPrompt(lang))
+                    }
             }
-            .frame(minWidth: 250)
+            .searchable(text: $searchText, prompt: L10n.searchClientPrompt(lang))
+            .frame(minWidth: 280, idealWidth: 360, maxWidth: 520, maxHeight: .infinity)
 
             // Detail / Editeur
             if let client = selectedClient {
                 ClientDetailView(client: client)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ContentUnavailableView(
                     L10n.noClientSelected(lang),
                     systemImage: "person.crop.circle",
                     description: Text(L10n.selectOrCreateClient(lang))
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbar {
             ToolbarItem {
                 Button(action: createClient) {
@@ -91,7 +92,7 @@ struct ClientRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(client.nom)
+            Text(client.displayName.isEmpty ? L10n.noClient(lang) : client.displayName)
                 .fontWeight(.medium)
             if !client.ville.isEmpty {
                 Text("\(client.ville), \(client.codePostal)")

@@ -46,6 +46,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "accounting currency format keeps document totals readable", run: accountingCurrencyFormatKeepsDocumentTotalsReadable),
         RegressionCase(name: "document totals include VAT and line ordering", run: documentTotalsIncludeVATAndLineOrdering),
         RegressionCase(name: "document decodes old payloads without accounting conversion", run: documentDecodesOldPayloadsWithoutAccountingConversion),
+        RegressionCase(name: "sent invoices become overdue after due date", run: sentInvoicesBecomeOverdueAfterDueDate),
         RegressionCase(name: "client empty record detection trims all fields", run: clientEmptyRecordDetectionTrimsAllFields),
         RegressionCase(name: "accounting revenue converts known rates and reports missing ones", run: accountingRevenueConvertsKnownRatesAndReportsMissingOnes),
         RegressionCase(name: "fiat document drops crypto payment configuration", run: fiatDocumentDropsCryptoPaymentConfiguration),
@@ -183,6 +184,25 @@ enum FacioRegressionSuite {
         try expectEqual(document.clientTva, "")
         try expectEqual(document.clientApe, "")
         try expect(document.accountingTotal(referenceCurrency: .eur) == nil, "cross-currency old payload should need a rate")
+    }
+
+    private static func sentInvoicesBecomeOverdueAfterDueDate() throws {
+        let overdue = Document(type: .facture, dateCreation: date("2026-01-01"), dateEcheance: date("2000-01-01"))
+        overdue.status = .envoyee
+
+        let paid = Document(type: .facture, dateCreation: date("2026-01-01"), dateEcheance: date("2000-01-01"))
+        paid.status = .payee
+
+        let future = Document(type: .facture, dateCreation: date("2026-01-01"), dateEcheance: date("2999-01-01"))
+        future.status = .envoyee
+
+        let quote = Document(type: .devis, dateCreation: date("2026-01-01"), dateEcheance: date("2000-01-01"))
+        quote.status = .envoyee
+
+        try expect(overdue.isOverdue, "sent invoice with past due date should be overdue")
+        try expect(!paid.isOverdue, "paid invoice should not be overdue")
+        try expect(!future.isOverdue, "future due date should not be overdue")
+        try expect(!quote.isOverdue, "quotes should not be overdue")
     }
 
     private static func clientEmptyRecordDetectionTrimsAllFields() throws {

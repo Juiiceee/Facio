@@ -49,10 +49,17 @@ final class ClientInfo: Identifiable, Codable, Hashable {
 
     /// Nom affiche avec ville
     var displayName: String {
-        if ville.isEmpty {
-            return nom
+        let name = nom.trimmingCharacters(in: .whitespacesAndNewlines)
+        let city = ville.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty, !city.isEmpty {
+            return "\(name) — \(city)"
         }
-        return "\(nom) — \(ville)"
+        if !name.isEmpty { return name }
+
+        let fallback = [email, siret, tva, ape]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty }
+        return fallback ?? ""
     }
 
     /// Vrai quand aucun champ utile n'est renseigne.

@@ -197,6 +197,12 @@ final class Document: Identifiable, Codable, Hashable {
         paymentMode == .crypto && blockchain == .solana && currency.supportsSolanaPay
     }
 
+    var isOverdue: Bool {
+        guard type == .facture, status == .envoyee else { return false }
+        let calendar = Calendar.current
+        return calendar.startOfDay(for: dateEcheance) < calendar.startOfDay(for: Date())
+    }
+
     func solanaPayWalletAddress(from wallets: [WalletEntry]) -> String? {
         guard isSolanaPayEligible else { return nil }
         return selectedPaymentWalletAddress(from: wallets)

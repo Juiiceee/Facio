@@ -20,7 +20,7 @@ struct ClientPickerSheet: View {
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     private var allClients: [ClientInfo] {
-        dataStore.clients.sorted { $0.nom < $1.nom }
+        dataStore.clients.sorted { $0.displayName < $1.displayName }
     }
 
     private var filteredClients: [ClientInfo] {

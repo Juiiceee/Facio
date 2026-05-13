@@ -181,7 +181,7 @@ struct DashboardView: View {
             Text(doc.currency.formatAccounting(doc.totalTTC, lang: numberFormat))
                 .font(.body.monospacedDigit())
                 .fontWeight(.medium)
-            StatusBadge(status: doc.status)
+            StatusBadge(status: doc.status, isOverdue: doc.isOverdue)
         }
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
