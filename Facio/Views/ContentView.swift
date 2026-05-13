@@ -50,9 +50,24 @@ struct ContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 900, minHeight: 600)
-        .onChange(of: selectedSection) {
-            selectedDocumentId = nil
-            selectedTimesheetId = nil
+        .onChange(of: selectedSection) { _, newSection in
+            switch newSection {
+            case .factures:
+                if selectedDocument?.type != .facture {
+                    selectedDocumentId = nil
+                }
+                selectedTimesheetId = nil
+            case .devis:
+                if selectedDocument?.type != .devis {
+                    selectedDocumentId = nil
+                }
+                selectedTimesheetId = nil
+            case .heures:
+                selectedDocumentId = nil
+            case .clients, .dashboard, .parametres, .none:
+                selectedDocumentId = nil
+                selectedTimesheetId = nil
+            }
         }
     }
 

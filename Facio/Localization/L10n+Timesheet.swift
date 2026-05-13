@@ -64,7 +64,7 @@ extension L10n {
     // Liste periodes
     static func newPeriod(_ l: AppLanguage) -> String { l == .fr ? "Nouvelle periode" : "New period" }
     static func monthlyPeriod(_ l: AppLanguage) -> String { l == .fr ? "Mois" : "Month" }
-    static func customPeriod(_ l: AppLanguage) -> String { l == .fr ? "Custom" : "Custom" }
+    static func customPeriod(_ l: AppLanguage) -> String { l == .fr ? "Personnalisee" : "Custom" }
     static func startDate(_ l: AppLanguage) -> String { l == .fr ? "Debut" : "Start" }
     static func endDate(_ l: AppLanguage) -> String { l == .fr ? "Fin" : "End" }
     static func month(_ l: AppLanguage) -> String { l == .fr ? "Mois" : "Month" }
@@ -87,6 +87,9 @@ extension L10n {
     }
     static func periodOverlapsForClient(_ l: AppLanguage) -> String {
         l == .fr ? "Cette plage chevauche deja une periode pour ce client" : "This range already overlaps a period for this client"
+    }
+    static func cannotSelectClient(_ l: AppLanguage) -> String {
+        l == .fr ? "Client non selectionne" : "Client not selected"
     }
     static func invoiced(_ l: AppLanguage) -> String { l == .fr ? "Facturee" : "Invoiced" }
     static func notInvoiced(_ l: AppLanguage) -> String { l == .fr ? "Non facturee" : "Not invoiced" }

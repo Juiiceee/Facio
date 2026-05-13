@@ -45,7 +45,7 @@ struct TimesheetWeek: Identifiable, Codable, Hashable {
                 heuresMoisCourant += h
                 moisCourantCommence = true
             } else {
-                h = adjacentHours[jour.dateString] ?? jour.heures
+                h = adjacentHours[jour.dateString] ?? 0
                 if !moisCourantCommence {
                     // Jours d'un autre mois avant le mois courant
                     heuresPrecedentes += h

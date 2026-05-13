@@ -5,6 +5,7 @@ struct DocumentSignaturesSection: View {
     let lang: AppLanguage
     let onAdd: () -> Void
     let onDelete: (TransactionSignature) -> Void
+    @Environment(DataStore.self) private var dataStore
 
     var body: some View {
         GroupBox(L10n.paymentProofsSection(lang)) {
@@ -29,7 +30,13 @@ struct DocumentSignaturesSection: View {
                     .padding(.vertical, 8)
             } else {
                 ForEach(document.transactionSignatures) { signature in
-                    SignatureRowView(document: document, signature: signature, lang: lang) {
+                    SignatureRowView(
+                        document: document,
+                        signature: signature,
+                        lang: lang,
+                        dateFormat: dataStore.companyInfo.formatDate,
+                        numberFormat: dataStore.companyInfo.formatNombre
+                    ) {
                         onDelete(signature)
                     }
                     Divider()
@@ -43,6 +50,8 @@ private struct SignatureRowView: View {
     let document: Document
     let signature: TransactionSignature
     let lang: AppLanguage
+    let dateFormat: AppLanguage
+    let numberFormat: AppLanguage
     let onDelete: () -> Void
 
     var body: some View {
@@ -59,10 +68,10 @@ private struct SignatureRowView: View {
                         .padding(.vertical, 2)
                         .background(Color.appPrimary.opacity(0.1))
                         .clipShape(Capsule())
-                    Text(signature.date.frenchFormatted)
+                    Text(signature.date.formattedDate(for: dateFormat))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text(document.currency.format(signature.montant))
+                    Text(document.currency.formatAccounting(signature.montant, lang: numberFormat))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

@@ -87,7 +87,7 @@ struct DocumentLineItemsSection: View {
                             HStack {
                                 Text(preset.designation)
                                 Spacer()
-                                Text("\(NSDecimalNumber(decimal: preset.prixUnitaire))€/u")
+                                Text("\(document.currency.formatAccounting(preset.prixUnitaire, lang: company.formatNombre))/\(L10n.unitShort(lang))")
                                     .foregroundStyle(.secondary)
                             }
                         }

@@ -9,6 +9,7 @@ struct LineItemRowView: View {
     @Environment(DataStore.self) private var dataStore
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+    private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
 
     private static let tvaRates: [Decimal] = [0, 5.5, 10, 20]
 
@@ -45,6 +46,7 @@ struct LineItemRowView: View {
                         }
                     )
                 )
+                .format(numberFormat)
                 .frame(width: 80)
 
                 // Prix unitaire
@@ -55,8 +57,10 @@ struct LineItemRowView: View {
                         set: { newVal in
                             if let i = safeIndex() { document.lignes[i].prixUnitaire = newVal; onUpdate() }
                         }
-                    )
+                    ),
+                    maximumFractionDigits: document.currency.maximumFractionDigits
                 )
+                .format(numberFormat)
                 .frame(width: 110)
 
                 // TVA
@@ -74,7 +78,7 @@ struct LineItemRowView: View {
                 .frame(width: 80)
 
                 // Total (lecture seule)
-                Text(currentLigne.totalLigne.formatted2Decimals)
+                Text(document.currency.formatAccounting(currentLigne.totalLigne, lang: numberFormat))
                     .font(.body.monospacedDigit())
                     .frame(width: 110, alignment: .trailing)
 
@@ -99,6 +103,7 @@ struct DecimalField: View {
     let placeholder: String
     @Binding var value: Decimal
     var maximumFractionDigits: Int = 2
+    var format: AppLanguage = .fr
     @State private var text: String = ""
     @FocusState private var isFocused: Bool
 
@@ -130,12 +135,19 @@ struct DecimalField: View {
             }
     }
 
+    func format(_ format: AppLanguage) -> Self {
+        var copy = self
+        copy.format = format
+        return copy
+    }
+
     private func formatDecimal(_ d: Decimal) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
+        formatter.locale = Locale(identifier: format == .fr ? "fr_FR" : "en_US")
         formatter.minimumFractionDigits = 0
         formatter.maximumFractionDigits = maximumFractionDigits
-        formatter.decimalSeparator = ","
+        formatter.decimalSeparator = format == .fr ? "," : "."
         formatter.groupingSeparator = ""
         return formatter.string(from: d as NSDecimalNumber) ?? "\(d)"
     }

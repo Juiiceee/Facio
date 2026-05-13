@@ -29,6 +29,10 @@ struct DocumentEditorView: View {
         dataStore.companyInfo
     }
 
+    private var availablePaymentModes: [PaymentMode] {
+        document.currency.isCrypto ? PaymentMode.allCases : [.aucun, .virement]
+    }
+
     private func scheduleSave() {
         saveTask?.cancel()
         saveTask = Task {
@@ -201,6 +205,9 @@ struct DocumentEditorView: View {
                             get: { document.status },
                             set: { newStatus in
                                 document.status = newStatus
+                                if newStatus == .envoyee {
+                                    _ = document.freezePaymentSnapshot(from: company)
+                                }
                                 prepareAccountingConversionIfNeeded()
                                 saveDocument()
                                 if newStatus == .payee && document.currency.isCrypto
@@ -265,7 +272,7 @@ struct DocumentEditorView: View {
                         get: { document.paymentMode },
                         set: { document.paymentMode = $0; saveDocument() }
                     )) {
-                        ForEach(PaymentMode.allCases) { mode in
+                        ForEach(availablePaymentModes) { mode in
                             Text(mode.label(for: lang)).tag(mode)
                         }
                     }
@@ -508,6 +515,12 @@ struct DocumentEditorView: View {
     }
 
     private func exporterPDF() {
+        if document.paymentSnapshot == nil {
+            if document.freezePaymentSnapshot(from: company) {
+                saveDocument()
+            }
+        }
+
         let pdfData = PDFGenerator(document: document, company: company).generate()
         guard !pdfData.isEmpty else {
             showPDFGenerationAlert = true

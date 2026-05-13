@@ -29,6 +29,9 @@ jobs:
       - name: Build
         run: swift build
 
+      - name: Run regression suite
+        run: swift run Facio --run-regressions
+
       - name: Packaging smoke test
         run: |
           VERSION="0.0.0"

@@ -47,6 +47,7 @@ struct DocumentPaymentInfoView: View {
                 },
                 set: {
                     document.selectedBankAccountId = $0
+                    document.paymentSnapshot = nil
                     onSave()
                 }
             )) {
@@ -141,6 +142,7 @@ struct DocumentPaymentInfoView: View {
                 },
                 set: {
                     document.selectedWalletId = $0
+                    document.paymentSnapshot = nil
                     onSave()
                 }
             )) {

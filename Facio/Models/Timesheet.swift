@@ -15,6 +15,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     var updatedAt: Date = Date()
     var invoiceDocumentId: UUID?
     var billedAt: Date?
+    var invoiceDetailModeRawValue: String = TimesheetInvoiceDetailMode.summary.rawValue
     var clientId: UUID?
     var clientNom: String = ""
     var clientAdresse: String = ""
@@ -46,6 +47,11 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     var totalNet: Decimal { totalBrut * coefficientNet }
     var hasGeneratedInvoice: Bool { invoiceDocumentId != nil || billedAt != nil }
     var hasClient: Bool { clientId != nil || !clientNom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    var invoiceDetailMode: TimesheetInvoiceDetailMode {
+        get { TimesheetInvoiceDetailMode(rawValue: invoiceDetailModeRawValue) ?? .summary }
+        set { invoiceDetailModeRawValue = newValue.rawValue }
+    }
 
     var clientDisplayName: String {
         clientNom.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -403,7 +409,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         for day in week.jours {
             let dayHours = isBillableDay(day)
                 ? day.heures
-                : adjacentHours[day.dateString] ?? day.heures
+                : adjacentHours[day.dateString] ?? 0
 
             defer { hoursBeforeDay += dayHours }
             guard isBillableDay(day), dayHours > 0 else { continue }
@@ -461,7 +467,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
 
     enum CodingKeys: String, CodingKey {
         case id, nom, mois, annee, customStartDateString, customEndDateString, semaines, createdAt, updatedAt
-        case invoiceDocumentId, billedAt
+        case invoiceDocumentId, billedAt, invoiceDetailModeRawValue
         case clientId, clientNom, clientAdresse, clientCodePostal, clientVille
         case clientSiret, clientTva, clientApe
         case tauxNormal, tauxSupplementaire, coefficientNet, seuilHebdo
@@ -479,6 +485,11 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         createdAt = c.decodeOrDefault(Date.self, forKey: .createdAt, default: Date())
         invoiceDocumentId = try? c.decode(UUID.self, forKey: .invoiceDocumentId)
         billedAt = try? c.decode(Date.self, forKey: .billedAt)
+        invoiceDetailModeRawValue = c.decodeOrDefault(
+            String.self,
+            forKey: .invoiceDetailModeRawValue,
+            default: TimesheetInvoiceDetailMode.summary.rawValue
+        )
         clientId = try? c.decode(UUID.self, forKey: .clientId)
         clientNom = c.decodeOrDefault(String.self, forKey: .clientNom, default: "")
         clientAdresse = c.decodeOrDefault(String.self, forKey: .clientAdresse, default: "")
@@ -508,6 +519,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         try c.encode(updatedAt, forKey: .updatedAt)
         try c.encodeIfPresent(invoiceDocumentId, forKey: .invoiceDocumentId)
         try c.encodeIfPresent(billedAt, forKey: .billedAt)
+        try c.encode(invoiceDetailModeRawValue, forKey: .invoiceDetailModeRawValue)
         try c.encodeIfPresent(clientId, forKey: .clientId)
         try c.encode(clientNom, forKey: .clientNom)
         try c.encode(clientAdresse, forKey: .clientAdresse)

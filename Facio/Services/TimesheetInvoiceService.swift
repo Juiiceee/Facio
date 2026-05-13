@@ -100,7 +100,7 @@ struct TimesheetInvoiceService {
             for day in week.jours {
                 let dayHours = timesheet.isBillableDay(day)
                     ? day.heures
-                    : adjacentHours[day.dateString] ?? day.heures
+                    : adjacentHours[day.dateString] ?? 0
 
                 defer {
                     hoursBeforeDay += dayHours
@@ -139,7 +139,7 @@ struct TimesheetInvoiceService {
             for day in week.jours {
                 let dayHours = timesheet.isBillableDay(day)
                     ? day.heures
-                    : adjacentHours[day.dateString] ?? day.heures
+                    : adjacentHours[day.dateString] ?? 0
 
                 defer {
                     hoursBeforeDay += dayHours

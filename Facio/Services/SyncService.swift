@@ -237,6 +237,7 @@ final class SyncService: Sendable {
                 "selected_wallet_id": doc.selectedWalletId?.uuidString ?? NSNull(),
                 "selected_bank_account_id": doc.selectedBankAccountId?.uuidString ?? NSNull(),
                 "langue_raw_value": doc.langueRawValue,
+                "payment_snapshot": paymentSnapshotPayload(doc.paymentSnapshot),
                 "created_at": syncDateString(doc.createdAt),
                 "updated_at": syncDateString(doc.updatedAt),
             ]
@@ -461,6 +462,7 @@ final class SyncService: Sendable {
                 "client_ape": ts.clientApe,
                 "invoice_document_id": ts.invoiceDocumentId?.uuidString ?? NSNull(),
                 "billed_at": ts.billedAt.map(syncDateString) ?? NSNull(),
+                "invoice_detail_mode_raw_value": ts.invoiceDetailModeRawValue,
                 "taux_normal": decimalPayload(ts.tauxNormal),
                 "taux_supplementaire": decimalPayload(ts.tauxSupplementaire),
                 "coefficient_net": decimalPayload(ts.coefficientNet),
@@ -557,6 +559,7 @@ final class SyncService: Sendable {
             doc.selectedWalletId = (json["selected_wallet_id"] as? String).flatMap { UUID(uuidString: $0) }
             doc.selectedBankAccountId = (json["selected_bank_account_id"] as? String).flatMap { UUID(uuidString: $0) }
             doc.langueRawValue = json["langue_raw_value"] as? String ?? "fr"
+            doc.paymentSnapshot = paymentSnapshot(from: json["payment_snapshot"])
             doc.createdAt = parseDate(json["created_at"]) ?? doc.dateCreation
             doc.updatedAt = parseDate(json["updated_at"]) ?? doc.createdAt
 
@@ -734,6 +737,8 @@ final class SyncService: Sendable {
             period.clientApe = json["client_ape"] as? String ?? ""
             period.invoiceDocumentId = (json["invoice_document_id"] as? String).flatMap { UUID(uuidString: $0) }
             period.billedAt = parseDate(json["billed_at"])
+            period.invoiceDetailModeRawValue = json["invoice_detail_mode_raw_value"] as? String
+                ?? TimesheetInvoiceDetailMode.summary.rawValue
             period.tauxNormal = decimalValue(json["taux_normal"], default: 26.39)
             period.tauxSupplementaire = decimalValue(json["taux_supplementaire"], default: 39.59)
             period.coefficientNet = decimalValue(json["coefficient_net"], default: 0.756)
@@ -1053,6 +1058,36 @@ final class SyncService: Sendable {
         NSDecimalNumber(decimal: value).stringValue
     }
 
+    private func paymentSnapshotPayload(_ snapshot: DocumentPaymentSnapshot?) -> Any {
+        guard let snapshot else { return NSNull() }
+        return [
+            "paymentModeRawValue": snapshot.paymentModeRawValue,
+            "blockchainRawValue": snapshot.blockchainRawValue ?? "",
+            "walletAddress": snapshot.walletAddress,
+            "bankName": snapshot.bankName,
+            "iban": snapshot.iban,
+            "bic": snapshot.bic,
+            "accountHolder": snapshot.accountHolder,
+            "createdAt": syncDateString(snapshot.createdAt),
+        ] as [String: Any]
+    }
+
+    private func paymentSnapshot(from value: Any?) -> DocumentPaymentSnapshot? {
+        guard let dictionary = value as? [String: Any] else { return nil }
+        let paymentModeRawValue = dictionary["paymentModeRawValue"] as? String ?? PaymentMode.aucun.rawValue
+        let blockchainRawValue = dictionary["blockchainRawValue"] as? String ?? ""
+        return DocumentPaymentSnapshot(
+            paymentModeRawValue: paymentModeRawValue,
+            blockchainRawValue: blockchainRawValue.isEmpty ? nil : blockchainRawValue,
+            walletAddress: dictionary["walletAddress"] as? String ?? "",
+            bankName: dictionary["bankName"] as? String ?? "",
+            iban: dictionary["iban"] as? String ?? "",
+            bic: dictionary["bic"] as? String ?? "",
+            accountHolder: dictionary["accountHolder"] as? String ?? "",
+            createdAt: parseDate(dictionary["createdAt"]) ?? Date()
+        )
+    }
+
     private func decimalValue(_ value: Any?, default defaultValue: Decimal = 0) -> Decimal {
         if let decimal = value as? Decimal {
             return decimal
@@ -1171,6 +1206,9 @@ final class SyncService: Sendable {
     static let sqlSchema = """
     -- Facio: Schema pour base de donnees custom
     -- Executez ce SQL dans l'editeur SQL de votre projet Supabase
+    -- Migrations non destructives pour bases existantes
+    ALTER TABLE IF EXISTS documents ADD COLUMN IF NOT EXISTS payment_snapshot JSONB;
+    ALTER TABLE IF EXISTS timesheet_periods ADD COLUMN IF NOT EXISTS invoice_detail_mode_raw_value TEXT NOT NULL DEFAULT 'summary';
 
     -- 1. Documents (factures et devis)
     CREATE TABLE documents (
@@ -1199,6 +1237,7 @@ final class SyncService: Sendable {
       selected_wallet_id UUID,
       selected_bank_account_id UUID,
       langue_raw_value TEXT NOT NULL DEFAULT 'fr',
+      payment_snapshot JSONB,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
@@ -1322,6 +1361,7 @@ final class SyncService: Sendable {
       client_ape TEXT NOT NULL DEFAULT '',
       invoice_document_id UUID,
       billed_at TIMESTAMPTZ,
+      invoice_detail_mode_raw_value TEXT NOT NULL DEFAULT 'summary',
       taux_normal NUMERIC NOT NULL DEFAULT 26.39,
       taux_supplementaire NUMERIC NOT NULL DEFAULT 39.59,
       coefficient_net NUMERIC NOT NULL DEFAULT 0.756,
