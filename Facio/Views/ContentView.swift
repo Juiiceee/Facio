@@ -18,15 +18,35 @@ struct ContentView: View {
         return dataStore.timesheets.first { $0.id == id }
     }
 
+    private var usesContentColumn: Bool {
+        switch selectedSection {
+        case .factures, .devis, .heures:
+            return true
+        case .clients, .dashboard, .parametres, .none:
+            return false
+        }
+    }
+
     var body: some View {
-        NavigationSplitView {
-            SidebarView(selection: $selectedSection)
-        } content: {
-            contentForSection
-                .navigationSplitViewColumnWidth(min: 300, ideal: 320, max: 400)
-        } detail: {
-            detailForSection
-                .frame(minWidth: 500)
+        Group {
+            if usesContentColumn {
+                NavigationSplitView {
+                    SidebarView(selection: $selectedSection)
+                } content: {
+                    contentForSection
+                        .navigationSplitViewColumnWidth(min: 300, ideal: 320, max: 400)
+                } detail: {
+                    detailForSection
+                        .frame(minWidth: 500)
+                }
+            } else {
+                NavigationSplitView {
+                    SidebarView(selection: $selectedSection)
+                } detail: {
+                    detailForSection
+                        .frame(minWidth: 700)
+                }
+            }
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 900, minHeight: 600)
