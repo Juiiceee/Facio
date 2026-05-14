@@ -2,10 +2,12 @@ import SwiftUI
 
 struct DashboardView: View {
     var onSelectDocument: (Document) -> Void = { _ in }
+    var onSelectTimesheet: (TimesheetPeriod) -> Void = { _ in }
 
     @Environment(DataStore.self) private var dataStore
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+    private var dateFormat: AppLanguage { dataStore.companyInfo.formatDate }
     private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
     private var accountingCurrency: CurrencyType { dataStore.companyInfo.deviseComptable }
 
@@ -61,99 +63,128 @@ struct DashboardView: View {
         )
     }
 
+    private var overdueInvoices: [Document] {
+        factures.filter(\.isOverdue)
+    }
+
+    private var awaitingPaymentInvoices: [Document] {
+        facturesEnAttente.filter { !$0.isOverdue }
+    }
+
+    private var quotesToFollowUp: [Document] {
+        devis.filter { $0.status == .envoyee }
+    }
+
+    private var missingConversionInvoices: [Document] {
+        factures.filter {
+            $0.needsAccountingConversion(referenceCurrency: accountingCurrency)
+                && $0.accountingTotal(referenceCurrency: accountingCurrency) == nil
+        }
+    }
+
+    private var uninvoicedTimesheets: [TimesheetPeriod] {
+        dataStore.timesheets
+            .filter { dataStore.canGenerateInvoice(for: $0) && !$0.hasGeneratedInvoice }
+            .sorted { $0.activeEndDateString > $1.activeEndDateString }
+    }
+
+    private var hasFocusItems: Bool {
+        !overdueInvoices.isEmpty
+            || !awaitingPaymentInvoices.isEmpty
+            || !quotesToFollowUp.isEmpty
+            || !missingConversionInvoices.isEmpty
+            || !uninvoicedTimesheets.isEmpty
+    }
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Cartes statistiques — adaptive columns
+            VStack(alignment: .leading, spacing: FacioLayout.sectionSpacing) {
+                dashboardHeader
+
                 LazyVGrid(columns: [
                     GridItem(.adaptive(minimum: 180, maximum: 300))
                 ], spacing: 16) {
-                    StatCard(
+                    MetricTile(
                         title: L10n.revenueThisMonth(lang),
                         value: accountingCurrency.formatAccounting(caMoisEnCours.total, lang: numberFormat),
                         subtitle: missingConversionSubtitle(caMoisEnCours),
-                        icon: "chart.line.uptrend.xyaxis",
+                        systemImage: "chart.line.uptrend.xyaxis",
                         color: .green
                     )
-                    StatCard(
+                    MetricTile(
                         title: L10n.revenueThisYear(lang),
                         value: accountingCurrency.formatAccounting(caAnneeEnCours.total, lang: numberFormat),
                         subtitle: missingConversionSubtitle(caAnneeEnCours),
-                        icon: "chart.bar.fill",
+                        systemImage: "chart.bar.fill",
                         color: .blue
                     )
-                    StatCard(
+                    MetricTile(
                         title: L10n.pending(lang),
                         value: accountingCurrency.formatAccounting(montantEnAttente.total, lang: numberFormat),
                         subtitle: pendingSubtitle,
-                        icon: "clock.fill",
+                        systemImage: "clock.fill",
                         color: .orange
                     )
-                    StatCard(
+                    MetricTile(
                         title: L10n.quotesInProgress(lang),
                         value: "\(devis.filter { $0.status == .envoyee }.count)",
-                        icon: "doc.text",
+                        systemImage: "doc.text",
                         color: .purple
                     )
                 }
 
-                Divider()
-
-                // Dernieres factures
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Label(L10n.latestInvoices(lang), systemImage: "doc.text")
-                            .font(.headline)
-
-                        if factures.isEmpty {
-                            Text(L10n.noInvoicesYet(lang))
-                                .foregroundStyle(.secondary)
-                        } else {
-                            ForEach(factures.prefix(5)) { doc in
-                                Button {
-                                    onSelectDocument(doc)
-                                } label: {
-                                    documentRow(doc)
-                                }
-                                .buttonStyle(.plain)
-                                if doc.id != factures.prefix(5).last?.id {
-                                    Divider()
-                                }
-                            }
-                        }
-                    }
-                    .padding(8)
-                }
-
-                // Derniers devis
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Label(L10n.latestQuotes(lang), systemImage: "doc.text.magnifyingglass")
-                            .font(.headline)
-
-                        if devis.isEmpty {
-                            Text(L10n.noQuotesYet(lang))
-                                .foregroundStyle(.secondary)
-                        } else {
-                            ForEach(devis.prefix(5)) { doc in
-                                Button {
-                                    onSelectDocument(doc)
-                                } label: {
-                                    documentRow(doc)
-                                }
-                                .buttonStyle(.plain)
-                                if doc.id != devis.prefix(5).last?.id {
-                                    Divider()
-                                }
-                            }
-                        }
-                    }
-                    .padding(8)
-                }
+                focusSection
+                recentSection
             }
-            .padding(24)
+            .padding(FacioLayout.screenPadding)
         }
         .navigationTitle(L10n.dashboard(lang))
+    }
+
+    private var dashboardHeader: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.dashboard(lang))
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                Text(L10n.todayFocus(lang))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+    }
+
+    private var focusSection: some View {
+        SectionPanel(L10n.todayFocus(lang), systemImage: "target") {
+            if hasFocusItems {
+                VStack(alignment: .leading, spacing: 14) {
+                    documentGroup(title: L10n.overdueInvoices(lang), icon: "exclamationmark.triangle.fill", tone: .danger, documents: overdueInvoices)
+                    documentGroup(title: L10n.awaitingPayment(lang), icon: "clock.fill", tone: .warning, documents: awaitingPaymentInvoices)
+                    documentGroup(title: L10n.quotesToFollowUp(lang), icon: "paperplane.fill", tone: .info, documents: quotesToFollowUp)
+                    documentGroup(title: L10n.missingAccountingConversions(lang), icon: "arrow.triangle.2.circlepath", tone: .warning, documents: missingConversionInvoices)
+                    timesheetGroup(title: L10n.uninvoicedPeriods(lang), icon: "calendar.badge.clock", tone: .success, timesheets: uninvoicedTimesheets)
+                }
+            } else {
+                ContentUnavailableView(
+                    L10n.nothingToHandle(lang),
+                    systemImage: "checkmark.circle",
+                    description: Text(L10n.nothingToHandleHint(lang))
+                )
+                .frame(maxWidth: .infinity, minHeight: 160)
+            }
+        }
+    }
+
+    private var recentSection: some View {
+        SectionPanel(L10n.recentWork(lang), systemImage: "clock.arrow.circlepath") {
+            LazyVGrid(columns: [
+                GridItem(.adaptive(minimum: 320, maximum: 520), alignment: .top)
+            ], spacing: 16) {
+                recentDocumentList(title: L10n.latestInvoices(lang), empty: L10n.noInvoicesYet(lang), documents: Array(factures.prefix(5)))
+                recentDocumentList(title: L10n.latestQuotes(lang), empty: L10n.noQuotesYet(lang), documents: Array(devis.prefix(5)))
+            }
+        }
     }
 
     private var pendingSubtitle: String {
@@ -166,6 +197,70 @@ struct DashboardView: View {
     private func missingConversionSubtitle(_ summary: AccountingRevenueSummary) -> String? {
         guard summary.missingConversionCount > 0 else { return nil }
         return L10n.missingConversions(lang, count: summary.missingConversionCount)
+    }
+
+    @ViewBuilder
+    private func documentGroup(title: String, icon: String, tone: InlineTone, documents: [Document]) -> some View {
+        if !documents.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(title, systemImage: icon)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(tone.color)
+                ForEach(documents.prefix(4)) { doc in
+                    Button {
+                        onSelectDocument(doc)
+                    } label: {
+                        documentRow(doc)
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.openDocument(lang))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func timesheetGroup(title: String, icon: String, tone: InlineTone, timesheets: [TimesheetPeriod]) -> some View {
+        if !timesheets.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(title, systemImage: icon)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(tone.color)
+                ForEach(timesheets.prefix(4)) { timesheet in
+                    Button {
+                        onSelectTimesheet(timesheet)
+                    } label: {
+                        timesheetRow(timesheet)
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.openPeriod(lang))
+                }
+            }
+        }
+    }
+
+    private func recentDocumentList(title: String, empty: String, documents: [Document]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.headline)
+            if documents.isEmpty {
+                Text(empty)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                ForEach(documents) { doc in
+                    Button {
+                        onSelectDocument(doc)
+                    } label: {
+                        documentRow(doc)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private func documentRow(_ doc: Document) -> some View {
@@ -182,8 +277,38 @@ struct DashboardView: View {
                 .font(.body.monospacedDigit())
                 .fontWeight(.medium)
             StatusBadge(status: doc.status, isOverdue: doc.isOverdue)
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
         }
-        .padding(.vertical, 4)
+        .padding(10)
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.6))
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    private func timesheetRow(_ timesheet: TimesheetPeriod) -> some View {
+        let hours = timesheet.totalHeuresDuMois().formatted2Decimals(for: numberFormat)
+        return HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(timesheet.periodLabel(for: lang))
+                    .fontWeight(.medium)
+                Text(timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text("\(hours)h")
+                .font(.body.monospacedDigit())
+                .fontWeight(.medium)
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(10)
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.6))
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
     }

@@ -62,36 +62,18 @@ struct DocumentEditorView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                enTeteSection
-                datesSection
-                deviseSection
-                accountingConversionSection
-                clientSection
-                DocumentLineItemsSection(document: document, company: company, lang: lang) {
-                    saveDocument()
-                }
-                totauxSection
-                DocumentPaymentInfoView(document: document, company: company, lang: lang) {
-                    saveDocument()
-                }
+        GeometryReader { geometry in
+            let usesSideInspector = geometry.size.width >= FacioLayout.documentInspectorBreakpoint
 
-                if document.status == .payee {
-                    DocumentSignaturesSection(
-                        document: document,
-                        lang: lang,
-                        onAdd: presentAddSignatureSheet,
-                        onDelete: { signature in
-                            document.transactionSignatures.removeAll { $0.id == signature.id }
-                            saveDocument()
-                        }
-                    )
-                }
+            HStack(spacing: 0) {
+                documentMainScroll(showInlineInspector: !usesSideInspector)
+                    .frame(maxWidth: .infinity)
 
-                notesSection
+                if usesSideInspector && hasReadinessIssues {
+                    Divider()
+                    documentInspector
+                }
             }
-            .padding(24)
         }
         .navigationTitle(document.number.isEmpty ? L10n.newDocument(lang) : document.number)
         .toolbar {
@@ -124,6 +106,251 @@ struct DocumentEditorView: View {
         } message: {
             Text(L10n.cannotExportPDF(lang))
         }
+    }
+
+    private func documentMainScroll(showInlineInspector: Bool) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: FacioLayout.sectionSpacing) {
+                documentHeroBar
+                documentDetailsSection
+
+                if showInlineInspector {
+                    documentInspectorContent
+                }
+
+                clientSection
+                DocumentLineItemsSection(document: document, company: company, lang: lang) {
+                    saveDocument()
+                }
+                DocumentPaymentInfoView(document: document, company: company, lang: lang) {
+                    saveDocument()
+                }
+
+                if document.status == .payee {
+                    DocumentSignaturesSection(
+                        document: document,
+                        lang: lang,
+                        onAdd: presentAddSignatureSheet,
+                        onDelete: { signature in
+                            document.transactionSignatures.removeAll { $0.id == signature.id }
+                            saveDocument()
+                        }
+                    )
+                }
+
+                notesSection
+            }
+            .padding(FacioLayout.screenPadding)
+        }
+    }
+
+    private var documentHeroBar: some View {
+        SectionPanel {
+            ViewThatFits(in: .horizontal) {
+                heroHorizontal
+                heroCompact
+            }
+        }
+    }
+
+    private var heroHorizontal: some View {
+        HStack(alignment: .center, spacing: 18) {
+            heroIdentity
+
+            Spacer()
+
+            heroTotal
+            heroActions
+        }
+    }
+
+    private var heroCompact: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            heroIdentity
+
+            HStack(alignment: .bottom, spacing: 16) {
+                heroTotal
+                Spacer()
+                heroActions
+            }
+        }
+    }
+
+    private var heroIdentity: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text(document.type.label(for: lang))
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.appPrimary(from: company))
+                StatusBadge(status: document.status, isOverdue: document.isOverdue)
+            }
+
+            TextField(L10n.number(lang), text: Binding(
+                get: { document.number },
+                set: { document.number = $0; scheduleSave() }
+            ))
+            .font(.title2.weight(.semibold))
+            .textFieldStyle(.plain)
+            .lineLimit(1)
+
+            Text(document.clientNom.isEmpty ? L10n.noClient(lang) : document.clientNom)
+                .font(.subheadline)
+                .foregroundStyle(document.clientNom.isEmpty ? .tertiary : .secondary)
+                .lineLimit(1)
+        }
+        .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var heroTotal: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            Text(L10n.totalTTC(lang))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(document.currency.formatAccounting(document.totalTTC, lang: dataStore.companyInfo.formatNombre))
+                .font(.title.monospacedDigit())
+                .fontWeight(.bold)
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+        }
+        .frame(minWidth: 150, alignment: .trailing)
+    }
+
+    private var heroActions: some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            Button {
+                showPreview = true
+            } label: {
+                Label(L10n.preview(lang), systemImage: "eye")
+            }
+            .buttonStyle(.bordered)
+
+            Button {
+                exporterPDF()
+            } label: {
+                Label(L10n.exportPDF(lang), systemImage: "square.and.arrow.up")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+    }
+
+    private var documentDetailsSection: some View {
+        SectionPanel(L10n.documentDetails(lang), systemImage: "slider.horizontal.3") {
+            VStack(alignment: .leading, spacing: 16) {
+                enTeteSection
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 16) {
+                        datesSection
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                        deviseSection
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
+
+                    VStack(alignment: .leading, spacing: 16) {
+                        datesSection
+                        deviseSection
+                    }
+                }
+                accountingConversionSection
+            }
+        }
+    }
+
+    private var documentInspector: some View {
+        InspectorPanel {
+            documentInspectorContent
+        }
+    }
+
+    private var documentInspectorContent: some View {
+        Group {
+            documentReadinessSection
+        }
+    }
+
+    @ViewBuilder
+    private var documentReadinessSection: some View {
+        if hasReadinessIssues {
+            SectionPanel(L10n.documentReadiness(lang), systemImage: "exclamationmark.triangle") {
+                VStack(alignment: .leading, spacing: 10) {
+                    if !clientIsReady {
+                        ChecklistRow(
+                            title: L10n.clientReady(lang),
+                            detail: L10n.missingClientHint(lang),
+                            isComplete: false
+                        )
+                    }
+
+                    if !linesAreReady {
+                        ChecklistRow(
+                            title: L10n.linesReady(lang),
+                            detail: L10n.missingLinesHint(lang),
+                            isComplete: false
+                        )
+                    }
+
+                    if !amountIsReady {
+                        ChecklistRow(
+                            title: L10n.amountReady(lang),
+                            detail: L10n.missingAmountHint(lang),
+                            isComplete: false
+                        )
+                    }
+
+                    if !paymentIsReady {
+                        ChecklistRow(
+                            title: L10n.paymentReady(lang),
+                            detail: L10n.missingPaymentHint(lang),
+                            isComplete: false
+                        )
+                    }
+
+                    if !conversionIsReady {
+                        ChecklistRow(
+                            title: L10n.conversionReady(lang),
+                            detail: L10n.missingConversionHint(lang),
+                            isComplete: false
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private var hasReadinessIssues: Bool {
+        !clientIsReady || !linesAreReady || !amountIsReady || !paymentIsReady || !conversionIsReady
+    }
+
+    private var clientIsReady: Bool {
+        !document.clientNom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var linesAreReady: Bool {
+        document.lignes.contains {
+            !$0.designation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && $0.quantite > 0
+        }
+    }
+
+    private var amountIsReady: Bool {
+        document.totalTTC > 0
+    }
+
+    private var paymentIsReady: Bool {
+        switch document.paymentMode {
+        case .aucun:
+            return true
+        case .virement:
+            return document.selectedPaymentBankAccount(from: company.bankAccounts) != nil
+        case .crypto:
+            return document.selectedPaymentWallet(from: company.wallets) != nil
+        }
+    }
+
+    private var conversionIsReady: Bool {
+        guard document.type == .facture else { return true }
+        guard document.needsAccountingConversion(referenceCurrency: company.deviseComptable) else { return true }
+        return document.accountingTotal(referenceCurrency: company.deviseComptable) != nil
     }
 
     @ToolbarContentBuilder
@@ -512,6 +739,16 @@ struct DocumentEditorView: View {
             language: lang
         )
         dataStore.addDocument(copie)
+    }
+
+    private func convertirEnFacture() {
+        let facture = document.convertirEnFacture()
+        facture.number = DocumentNumberService.nextNumber(
+            type: .facture,
+            existingDocuments: allDocuments,
+            language: lang
+        )
+        dataStore.addDocument(facture)
     }
 
     private func exporterPDF() {

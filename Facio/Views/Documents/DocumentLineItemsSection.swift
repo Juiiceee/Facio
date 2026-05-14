@@ -7,7 +7,7 @@ struct DocumentLineItemsSection: View {
     let onSave: () -> Void
 
     var body: some View {
-        GroupBox(L10n.linesSection(lang)) {
+        SectionPanel(L10n.linesSection(lang), systemImage: "list.bullet.rectangle") {
             VStack(alignment: .leading, spacing: 8) {
                 header
                 Divider()
@@ -47,6 +47,12 @@ struct DocumentLineItemsSection: View {
                     onDelete: {
                         document.supprimerLigne(ligne)
                         onSave()
+                    },
+                    onDuplicate: {
+                        duplicateLine(ligne)
+                    },
+                    onInsertBelow: {
+                        insertLineBelow(ligne)
                     },
                     onUpdate: onSave
                 )
@@ -109,6 +115,40 @@ struct DocumentLineItemsSection: View {
             ordre: document.lignes.count
         )
         document.ajouterLigne(ligne)
+        onSave()
+    }
+
+    private func duplicateLine(_ line: LineItem) {
+        let copy = LineItem(
+            designation: line.designation,
+            quantite: line.quantite,
+            prixUnitaire: line.prixUnitaire,
+            tauxTVA: line.tauxTVA,
+            ordre: line.ordre + 1
+        )
+        insert(copy, after: line)
+    }
+
+    private func insertLineBelow(_ line: LineItem) {
+        let newLine = LineItem(
+            designation: "",
+            quantite: 1,
+            prixUnitaire: 0,
+            tauxTVA: company.tauxTVAParDefaut,
+            ordre: line.ordre + 1
+        )
+        insert(newLine, after: line)
+    }
+
+    private func insert(_ line: LineItem, after reference: LineItem) {
+        let sorted = document.lignesTriees
+        let insertionIndex = (sorted.firstIndex { $0.id == reference.id } ?? sorted.endIndex - 1) + 1
+        var rebuilt = sorted
+        rebuilt.insert(line, at: min(insertionIndex, rebuilt.endIndex))
+        for index in rebuilt.indices {
+            rebuilt[index].ordre = index
+        }
+        document.lignes = rebuilt
         onSave()
     }
 }

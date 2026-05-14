@@ -4,6 +4,8 @@ struct LineItemRowView: View {
     var document: Document
     let ligneId: UUID
     var onDelete: () -> Void
+    var onDuplicate: () -> Void
+    var onInsertBelow: () -> Void
     var onUpdate: () -> Void
 
     @Environment(DataStore.self) private var dataStore
@@ -82,19 +84,45 @@ struct LineItemRowView: View {
                     .font(.body.monospacedDigit())
                     .frame(width: 110, alignment: .trailing)
 
-                // Supprimer
-                Button(role: .destructive) {
-                    onDelete()
+                Menu {
+                    Button {
+                        onInsertBelow()
+                    } label: {
+                        Label(L10n.insertLineBelow(lang), systemImage: "plus")
+                    }
+
+                    Button {
+                        onDuplicate()
+                    } label: {
+                        Label(L10n.duplicateLine(lang), systemImage: "doc.on.doc")
+                    }
+
+                    Divider()
+
+                    Button(role: .destructive) {
+                        onDelete()
+                    } label: {
+                        Label(L10n.deleteLine(lang), systemImage: "trash")
+                    }
                 } label: {
-                    Image(systemName: "trash")
-                        .foregroundStyle(.red.opacity(0.7))
+                    Image(systemName: "ellipsis.circle")
                         .frame(width: 32, height: 28)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.borderless)
+                .menuStyle(.borderlessButton)
+                .help(L10n.businessActions(lang))
             }
             .padding(.vertical, 2)
+            .padding(.horizontal, 4)
+            .background(rowNeedsAttention(currentLigne) ? Color.orange.opacity(0.08) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
         }
+    }
+
+    private func rowNeedsAttention(_ line: LineItem) -> Bool {
+        line.designation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || line.quantite <= 0
+            || line.prixUnitaire < 0
     }
 }
 

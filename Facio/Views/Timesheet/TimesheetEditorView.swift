@@ -18,6 +18,7 @@ struct TimesheetEditorView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                timesheetHeroBar
                 clientSection
                 resumeSection
                 hourInputModeControl
@@ -79,6 +80,64 @@ struct TimesheetEditorView: View {
             Button(L10n.understood(lang), role: .cancel) {}
         } message: {
             Text(L10n.periodOverlapsForClient(lang))
+        }
+    }
+
+    private var timesheetHeroBar: some View {
+        let adj = adjHours
+        let heures = timesheet.totalHeuresDuMois()
+        let brut = timesheet.totalBrutCrossPeriod(adjacentHours: adj)
+        let net = timesheet.totalNetCrossPeriod(adjacentHours: adj)
+
+        return SectionPanel {
+            HStack(alignment: .center, spacing: 18) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(timesheet.periodLabel(for: lang))
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    Text(timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName)
+                        .font(.subheadline)
+                        .foregroundStyle(timesheet.clientDisplayName.isEmpty ? .tertiary : .secondary)
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(L10n.totalHours(lang))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("\(heures.formatted2Decimals)h")
+                        .font(.title3.monospacedDigit())
+                        .fontWeight(.bold)
+                }
+
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(L10n.grossTotal(lang))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(brut.formatted2Decimals)
+                        .font(.title3.monospacedDigit())
+                        .fontWeight(.bold)
+                }
+
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(L10n.netTotal(lang))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(net.formatted2Decimals)
+                        .font(.title3.monospacedDigit())
+                        .fontWeight(.bold)
+                }
+
+                Text(timesheet.hasGeneratedInvoice ? L10n.invoiced(lang) : L10n.notInvoiced(lang))
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background((timesheet.hasGeneratedInvoice ? Color.green : Color.orange).opacity(0.14))
+                    .foregroundStyle(timesheet.hasGeneratedInvoice ? .green : .orange)
+                    .clipShape(Capsule())
+            }
         }
     }
 

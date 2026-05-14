@@ -5,27 +5,27 @@ import Foundation
 extension L10n {
 
     // Onglets
-    static func settings(_ l: AppLanguage) -> String { l == .fr ? "Parametres" : "Settings" }
+    static func settings(_ l: AppLanguage) -> String { l == .fr ? "Paramètres" : "Settings" }
     static func settingsCompany(_ l: AppLanguage) -> String { l == .fr ? "Entreprise" : "Company" }
     static func settingsPayment(_ l: AppLanguage) -> String { l == .fr ? "Paiement" : "Payment" }
-    static func settingsDefaults(_ l: AppLanguage) -> String { l == .fr ? "Valeurs par defaut" : "Defaults" }
+    static func settingsDefaults(_ l: AppLanguage) -> String { l == .fr ? "Valeurs par défaut" : "Defaults" }
     static func settingsServices(_ l: AppLanguage) -> String { l == .fr ? "Prestations" : "Services" }
     static func settingsSync(_ l: AppLanguage) -> String { l == .fr ? "Synchronisation" : "Sync" }
-    static func settingsAbout(_ l: AppLanguage) -> String { l == .fr ? "A propos" : "About" }
+    static func settingsAbout(_ l: AppLanguage) -> String { l == .fr ? "À propos" : "About" }
     static func settingsLanguage(_ l: AppLanguage) -> String { l == .fr ? "Langue & Format" : "Language & Format" }
     static func settingsCustomisation(_ l: AppLanguage) -> String { l == .fr ? "Personnalisation" : "Customisation" }
 
     // Personnalisation
-    static func themeColor(_ l: AppLanguage) -> String { l == .fr ? "Couleur du theme" : "Theme color" }
+    static func themeColor(_ l: AppLanguage) -> String { l == .fr ? "Couleur du thème" : "Theme color" }
     static func mainColor(_ l: AppLanguage) -> String { l == .fr ? "Couleur principale" : "Main color" }
-    static func resetColor(_ l: AppLanguage) -> String { l == .fr ? "Reinitialiser" : "Reset" }
-    static func colorPreview(_ l: AppLanguage) -> String { l == .fr ? "Apercu" : "Preview" }
-    static func colorHeader(_ l: AppLanguage) -> String { l == .fr ? "En-tete" : "Header" }
+    static func resetColor(_ l: AppLanguage) -> String { l == .fr ? "Réinitialiser" : "Reset" }
+    static func colorPreview(_ l: AppLanguage) -> String { l == .fr ? "Aperçu" : "Preview" }
+    static func colorHeader(_ l: AppLanguage) -> String { l == .fr ? "En-tête" : "Header" }
     static func colorSections(_ l: AppLanguage) -> String { l == .fr ? "Sections" : "Sections" }
     static func colorAlternating(_ l: AppLanguage) -> String { l == .fr ? "Alternance" : "Alternating" }
 
     // Entreprise
-    static func identity(_ l: AppLanguage) -> String { l == .fr ? "Identite" : "Identity" }
+    static func identity(_ l: AppLanguage) -> String { l == .fr ? "Identité" : "Identity" }
     static func companyName(_ l: AppLanguage) -> String { l == .fr ? "Nom de l'entreprise" : "Company name" }
     static func postalAddress(_ l: AppLanguage) -> String { l == .fr ? "Adresse postale" : "Postal address" }
     static func chooseAnotherFile(_ l: AppLanguage) -> String { l == .fr ? "Choisir un autre fichier..." : "Choose another file..." }
@@ -37,7 +37,7 @@ extension L10n {
     static func fiatPayment(_ l: AppLanguage) -> String { l == .fr ? "Paiement Fiat" : "Fiat payment" }
     static func bankAccounts(_ l: AppLanguage) -> String { l == .fr ? "Comptes bancaires" : "Bank accounts" }
     static func bankAccount(_ l: AppLanguage) -> String { l == .fr ? "Compte bancaire" : "Bank account" }
-    static func noBankAccountConfiguredShort(_ l: AppLanguage) -> String { l == .fr ? "Aucun compte bancaire configure" : "No bank account configured" }
+    static func noBankAccountConfiguredShort(_ l: AppLanguage) -> String { l == .fr ? "Aucun compte bancaire configuré" : "No bank account configured" }
     static func addBankAccount(_ l: AppLanguage) -> String { l == .fr ? "Ajouter un compte bancaire" : "Add bank account" }
     static func bankAccountNamePlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Nom (ex: Pro, Wise EUR...)" : "Name (e.g. Business, Wise EUR...)" }
     static func bankName(_ l: AppLanguage) -> String { l == .fr ? "Nom de la banque" : "Bank name" }
@@ -46,7 +46,7 @@ extension L10n {
     static func accountHolderPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Nom du titulaire" : "Account holder name" }
     static func bankAccountIbanRequired(_ l: AppLanguage) -> String { l == .fr ? "IBAN requis pour utiliser ce compte sur une facture" : "IBAN required before this account can be used on an invoice" }
     static func cryptoWallets(_ l: AppLanguage) -> String { l == .fr ? "Wallets Crypto" : "Crypto wallets" }
-    static func noWalletConfiguredShort(_ l: AppLanguage) -> String { l == .fr ? "Aucun wallet configure" : "No wallet configured" }
+    static func noWalletConfiguredShort(_ l: AppLanguage) -> String { l == .fr ? "Aucun wallet configuré" : "No wallet configured" }
     static func addWallet(_ l: AppLanguage) -> String { l == .fr ? "Ajouter un wallet" : "Add wallet" }
     static func walletNamePlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Nom (ex: Phantom, Ledger...)" : "Name (e.g. Phantom, Ledger...)" }
     static func walletAddressPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Adresse du wallet" : "Wallet address" }
@@ -54,27 +54,27 @@ extension L10n {
 
     // Valeurs par defaut
     static func vatRate(_ l: AppLanguage) -> String { l == .fr ? "Taux de TVA" : "VAT rate" }
-    static func defaultRate(_ l: AppLanguage) -> String { l == .fr ? "Taux par defaut" : "Default rate" }
+    static func defaultRate(_ l: AppLanguage) -> String { l == .fr ? "Taux par défaut" : "Default rate" }
     static func currency(_ l: AppLanguage) -> String { l == .fr ? "Devise" : "Currency" }
-    static func defaultCurrency(_ l: AppLanguage) -> String { l == .fr ? "Devise par defaut" : "Default currency" }
+    static func defaultCurrency(_ l: AppLanguage) -> String { l == .fr ? "Devise par défaut" : "Default currency" }
     static func accountingCurrencySetting(_ l: AppLanguage) -> String { l == .fr ? "Devise comptable" : "Accounting currency" }
-    static func defaultBlockchain(_ l: AppLanguage) -> String { l == .fr ? "Blockchain par defaut" : "Default blockchain" }
-    static func paymentDelay(_ l: AppLanguage) -> String { l == .fr ? "Delai de paiement" : "Payment delay" }
-    static func defaultDelay(_ l: AppLanguage) -> String { l == .fr ? "Delai par defaut" : "Default delay" }
+    static func defaultBlockchain(_ l: AppLanguage) -> String { l == .fr ? "Blockchain par défaut" : "Default blockchain" }
+    static func paymentDelay(_ l: AppLanguage) -> String { l == .fr ? "Délai de paiement" : "Payment delay" }
+    static func defaultDelay(_ l: AppLanguage) -> String { l == .fr ? "Délai par défaut" : "Default delay" }
     static func days(_ l: AppLanguage, count: Int) -> String { l == .fr ? "\(count) jours" : "\(count) days" }
 
     // Prestations
     static func servicesInfo(_ l: AppLanguage) -> String {
-        l == .fr ? "Configurez vos prestations habituelles pour les ajouter en un clic lors de la creation de factures et devis."
+        l == .fr ? "Configurez vos prestations habituelles pour les ajouter en un clic lors de la création de factures et devis."
         : "Configure your usual services to add them with one click when creating invoices and quotes."
     }
     static func favoriteServices(_ l: AppLanguage) -> String { l == .fr ? "Prestations favorites" : "Favorite services" }
-    static func noServiceConfigured(_ l: AppLanguage) -> String { l == .fr ? "Aucune prestation configuree" : "No service configured" }
+    static func noServiceConfigured(_ l: AppLanguage) -> String { l == .fr ? "Aucune prestation configurée" : "No service configured" }
     static func addService(_ l: AppLanguage) -> String { l == .fr ? "Ajouter une prestation" : "Add service" }
 
     // Langue & Format
-    static func defaultLanguage(_ l: AppLanguage) -> String { l == .fr ? "Langue par defaut" : "Default language" }
-    static func defaultLanguageHint(_ l: AppLanguage) -> String { l == .fr ? "Langue utilisee pour les nouveaux documents" : "Language used for new documents" }
+    static func defaultLanguage(_ l: AppLanguage) -> String { l == .fr ? "Langue par défaut" : "Default language" }
+    static func defaultLanguageHint(_ l: AppLanguage) -> String { l == .fr ? "Langue utilisée pour les nouveaux documents" : "Language used for new documents" }
     static func dateFormat(_ l: AppLanguage) -> String { l == .fr ? "Format de date" : "Date format" }
     static func numberFormat(_ l: AppLanguage) -> String { l == .fr ? "Format des nombres" : "Number format" }
 

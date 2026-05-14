@@ -68,11 +68,11 @@ enum DocumentStatus: String, Codable, CaseIterable, Identifiable {
         switch (self, lang) {
         case (.brouillon, .fr): return "Brouillon"
         case (.brouillon, .en): return "Draft"
-        case (.envoyee, .fr): return "Envoyee"
+        case (.envoyee, .fr): return "Envoyée"
         case (.envoyee, .en): return "Sent"
-        case (.payee, .fr): return "Payee"
+        case (.payee, .fr): return "Payée"
         case (.payee, .en): return "Paid"
-        case (.annulee, .fr): return "Annulee"
+        case (.annulee, .fr): return "Annulée"
         case (.annulee, .en): return "Cancelled"
         }
     }

@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ClientListView: View {
+    var onSelectDocument: (Document) -> Void = { _ in }
+
     @Environment(DataStore.self) private var dataStore
     @State private var searchText = ""
     @State private var selectedClient: ClientInfo?
@@ -25,8 +27,7 @@ struct ClientListView: View {
     }
 
     var body: some View {
-        HSplitView {
-            // Liste
+        HStack(spacing: 0) {
             List(filteredClients, selection: $selectedClient) { client in
                 ClientRow(client: client)
                     .tag(client)
@@ -39,9 +40,14 @@ struct ClientListView: View {
             .searchable(text: $searchText, prompt: L10n.searchClientPrompt(lang))
             .frame(minWidth: 280, idealWidth: 360, maxWidth: 520, maxHeight: .infinity)
 
-            // Detail / Editeur
+            Divider()
+
             if let client = selectedClient {
-                ClientDetailView(client: client)
+                ClientDetailView(
+                    client: client,
+                    onSelectDocument: onSelectDocument,
+                    onCreateDocument: createDocument
+                )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ContentUnavailableView(
@@ -79,6 +85,43 @@ struct ClientListView: View {
             selectedClient = nil
         }
         dataStore.deleteClient(client)
+    }
+
+    private func createDocument(type: DocumentType, client: ClientInfo) {
+        let company = dataStore.companyInfo
+        let creationDate = Date()
+        let currency = company.deviseParDefaut
+        let document = Document(
+            type: type,
+            number: DocumentNumberService.nextNumber(
+                type: type,
+                existingDocuments: dataStore.documents.sorted { $0.dateCreation > $1.dateCreation },
+                language: company.langueParDefaut
+            ),
+            dateCreation: creationDate,
+            dateEcheance: Calendar.current.date(
+                byAdding: .day,
+                value: company.delaiPaiementJours,
+                to: creationDate
+            ) ?? creationDate,
+            currency: currency,
+            blockchain: defaultBlockchain(for: currency)
+        )
+        document.langue = company.langueParDefaut
+        client.appliquer(sur: document)
+        dataStore.addDocument(document)
+        onSelectDocument(document)
+    }
+
+    private func defaultBlockchain(for currency: CurrencyType) -> Blockchain? {
+        guard currency.requiresBlockchain else { return nil }
+        let compatible = Blockchain.compatibleBlockchains(for: currency)
+        guard !compatible.isEmpty else { return nil }
+        if let defaultBlockchain = dataStore.companyInfo.blockchainParDefaut,
+           compatible.contains(defaultBlockchain) {
+            return defaultBlockchain
+        }
+        return compatible.first
     }
 }
 
@@ -121,25 +164,49 @@ struct ClientRow: View {
 
 struct ClientDetailView: View {
     var client: ClientInfo
+    var onSelectDocument: (Document) -> Void
+    var onCreateDocument: (DocumentType, ClientInfo) -> Void
+
     @Environment(DataStore.self) private var dataStore
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+    private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
+
+    private var relatedDocuments: [Document] {
+        dataStore.documents
+            .filter(documentMatchesClient)
+            .sorted { $0.dateCreation > $1.dateCreation }
+    }
+
+    private var relatedInvoices: [Document] {
+        relatedDocuments.filter { $0.type == .facture }
+    }
+
+    private var totalInvoiced: Decimal {
+        AccountingRevenueService.summary(
+            for: relatedInvoices,
+            referenceCurrency: dataStore.companyInfo.deviseComptable
+        ).total
+    }
+
+    private var totalPaid: Decimal {
+        AccountingRevenueService.summary(
+            for: relatedInvoices.filter { $0.status == .payee },
+            referenceCurrency: dataStore.companyInfo.deviseComptable
+        ).total
+    }
 
     var body: some View {
-        Form {
-            Section(L10n.information(lang)) {
-                TextField(L10n.name(lang), text: Bindable(client).nom)
-                TextField(L10n.address(lang), text: Bindable(client).adresse)
-                TextField(L10n.postalCode(lang), text: Bindable(client).codePostal)
-                TextField(L10n.city(lang), text: Bindable(client).ville)
-                TextField(L10n.email(lang), text: Bindable(client).email)
-                TextField(L10n.siret(lang), text: Bindable(client).siret)
-                TextField(L10n.vatNumber(lang), text: Bindable(client).tva)
-                TextField(L10n.apeCode(lang), text: Bindable(client).ape)
+        ScrollView {
+            VStack(alignment: .leading, spacing: FacioLayout.sectionSpacing) {
+                clientHeader
+                clientMetrics
+                quickActions
+                informationSection
+                timelineSection
             }
+            .padding(FacioLayout.screenPadding)
         }
-        .formStyle(.grouped)
-        .padding()
         .onChange(of: client.nom) { dataStore.clientUpdated(client) }
         .onChange(of: client.adresse) { dataStore.clientUpdated(client) }
         .onChange(of: client.codePostal) { dataStore.clientUpdated(client) }
@@ -148,5 +215,188 @@ struct ClientDetailView: View {
         .onChange(of: client.siret) { dataStore.clientUpdated(client) }
         .onChange(of: client.tva) { dataStore.clientUpdated(client) }
         .onChange(of: client.ape) { dataStore.clientUpdated(client) }
+    }
+
+    private var clientHeader: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(client.displayName.isEmpty ? L10n.noClient(lang) : client.displayName)
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                if !client.email.isEmpty {
+                    Text(client.email)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+            }
+            Spacer()
+        }
+    }
+
+    private var clientMetrics: some View {
+        LazyVGrid(columns: [
+            GridItem(.adaptive(minimum: 160, maximum: 260))
+        ], spacing: 12) {
+            MetricTile(
+                title: L10n.clientRevenue(lang),
+                value: dataStore.companyInfo.deviseComptable.formatAccounting(totalInvoiced, lang: numberFormat),
+                systemImage: "doc.text",
+                color: .blue
+            )
+            MetricTile(
+                title: L10n.clientPaid(lang),
+                value: dataStore.companyInfo.deviseComptable.formatAccounting(totalPaid, lang: numberFormat),
+                systemImage: "checkmark.circle",
+                color: .green
+            )
+            MetricTile(
+                title: L10n.recentWork(lang),
+                value: "\(relatedDocuments.count)",
+                systemImage: "clock.arrow.circlepath",
+                color: .orange
+            )
+        }
+    }
+
+    private var quickActions: some View {
+        SectionPanel(L10n.businessActions(lang), systemImage: "bolt") {
+            HStack(spacing: 12) {
+                Button {
+                    onCreateDocument(.facture, client)
+                } label: {
+                    Label(L10n.createInvoiceForClient(lang), systemImage: "doc.text")
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    onCreateDocument(.devis, client)
+                } label: {
+                    Label(L10n.createQuoteForClient(lang), systemImage: "doc.text.magnifyingglass")
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+            }
+        }
+    }
+
+    private var informationSection: some View {
+        SectionPanel(L10n.information(lang), systemImage: "person.text.rectangle") {
+            VStack(alignment: .leading, spacing: 12) {
+                settingsRow(L10n.name(lang)) {
+                    TextField(L10n.name(lang), text: Bindable(client).nom)
+                        .textFieldStyle(.roundedBorder)
+                }
+                settingsRow(L10n.address(lang)) {
+                    TextField(L10n.address(lang), text: Bindable(client).adresse)
+                        .textFieldStyle(.roundedBorder)
+                }
+                HStack(spacing: 12) {
+                    settingsRow(L10n.postalCode(lang)) {
+                        TextField(L10n.postalCode(lang), text: Bindable(client).codePostal)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    .frame(maxWidth: 140)
+
+                    settingsRow(L10n.city(lang)) {
+                        TextField(L10n.city(lang), text: Bindable(client).ville)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+                settingsRow(L10n.email(lang)) {
+                    TextField(L10n.email(lang), text: Bindable(client).email)
+                        .textFieldStyle(.roundedBorder)
+                }
+                HStack(spacing: 12) {
+                    settingsRow(L10n.siret(lang)) {
+                        TextField(L10n.siret(lang), text: Bindable(client).siret)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    settingsRow(L10n.vatNumber(lang)) {
+                        TextField(L10n.vatNumber(lang), text: Bindable(client).tva)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    settingsRow(L10n.apeCode(lang)) {
+                        TextField(L10n.apeCode(lang), text: Bindable(client).ape)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+            }
+        }
+    }
+
+    private var timelineSection: some View {
+        SectionPanel(L10n.clientTimeline(lang), systemImage: "timeline.selection") {
+            if relatedDocuments.isEmpty {
+                Text(L10n.noClientActivity(lang))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(relatedDocuments.prefix(8)) { document in
+                        Button {
+                            onSelectDocument(document)
+                        } label: {
+                            documentTimelineRow(document)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private func documentTimelineRow(_ document: Document) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: document.type == .facture ? "doc.text" : "doc.text.magnifyingglass")
+                .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(document.number)
+                    .fontWeight(.medium)
+                Text(document.dateCreation.formattedDate(for: dataStore.companyInfo.formatDate))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(document.currency.formatAccounting(document.totalTTC, lang: numberFormat))
+                .font(.body.monospacedDigit())
+                .fontWeight(.medium)
+            StatusBadge(status: document.status, isOverdue: document.isOverdue)
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(10)
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.6))
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+        .contentShape(Rectangle())
+    }
+
+    private func documentMatchesClient(_ document: Document) -> Bool {
+        let clientName = client.nom.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let docName = document.clientNom.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if !clientName.isEmpty, clientName == docName { return true }
+
+        let identifiers = [
+            (client.siret, document.clientSiret),
+            (client.tva, document.clientTva),
+            (client.ape, document.clientApe)
+        ]
+        return identifiers.contains { clientValue, documentValue in
+            let lhs = clientValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let rhs = documentValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return !lhs.isEmpty && lhs == rhs
+        }
+    }
+
+    private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            content()
+        }
     }
 }

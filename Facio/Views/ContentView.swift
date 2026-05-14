@@ -5,6 +5,8 @@ struct ContentView: View {
     @State private var selectedSection: SidebarSection? = .factures
     @State private var selectedDocumentId: UUID?
     @State private var selectedTimesheetId: UUID?
+    @State private var selectedSettingsTab = 0
+    @State private var showCommandPalette = false
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -50,6 +52,25 @@ struct ContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 900, minHeight: 600)
+        .sheet(isPresented: $showCommandPalette) {
+            CommandPaletteView(
+                selectedSection: $selectedSection,
+                selectedDocumentId: $selectedDocumentId,
+                selectedTimesheetId: $selectedTimesheetId,
+                selectedSettingsTab: $selectedSettingsTab
+            )
+            .frame(width: 560, height: 520)
+        }
+        .background(
+            Button {
+                showCommandPalette = true
+            } label: {
+                EmptyView()
+            }
+            .keyboardShortcut("k", modifiers: .command)
+            .opacity(0)
+            .frame(width: 0, height: 0)
+        )
         .onChange(of: selectedSection) { _, newSection in
             switch newSection {
             case .factures:
@@ -119,14 +140,20 @@ struct ContentView: View {
                 )
             }
         case .clients:
-            ClientListView()
+            ClientListView { document in
+                selectedSection = document.type == .facture ? .factures : .devis
+                selectedDocumentId = document.id
+            }
         case .dashboard:
             DashboardView { document in
                 selectedSection = document.type == .facture ? .factures : .devis
                 selectedDocumentId = document.id
+            } onSelectTimesheet: { timesheet in
+                selectedSection = .heures
+                selectedTimesheetId = timesheet.id
             }
         case .parametres:
-            SettingsInlineView()
+            SettingsInlineView(selectedTab: $selectedSettingsTab)
         case .none:
             Text(L10n.selectSection(lang))
                 .foregroundStyle(.secondary)

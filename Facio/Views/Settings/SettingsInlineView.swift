@@ -5,7 +5,7 @@ struct SettingsInlineView: View {
     @Environment(DataStore.self) private var dataStore
     @Environment(SyncService.self) private var syncService
     @Environment(AuthService.self) private var authService
-    @State private var selectedTab = 0
+    @Binding var selectedTab: Int
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -23,71 +23,51 @@ struct SettingsInlineView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 16) {
                 Text(L10n.settings(lang))
                     .font(.title2)
                     .fontWeight(.bold)
-                Spacer()
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
-            .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 18)
 
-            // Tab bar — scrollable with auto-scroll to selected tab
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 4) {
-                        ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    selectedTab = index
-                                }
-                            } label: {
-                                Label(tab.label, systemImage: tab.icon)
-                                    .font(.subheadline)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 7)
-                                    .contentShape(RoundedRectangle(cornerRadius: 6))
-                                    .background(
-                                        selectedTab == index
-                                            ? Color.accentColor.opacity(0.12)
-                                            : Color.clear
-                                    )
-                                    .foregroundStyle(selectedTab == index ? .primary : .secondary)
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                            }
-                            .buttonStyle(.plain)
-                            .id(index)
-                        }
-                    }
-                    .padding(.horizontal, 24)
-                }
-                .onChange(of: selectedTab) { _, newValue in
-                    withAnimation {
-                        proxy.scrollTo(newValue, anchor: .center)
+                List(selection: Binding<Int?>(
+                    get: { selectedTab },
+                    set: { selectedTab = $0 ?? selectedTab }
+                )) {
+                    ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
+                        Label(tab.label, systemImage: tab.icon)
+                            .tag(index)
                     }
                 }
+                .listStyle(.sidebar)
             }
-            .padding(.bottom, 12)
+            .frame(width: 230)
+            .background(Color(nsColor: .controlBackgroundColor))
 
             Divider()
 
             ScrollView {
-                switch selectedTab {
-                case 0: CompanySettingsView()
-                case 1: CustomisationSettingsView()
-                case 2: PaymentSettingsView()
-                case 3: DefaultsSettingsView()
-                case 4: PrestationsSettingsView()
-                case 5: LanguageSettingsView()
-                case 6: SyncSettingsView(syncService: syncService, authService: authService)
-                case 7: AboutSettingsView()
-                default: EmptyView()
-                }
+                selectedSettingsView
+                    .frame(maxWidth: 760, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, alignment: .top)
             }
         }
         .frame(minWidth: 700, maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var selectedSettingsView: some View {
+        switch selectedTab {
+        case 0: CompanySettingsView()
+        case 1: CustomisationSettingsView()
+        case 2: PaymentSettingsView()
+        case 3: DefaultsSettingsView()
+        case 4: PrestationsSettingsView()
+        case 5: LanguageSettingsView()
+        case 6: SyncSettingsView(syncService: syncService, authService: authService)
+        case 7: AboutSettingsView()
+        default: EmptyView()
+        }
     }
 }
