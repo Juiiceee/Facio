@@ -124,7 +124,9 @@ struct ContentView: View {
                 selectedDocumentId = document.id
             }
         case .heures:
-            TimesheetListView(selectedTimesheetId: $selectedTimesheetId)
+            TimesheetListView(selectedTimesheetId: $selectedTimesheetId) { invoice in
+                openInvoice(invoice)
+            }
         case .clients, .planning, .dashboard, .parametres, .none:
             EmptyView()
         }
@@ -147,7 +149,9 @@ struct ContentView: View {
             }
         case .heures:
             if let ts = selectedTimesheet {
-                TimesheetEditorView(timesheet: ts)
+                TimesheetEditorView(timesheet: ts) { invoice in
+                    openInvoice(invoice)
+                }
             } else {
                 ContentUnavailableView(
                     L10n.noPeriodSelected(lang),
@@ -161,7 +165,9 @@ struct ContentView: View {
                 selectedDocumentId = document.id
             }
         case .planning:
-            TimeHubView()
+            TimeHubView { invoice in
+                openInvoice(invoice)
+            }
         case .dashboard:
             DashboardView { document in
                 selectedSection = document.type == .facture ? .factures : .devis
@@ -177,5 +183,12 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    private func openInvoice(_ invoice: Document) {
+        selectedSection = .factures
+        selectedDocumentId = invoice.id
+        selectedTimesheetId = nil
+        selectedClientId = nil
     }
 }

@@ -2,6 +2,8 @@ import SwiftUI
 
 struct TimesheetEditorView: View {
     let timesheet: TimesheetPeriod
+    var onOpenInvoice: (Document) -> Void = { _ in }
+
     @Environment(DataStore.self) private var dataStore
     @State private var hourInputMode: TimesheetHourInputMode = .decimal
     @State private var showClientPicker = false
@@ -19,7 +21,7 @@ struct TimesheetEditorView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 timesheetHeroBar
-                TimeTrackerPanel(timesheet: timesheet)
+                TimeTrackerPanel(timesheet: timesheet, onOpenInvoice: onOpenInvoice)
                 clientSection
                 resumeSection
                 hourInputModeControl
@@ -35,12 +37,20 @@ struct TimesheetEditorView: View {
         .navigationTitle(timesheet.title(for: lang))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showInvoiceDetailOptions = true
-                } label: {
-                    Label(L10n.generateInvoice(lang), systemImage: "doc.text")
+                if let invoice = dataStore.existingBillableHoursInvoice(for: timesheet) {
+                    Button {
+                        onOpenInvoice(invoice)
+                    } label: {
+                        Label(L10n.openInvoice(lang), systemImage: "doc.text.magnifyingglass")
+                    }
+                } else {
+                    Button {
+                        showInvoiceDetailOptions = true
+                    } label: {
+                        Label(L10n.generateInvoice(lang), systemImage: "doc.text")
+                    }
+                    .disabled(!dataStore.canGenerateInvoice(for: timesheet))
                 }
-                .disabled(!dataStore.canGenerateInvoice(for: timesheet))
             }
         }
         .sheet(isPresented: $showClientPicker) {
@@ -54,10 +64,6 @@ struct TimesheetEditorView: View {
                     return
                 }
                 timesheet.applyClient(client)
-                if let invoice = dataStore.existingInvoice(for: timesheet) {
-                    timesheet.applyClient(to: invoice)
-                    dataStore.documentUpdated(invoice)
-                }
                 dataStore.timesheetUpdated(timesheet, syncSharedWeeks: true)
                 showClientPicker = false
             }
@@ -72,6 +78,9 @@ struct TimesheetEditorView: View {
             }
             Button(TimesheetInvoiceDetailMode.daily.label(for: lang)) {
                 genererFacture(detailMode: .daily)
+            }
+            Button(TimesheetInvoiceDetailMode.dailyActivity.label(for: lang)) {
+                genererFacture(detailMode: .dailyActivity)
             }
             Button(L10n.cancel(lang), role: .cancel) {}
         } message: {
@@ -372,6 +381,8 @@ struct TimesheetEditorView: View {
     }
 
     private func genererFacture(detailMode: TimesheetInvoiceDetailMode) {
-        _ = dataStore.generateInvoice(from: timesheet, detailMode: detailMode)
+        if let invoice = dataStore.generateInvoice(from: timesheet, detailMode: detailMode) {
+            onOpenInvoice(invoice)
+        }
     }
 }

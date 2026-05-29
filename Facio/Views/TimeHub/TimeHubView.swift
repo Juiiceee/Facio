@@ -38,6 +38,8 @@ private struct TimeHubDeletedUndo: Identifiable {
 }
 
 struct TimeHubView: View {
+    var onOpenInvoice: (Document) -> Void = { _ in }
+
     @Environment(DataStore.self) private var dataStore
 
     @State private var selectedTimesheetId: UUID?
@@ -362,11 +364,13 @@ struct TimeHubView: View {
                                 stats: group.stats
                             )
                             Button {
-                                _ = dataStore.generateInvoiceFromTimeEntries(
+                                if let invoice = dataStore.generateInvoiceFromTimeEntries(
                                     group.contexts.map(\.entry),
                                     from: group.timesheet,
                                     grouping: .detailed
-                                )
+                                ) {
+                                    onOpenInvoice(invoice)
+                                }
                             } label: {
                                 Label(L10n.createInvoice(lang), systemImage: "doc.badge.plus")
                             }
@@ -623,7 +627,9 @@ struct TimeHubView: View {
                                         onContinue: { _ = dataStore.continueTimeEntry(context.entry, in: context.timesheet) },
                                         onDelete: { deleteWithUndo(context) },
                                         onInvoice: {
-                                            _ = dataStore.generateInvoiceFromTimeEntries([context.entry], from: context.timesheet)
+                                            if let invoice = dataStore.generateInvoiceFromTimeEntries([context.entry], from: context.timesheet) {
+                                                onOpenInvoice(invoice)
+                                            }
                                         }
                                     )
                                     if editingEntryId == context.entry.id {

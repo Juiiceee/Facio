@@ -139,7 +139,22 @@ struct CommandPaletteView: View {
             )
         }
 
-        if let currentTimesheet, dataStore.canGenerateInvoice(for: currentTimesheet) {
+        if let currentTimesheet, let invoice = dataStore.existingBillableHoursInvoice(for: currentTimesheet) {
+            items.append(
+                PaletteAction(
+                    id: "open-timesheet-invoice",
+                    title: L10n.openInvoice(lang),
+                    subtitle: invoice.number,
+                    systemImage: "doc.text.magnifyingglass"
+                ) {
+                    selectedSection = .factures
+                    selectedDocumentId = invoice.id
+                    selectedTimesheetId = nil
+                    selectedClientId = nil
+                    dismiss()
+                }
+            )
+        } else if let currentTimesheet, dataStore.canGenerateInvoice(for: currentTimesheet) {
             items.append(
                 PaletteAction(
                     id: "invoice-timesheet",

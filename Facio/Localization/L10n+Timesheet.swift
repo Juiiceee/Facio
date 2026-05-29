@@ -73,9 +73,13 @@ extension L10n {
     static func noPeriod(_ l: AppLanguage) -> String { l == .fr ? "Aucune période" : "No period" }
     static func clickToCreatePeriod(_ l: AppLanguage) -> String { l == .fr ? "Cliquez sur + pour créer une nouvelle période de suivi." : "Click + to create a new tracking period." }
     static func generateInvoice(_ l: AppLanguage) -> String { l == .fr ? "Générer une facture" : "Generate invoice" }
+    static func openInvoice(_ l: AppLanguage) -> String { l == .fr ? "Ouvrir la facture" : "Open invoice" }
     static func invoiceDetailMode(_ l: AppLanguage) -> String { l == .fr ? "Détail de facturation" : "Invoice detail" }
     static func invoiceSummaryMode(_ l: AppLanguage) -> String { l == .fr ? "Résumé" : "Summary" }
     static func invoiceDailyMode(_ l: AppLanguage) -> String { l == .fr ? "Détail par date" : "By date" }
+    static func invoiceDailyActivityMode(_ l: AppLanguage) -> String {
+        l == .fr ? "Détail par date et activité" : "By date and activity"
+    }
     static func chooseInvoiceDetail(_ l: AppLanguage) -> String {
         l == .fr ? "Choisissez le niveau de détail de la facture." : "Choose the invoice detail level."
     }
@@ -104,8 +108,14 @@ extension L10n {
     static func workHoursOnDate(_ l: AppLanguage, date: String) -> String {
         l == .fr ? "Heures de travail - \(date)" : "Work hours - \(date)"
     }
+    static func workHoursOnDateWithActivity(_ l: AppLanguage, date: String, activity: String) -> String {
+        l == .fr ? "Heures de travail - \(date) - \(activity)" : "Work hours - \(date) - \(activity)"
+    }
     static func overtimeHoursOnDate(_ l: AppLanguage, date: String) -> String {
         l == .fr ? "Heures supplémentaires - \(date)" : "Overtime hours - \(date)"
+    }
+    static func overtimeHoursOnDateWithActivity(_ l: AppLanguage, date: String, activity: String) -> String {
+        l == .fr ? "Heures supplémentaires - \(date) - \(activity)" : "Overtime hours - \(date) - \(activity)"
     }
     static func overtimeHoursForWeek(_ l: AppLanguage, dateRange: String) -> String {
         l == .fr ? "Heures supplémentaires - \(dateRange)" : "Overtime hours - \(dateRange)"

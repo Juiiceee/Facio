@@ -37,6 +37,7 @@ private struct DeletedTimeEntryUndo: Identifiable {
 
 struct TimeTrackerPanel: View {
     let timesheet: TimesheetPeriod
+    var onOpenInvoice: (Document) -> Void = { _ in }
 
     @Environment(DataStore.self) private var dataStore
     @State private var inputMode: TimeEntryInputMode = .timer
@@ -329,12 +330,22 @@ struct TimeTrackerPanel: View {
             }
             .disabled(filteredEntries.isEmpty)
 
-            Button {
-                _ = dataStore.generateInvoiceFromUnbilledTimeEntries(from: timesheet, grouping: .detailed)
-            } label: {
-                Label(L10n.invoiceTimeEntries(lang), systemImage: "doc.text")
+            if let invoice = dataStore.existingBillableHoursInvoice(for: timesheet) {
+                Button {
+                    onOpenInvoice(invoice)
+                } label: {
+                    Label(L10n.openInvoice(lang), systemImage: "doc.text.magnifyingglass")
+                }
+            } else {
+                Button {
+                    if let invoice = dataStore.generateInvoiceFromUnbilledTimeEntries(from: timesheet, grouping: .detailed) {
+                        onOpenInvoice(invoice)
+                    }
+                } label: {
+                    Label(L10n.invoiceTimeEntries(lang), systemImage: "doc.text")
+                }
+                .disabled(!dataStore.canGenerateInvoiceFromTimeEntries(for: timesheet))
             }
-            .disabled(!dataStore.canGenerateInvoiceFromTimeEntries(for: timesheet))
         }
     }
 

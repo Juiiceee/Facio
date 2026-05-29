@@ -9,6 +9,8 @@ private enum NewTimesheetPeriodMode: String, CaseIterable, Identifiable {
 
 struct TimesheetListView: View {
     @Binding var selectedTimesheetId: UUID?
+    var onOpenInvoice: (Document) -> Void = { _ in }
+
     @Environment(DataStore.self) private var dataStore
     @State private var showNewPeriod = false
     @State private var showInvoiceDetailOptions = false
@@ -91,12 +93,20 @@ struct TimesheetListView: View {
                     .contentShape(Rectangle())
                     .tag(ts.id)
                     .contextMenu {
-                        Button {
-                            presentInvoiceOptions(for: ts)
-                        } label: {
-                            Label(L10n.generateInvoice(lang), systemImage: "doc.text")
+                        if let invoice = dataStore.existingBillableHoursInvoice(for: ts) {
+                            Button {
+                                onOpenInvoice(invoice)
+                            } label: {
+                                Label(L10n.openInvoice(lang), systemImage: "doc.text.magnifyingglass")
+                            }
+                        } else {
+                            Button {
+                                presentInvoiceOptions(for: ts)
+                            } label: {
+                                Label(L10n.generateInvoice(lang), systemImage: "doc.text")
+                            }
+                            .disabled(!dataStore.canGenerateInvoice(for: ts))
                         }
-                        .disabled(!dataStore.canGenerateInvoice(for: ts))
                         Divider()
                         Button(role: .destructive) {
                             if selectedTimesheetId == ts.id { selectedTimesheetId = nil }
@@ -141,6 +151,9 @@ struct TimesheetListView: View {
             }
             Button(TimesheetInvoiceDetailMode.daily.label(for: lang)) {
                 genererFacture(ts, detailMode: .daily)
+            }
+            Button(TimesheetInvoiceDetailMode.dailyActivity.label(for: lang)) {
+                genererFacture(ts, detailMode: .dailyActivity)
             }
             Button(L10n.cancel(lang), role: .cancel) {}
         } message: { _ in
@@ -307,7 +320,9 @@ struct TimesheetListView: View {
     }
 
     private func genererFacture(_ ts: TimesheetPeriod, detailMode: TimesheetInvoiceDetailMode) {
-        _ = dataStore.generateInvoice(from: ts, detailMode: detailMode)
+        if let invoice = dataStore.generateInvoice(from: ts, detailMode: detailMode) {
+            onOpenInvoice(invoice)
+        }
     }
 }
 
