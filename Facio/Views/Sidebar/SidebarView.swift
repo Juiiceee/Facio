@@ -18,10 +18,10 @@ enum SidebarSection: String, Hashable, Identifiable {
         case .factures: return "Factures"
         case .devis: return "Devis"
         case .clients: return "Clients"
-        case .heures: return "Suivi des heures"
-        case .planning: return "Planning"
+        case .heures: return "Heures & facturation"
+        case .planning: return "Hub temps"
         case .dashboard: return "Tableau de bord"
-        case .parametres: return "Parametres"
+        case .parametres: return "Paramètres"
         }
     }
 
@@ -57,9 +57,38 @@ struct SidebarView: View {
     @Environment(DataStore.self) private var dataStore
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+    private var companyName: String {
+        let trimmed = dataStore.companyInfo.nom.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Facio" : trimmed
+    }
 
     var body: some View {
         List(selection: $selection) {
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "building.2")
+                            .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
+                        Text(companyName)
+                            .font(.headline)
+                            .lineLimit(1)
+                    }
+
+                    if let running = dataStore.runningTimeEntryContext {
+                        Label(running.timesheet.clientDisplayName.isEmpty ? L10n.timerRunning(lang) : running.timesheet.clientDisplayName, systemImage: "timer")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                            .lineLimit(1)
+                    }
+                }
+                .padding(.vertical, 6)
+            }
+
+            Section {
+                Label(SidebarSection.dashboard.label(for: lang), systemImage: SidebarSection.dashboard.icon)
+                    .tag(SidebarSection.dashboard)
+            }
+
             Section(L10n.sidebarDocuments(lang)) {
                 Label(SidebarSection.factures.label(for: lang), systemImage: SidebarSection.factures.icon)
                     .tag(SidebarSection.factures)
@@ -77,9 +106,6 @@ struct SidebarView: View {
 
                 Label(SidebarSection.planning.label(for: lang), systemImage: SidebarSection.planning.icon)
                     .tag(SidebarSection.planning)
-
-                Label(SidebarSection.dashboard.label(for: lang), systemImage: SidebarSection.dashboard.icon)
-                    .tag(SidebarSection.dashboard)
             }
 
             Section {

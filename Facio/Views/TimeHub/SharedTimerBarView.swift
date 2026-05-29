@@ -57,33 +57,7 @@ struct SharedTimerBarView: View {
         SectionPanel(nil) {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 12) {
-                        Label(L10n.timeTracker(lang), systemImage: "timer")
-                            .font(.headline)
-                        Spacer()
-                        Text(formatClock(activeContext?.entry.duration(at: context.date) ?? 0))
-                            .font(.system(size: 28, weight: .semibold, design: .monospaced))
-                            .lineLimit(1)
-                        if let activeContext {
-                            Button {
-                                dataStore.stopTimeEntry(activeContext.entry, in: activeContext.timesheet)
-                            } label: {
-                                Label(L10n.stopTimer(lang), systemImage: "stop.fill")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.red)
-                            .help(L10n.stopTimer(lang))
-                        } else {
-                            Button {
-                                startTimer()
-                            } label: {
-                                Label(L10n.startTimer(lang), systemImage: "play.fill")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(selectedTimesheet == nil || liveStartDateRange == nil)
-                            .help(L10n.startTimer(lang))
-                        }
-                    }
+                    timerComposer(now: context.date)
 
                     if let activeContext {
                         activeTimerFields(context: activeContext)
@@ -109,75 +83,195 @@ struct SharedTimerBarView: View {
         }
     }
 
+    private func timerComposer(now: Date) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 14) {
+                descriptionField
+                    .frame(minWidth: 260)
+                timerControls(now: now)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                descriptionField
+                timerControls(now: now)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var descriptionField: some View {
+        if let activeContext {
+            TextField(L10n.timeEntryDescription(lang), text: entryStringBinding(activeContext, \.notes))
+                .font(.title3)
+                .textFieldStyle(.roundedBorder)
+        } else {
+            TextField(L10n.timeEntryDescription(lang), text: $notes)
+                .font(.title3)
+                .textFieldStyle(.roundedBorder)
+        }
+    }
+
+    private func timerControls(now: Date) -> some View {
+        HStack(spacing: 12) {
+            Label(L10n.timeTracker(lang), systemImage: "timer")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 8)
+
+            Text(formatClock(activeContext?.entry.duration(at: now) ?? 0))
+                .font(.system(size: 30, weight: .semibold, design: .monospaced))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(minWidth: 128, alignment: .trailing)
+
+            if let activeContext {
+                Button {
+                    dataStore.stopTimeEntry(activeContext.entry, in: activeContext.timesheet)
+                } label: {
+                    Label(L10n.stopTimer(lang), systemImage: "stop.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .help(L10n.stopTimer(lang))
+            } else {
+                Button {
+                    startTimer()
+                } label: {
+                    Label(L10n.startTimer(lang), systemImage: "play.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(selectedTimesheet == nil || liveStartDateRange == nil)
+                .help(L10n.startTimer(lang))
+            }
+        }
+    }
+
     private var startTimerFields: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Picker(L10n.selectTrackingPeriod(lang), selection: periodSelectionBinding) {
-                    ForEach(sortedTimesheets) { timesheet in
-                        Text(timesheet.title(for: lang)).tag(Optional(timesheet.id))
-                    }
-                }
+            ViewThatFits(in: .horizontal) {
+                startTimerFieldsHorizontal
+                startTimerFieldsVertical
+            }
+        }
+    }
+
+    private var startTimerFieldsHorizontal: some View {
+        HStack(spacing: 10) {
+            periodPicker
                 .frame(minWidth: 220)
-                TextField(L10n.timeEntryDescription(lang), text: $notes)
-                    .textFieldStyle(.roundedBorder)
+            TextField(L10n.project(lang), text: $projectName)
+                .textFieldStyle(.roundedBorder)
+            TextField(L10n.task(lang), text: $taskName)
+                .textFieldStyle(.roundedBorder)
+            TextField(L10n.tags(lang), text: $tagsText)
+                .textFieldStyle(.roundedBorder)
+            Toggle(L10n.billable(lang), isOn: $isBillable)
+                .toggleStyle(.switch)
+            startedEarlierControl
+        }
+    }
+
+    private var startTimerFieldsVertical: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            periodPicker
+            HStack(spacing: 10) {
                 TextField(L10n.project(lang), text: $projectName)
                     .textFieldStyle(.roundedBorder)
                 TextField(L10n.task(lang), text: $taskName)
                     .textFieldStyle(.roundedBorder)
-            }
-
-            HStack(spacing: 10) {
                 TextField(L10n.tags(lang), text: $tagsText)
                     .textFieldStyle(.roundedBorder)
+            }
+            HStack(spacing: 10) {
                 Toggle(L10n.billable(lang), isOn: $isBillable)
                     .toggleStyle(.switch)
-                Toggle(L10n.startedEarlier(lang), isOn: $usesCustomStartDate)
-                    .toggleStyle(.checkbox)
-                if usesCustomStartDate, let liveStartDateRange {
-                    DatePicker(
-                        L10n.startDate(lang),
-                        selection: $customStartDate,
-                        in: liveStartDateRange,
-                        displayedComponents: [.date, .hourAndMinute]
-                    )
-                    .labelsHidden()
-                    .frame(maxWidth: 260)
-                }
-                Spacer()
+                startedEarlierControl
             }
+        }
+    }
+
+    private var periodPicker: some View {
+        Picker(L10n.selectTrackingPeriod(lang), selection: periodSelectionBinding) {
+            ForEach(sortedTimesheets) { timesheet in
+                Text(timesheet.title(for: lang)).tag(Optional(timesheet.id))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var startedEarlierControl: some View {
+        Toggle(L10n.startedEarlier(lang), isOn: $usesCustomStartDate)
+            .toggleStyle(.checkbox)
+            .onChange(of: usesCustomStartDate) { _, isEnabled in
+                if isEnabled {
+                    customStartDate = clampedLiveStartDate(customStartDate)
+                }
+            }
+        if usesCustomStartDate, let liveStartDateRange {
+            DatePicker(
+                L10n.startDate(lang),
+                selection: $customStartDate,
+                in: liveStartDateRange,
+                displayedComponents: [.date, .hourAndMinute]
+            )
+            .labelsHidden()
+            .frame(maxWidth: 260)
         }
     }
 
     private func activeTimerFields(context: RunningTimeEntryContext) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Text(context.timesheet.title(for: lang))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(minWidth: 180, alignment: .leading)
-                TextField(L10n.timeEntryDescription(lang), text: entryStringBinding(context, \.notes))
-                    .textFieldStyle(.roundedBorder)
-                TextField(L10n.project(lang), text: entryStringBinding(context, \.projectName))
-                    .textFieldStyle(.roundedBorder)
-                TextField(L10n.task(lang), text: entryStringBinding(context, \.taskName))
-                    .textFieldStyle(.roundedBorder)
-            }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) {
+                    activePeriodLabel(context)
+                    activeMetadataFields(context)
+                    activeStartDatePicker(context)
+                }
 
-            HStack(spacing: 10) {
-                TextField(L10n.tags(lang), text: entryStringBinding(context, \.tagsText))
-                    .textFieldStyle(.roundedBorder)
-                Toggle(L10n.billable(lang), isOn: entryBoolBinding(context, \.isBillable))
-                    .toggleStyle(.switch)
-                DatePicker(
-                    L10n.startDate(lang),
-                    selection: runningStartDateBinding(context),
-                    in: context.timesheet.activeStartDate...Date(),
-                    displayedComponents: [.date, .hourAndMinute]
-                )
-                .labelsHidden()
-                .frame(maxWidth: 260)
-                Spacer()
+                VStack(alignment: .leading, spacing: 10) {
+                    activePeriodLabel(context)
+                    activeMetadataFields(context)
+                    activeStartDatePicker(context)
+                }
             }
+        }
+    }
+
+    private func activePeriodLabel(_ context: RunningTimeEntryContext) -> some View {
+        Label(context.timesheet.title(for: lang), systemImage: "calendar.badge.clock")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .frame(minWidth: 180, alignment: .leading)
+    }
+
+    private func activeMetadataFields(_ context: RunningTimeEntryContext) -> some View {
+        HStack(spacing: 10) {
+            TextField(L10n.project(lang), text: entryStringBinding(context, \.projectName))
+                .textFieldStyle(.roundedBorder)
+            TextField(L10n.task(lang), text: entryStringBinding(context, \.taskName))
+                .textFieldStyle(.roundedBorder)
+            TextField(L10n.tags(lang), text: entryStringBinding(context, \.tagsText))
+                .textFieldStyle(.roundedBorder)
+            Toggle(L10n.billable(lang), isOn: entryBoolBinding(context, \.isBillable))
+                .toggleStyle(.switch)
+        }
+    }
+
+    private func activeStartDatePicker(_ context: RunningTimeEntryContext) -> some View {
+        HStack(spacing: 10) {
+            Label(L10n.startDate(lang), systemImage: "clock.arrow.circlepath")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            DatePicker(
+                L10n.startDate(lang),
+                selection: runningStartDateBinding(context),
+                in: context.timesheet.activeStartDate...Date(),
+                displayedComponents: [.date, .hourAndMinute]
+            )
+            .labelsHidden()
+            .frame(maxWidth: 260)
         }
     }
 

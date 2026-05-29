@@ -384,17 +384,12 @@ final class DataStore: Sendable {
 
     @discardableResult
     func clientUpdated(_ client: ClientInfo) -> Bool {
-        if client.isEmptyRecord {
-            deleteClient(client)
-            return false
-        }
         client.updatedAt = Date()
         saveClients()
         return true
     }
 
     func clientUpdated() {
-        clients = normalizedClients(clients)
         saveClients()
     }
 
@@ -941,7 +936,7 @@ final class DataStore: Sendable {
     }
 
     private func normalizedClients(_ clients: [ClientInfo]) -> [ClientInfo] {
-        clients.filter { !$0.isEmptyRecord }
+        clients
     }
 
     // MARK: - Cross-period sync

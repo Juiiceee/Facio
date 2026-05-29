@@ -3,9 +3,11 @@ import SwiftUI
 struct DocumentListView: View {
     let documentType: DocumentType
     @Binding var selectedDocumentId: UUID?
+    var onOpenDocument: (Document) -> Void = { _ in }
 
     @Environment(DataStore.self) private var dataStore
     @State private var searchText = ""
+    @State private var documentPendingDeletion: Document?
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -32,7 +34,7 @@ struct DocumentListView: View {
                 .tag(document.id)
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) {
-                        supprimerDocument(document)
+                        documentPendingDeletion = document
                     } label: {
                         Label(L10n.delete(lang), systemImage: "trash")
                     }
@@ -55,7 +57,7 @@ struct DocumentListView: View {
                     Divider()
 
                     Button(role: .destructive) {
-                        supprimerDocument(document)
+                        documentPendingDeletion = document
                     } label: {
                         Label(L10n.delete(lang), systemImage: "trash")
                     }
@@ -75,11 +77,36 @@ struct DocumentListView: View {
         .overlay {
             if documents.isEmpty {
                 ContentUnavailableView(
-                    L10n.noDocuments(lang, type: documentType.label(for: lang).lowercased()),
-                    systemImage: documentType == .facture ? "doc.text" : "doc.text.magnifyingglass",
-                    description: Text(L10n.clickToCreate(lang, type: documentType.label(for: lang).lowercased()))
+                    searchText.isEmpty
+                        ? L10n.noDocuments(lang, type: documentType.label(for: lang).lowercased())
+                        : L10n.noSearchResults(lang),
+                    systemImage: searchText.isEmpty
+                        ? (documentType == .facture ? "doc.text" : "doc.text.magnifyingglass")
+                        : "magnifyingglass",
+                    description: Text(searchText.isEmpty
+                        ? L10n.clickToCreate(lang, type: documentType.label(for: lang).lowercased())
+                        : L10n.noSearchResultsHint(lang))
                 )
             }
+        }
+        .alert(L10n.deleteDocumentConfirmTitle(lang), isPresented: Binding(
+            get: { documentPendingDeletion != nil },
+            set: { if !$0 { documentPendingDeletion = nil } }
+        )) {
+            Button(L10n.cancel(lang), role: .cancel) {
+                documentPendingDeletion = nil
+            }
+            Button(L10n.delete(lang), role: .destructive) {
+                if let document = documentPendingDeletion {
+                    supprimerDocument(document)
+                }
+                documentPendingDeletion = nil
+            }
+        } message: {
+            Text(L10n.deleteDocumentConfirmMessage(
+                lang,
+                number: documentPendingDeletion?.number ?? ""
+            ))
         }
     }
 
@@ -133,6 +160,7 @@ struct DocumentListView: View {
             language: lang
         )
         dataStore.addDocument(facture)
+        onOpenDocument(facture)
     }
 
     private func dueDate(from creationDate: Date) -> Date {
@@ -164,39 +192,52 @@ struct DocumentRowView: View {
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
     private var dateFormat: AppLanguage { dataStore.companyInfo.formatDate }
     private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
+    private var rowTone: Color {
+        document.isOverdue ? .red : Color.statusColor(for: document.status)
+    }
 
     var body: some View {
-        HStack(spacing: 12) {
+        FacioListRow(tone: rowTone) {
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
+                HStack(spacing: 8) {
                     Text(document.number)
                         .font(.headline)
                         .lineLimit(1)
-                    Spacer()
                     StatusBadge(status: document.status, isOverdue: document.isOverdue)
                 }
 
-                HStack {
+                HStack(spacing: 6) {
                     Text(document.clientNom.isEmpty ? L10n.noClient(lang) : document.clientNom)
                         .font(.subheadline)
                         .foregroundStyle(document.clientNom.isEmpty ? .tertiary : .secondary)
                         .lineLimit(1)
-                    Spacer()
-                    Text(document.dateCreation.formattedDate(for: dateFormat))
+                    Text("•")
                         .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text(dateSummary)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
             }
+            .layoutPriority(1)
+
+            Spacer(minLength: 8)
 
             Text(document.currency.formatAccounting(document.totalTTC, lang: numberFormat))
                 .font(.body.monospacedDigit())
                 .fontWeight(.medium)
                 .lineLimit(1)
-                .frame(minWidth: 80, alignment: .trailing)
+                .minimumScaleFactor(0.75)
+                .frame(minWidth: 86, maxWidth: 120, alignment: .trailing)
         }
-        .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
+    }
+
+    private var dateSummary: String {
+        if document.type == .facture && (document.status == .envoyee || document.isOverdue) {
+            return "\(L10n.dueDateLabel(lang)): \(document.dateEcheance.formattedDate(for: dateFormat))"
+        }
+        return document.dateCreation.formattedDate(for: dateFormat)
     }
 }

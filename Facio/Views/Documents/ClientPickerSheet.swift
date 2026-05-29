@@ -29,6 +29,7 @@ struct ClientPickerSheet: View {
         return allClients.filter {
             $0.nom.lowercased().contains(query) ||
             $0.ville.lowercased().contains(query) ||
+            $0.email.lowercased().contains(query) ||
             $0.siret.lowercased().contains(query) ||
             $0.tva.lowercased().contains(query) ||
             $0.ape.lowercased().contains(query)

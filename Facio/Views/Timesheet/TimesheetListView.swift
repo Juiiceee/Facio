@@ -324,41 +324,42 @@ private struct TimesheetRowView: View {
         let heuresSup = timesheet.totalHeuresSupCrossPeriod(adjacentHours: adjacentHours)
         let brut = timesheet.totalBrutCrossPeriod(adjacentHours: adjacentHours)
 
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(timesheet.periodLabel(for: lang))
-                    .font(.headline)
-                Spacer()
-                if brut > 0 {
-                    Text(brut.formatted2Decimals(for: numberFormat))
-                        .font(.subheadline.monospacedDigit())
-                        .fontWeight(.medium)
+        FacioListRow(tone: timesheet.hasGeneratedInvoice ? .green : .orange) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(timesheet.periodLabel(for: lang))
+                        .font(.headline)
+                        .lineLimit(1)
+                    Spacer()
+                    if brut > 0 {
+                        Text(brut.formatted2Decimals(for: numberFormat))
+                            .font(.subheadline.monospacedDigit())
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                HStack(spacing: 8) {
+                    Text(timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName)
+                        .font(.caption)
+                        .foregroundStyle(timesheet.clientDisplayName.isEmpty ? .tertiary : .secondary)
+                        .lineLimit(1)
+                    Text("\(heuresMois.formatted2Decimals(for: numberFormat))h")
+                        .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
-                }
-            }
-            HStack(spacing: 8) {
-                Text(timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName)
-                    .font(.caption)
-                    .foregroundStyle(timesheet.clientDisplayName.isEmpty ? .tertiary : .secondary)
-                    .lineLimit(1)
-                Text("\(heuresMois.formatted2Decimals(for: numberFormat))h")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                if heuresSup > 0 {
-                    Text(L10n.overtimeHoursShort(lang, value: heuresSup.formatted2Decimals(for: numberFormat)))
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-                if timesheet.hasGeneratedInvoice {
-                    Text(L10n.invoiced(lang))
-                        .font(.caption)
-                        .foregroundStyle(.green)
+                    if heuresSup > 0 {
+                        Text(L10n.overtimeHoursShort(lang, value: heuresSup.formatted2Decimals(for: numberFormat)))
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    if timesheet.hasGeneratedInvoice {
+                        Text(L10n.invoiced(lang))
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    }
                 }
             }
         }
-        .padding(.vertical, 4)
         .frame(minHeight: 44)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
     }
 }

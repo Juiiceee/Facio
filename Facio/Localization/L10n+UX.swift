@@ -3,7 +3,7 @@ import Foundation
 // MARK: - UI/UX refinement strings
 
 extension L10n {
-    static func todayFocus(_ l: AppLanguage) -> String { l == .fr ? "À traiter" : "Today" }
+    static func todayFocus(_ l: AppLanguage) -> String { l == .fr ? "À traiter" : "Needs attention" }
     static func nothingToHandle(_ l: AppLanguage) -> String { l == .fr ? "Rien à traiter" : "Nothing to handle" }
     static func nothingToHandleHint(_ l: AppLanguage) -> String {
         l == .fr ? "Les documents, paiements et périodes sont à jour." : "Documents, payments, and periods are up to date."
@@ -54,5 +54,8 @@ extension L10n {
     static func quickCreateQuote(_ l: AppLanguage) -> String { l == .fr ? "Nouveau devis" : "New quote" }
     static func quickCreateClient(_ l: AppLanguage) -> String { l == .fr ? "Nouveau client" : "New client" }
     static func noCommandResults(_ l: AppLanguage) -> String { l == .fr ? "Aucune commande trouvée" : "No command found" }
+    static func noSearchResults(_ l: AppLanguage) -> String { l == .fr ? "Aucun résultat" : "No results" }
+    static func noSearchResultsHint(_ l: AppLanguage) -> String {
+        l == .fr ? "Essayez un autre mot-clé ou vérifiez les filtres." : "Try another keyword or check the filters."
+    }
 }
-

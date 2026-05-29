@@ -12,6 +12,7 @@ struct CommandPaletteView: View {
     @Binding var selectedSection: SidebarSection?
     @Binding var selectedDocumentId: UUID?
     @Binding var selectedTimesheetId: UUID?
+    @Binding var selectedClientId: UUID?
     @Binding var selectedSettingsTab: Int
 
     @Environment(\.dismiss) private var dismiss
@@ -66,6 +67,7 @@ struct CommandPaletteView: View {
                 selectedSection = .planning
                 selectedDocumentId = nil
                 selectedTimesheetId = nil
+                selectedClientId = nil
                 dismiss()
             },
             PaletteAction(
@@ -77,6 +79,7 @@ struct CommandPaletteView: View {
                 selectedSection = .planning
                 selectedDocumentId = nil
                 selectedTimesheetId = nil
+                selectedClientId = nil
                 dismiss()
             },
             PaletteAction(
@@ -89,6 +92,7 @@ struct CommandPaletteView: View {
                 selectedSection = .parametres
                 selectedDocumentId = nil
                 selectedTimesheetId = nil
+                selectedClientId = nil
                 dismiss()
             }
         ]
@@ -116,6 +120,7 @@ struct CommandPaletteView: View {
                     selectedSection = .planning
                     selectedDocumentId = nil
                     selectedTimesheetId = nil
+                    selectedClientId = nil
                     dismiss()
                 }
             )
@@ -146,6 +151,7 @@ struct CommandPaletteView: View {
                         selectedSection = .factures
                         selectedDocumentId = invoice.id
                         selectedTimesheetId = nil
+                        selectedClientId = nil
                     }
                     dismiss()
                 }
@@ -239,6 +245,7 @@ struct CommandPaletteView: View {
                         selectedSection = document.type == .facture ? .factures : .devis
                         selectedDocumentId = document.id
                         selectedTimesheetId = nil
+                        selectedClientId = nil
                         dismiss()
                     } label: {
                         paletteRow(
@@ -262,6 +269,7 @@ struct CommandPaletteView: View {
                         selectedSection = .clients
                         selectedDocumentId = nil
                         selectedTimesheetId = nil
+                        selectedClientId = client.id
                         dismiss()
                     } label: {
                         paletteRow(
@@ -314,8 +322,8 @@ struct CommandPaletteView: View {
             Spacer()
         }
         .padding(10)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.7))
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.72))
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.rowRadius))
         .contentShape(Rectangle())
     }
 
@@ -344,6 +352,7 @@ struct CommandPaletteView: View {
         selectedSection = type == .facture ? .factures : .devis
         selectedDocumentId = document.id
         selectedTimesheetId = nil
+        selectedClientId = nil
         dismiss()
     }
 
@@ -353,6 +362,7 @@ struct CommandPaletteView: View {
         selectedSection = .clients
         selectedDocumentId = nil
         selectedTimesheetId = nil
+        selectedClientId = client.id
         dismiss()
     }
 

@@ -81,6 +81,7 @@ private struct PrestationRow: View {
     let dataStore: DataStore
 
     private var lang: AppLanguage { company.langueParDefaut }
+    private var numberFormat: AppLanguage { company.formatNombre }
 
     private static let tvaRates: [Decimal] = [0, 5.5, 10, 20]
 
@@ -109,6 +110,7 @@ private struct PrestationRow: View {
                         }
                     )
                 )
+                .format(numberFormat)
                 .frame(width: 80)
 
                 Picker(L10n.vatLabel(lang), selection: Binding(
@@ -122,6 +124,7 @@ private struct PrestationRow: View {
                     }
                 }
                 .labelsHidden()
+                .accessibilityLabel(L10n.vatLabel(lang))
                 .frame(width: 75)
 
                 Button {
@@ -134,6 +137,8 @@ private struct PrestationRow: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .help(L10n.removeService(lang))
+                .accessibilityLabel(L10n.removeService(lang))
             }
         }
     }

@@ -52,6 +52,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "document decodes old payloads without accounting conversion", run: documentDecodesOldPayloadsWithoutAccountingConversion),
         RegressionCase(name: "sent invoices become overdue after due date", run: sentInvoicesBecomeOverdueAfterDueDate),
         RegressionCase(name: "client empty record detection trims all fields", run: clientEmptyRecordDetectionTrimsAllFields),
+        RegressionCase(name: "data store keeps clients while editing empty fields", run: dataStoreKeepsClientsWhileEditingEmptyFields),
         RegressionCase(name: "company migrates legacy bank fields into bank accounts", run: companyMigratesLegacyBankFieldsIntoBankAccounts),
         RegressionCase(name: "accounting revenue converts known rates and reports missing ones", run: accountingRevenueConvertsKnownRatesAndReportsMissingOnes),
         RegressionCase(name: "fiat document drops crypto payment configuration", run: fiatDocumentDropsCryptoPaymentConfiguration),
@@ -311,6 +312,18 @@ enum FacioRegressionSuite {
 
         let withSiret = ClientInfo(siret: "82501500100027")
         try expect(!withSiret.isEmptyRecord, "client with any identifier should be kept")
+    }
+
+    private static func dataStoreKeepsClientsWhileEditingEmptyFields() throws {
+        try withTemporaryDataStore { store in
+            let client = ClientInfo(nom: "Client A")
+            store.addClient(client)
+
+            client.nom = ""
+            try expect(client.isEmptyRecord, "blanked client should be considered empty by the model")
+            try expect(store.clientUpdated(client), "editing a client empty should still save instead of deleting")
+            try expect(store.clients.contains { $0.id == client.id }, "client should remain until explicit delete")
+        }
     }
 
     private static func companyMigratesLegacyBankFieldsIntoBankAccounts() throws {
@@ -985,7 +998,7 @@ enum FacioRegressionSuite {
 
         try expectEqual(lineItems.count, 2)
         try expect(designations.contains("Heures de travail - 10/04/2026"), "daily invoice should bill the active date")
-        try expect(designations.contains("Heures supplementaires - 06/04/2026 - 12/04/2026"), "overtime should be grouped by week")
+        try expect(designations.contains("Heures supplémentaires - 06/04/2026 - 12/04/2026"), "overtime should be grouped by week")
         try expect(!designations.contains { $0.contains("06/04/2026") && $0.contains("travail") }, "context dates must not create work lines")
         try expect(!designations.contains { $0.contains("09/04/2026") && $0.contains("travail") }, "context dates must not create work lines")
     }
@@ -1015,7 +1028,7 @@ enum FacioRegressionSuite {
         try expectDecimal(allocations[0].overtimeHours, equals: "5")
         try expectEqual(lineItems.count, 2)
         try expectEqual(lineItems[0].designation, "Heures de travail - 01/04/2026")
-        try expectEqual(lineItems[1].designation, "Heures supplementaires - 30/03/2026 - 05/04/2026")
+        try expectEqual(lineItems[1].designation, "Heures supplémentaires - 30/03/2026 - 05/04/2026")
         try expectDecimal(lineItems[0].prixUnitaire, equals: "26.39")
         try expectDecimal(lineItems[1].prixUnitaire, equals: "39.59")
     }

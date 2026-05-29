@@ -4,6 +4,7 @@ enum FacioLayout {
     static let screenPadding: CGFloat = 24
     static let sectionSpacing: CGFloat = 18
     static let panelRadius: CGFloat = 8
+    static let rowRadius: CGFloat = 7
     static let inspectorWidth: CGFloat = 280
     static let documentInspectorBreakpoint: CGFloat = 1120
 }
@@ -45,17 +46,18 @@ struct SectionPanel<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             if let title {
                 Label(title, systemImage: systemImage ?? "square.grid.2x2")
                     .font(.headline)
+                    .foregroundStyle(.primary)
                     .labelStyle(.titleAndIcon)
             }
             content
         }
-        .padding(14)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(Color(nsColor: .controlBackgroundColor).opacity(0.78))
         .overlay(
             RoundedRectangle(cornerRadius: FacioLayout.panelRadius)
                 .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
@@ -72,43 +74,52 @@ struct MetricTile: View {
     let color: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top) {
-                Image(systemName: systemImage)
-                    .font(.title3)
-                    .foregroundStyle(color)
-                    .frame(width: 24, height: 24)
-                Spacer()
-            }
-            Text(value)
-                .font(.title2.monospacedDigit())
-                .fontWeight(.semibold)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-            if let subtitle, !subtitle.isEmpty {
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+        HStack(alignment: .top, spacing: 12) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(color)
+                .frame(width: 3)
+                .padding(.vertical, 2)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text(" ")
-                    .font(.caption2)
-                    .lineLimit(2)
-                    .hidden()
+                Text(value)
+                    .font(.title2.monospacedDigit())
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text(" ")
+                        .font(.caption2)
+                        .lineLimit(2)
+                        .hidden()
+                }
             }
+            .layoutPriority(1)
+
             Spacer(minLength: 0)
+
+            Image(systemName: systemImage)
+                .font(.title3)
+                .foregroundStyle(color)
+                .frame(width: 30, height: 30)
+                .background(color.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 7))
         }
         .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 150, alignment: .leading)
-        .background(color.opacity(0.08))
+        .frame(maxWidth: .infinity, minHeight: 128, alignment: .topLeading)
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.68))
         .overlay(
             RoundedRectangle(cornerRadius: FacioLayout.panelRadius)
-                .strokeBorder(color.opacity(0.18), lineWidth: 1)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
     }
@@ -151,8 +162,42 @@ struct ActionTile: View {
             .contentShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
         }
         .buttonStyle(.plain)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.6))
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.68))
         .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+    }
+}
+
+struct FacioListRow<Content: View>: View {
+    var tone: Color = .primary
+    let content: Content
+
+    @State private var isHovering = false
+
+    init(tone: Color = .primary, @ViewBuilder content: () -> Content) {
+        self.tone = tone
+        self.content = content()
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(tone.opacity(0.75))
+                .frame(width: 3)
+            content
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            Color(nsColor: .textBackgroundColor)
+                .opacity(isHovering ? 0.9 : 0.62)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: FacioLayout.rowRadius)
+                .strokeBorder(Color.primary.opacity(isHovering ? 0.12 : 0.06), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.rowRadius))
+        .contentShape(RoundedRectangle(cornerRadius: FacioLayout.rowRadius))
+        .onHover { isHovering = $0 }
     }
 }
 

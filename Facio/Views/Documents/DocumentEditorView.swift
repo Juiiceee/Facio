@@ -122,6 +122,7 @@ struct DocumentEditorView: View {
                 DocumentLineItemsSection(document: document, company: company, lang: lang) {
                     saveDocument()
                 }
+                totauxSection
                 DocumentPaymentInfoView(document: document, company: company, lang: lang) {
                     saveDocument()
                 }
