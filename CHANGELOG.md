@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.2](https://github.com/Juiiceee/Facio/compare/Facio-v1.10.1...Facio-v1.10.2) (2026-05-14)
+
+
+### Ameliorations
+
+* **ui:** redesign core workflows ([f0eb7e9](https://github.com/Juiiceee/Facio/commit/f0eb7e9adcf220b830c65cbf1dd645b52b8d1635))
+
 ## [1.10.1](https://github.com/Juiiceee/Facio/compare/Facio-v1.10.0...Facio-v1.10.1) (2026-05-13)
 
 
