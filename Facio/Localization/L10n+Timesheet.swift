@@ -110,4 +110,51 @@ extension L10n {
     static func overtimeHoursForWeek(_ l: AppLanguage, dateRange: String) -> String {
         l == .fr ? "Heures supplementaires - \(dateRange)" : "Overtime hours - \(dateRange)"
     }
+
+    // Compteur
+    static func timeTracker(_ l: AppLanguage) -> String { l == .fr ? "Compteur" : "Timer" }
+    static func startTimer(_ l: AppLanguage) -> String { l == .fr ? "Demarrer" : "Start" }
+    static func stopTimer(_ l: AppLanguage) -> String { l == .fr ? "Arreter" : "Stop" }
+    static func continueTimer(_ l: AppLanguage) -> String { l == .fr ? "Continuer" : "Continue" }
+    static func timerRunning(_ l: AppLanguage) -> String { l == .fr ? "Compteur en cours" : "Timer running" }
+    static func editStartTime(_ l: AppLanguage) -> String {
+        l == .fr ? "Modifier l'heure de debut" : "Edit start time"
+    }
+    static func readyToTrack(_ l: AppLanguage) -> String {
+        l == .fr ? "Pret a chronometrer cette periode" : "Ready to track this period"
+    }
+    static func timerRunningElsewhere(_ l: AppLanguage, period: String) -> String {
+        l == .fr ? "Un compteur tourne deja sur \(period). Demarrer ici l'arretera." :
+        "A timer is already running on \(period). Starting here will stop it."
+    }
+    static func timerOutsidePeriod(_ l: AppLanguage) -> String {
+        l == .fr ? "Le compteur live est disponible uniquement si aujourd'hui est dans cette periode." :
+        "The live timer is available only when today is inside this period."
+    }
+    static func project(_ l: AppLanguage) -> String { l == .fr ? "Projet" : "Project" }
+    static func task(_ l: AppLanguage) -> String { l == .fr ? "Tache" : "Task" }
+    static func startedEarlier(_ l: AppLanguage) -> String { l == .fr ? "Commence avant" : "Started earlier" }
+    static func startedEarlierHint(_ l: AppLanguage) -> String {
+        l == .fr ? "Ajuste le timer en cours sans creer une nouvelle entree." :
+        "Adjusts the running timer without creating a new entry."
+    }
+    static func untitledTask(_ l: AppLanguage) -> String { l == .fr ? "Tache sans titre" : "Untitled task" }
+    static func entries(_ l: AppLanguage) -> String { l == .fr ? "Entrees" : "Entries" }
+    static func newTimeEntry(_ l: AppLanguage) -> String { l == .fr ? "Nouvelle entree" : "New entry" }
+    static func editTimeEntry(_ l: AppLanguage) -> String { l == .fr ? "Modifier l'entree" : "Edit entry" }
+    static func noTimeEntries(_ l: AppLanguage) -> String { l == .fr ? "Aucune entree" : "No entries" }
+    static func noTimeEntriesHint(_ l: AppLanguage) -> String {
+        l == .fr ? "Demarrez le compteur ou ajoutez une entree." : "Start the timer or add an entry."
+    }
+    static func searchTimeEntries(_ l: AppLanguage) -> String {
+        l == .fr ? "Rechercher une tache ou un projet" : "Search a task or project"
+    }
+    static func hoursManagedByTimer(_ l: AppLanguage) -> String {
+        l == .fr ? "Ces heures sont calculees depuis les entrees du compteur." :
+        "These hours are calculated from timer entries."
+    }
+    static func today(_ l: AppLanguage) -> String { l == .fr ? "Aujourd'hui" : "Today" }
+    static func thisWeek(_ l: AppLanguage) -> String { l == .fr ? "Cette semaine" : "This week" }
+    static func period(_ l: AppLanguage) -> String { l == .fr ? "Periode" : "Period" }
+    static func now(_ l: AppLanguage) -> String { l == .fr ? "maintenant" : "now" }
 }

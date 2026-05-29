@@ -11,6 +11,7 @@ extension L10n {
     static func delete(_ l: AppLanguage) -> String { l == .fr ? "Supprimer" : "Delete" }
     static func cancel(_ l: AppLanguage) -> String { l == .fr ? "Annuler" : "Cancel" }
     static func close(_ l: AppLanguage) -> String { l == .fr ? "Fermer" : "Close" }
+    static func save(_ l: AppLanguage) -> String { l == .fr ? "Enregistrer" : "Save" }
     static func duplicate(_ l: AppLanguage) -> String { l == .fr ? "Dupliquer" : "Duplicate" }
     static func download(_ l: AppLanguage) -> String { l == .fr ? "Télécharger" : "Download" }
     static func later(_ l: AppLanguage) -> String { l == .fr ? "Plus tard" : "Later" }

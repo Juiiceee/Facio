@@ -19,6 +19,7 @@ struct TimesheetEditorView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 timesheetHeroBar
+                TimeTrackerPanel(timesheet: timesheet)
                 clientSection
                 resumeSection
                 hourInputModeControl
@@ -286,6 +287,7 @@ struct TimesheetEditorView: View {
                 HStack(spacing: 0) {
                     ForEach(Array(week.jours.enumerated()), id: \.offset) { dayIndex, jour in
                         let estDansMois = timesheet.isBillableDay(jour)
+                        let hasTimerEntries = timesheet.hasTimeEntries(on: jour.dateString)
                         VStack(spacing: 4) {
                             Text(jour.jourSemaine.shortLabel(for: lang))
                                 .font(.caption2)
@@ -315,6 +317,8 @@ struct TimesheetEditorView: View {
                                 focusID: jour.id,
                                 focusRequest: hourFieldFocusRequest
                             )
+                            .disabled(hasTimerEntries)
+                            .help(hasTimerEntries ? L10n.hoursManagedByTimer(lang) : L10n.hourInputHelp(lang, mode: hourInputMode))
                             .opacity(estDansMois ? 1.0 : 0.5)
                         }
                         .frame(maxWidth: .infinity)

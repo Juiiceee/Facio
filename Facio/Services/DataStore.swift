@@ -1,6 +1,13 @@
 import Foundation
 import Observation
 
+struct RunningTimeEntryContext: Identifiable {
+    let timesheet: TimesheetPeriod
+    let entry: TimeEntry
+
+    var id: UUID { entry.id }
+}
+
 @Observable
 @MainActor
 final class DataStore: Sendable {
@@ -414,6 +421,114 @@ final class DataStore: Sendable {
             saveDocuments()
         }
         saveTimesheets()
+    }
+
+    // MARK: - Time Entry CRUD
+
+    var runningTimeEntryContext: RunningTimeEntryContext? {
+        timesheets
+            .compactMap { timesheet -> RunningTimeEntryContext? in
+                guard let entry = timesheet.runningTimeEntry else { return nil }
+                return RunningTimeEntryContext(timesheet: timesheet, entry: entry)
+            }
+            .sorted { $0.entry.startedAt > $1.entry.startedAt }
+            .first
+    }
+
+    var runningTimeEntry: TimeEntry? {
+        runningTimeEntryContext?.entry
+    }
+
+    func startTimeEntry(
+        in timesheet: TimesheetPeriod,
+        projectName: String,
+        taskName: String,
+        notes: String,
+        at startDate: Date = Date()
+    ) -> TimeEntry? {
+        guard timesheet.isBillableDateString(TimeEntry.dateString(for: startDate)) else { return nil }
+        stopRunningTimeEntries(at: startDate)
+
+        let trimmedProject = projectName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let entry = TimeEntry(
+            projectName: trimmedProject.isEmpty ? timesheet.clientDisplayName : trimmedProject,
+            taskName: taskName,
+            notes: notes,
+            startedAt: startDate,
+            endedAt: nil,
+            createdAt: startDate,
+            updatedAt: startDate
+        )
+        timesheet.addTimeEntry(entry)
+        timesheetUpdated(timesheet)
+        return entry
+    }
+
+    func continueTimeEntry(_ entry: TimeEntry, in timesheet: TimesheetPeriod, at startDate: Date = Date()) -> TimeEntry? {
+        startTimeEntry(
+            in: timesheet,
+            projectName: entry.projectName,
+            taskName: entry.taskName,
+            notes: entry.notes,
+            at: startDate
+        )
+    }
+
+    func addTimeEntry(_ entry: TimeEntry, to timesheet: TimesheetPeriod) {
+        entry.normalize()
+        timesheet.addTimeEntry(entry)
+        let affectedDates = Set(entry.secondsByDate(upTo: entry.endedAt ?? Date()).keys)
+        timesheet.recalculateHoursFromTimeEntries(affectedDateStrings: affectedDates)
+        timesheetUpdated(timesheet, syncSharedWeeks: true)
+    }
+
+    func deleteTimeEntry(_ entry: TimeEntry, from timesheet: TimesheetPeriod) {
+        guard timesheet.timeEntries.contains(where: { $0.id == entry.id }) else { return }
+        let affectedDates = Set(entry.secondsByDate().keys)
+        timesheet.deleteTimeEntry(entry)
+        timesheet.recalculateHoursFromTimeEntries(affectedDateStrings: affectedDates)
+        timesheetUpdated(timesheet, syncSharedWeeks: true)
+    }
+
+    func timeEntryUpdated(
+        _ entry: TimeEntry,
+        in timesheet: TimesheetPeriod,
+        previousAffectedDateStrings: Set<String> = []
+    ) {
+        entry.normalize()
+        entry.updatedAt = Date()
+        let affectedDates = previousAffectedDateStrings.union(Set(entry.secondsByDate().keys))
+        timesheet.recalculateHoursFromTimeEntries(affectedDateStrings: affectedDates)
+        timesheetUpdated(timesheet, syncSharedWeeks: true)
+    }
+
+    func updateRunningTimeEntryStart(_ entry: TimeEntry, in timesheet: TimesheetPeriod, startedAt: Date) {
+        guard entry.isRunning else { return }
+        let previousAffectedDates = Set(entry.secondsByDate().keys)
+        entry.startedAt = startedAt
+        timeEntryUpdated(entry, in: timesheet, previousAffectedDateStrings: previousAffectedDates)
+    }
+
+    func stopRunningTimeEntry(at endDate: Date = Date()) {
+        guard let context = runningTimeEntryContext else { return }
+        stopTimeEntry(context.entry, in: context.timesheet, at: endDate)
+    }
+
+    func stopTimeEntry(_ entry: TimeEntry, in timesheet: TimesheetPeriod, at endDate: Date = Date()) {
+        guard entry.isRunning else { return }
+        let affectedDates = Set(entry.secondsByDate(upTo: endDate).keys)
+        entry.stop(at: endDate)
+        entry.normalize()
+        timesheet.recalculateHoursFromTimeEntries(affectedDateStrings: affectedDates, referenceDate: endDate)
+        timesheetUpdated(timesheet, syncSharedWeeks: true)
+    }
+
+    private func stopRunningTimeEntries(at endDate: Date) {
+        for timesheet in timesheets {
+            for entry in timesheet.timeEntries where entry.isRunning {
+                stopTimeEntry(entry, in: timesheet, at: endDate)
+            }
+        }
     }
 
     func timesheetExists(mois: Int, annee: Int, clientId: UUID?, excluding excludedId: UUID? = nil) -> Bool {

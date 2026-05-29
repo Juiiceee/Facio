@@ -82,6 +82,12 @@ enum FacioRegressionSuite {
         RegressionCase(name: "timesheet invoice daily lines group overtime by week", run: timesheetInvoiceDailyLinesGroupOvertimeByWeek),
         RegressionCase(name: "timesheet invoice daily lines do not split equal rates", run: timesheetInvoiceDailyLinesDoNotSplitEqualRates),
         RegressionCase(name: "timesheet cross-period overtime assigns overflow to current month", run: timesheetCrossPeriodOvertimeAssignsOverflowToCurrentMonth),
+        RegressionCase(name: "time entry decodes old payloads with defaults", run: timeEntryDecodesOldPayloadsWithDefaults),
+        RegressionCase(name: "time entries recalculate billable day hours", run: timeEntriesRecalculateBillableDayHours),
+        RegressionCase(name: "time entry crossing midnight stays on start day", run: timeEntryCrossingMidnightStaysOnStartDay),
+        RegressionCase(name: "data store keeps one active timer across periods", run: dataStoreKeepsOneActiveTimerAcrossPeriods),
+        RegressionCase(name: "data store continues entry with copied details", run: dataStoreContinuesEntryWithCopiedDetails),
+        RegressionCase(name: "data store adjusts running timer start without new entry", run: dataStoreAdjustsRunningTimerStartWithoutNewEntry),
         RegressionCase(name: "date and decimal formatting are stable across languages", run: dateAndDecimalFormattingAreStableAcrossLanguages)
     ]
 
@@ -979,6 +985,149 @@ enum FacioRegressionSuite {
         )
     }
 
+    private static func timeEntryDecodesOldPayloadsWithDefaults() throws {
+        let startedAt = dateTime(year: 2026, month: 4, day: 1, hour: 9)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let startedAtData = try encoder.encode(startedAt)
+        let startedAtJSON = String(data: startedAtData, encoding: .utf8) ?? #""2026-04-01T09:00:00Z""#
+        let data = Data(#"{"startedAt":\#(startedAtJSON),"projectName":"Client work"}"#.utf8)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let entry = try decoder.decode(TimeEntry.self, from: data)
+
+        try expectEqual(entry.projectName, "Client work")
+        try expectEqual(entry.taskName, "")
+        try expectEqual(entry.notes, "")
+        try expectEqual(entry.dateString, "2026-04-01")
+        try expect(entry.endedAt == nil, "old payload without end date should decode as running")
+    }
+
+    private static func timeEntriesRecalculateBillableDayHours() throws {
+        let period = TimesheetPeriod(startDate: date("2026-04-01"), endDate: date("2026-04-03"))
+        let entry = TimeEntry(
+            projectName: "Facio",
+            taskName: "Timer",
+            startedAt: dateTime(year: 2026, month: 4, day: 1, hour: 9),
+            endedAt: dateTime(year: 2026, month: 4, day: 1, hour: 11, minute: 30)
+        )
+
+        period.addTimeEntry(entry)
+        try expect(period.recalculateHoursFromTimeEntries(), "recalculation should update the day")
+
+        try expectDecimal(hours(in: period, dateString: "2026-04-01"), equals: "2.5")
+        try expectDecimal(hours(in: period, dateString: "2026-04-02"), equals: "0")
+    }
+
+    private static func timeEntryCrossingMidnightStaysOnStartDay() throws {
+        let period = TimesheetPeriod(mois: 4, annee: 2026)
+        let entry = TimeEntry(
+            projectName: "Facio",
+            taskName: "Late work",
+            startedAt: localDateTime(year: 2026, month: 4, day: 30, hour: 23),
+            endedAt: localDateTime(year: 2026, month: 5, day: 1, hour: 1)
+        )
+
+        period.addTimeEntry(entry)
+        period.recalculateHoursFromTimeEntries()
+
+        try expectDecimal(hours(in: period, dateString: "2026-04-30"), equals: "2")
+    }
+
+    private static func dataStoreKeepsOneActiveTimerAcrossPeriods() throws {
+        try withTemporaryDataStore { store in
+            let clientA = ClientInfo(nom: "Client A")
+            let clientB = ClientInfo(nom: "Client B")
+            let periodA = TimesheetPeriod(startDate: date("2026-04-01"), endDate: date("2026-04-03"), client: clientA)
+            let periodB = TimesheetPeriod(startDate: date("2026-04-01"), endDate: date("2026-04-03"), client: clientB)
+            store.addTimesheet(periodA)
+            store.addTimesheet(periodB)
+
+            _ = store.startTimeEntry(
+                in: periodA,
+                projectName: "Project A",
+                taskName: "Build",
+                notes: "",
+                at: dateTime(year: 2026, month: 4, day: 1, hour: 9)
+            )
+            try expect(periodA.runningTimeEntry != nil, "first timer should be active")
+
+            _ = store.startTimeEntry(
+                in: periodB,
+                projectName: "Project B",
+                taskName: "Review",
+                notes: "",
+                at: dateTime(year: 2026, month: 4, day: 1, hour: 10)
+            )
+
+            try expect(periodA.runningTimeEntry == nil, "starting a second timer should stop the first")
+            try expect(periodB.runningTimeEntry != nil, "second timer should be active")
+            try expectDecimal(hours(in: periodA, dateString: "2026-04-01"), equals: "1")
+        }
+    }
+
+    private static func dataStoreContinuesEntryWithCopiedDetails() throws {
+        try withTemporaryDataStore { store in
+            let period = TimesheetPeriod(startDate: date("2026-04-01"), endDate: date("2026-04-03"))
+            store.addTimesheet(period)
+            let original = TimeEntry(
+                projectName: "Facio",
+                taskName: "Timer UX",
+                notes: "Continue",
+                startedAt: dateTime(year: 2026, month: 4, day: 1, hour: 9),
+                endedAt: dateTime(year: 2026, month: 4, day: 1, hour: 10)
+            )
+            store.addTimeEntry(original, to: period)
+
+            let continued = try require(
+                store.continueTimeEntry(
+                    original,
+                    in: period,
+                    at: dateTime(year: 2026, month: 4, day: 1, hour: 11)
+                ),
+                "continuing an entry should create a running entry"
+            )
+
+            try expect(continued.id != original.id, "continued timer should be a new entry")
+            try expectEqual(continued.projectName, "Facio")
+            try expectEqual(continued.taskName, "Timer UX")
+            try expectEqual(continued.notes, "Continue")
+            try expect(continued.isRunning, "continued entry should be running")
+            try expectDecimal(hours(in: period, dateString: "2026-04-01"), equals: "1")
+        }
+    }
+
+    private static func dataStoreAdjustsRunningTimerStartWithoutNewEntry() throws {
+        try withTemporaryDataStore { store in
+            let period = TimesheetPeriod(startDate: date("2026-04-01"), endDate: date("2026-04-03"))
+            store.addTimesheet(period)
+            let entry = try require(
+                store.startTimeEntry(
+                    in: period,
+                    projectName: "Facio",
+                    taskName: "Timer",
+                    notes: "",
+                    at: dateTime(year: 2026, month: 4, day: 1, hour: 13, minute: 59)
+                ),
+                "timer should start"
+            )
+
+            store.updateRunningTimeEntryStart(
+                entry,
+                in: period,
+                startedAt: dateTime(year: 2026, month: 4, day: 1, hour: 12)
+            )
+
+            try expectEqual(period.timeEntries.count, 1)
+            try expect(period.runningTimeEntry?.id == entry.id, "same entry should remain active")
+            try expectDecimal(
+                entry.durationHours(at: dateTime(year: 2026, month: 4, day: 1, hour: 14, minute: 0)),
+                equals: "2"
+            )
+        }
+    }
+
     private static func dateAndDecimalFormattingAreStableAcrossLanguages() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -1047,6 +1196,18 @@ enum FacioRegressionSuite {
 
     private static func date(_ string: String) -> Date {
         TimesheetDay.dateFormatter.date(from: string)!
+    }
+
+    private static func dateTime(year: Int, month: Int, day: Int, hour: Int, minute: Int = 0) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute))!
+    }
+
+    private static func localDateTime(year: Int, month: Int, day: Int, hour: Int, minute: Int = 0) -> Date {
+        Calendar(identifier: .gregorian).date(
+            from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute)
+        )!
     }
 
     private static func decimal(_ string: String) -> Decimal {
