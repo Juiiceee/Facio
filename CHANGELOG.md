@@ -1,5 +1,90 @@
 # Changelog
 
+## [2.1.0](https://github.com/Juiiceee/Facio/compare/Facio-v2.0.0...Facio-v2.1.0) (2026-05-29)
+
+
+### Nouvelles fonctionnalites
+
+* add first launch alert to FacioApp ([2f38440](https://github.com/Juiiceee/Facio/commit/2f38440b5f804ed18cc32d616dfd3a2cac5aac59))
+* add reset functionality to DataStore and update SettingsInlineView ([adb281f](https://github.com/Juiiceee/Facio/commit/adb281fd4d985dfe28c806cccb80d8ce354c06f0))
+* add timesheet management functionality to DataStore and UI ([db73415](https://github.com/Juiiceee/Facio/commit/db7341523bedfffced7a3ecff3175d44bc5f7a37))
+* display weekly cost in TimesheetEditorView ([d9d5d8c](https://github.com/Juiiceee/Facio/commit/d9d5d8cc3de527ac20f268fc9f11e6bb7d1da49f))
+* **i18n:** add FR/EN language support per document and UI ([6c9eea6](https://github.com/Juiiceee/Facio/commit/6c9eea6c01826bef9c3bdd017c6fe892e4b3374c))
+* integrate sync and authentication services into FacioApp and DataStore ([a6c0924](https://github.com/Juiiceee/Facio/commit/a6c0924e0c92760cbb63bb8c7a36801bcd274c55))
+* **payments:** support multiple bank accounts ([81d6487](https://github.com/Juiiceee/Facio/commit/81d6487d69c744d35943a6417ddf668dbe477491))
+* **pdf:** add Solana Pay QR code to crypto invoices ([f901964](https://github.com/Juiiceee/Facio/commit/f901964ef45a9e20952d169f76087799647479ff))
+* **settings:** add Customisation tab with theme color picker ([4c7a524](https://github.com/Juiiceee/Facio/commit/4c7a5248fa594794ec17354d2b12815101f6a371))
+* setup Release Please CI/CD avec build .app automatique ([bb32829](https://github.com/Juiiceee/Facio/commit/bb32829af5283c75d1f8f2e3c47b2605015d0aa7))
+* **sync:** normalized DB schema and email-only auth ([fb602b8](https://github.com/Juiiceee/Facio/commit/fb602b8c85ca38d53a57ed5c114947d5d03c3ea8))
+* **timesheets:** support client-scoped invoice generation ([84b21b5](https://github.com/Juiiceee/Facio/commit/84b21b5644b36aa67ec4eb38cc7c9ee833df4577))
+* **timesheets:** support custom billing ranges ([dbc1938](https://github.com/Juiiceee/Facio/commit/dbc193836924f43decfba1c7ecdace46b7d09907))
+* **web:** add GitHub Pages landing page for Facio ([bfe966a](https://github.com/Juiiceee/Facio/commit/bfe966a8f73881643efc4b96f89d8492e7feaa49))
+* **web:** add GitHub Pages landing page for Facio ([2f93306](https://github.com/Juiiceee/Facio/commit/2f933065ce5e285a2e9be7e0c0ce40ab8d5bd0dd))
+
+
+### Corrections de bugs
+
+* **audit:** resolve payment and timesheet regressions ([e69c12a](https://github.com/Juiiceee/Facio/commit/e69c12aa424f9d25c32a77105affc22c49d72711)), closes [#61](https://github.com/Juiiceee/Facio/issues/61)
+* **auth:** replace password auth with email OTP verification ([f572c9d](https://github.com/Juiiceee/Facio/commit/f572c9d78c452714397fcfe9ec65e74cdae03913))
+* **auth:** secure Supabase sessions ([d615670](https://github.com/Juiiceee/Facio/commit/d615670dca2132e17bbd1ec40ef0470c0e7360b0))
+* **build:** add codesign and DMG with install instructions ([fc62e2a](https://github.com/Juiiceee/Facio/commit/fc62e2ab88bdfed3907d79fcb430757343521176))
+* **build:** copy SPM resource bundle into .app to prevent crash ([706f381](https://github.com/Juiiceee/Facio/commit/706f3818a9ae14e6aa61ba17dc1d6580a4143359))
+* **build:** copy SPM resource bundle into .app to prevent crash ([11bbfe9](https://github.com/Juiiceee/Facio/commit/11bbfe9a30b870d88d625b67ca4545ae62abc50a))
+* **crypto:** allow wallet selection when multiple on same chain ([38b83fb](https://github.com/Juiiceee/Facio/commit/38b83fb610d0ccdbf89121c2487c632e94193da5))
+* **dashboard:** convert revenue to accounting currency ([2e816d3](https://github.com/Juiiceee/Facio/commit/2e816d33ac5fb38c842a5449ea703dc8b38f7e34))
+* **data:** protect local JSON recovery ([f69a97a](https://github.com/Juiiceee/Facio/commit/f69a97a3e0e57ef3d7ea79e60078d6284f614ffb))
+* harden Facio audit findings ([#56](https://github.com/Juiiceee/Facio/issues/56)) ([da891a1](https://github.com/Juiiceee/Facio/commit/da891a131a41a866d894f44a4fa94901242a43e6))
+* **pdf:** isolate logo validation helpers ([1a2e597](https://github.com/Juiiceee/Facio/commit/1a2e5970f53b950c7c8e02f910a06c98725e0933))
+* **pdf:** remove wallet label from PDF output ([c17a14a](https://github.com/Juiiceee/Facio/commit/c17a14a9247c8e479e95392a1f8811d86ff01610))
+* **pdf:** render notes section in PDF output ([#25](https://github.com/Juiiceee/Facio/issues/25)) ([60f795f](https://github.com/Juiiceee/Facio/commit/60f795f4610871774fb6b3f4be3a1c786ab090b3))
+* **pdf:** replace Bundle.module with safe resource loading ([1fac5e4](https://github.com/Juiiceee/Facio/commit/1fac5e4b69a563d5e7d801379a8f51f6e0bc3ff2))
+* **pdf:** round QR code amount to 2 decimals to match invoice total ([54ed26f](https://github.com/Juiiceee/Facio/commit/54ed26f4abf47f33fae6a38c3b1f548088486254))
+* **pdf:** round QR code amount to 2 decimals to match invoice total ([5d95fb7](https://github.com/Juiiceee/Facio/commit/5d95fb7005b90e2c2e6e4fa34a7c3ad4a682397e))
+* **pdf:** sanitize exported documents ([fdce0c8](https://github.com/Juiiceee/Facio/commit/fdce0c8691e24712d2856b8650b5fe2515d9601c))
+* **release:** allow ad-hoc publishing without Apple secrets ([176bb52](https://github.com/Juiiceee/Facio/commit/176bb52f47057bb01cde1c3b02ff94e968e9b0d0))
+* **release:** harden macOS publishing ([aa5a67d](https://github.com/Juiiceee/Facio/commit/aa5a67d54a82657c661448773b38b9158d49b7c0))
+* **security:** harden file permissions, input validation and auth flow ([885801f](https://github.com/Juiiceee/Facio/commit/885801f3f8983d957a013e2756a82e03772dbb48))
+* **security:** inject Supabase secrets at build time via CI ([72c1eca](https://github.com/Juiiceee/Facio/commit/72c1eca4bca4016e3800dc3f3eeb39ac5a529d67))
+* **security:** move Supabase credentials out of source code ([1256b82](https://github.com/Juiiceee/Facio/commit/1256b82e842dcf826fef6936ac2dee8b81e0b56d))
+* **sync:** add missing wallet label, bank name and wallet id fields ([2d39cf7](https://github.com/Juiiceee/Facio/commit/2d39cf77c4bccb3563d27cb3ff9275a8d8c8c089))
+* **sync:** harden Supabase data safety ([875eea8](https://github.com/Juiiceee/Facio/commit/875eea83696a9778bee9b38cfc506e3734898b61))
+* **sync:** prevent reset from deleting remote data on next sync ([7208240](https://github.com/Juiiceee/Facio/commit/720824020e741d4a7601e03da971a6cb20250f7e))
+* **sync:** remove unused variable warnings in SyncService ([98b8a80](https://github.com/Juiiceee/Facio/commit/98b8a803aacda097fc91d13e1f6b5693b91a5ef9))
+* **timesheet:** sync overtime calculation across month boundaries ([ac0e1a3](https://github.com/Juiiceee/Facio/commit/ac0e1a36a6694744f72903abeeb0bd44a0c7f8b6))
+* **ui:** expand clickable hit areas ([35cbdcc](https://github.com/Juiiceee/Facio/commit/35cbdcce6c8d34385667a7c698693c961e5cc06f))
+* **ui:** expand settings tab hit area to full padding zone ([569f470](https://github.com/Juiiceee/Facio/commit/569f4703ce598380d492b8456c80ea8741d2d786))
+* **ui:** fix "Deviss" typo and status badge truncation ([9fcc545](https://github.com/Juiiceee/Facio/commit/9fcc545b603c292dee9c90c3d6b235eba1518c6a))
+* **ui:** improve responsive layout and minimum window sizing ([715aed7](https://github.com/Juiiceee/Facio/commit/715aed751c0740f6ee515c9e5d5f21e9d29873c6))
+* **ui:** polish clients and overdue invoices ([d949830](https://github.com/Juiiceee/Facio/commit/d9498301461e743e24237b7c84fe1ac99dbb2b35))
+* **ui:** redesign settings and make entire app responsive ([e30cc73](https://github.com/Juiiceee/Facio/commit/e30cc7355efd21816bfa46f80cc377ada02c3d74))
+* **ui:** remove empty split panels ([01e1151](https://github.com/Juiiceee/Facio/commit/01e1151a55319932335d5a8dd3e05c4efc50ec24))
+* **updates:** extract semver from tag like Facio-v1.8.0 for version comparison ([#33](https://github.com/Juiiceee/Facio/issues/33)) ([3a9b37d](https://github.com/Juiiceee/Facio/commit/3a9b37d0b30a1b2b03735753608ab811398b619a))
+* use config file for release-please and remove package-name ([72601ec](https://github.com/Juiiceee/Facio/commit/72601ec4c9e8aaa8ff2bc3293beaf609debbae05))
+
+
+### Refactorings
+
+* **i18n:** split L10n.swift into domain-specific extensions ([5efe5af](https://github.com/Juiiceee/Facio/commit/5efe5afcb3dd0315f0b9bd18fb43ede7f9aa0f58))
+* migrate config to .env, remove unused files and dead code ([ccce71c](https://github.com/Juiiceee/Facio/commit/ccce71c7d3df7be64685611a3faa4658ef6b4930))
+* rename project from GenerateurFiles to Facio and remove unused files ([3f622e6](https://github.com/Juiiceee/Facio/commit/3f622e652c45489dc8175c766dc403a450783fea))
+
+
+### Ameliorations
+
+* **dmg:** add Security Settings shortcut app with gear icon ([d82fd04](https://github.com/Juiiceee/Facio/commit/d82fd046f72e79b91a5a6e2a3b4e4eca4c61f3ce))
+* **dmg:** remove Security Settings app and clean up script ([3e75c4b](https://github.com/Juiiceee/Facio/commit/3e75c4bbf915ecaf7cacbcc09e32cdb66f22cdec))
+* **pdf:** enlarge QR code, add Solana logo and align layout ([cf47d7a](https://github.com/Juiiceee/Facio/commit/cf47d7a547f85c6ad60027f24b338fe111124679))
+* **settings:** add wallet label and bank name fields ([dc6d80a](https://github.com/Juiiceee/Facio/commit/dc6d80a0fac7becf2b05efdf0128e4a812f559ba))
+* **timesheet:** add month picker and auto-repair truncated weeks ([e8b5247](https://github.com/Juiiceee/Facio/commit/e8b5247058b3792a271597a70087eb5de7bd6689))
+* **ui:** redesign core workflows ([f0eb7e9](https://github.com/Juiiceee/Facio/commit/f0eb7e9adcf220b830c65cbf1dd645b52b8d1635))
+* **ui:** replace Form/grouped style with GroupBox layout, add adaptive grids for dashboard and timesheet, reduce minimum window size to 900x600, use scrollable tab bar in settings ([e30cc73](https://github.com/Juiiceee/Facio/commit/e30cc7355efd21816bfa46f80cc377ada02c3d74))
+
+
+### Documentation
+
+* add repository contributor guide ([5821f6d](https://github.com/Juiiceee/Facio/commit/5821f6d37cc9eec4ac88c06b79364c00b29794bc))
+* update README with macOS app launch instructions ([376c380](https://github.com/Juiiceee/Facio/commit/376c380553d0c1af32b8f0a64140b91857f063ff))
+
 ## [1.10.2](https://github.com/Juiiceee/Facio/compare/Facio-v1.10.1...Facio-v1.10.2) (2026-05-14)
 
 
