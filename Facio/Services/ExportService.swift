@@ -38,7 +38,39 @@ struct ExportService {
         }
     }
 
+    @MainActor
+    @discardableResult
+    static func exportCSV(data: Data, defaultFilename: String, language: AppLanguage = .fr) async -> ExportResult {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.commaSeparatedText]
+        panel.nameFieldStringValue = sanitizedFilename(defaultFilename, fallback: "time-entries", extension: "csv")
+        panel.title = L10n.exportDocument(language)
+        panel.message = L10n.chooseSaveLocation(language)
+        panel.canCreateDirectories = true
+
+        let response = panel.runModal()
+        guard response == .OK else {
+            return .cancelled
+        }
+
+        guard let url = panel.url else {
+            return .failed
+        }
+
+        do {
+            try data.write(to: url, options: [.atomic])
+            NSWorkspace.shared.open(url)
+            return .success
+        } catch {
+            return .failed
+        }
+    }
+
     private static func sanitizedPDFFilename(_ filename: String, language: AppLanguage) -> String {
+        sanitizedFilename(filename, fallback: L10n.defaultPDFName(language), extension: "pdf")
+    }
+
+    private static func sanitizedFilename(_ filename: String, fallback: String, extension fileExtension: String) -> String {
         let baseName = (filename as NSString).deletingPathExtension
         let sanitizedScalars = baseName.unicodeScalars.map { scalar -> Character in
             if CharacterSet.alphanumerics.contains(scalar)
@@ -53,7 +85,7 @@ struct ExportService {
             .joined(separator: "-")
             .trimmingCharacters(in: CharacterSet(charactersIn: " ._-"))
 
-        let safeBase = collapsed.isEmpty ? L10n.defaultPDFName(language) : String(collapsed.prefix(120))
-        return "\(safeBase).pdf"
+        let safeBase = collapsed.isEmpty ? fallback : String(collapsed.prefix(120))
+        return "\(safeBase).\(fileExtension)"
     }
 }

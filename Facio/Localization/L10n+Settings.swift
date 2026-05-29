@@ -14,6 +14,38 @@ extension L10n {
     static func settingsAbout(_ l: AppLanguage) -> String { l == .fr ? "À propos" : "About" }
     static func settingsLanguage(_ l: AppLanguage) -> String { l == .fr ? "Langue & Format" : "Language & Format" }
     static func settingsCustomisation(_ l: AppLanguage) -> String { l == .fr ? "Personnalisation" : "Customisation" }
+    static func settingsCompanyHelp(_ l: AppLanguage) -> String {
+        l == .fr ? "Identité, coordonnées et informations légales utilisées sur vos documents." :
+        "Identity, contact, and legal details used on your documents."
+    }
+    static func settingsCustomisationHelp(_ l: AppLanguage) -> String {
+        l == .fr ? "Logo et couleur d'accent appliqués à l'interface et aux exports." :
+        "Logo and accent color applied to the app and exports."
+    }
+    static func settingsPaymentHelp(_ l: AppLanguage) -> String {
+        l == .fr ? "Comptes bancaires et wallets disponibles au moment de facturer." :
+        "Bank accounts and wallets available when invoicing."
+    }
+    static func settingsDefaultsHelp(_ l: AppLanguage) -> String {
+        l == .fr ? "Valeurs reprises automatiquement sur les nouveaux documents et périodes." :
+        "Defaults reused automatically for new documents and periods."
+    }
+    static func settingsServicesHelp(_ l: AppLanguage) -> String {
+        l == .fr ? "Prestations réutilisables pour saisir les lignes plus vite." :
+        "Reusable services for faster line item entry."
+    }
+    static func settingsLanguageHelp(_ l: AppLanguage) -> String {
+        l == .fr ? "Langue, dates et formats numériques par défaut." :
+        "Default language, dates, and number formats."
+    }
+    static func settingsSyncHelp(_ l: AppLanguage) -> String {
+        l == .fr ? "Sauvegarde cloud, connexion et synchronisation des données." :
+        "Cloud backup, sign-in, and data sync."
+    }
+    static func settingsAboutHelp(_ l: AppLanguage) -> String {
+        l == .fr ? "Version, liens utiles et actions de maintenance." :
+        "Version, useful links, and maintenance actions."
+    }
 
     // Personnalisation
     static func themeColor(_ l: AppLanguage) -> String { l == .fr ? "Couleur du thème" : "Theme color" }
@@ -86,11 +118,11 @@ extension L10n {
         : "Your data is synced to the cloud. Create an account or sign in to enable sync."
     }
     static func account(_ l: AppLanguage) -> String { l == .fr ? "Compte" : "Account" }
-    static func connected(_ l: AppLanguage, email: String) -> String { l == .fr ? "Connecte — \(email)" : "Connected — \(email)" }
-    static func signOut(_ l: AppLanguage) -> String { l == .fr ? "Deconnexion" : "Sign out" }
+    static func connected(_ l: AppLanguage, email: String) -> String { l == .fr ? "Connecté — \(email)" : "Connected — \(email)" }
+    static func signOut(_ l: AppLanguage) -> String { l == .fr ? "Déconnexion" : "Sign out" }
     static func otpSent(_ l: AppLanguage, email: String) -> String { l == .fr ? "Un code a 6 chiffres a ete envoye a **\(email)**" : "A 6-digit code was sent to **\(email)**" }
     static func verificationCode(_ l: AppLanguage) -> String { l == .fr ? "Code de verification" : "Verification code" }
-    static func verify(_ l: AppLanguage) -> String { l == .fr ? "Verifier" : "Verify" }
+    static func verify(_ l: AppLanguage) -> String { l == .fr ? "Vérifier" : "Verify" }
     static func resendCode(_ l: AppLanguage) -> String { l == .fr ? "Renvoyer le code" : "Resend code" }
     static func verifying(_ l: AppLanguage) -> String { l == .fr ? "Verification..." : "Verifying..." }
     static func emailLoginPrompt(_ l: AppLanguage) -> String { l == .fr ? "Entrez votre email pour recevoir un code de connexion." : "Enter your email to receive a login code." }
@@ -98,16 +130,31 @@ extension L10n {
     static func sendingCode(_ l: AppLanguage) -> String { l == .fr ? "Envoi du code..." : "Sending code..." }
     static func syncStatus(_ l: AppLanguage) -> String { l == .fr ? "Statut" : "Status" }
     static func syncing(_ l: AppLanguage) -> String { l == .fr ? "Synchronisation..." : "Syncing..." }
-    static func lastSync(_ l: AppLanguage) -> String { l == .fr ? "Derniere sync" : "Last sync" }
+    static func lastSync(_ l: AppLanguage) -> String { l == .fr ? "Dernière sync" : "Last sync" }
     static func synchronize(_ l: AppLanguage) -> String { l == .fr ? "Synchroniser" : "Synchronize" }
-    static func pushAll(_ l: AppLanguage) -> String { l == .fr ? "Tout pousser" : "Push all" }
-    static func advanced(_ l: AppLanguage) -> String { l == .fr ? "Avance" : "Advanced" }
+    static func pushAll(_ l: AppLanguage) -> String { l == .fr ? "Forcer l'envoi" : "Upload all changes" }
+    static func advanced(_ l: AppLanguage) -> String { l == .fr ? "Avancé" : "Advanced" }
     static func useOwnSupabase(_ l: AppLanguage) -> String { l == .fr ? "Utiliser ma propre base Supabase" : "Use my own Supabase database" }
     static func supabaseURL(_ l: AppLanguage) -> String { "URL Supabase" }
-    static func apiKeyAnon(_ l: AppLanguage) -> String { l == .fr ? "Cle API (anon)" : "API key (anon)" }
-    static func apiKey(_ l: AppLanguage) -> String { l == .fr ? "Cle API" : "API key" }
+    static func apiKeyAnon(_ l: AppLanguage) -> String { l == .fr ? "Clé API (anon)" : "API key (anon)" }
+    static func apiKey(_ l: AppLanguage) -> String { l == .fr ? "Clé API" : "API key" }
     static func sqlSchema(_ l: AppLanguage) -> String { l == .fr ? "Schema SQL pour votre base" : "SQL schema for your database" }
     static func copySQL(_ l: AppLanguage) -> String { l == .fr ? "Copier le SQL" : "Copy SQL" }
+    static func authenticationError(_ l: AppLanguage) -> String {
+        l == .fr ? "Connexion impossible" : "Sign-in issue"
+    }
+    static func synchronizationError(_ l: AppLanguage) -> String {
+        l == .fr ? "Synchronisation impossible" : "Sync issue"
+    }
+    static func showApiKey(_ l: AppLanguage) -> String { l == .fr ? "Afficher la clé API" : "Show API key" }
+    static func hideApiKey(_ l: AppLanguage) -> String { l == .fr ? "Masquer la clé API" : "Hide API key" }
+    static func removeBankAccount(_ l: AppLanguage) -> String { l == .fr ? "Supprimer ce compte bancaire" : "Remove this bank account" }
+    static func removeWallet(_ l: AppLanguage) -> String { l == .fr ? "Supprimer ce wallet" : "Remove this wallet" }
+    static func removeService(_ l: AppLanguage) -> String { l == .fr ? "Supprimer cette prestation" : "Remove this service" }
+    static func invalidLogoFile(_ l: AppLanguage) -> String {
+        l == .fr ? "Logo invalide : utilisez PNG, JPEG ou TIFF, 2 Mo maximum et 4096 px par côté." :
+        "Invalid logo: use PNG, JPEG, or TIFF, up to 2 MB and 4096 px per side."
+    }
 
     // A propos
     static func professionalInvoices(_ l: AppLanguage) -> String { l == .fr ? "Factures & devis professionnels" : "Professional invoices & quotes" }
@@ -117,30 +164,30 @@ extension L10n {
     static func releases(_ l: AppLanguage) -> String { "Releases" }
     static func reportBug(_ l: AppLanguage) -> String { l == .fr ? "Signaler un bug" : "Report a bug" }
     static func dangerZone(_ l: AppLanguage) -> String { l == .fr ? "Zone dangereuse" : "Danger zone" }
-    static func reset(_ l: AppLanguage) -> String { l == .fr ? "Reinitialiser" : "Reset" }
-    static func resetHelp(_ l: AppLanguage) -> String { l == .fr ? "Supprime toutes les donnees et remet Facio a zero" : "Deletes all data and resets Facio" }
-    static func uninstall(_ l: AppLanguage) -> String { l == .fr ? "Desinstaller" : "Uninstall" }
-    static func uninstallHelp(_ l: AppLanguage) -> String { l == .fr ? "Supprime toutes les donnees et ferme l'application" : "Deletes all data and closes the application" }
+    static func reset(_ l: AppLanguage) -> String { l == .fr ? "Réinitialiser" : "Reset" }
+    static func resetHelp(_ l: AppLanguage) -> String { l == .fr ? "Supprime toutes les données et remet Facio à zéro" : "Deletes all data and resets Facio" }
+    static func uninstall(_ l: AppLanguage) -> String { l == .fr ? "Désinstaller" : "Uninstall" }
+    static func uninstallHelp(_ l: AppLanguage) -> String { l == .fr ? "Supprime toutes les données et ferme l'application" : "Deletes all data and closes the application" }
     static func resetDone(_ l: AppLanguage) -> String { l == .fr ? "Reinitialisation effectuee. Relancez Facio." : "Reset complete. Restart Facio." }
     static func irreversibleWarning(_ l: AppLanguage) -> String {
         l == .fr ? "Ces actions sont irreversibles. Assurez-vous d'avoir exporte vos documents importants."
         : "These actions are irreversible. Make sure you have exported your important documents."
     }
-    static func resetConfirmTitle(_ l: AppLanguage) -> String { l == .fr ? "Reinitialiser Facio ?" : "Reset Facio?" }
+    static func resetConfirmTitle(_ l: AppLanguage) -> String { l == .fr ? "Réinitialiser Facio ?" : "Reset Facio?" }
     static func resetConfirmMessage(_ l: AppLanguage) -> String {
         l == .fr ? "Toutes vos donnees seront supprimees (factures, devis, clients, parametres). Cette action est irreversible."
         : "All your data will be deleted (invoices, quotes, clients, settings). This action is irreversible."
     }
-    static func uninstallConfirmTitle(_ l: AppLanguage) -> String { l == .fr ? "Desinstaller Facio ?" : "Uninstall Facio?" }
+    static func uninstallConfirmTitle(_ l: AppLanguage) -> String { l == .fr ? "Désinstaller Facio ?" : "Uninstall Facio?" }
     static func uninstallConfirmMessage(_ l: AppLanguage) -> String {
         l == .fr ? "L'application sera fermee et toutes les donnees locales seront supprimees. Vous devrez supprimer Facio.app manuellement."
         : "The application will be closed and all local data will be deleted. You will need to delete Facio.app manually."
     }
 
     // Mises a jour
-    static func checkForUpdates(_ l: AppLanguage) -> String { l == .fr ? "Verifier les mises a jour" : "Check for updates" }
+    static func checkForUpdates(_ l: AppLanguage) -> String { l == .fr ? "Vérifier les mises à jour" : "Check for updates" }
     static func updateAvailable(_ l: AppLanguage, version: String) -> String { l == .fr ? "Version \(version) disponible" : "Version \(version) available" }
-    static func upToDate(_ l: AppLanguage) -> String { l == .fr ? "Vous etes a jour" : "You're up to date" }
+    static func upToDate(_ l: AppLanguage) -> String { l == .fr ? "Vous êtes à jour" : "You're up to date" }
     static func updateCheckUnavailable(_ l: AppLanguage) -> String {
         l == .fr ? "Statut de mise a jour indisponible" : "Update status unavailable"
     }

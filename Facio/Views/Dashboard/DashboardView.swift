@@ -147,7 +147,7 @@ struct DashboardView: View {
                 Text(L10n.dashboard(lang))
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                Text(L10n.todayFocus(lang))
+                Text(L10n.dashboardSubtitle(lang))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -216,6 +216,9 @@ struct DashboardView: View {
                     .buttonStyle(.plain)
                     .help(L10n.openDocument(lang))
                 }
+                if documents.count > 4 {
+                    overflowRow(count: documents.count - 4)
+                }
             }
         }
     }
@@ -236,6 +239,9 @@ struct DashboardView: View {
                     }
                     .buttonStyle(.plain)
                     .help(L10n.openPeriod(lang))
+                }
+                if timesheets.count > 4 {
+                    overflowRow(count: timesheets.count - 4)
                 }
             }
         }
@@ -264,53 +270,78 @@ struct DashboardView: View {
     }
 
     private func documentRow(_ doc: Document) -> some View {
-        HStack {
+        FacioListRow(tone: doc.isOverdue ? .red : Color.statusColor(for: doc.status)) {
             VStack(alignment: .leading) {
                 Text(doc.number)
                     .fontWeight(.medium)
+                    .lineLimit(1)
                 Text(doc.clientNom)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(documentRowDetail(doc))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
             }
-            Spacer()
+            .layoutPriority(1)
+
+            Spacer(minLength: 10)
+
             Text(doc.currency.formatAccounting(doc.totalTTC, lang: numberFormat))
                 .font(.body.monospacedDigit())
                 .fontWeight(.medium)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(minWidth: 92, maxWidth: 130, alignment: .trailing)
             StatusBadge(status: doc.status, isOverdue: doc.isOverdue)
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
-        .padding(10)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.6))
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
     }
 
     private func timesheetRow(_ timesheet: TimesheetPeriod) -> some View {
         let hours = timesheet.totalHeuresDuMois().formatted2Decimals(for: numberFormat)
-        return HStack {
+        return FacioListRow(tone: .green) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(timesheet.periodLabel(for: lang))
                     .fontWeight(.medium)
+                    .lineLimit(1)
                 Text(timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            Spacer()
+            .layoutPriority(1)
+
+            Spacer(minLength: 10)
+
             Text("\(hours)h")
                 .font(.body.monospacedDigit())
                 .fontWeight(.medium)
+                .lineLimit(1)
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
-        .padding(10)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.6))
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
+    }
+
+    private func overflowRow(count: Int) -> some View {
+        Text(L10n.moreItems(lang, count: count))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+    }
+
+    private func documentRowDetail(_ doc: Document) -> String {
+        if doc.type == .facture && (doc.status == .envoyee || doc.isOverdue) {
+            return "\(L10n.dueDateLabel(lang)): \(doc.dateEcheance.formattedDate(for: dateFormat))"
+        }
+        return doc.dateCreation.formattedDate(for: dateFormat)
     }
 }
 

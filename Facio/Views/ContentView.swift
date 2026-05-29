@@ -2,9 +2,10 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(DataStore.self) private var dataStore
-    @State private var selectedSection: SidebarSection? = .factures
+    @State private var selectedSection: SidebarSection? = .dashboard
     @State private var selectedDocumentId: UUID?
     @State private var selectedTimesheetId: UUID?
+    @State private var selectedClientId: UUID?
     @State private var selectedSettingsTab = 0
     @State private var showCommandPalette = false
 
@@ -24,7 +25,7 @@ struct ContentView: View {
         switch selectedSection {
         case .factures, .devis, .heures:
             return true
-        case .clients, .dashboard, .parametres, .none:
+        case .clients, .planning, .dashboard, .parametres, .none:
             return false
         }
     }
@@ -57,20 +58,22 @@ struct ContentView: View {
                 selectedSection: $selectedSection,
                 selectedDocumentId: $selectedDocumentId,
                 selectedTimesheetId: $selectedTimesheetId,
+                selectedClientId: $selectedClientId,
                 selectedSettingsTab: $selectedSettingsTab
             )
             .frame(width: 560, height: 520)
         }
-        .background(
-            Button {
-                showCommandPalette = true
-            } label: {
-                EmptyView()
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    showCommandPalette = true
+                } label: {
+                    Label(L10n.commandPaletteTitle(lang), systemImage: "command")
+                }
+                .keyboardShortcut("k", modifiers: .command)
+                .help(L10n.commandPaletteTitle(lang))
             }
-            .keyboardShortcut("k", modifiers: .command)
-            .opacity(0)
-            .frame(width: 0, height: 0)
-        )
+        }
         .onChange(of: selectedSection) { _, newSection in
             switch newSection {
             case .factures:
@@ -78,16 +81,23 @@ struct ContentView: View {
                     selectedDocumentId = nil
                 }
                 selectedTimesheetId = nil
+                selectedClientId = nil
             case .devis:
                 if selectedDocument?.type != .devis {
                     selectedDocumentId = nil
                 }
                 selectedTimesheetId = nil
+                selectedClientId = nil
             case .heures:
                 selectedDocumentId = nil
-            case .clients, .dashboard, .parametres, .none:
+                selectedClientId = nil
+            case .clients:
                 selectedDocumentId = nil
                 selectedTimesheetId = nil
+            case .planning, .dashboard, .parametres, .none:
+                selectedDocumentId = nil
+                selectedTimesheetId = nil
+                selectedClientId = nil
             }
         }
     }
@@ -101,15 +111,23 @@ struct ContentView: View {
             DocumentListView(
                 documentType: .facture,
                 selectedDocumentId: $selectedDocumentId
-            )
+            ) { document in
+                selectedSection = document.type == .facture ? .factures : .devis
+                selectedDocumentId = document.id
+            }
         case .devis:
             DocumentListView(
                 documentType: .devis,
                 selectedDocumentId: $selectedDocumentId
-            )
+            ) { document in
+                selectedSection = document.type == .facture ? .factures : .devis
+                selectedDocumentId = document.id
+            }
         case .heures:
-            TimesheetListView(selectedTimesheetId: $selectedTimesheetId)
-        case .clients, .dashboard, .parametres, .none:
+            TimesheetListView(selectedTimesheetId: $selectedTimesheetId) { invoice in
+                openInvoice(invoice)
+            }
+        case .clients, .planning, .dashboard, .parametres, .none:
             EmptyView()
         }
     }
@@ -131,7 +149,9 @@ struct ContentView: View {
             }
         case .heures:
             if let ts = selectedTimesheet {
-                TimesheetEditorView(timesheet: ts)
+                TimesheetEditorView(timesheet: ts) { invoice in
+                    openInvoice(invoice)
+                }
             } else {
                 ContentUnavailableView(
                     L10n.noPeriodSelected(lang),
@@ -140,9 +160,13 @@ struct ContentView: View {
                 )
             }
         case .clients:
-            ClientListView { document in
+            ClientListView(selectedClientId: $selectedClientId) { document in
                 selectedSection = document.type == .facture ? .factures : .devis
                 selectedDocumentId = document.id
+            }
+        case .planning:
+            TimeHubView { invoice in
+                openInvoice(invoice)
             }
         case .dashboard:
             DashboardView { document in
@@ -159,5 +183,12 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    private func openInvoice(_ invoice: Document) {
+        selectedSection = .factures
+        selectedDocumentId = invoice.id
+        selectedTimesheetId = nil
+        selectedClientId = nil
     }
 }

@@ -1,12 +1,12 @@
 import SwiftUI
 
 struct ClientListView: View {
+    @Binding var selectedClientId: UUID?
     var onSelectDocument: (Document) -> Void = { _ in }
 
     @Environment(DataStore.self) private var dataStore
     @State private var searchText = ""
-    @State private var selectedClient: ClientInfo?
-    @State private var showingNewClient = false
+    @State private var clientPendingDeletion: ClientInfo?
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -26,18 +26,32 @@ struct ClientListView: View {
         }
     }
 
+    private var selectedClient: ClientInfo? {
+        guard let selectedClientId else { return nil }
+        return dataStore.clients.first { $0.id == selectedClientId }
+    }
+
     var body: some View {
         HStack(spacing: 0) {
-            List(filteredClients, selection: $selectedClient) { client in
+            List(filteredClients, selection: $selectedClientId) { client in
                 ClientRow(client: client)
-                    .tag(client)
+                    .tag(client.id)
                     .contextMenu {
                         Button(L10n.delete(lang), role: .destructive) {
-                            deleteClient(client)
+                            clientPendingDeletion = client
                         }
                     }
             }
             .searchable(text: $searchText, prompt: L10n.searchClientPrompt(lang))
+            .overlay {
+                if filteredClients.isEmpty {
+                    ContentUnavailableView(
+                        searchText.isEmpty ? L10n.noClientsYet(lang) : L10n.noSearchResults(lang),
+                        systemImage: searchText.isEmpty ? "person.2" : "magnifyingglass",
+                        description: Text(searchText.isEmpty ? L10n.selectOrCreateClient(lang) : L10n.noSearchResultsHint(lang))
+                    )
+                }
+            }
             .frame(minWidth: 280, idealWidth: 360, maxWidth: 520, maxHeight: .infinity)
 
             Divider()
@@ -67,9 +81,28 @@ struct ClientListView: View {
             }
         }
         .navigationTitle(L10n.sidebarClients(lang))
+        .alert(L10n.deleteClientConfirmTitle(lang), isPresented: Binding(
+            get: { clientPendingDeletion != nil },
+            set: { if !$0 { clientPendingDeletion = nil } }
+        )) {
+            Button(L10n.cancel(lang), role: .cancel) {
+                clientPendingDeletion = nil
+            }
+            Button(L10n.delete(lang), role: .destructive) {
+                if let client = clientPendingDeletion {
+                    confirmDeleteClient(client)
+                }
+                clientPendingDeletion = nil
+            }
+        } message: {
+            Text(L10n.deleteClientConfirmMessage(
+                lang,
+                name: clientPendingDeletion?.displayName ?? L10n.noClient(lang)
+            ))
+        }
         .onChange(of: dataStore.clients.map(\.id)) { _, ids in
-            if let selectedClient, !ids.contains(selectedClient.id) {
-                self.selectedClient = nil
+            if let selectedClientId, !ids.contains(selectedClientId) {
+                self.selectedClientId = nil
             }
         }
     }
@@ -77,12 +110,12 @@ struct ClientListView: View {
     private func createClient() {
         let client = ClientInfo(nom: L10n.newClient(lang))
         dataStore.addClient(client)
-        selectedClient = client
+        selectedClientId = client.id
     }
 
-    private func deleteClient(_ client: ClientInfo) {
-        if selectedClient == client {
-            selectedClient = nil
+    private func confirmDeleteClient(_ client: ClientInfo) {
+        if selectedClientId == client.id {
+            selectedClientId = nil
         }
         dataStore.deleteClient(client)
     }
@@ -134,29 +167,35 @@ struct ClientRow: View {
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(client.displayName.isEmpty ? L10n.noClient(lang) : client.displayName)
-                .fontWeight(.medium)
-            if !client.ville.isEmpty {
-                Text("\(client.ville), \(client.codePostal)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            let identifiers = [
-                client.siret.isEmpty ? nil : "\(L10n.siret(lang)): \(client.siret)",
-                client.tva.isEmpty ? nil : "\(L10n.vatNumber(lang)): \(client.tva)",
-                client.ape.isEmpty ? nil : "\(L10n.apeCode(lang)): \(client.ape)"
-            ].compactMap { $0 }
-            if !identifiers.isEmpty {
-                Text(identifiers.joined(separator: " - "))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+        FacioListRow(tone: Color.appPrimary(from: dataStore.companyInfo)) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(client.displayName.isEmpty ? L10n.noClient(lang) : client.displayName)
+                    .fontWeight(.medium)
                     .lineLimit(1)
+                let address = [client.codePostal, client.ville]
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+                    .joined(separator: " ")
+                if !address.isEmpty {
+                    Text(address)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                let identifiers = [
+                    client.siret.isEmpty ? nil : "\(L10n.siret(lang)): \(client.siret)",
+                    client.tva.isEmpty ? nil : "\(L10n.vatNumber(lang)): \(client.tva)",
+                    client.ape.isEmpty ? nil : "\(L10n.apeCode(lang)): \(client.ape)"
+                ].compactMap { $0 }
+                if !identifiers.isEmpty {
+                    Text(identifiers.joined(separator: " - "))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
             }
         }
-        .padding(.vertical, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
     }
 }
 

@@ -11,6 +11,7 @@ struct CustomisationSettingsView: View {
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     @State private var isDropTargeted = false
+    @State private var logoValidationMessage: String?
     nonisolated private static let maximumLogoBytes = 2_000_000
     nonisolated private static let maximumLogoDimension = 4_096
     nonisolated private static let maximumLogoPixels = 12_000_000
@@ -84,6 +85,10 @@ struct CustomisationSettingsView: View {
                             pickLogoFile()
                         }
                     }
+
+                    if let logoValidationMessage {
+                        InlineWarning(text: logoValidationMessage, tone: .warning)
+                    }
                 }
                 .padding(12)
             }
@@ -154,9 +159,9 @@ struct CustomisationSettingsView: View {
 
         if panel.runModal() == .OK, let url = panel.url {
             if let data = try? Data(contentsOf: url) {
-                guard Self.isValidLogoData(data) else { return }
-                company.logoData = data
-                dataStore.companyUpdated()
+                applyLogoData(data)
+            } else {
+                logoValidationMessage = L10n.invalidLogoFile(lang)
             }
         }
     }
@@ -166,15 +171,28 @@ struct CustomisationSettingsView: View {
         provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
             guard let data = item as? Data,
                   let url = URL(dataRepresentation: data, relativeTo: nil),
-                  let imageData = try? Data(contentsOf: url),
-                  Self.isValidLogoData(imageData) else { return }
+                  let imageData = try? Data(contentsOf: url) else {
+                DispatchQueue.main.async {
+                    logoValidationMessage = L10n.invalidLogoFile(lang)
+                }
+                return
+            }
 
             DispatchQueue.main.async {
-                company.logoData = imageData
-                dataStore.companyUpdated()
+                applyLogoData(imageData)
             }
         }
         return true
+    }
+
+    private func applyLogoData(_ data: Data) {
+        guard Self.isValidLogoData(data) else {
+            logoValidationMessage = L10n.invalidLogoFile(lang)
+            return
+        }
+        logoValidationMessage = nil
+        company.logoData = data
+        dataStore.companyUpdated()
     }
 
     nonisolated private static func validatedLogoPreview(from data: Data) -> NSImage? {

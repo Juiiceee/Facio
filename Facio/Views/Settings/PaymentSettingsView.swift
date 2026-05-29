@@ -135,6 +135,8 @@ private struct BankAccountRow: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .help(L10n.removeBankAccount(lang))
+                    .accessibilityLabel(L10n.removeBankAccount(lang))
                 }
 
                 settingsRow(L10n.iban(lang)) {
@@ -230,6 +232,7 @@ private struct WalletRow: View {
                         }
                     }
                     .labelsHidden()
+                    .accessibilityLabel(L10n.blockchain(lang))
                     .frame(width: 130)
 
                     TextField(L10n.walletNamePlaceholder(lang), text: Binding(
@@ -251,6 +254,8 @@ private struct WalletRow: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .help(L10n.removeWallet(lang))
+                    .accessibilityLabel(L10n.removeWallet(lang))
                 }
 
                 TextField(L10n.walletAddressPlaceholder(lang), text: Binding(

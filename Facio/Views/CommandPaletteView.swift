@@ -12,6 +12,7 @@ struct CommandPaletteView: View {
     @Binding var selectedSection: SidebarSection?
     @Binding var selectedDocumentId: UUID?
     @Binding var selectedTimesheetId: UUID?
+    @Binding var selectedClientId: UUID?
     @Binding var selectedSettingsTab: Int
 
     @Environment(\.dismiss) private var dismiss
@@ -58,6 +59,30 @@ struct CommandPaletteView: View {
                 createClient()
             },
             PaletteAction(
+                id: "open-planning",
+                title: L10n.timeHubOpenPlanning(lang),
+                subtitle: L10n.sidebarPlanning(lang),
+                systemImage: "calendar.badge.clock"
+            ) {
+                selectedSection = .planning
+                selectedDocumentId = nil
+                selectedTimesheetId = nil
+                selectedClientId = nil
+                dismiss()
+            },
+            PaletteAction(
+                id: "open-time-calendar",
+                title: L10n.timeHubOpenCalendar(lang),
+                subtitle: L10n.sidebarPlanning(lang),
+                systemImage: "calendar"
+            ) {
+                selectedSection = .planning
+                selectedDocumentId = nil
+                selectedTimesheetId = nil
+                selectedClientId = nil
+                dismiss()
+            },
+            PaletteAction(
                 id: "settings-payment",
                 title: L10n.openSettingsPayment(lang),
                 subtitle: L10n.settings(lang),
@@ -67,9 +92,39 @@ struct CommandPaletteView: View {
                 selectedSection = .parametres
                 selectedDocumentId = nil
                 selectedTimesheetId = nil
+                selectedClientId = nil
                 dismiss()
             }
         ]
+
+        if let running = dataStore.runningTimeEntryContext {
+            items.append(
+                PaletteAction(
+                    id: "stop-timer",
+                    title: L10n.timeHubStopTimer(lang),
+                    subtitle: running.timesheet.title(for: lang),
+                    systemImage: "stop.fill"
+                ) {
+                    dataStore.stopTimeEntry(running.entry, in: running.timesheet)
+                    dismiss()
+                }
+            )
+        } else {
+            items.append(
+                PaletteAction(
+                    id: "start-timer",
+                    title: L10n.timeHubStartTimer(lang),
+                    subtitle: L10n.sidebarPlanning(lang),
+                    systemImage: "play.fill"
+                ) {
+                    selectedSection = .planning
+                    selectedDocumentId = nil
+                    selectedTimesheetId = nil
+                    selectedClientId = nil
+                    dismiss()
+                }
+            )
+        }
 
         if let currentDocument {
             items.append(
@@ -84,7 +139,22 @@ struct CommandPaletteView: View {
             )
         }
 
-        if let currentTimesheet, dataStore.canGenerateInvoice(for: currentTimesheet) {
+        if let currentTimesheet, let invoice = dataStore.existingBillableHoursInvoice(for: currentTimesheet) {
+            items.append(
+                PaletteAction(
+                    id: "open-timesheet-invoice",
+                    title: L10n.openInvoice(lang),
+                    subtitle: invoice.number,
+                    systemImage: "doc.text.magnifyingglass"
+                ) {
+                    selectedSection = .factures
+                    selectedDocumentId = invoice.id
+                    selectedTimesheetId = nil
+                    selectedClientId = nil
+                    dismiss()
+                }
+            )
+        } else if let currentTimesheet, dataStore.canGenerateInvoice(for: currentTimesheet) {
             items.append(
                 PaletteAction(
                     id: "invoice-timesheet",
@@ -96,6 +166,7 @@ struct CommandPaletteView: View {
                         selectedSection = .factures
                         selectedDocumentId = invoice.id
                         selectedTimesheetId = nil
+                        selectedClientId = nil
                     }
                     dismiss()
                 }
@@ -189,6 +260,7 @@ struct CommandPaletteView: View {
                         selectedSection = document.type == .facture ? .factures : .devis
                         selectedDocumentId = document.id
                         selectedTimesheetId = nil
+                        selectedClientId = nil
                         dismiss()
                     } label: {
                         paletteRow(
@@ -212,6 +284,7 @@ struct CommandPaletteView: View {
                         selectedSection = .clients
                         selectedDocumentId = nil
                         selectedTimesheetId = nil
+                        selectedClientId = client.id
                         dismiss()
                     } label: {
                         paletteRow(
@@ -264,8 +337,8 @@ struct CommandPaletteView: View {
             Spacer()
         }
         .padding(10)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.7))
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.72))
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.rowRadius))
         .contentShape(Rectangle())
     }
 
@@ -294,6 +367,7 @@ struct CommandPaletteView: View {
         selectedSection = type == .facture ? .factures : .devis
         selectedDocumentId = document.id
         selectedTimesheetId = nil
+        selectedClientId = nil
         dismiss()
     }
 
@@ -303,6 +377,7 @@ struct CommandPaletteView: View {
         selectedSection = .clients
         selectedDocumentId = nil
         selectedTimesheetId = nil
+        selectedClientId = client.id
         dismiss()
     }
 
@@ -325,4 +400,3 @@ struct CommandPaletteView: View {
         return compatible.first
     }
 }
-

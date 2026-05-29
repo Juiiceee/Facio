@@ -1,6 +1,22 @@
 import Foundation
 import Observation
 
+struct RunningTimeEntryContext: Identifiable {
+    let timesheet: TimesheetPeriod
+    let entry: TimeEntry
+
+    var id: UUID { entry.id }
+}
+
+struct TimesheetDateRangeLossSummary: Equatable {
+    var dayCount: Int = 0
+    var hours: Decimal = 0
+
+    var hasLoss: Bool {
+        dayCount > 0 || hours > 0
+    }
+}
+
 @Observable
 @MainActor
 final class DataStore: Sendable {
@@ -311,15 +327,24 @@ final class DataStore: Sendable {
             $0.invoiceDocumentId == doc.id || doc.sourceTimesheetId == $0.id
         }
         let previousInvoiceMarkers = affectedTimesheets.map { ($0, $0.invoiceDocumentId, $0.billedAt, $0.updatedAt) }
+        let affectedTimeEntries = timesheets.flatMap { timesheet in
+            timesheet.timeEntries
+                .filter { $0.invoiceDocumentId == doc.id }
+                .map { (timesheet: timesheet, entry: $0, lineItemId: $0.invoiceLineItemId, invoicedAt: $0.invoicedAt, updatedAt: $0.updatedAt) }
+        }
         documents.removeAll { $0.id == doc.id }
         for timesheet in affectedTimesheets {
             timesheet.invoiceDocumentId = nil
             timesheet.billedAt = nil
             timesheet.updatedAt = Date()
         }
+        for marker in affectedTimeEntries {
+            marker.entry.clearInvoiceMarkers()
+            marker.timesheet.updatedAt = Date()
+        }
         if persist(.documents, allowBlockedWrite: false) {
             syncService?.markDeleted(doc.id, for: .documents)
-            if !affectedTimesheets.isEmpty {
+            if !affectedTimesheets.isEmpty || !affectedTimeEntries.isEmpty {
                 saveTimesheets()
             }
         } else {
@@ -328,6 +353,12 @@ final class DataStore: Sendable {
                 timesheet.invoiceDocumentId = invoiceDocumentId
                 timesheet.billedAt = billedAt
                 timesheet.updatedAt = updatedAt
+            }
+            for marker in affectedTimeEntries {
+                marker.entry.invoiceDocumentId = doc.id
+                marker.entry.invoiceLineItemId = marker.lineItemId
+                marker.entry.invoicedAt = marker.invoicedAt
+                marker.entry.updatedAt = marker.updatedAt
             }
         }
     }
@@ -362,17 +393,12 @@ final class DataStore: Sendable {
 
     @discardableResult
     func clientUpdated(_ client: ClientInfo) -> Bool {
-        if client.isEmptyRecord {
-            deleteClient(client)
-            return false
-        }
         client.updatedAt = Date()
         saveClients()
         return true
     }
 
     func clientUpdated() {
-        clients = normalizedClients(clients)
         saveClients()
     }
 
@@ -416,6 +442,231 @@ final class DataStore: Sendable {
         saveTimesheets()
     }
 
+    // MARK: - Time Entry CRUD
+
+    var runningTimeEntryContext: RunningTimeEntryContext? {
+        timesheets
+            .compactMap { timesheet -> RunningTimeEntryContext? in
+                guard let entry = timesheet.runningTimeEntry else { return nil }
+                return RunningTimeEntryContext(timesheet: timesheet, entry: entry)
+            }
+            .sorted { $0.entry.startedAt > $1.entry.startedAt }
+            .first
+    }
+
+    var runningTimeEntry: TimeEntry? {
+        runningTimeEntryContext?.entry
+    }
+
+    func startTimeEntry(
+        in timesheet: TimesheetPeriod,
+        projectName: String,
+        taskName: String,
+        notes: String,
+        tagsText: String = "",
+        isBillable: Bool = true,
+        at startDate: Date = Date()
+    ) -> TimeEntry? {
+        guard timesheet.isBillableDateString(TimeEntry.dateString(for: startDate)) else { return nil }
+        guard runningTimeEntryContext == nil else { return nil }
+
+        let trimmedProject = projectName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let entry = TimeEntry(
+            projectName: trimmedProject.isEmpty ? timesheet.clientDisplayName : trimmedProject,
+            taskName: taskName,
+            notes: notes,
+            tagsText: tagsText,
+            isBillable: isBillable,
+            rateSnapshot: isBillable ? timesheet.tauxNormal : nil,
+            currencySnapshot: isBillable ? companyInfo.deviseParDefaut : nil,
+            source: .timer,
+            startedAt: startDate,
+            endedAt: nil,
+            createdAt: startDate,
+            updatedAt: startDate
+        )
+        timesheet.addTimeEntry(entry)
+        timesheetUpdated(timesheet)
+        return entry
+    }
+
+    func continueTimeEntry(_ entry: TimeEntry, in timesheet: TimesheetPeriod, at startDate: Date = Date()) -> TimeEntry? {
+        startTimeEntry(
+            in: timesheet,
+            projectName: entry.projectName,
+            taskName: entry.taskName,
+            notes: entry.notes,
+            tagsText: entry.tagsText,
+            isBillable: entry.isBillable,
+            at: startDate
+        )
+    }
+
+    func addTimeEntry(_ entry: TimeEntry, to timesheet: TimesheetPeriod) {
+        entry.normalize()
+        entry.applyBillingSnapshotIfNeeded(defaultRate: timesheet.tauxNormal, currency: companyInfo.deviseParDefaut)
+        timesheet.addTimeEntry(entry)
+        let affectedDates = Set(entry.secondsByDate(upTo: entry.endedAt ?? Date()).keys)
+        timesheet.recalculateHoursFromTimeEntries(affectedDateStrings: affectedDates)
+        timesheetUpdated(timesheet, syncSharedWeeks: true)
+    }
+
+    func deleteTimeEntry(_ entry: TimeEntry, from timesheet: TimesheetPeriod) {
+        guard timesheet.timeEntries.contains(where: { $0.id == entry.id }) else { return }
+        let affectedDates = Set(entry.secondsByDate().keys)
+        entry.softDelete()
+        entry.normalize()
+        timesheet.recalculateHoursFromTimeEntries(affectedDateStrings: affectedDates)
+        timesheetUpdated(timesheet, syncSharedWeeks: true)
+    }
+
+    func restoreTimeEntry(_ entry: TimeEntry, in timesheet: TimesheetPeriod) {
+        guard timesheet.timeEntries.contains(where: { $0.id == entry.id }), entry.isDeleted else { return }
+        entry.restore()
+        entry.normalize()
+        let affectedDates = Set(entry.secondsByDate().keys)
+        timesheet.recalculateHoursFromTimeEntries(affectedDateStrings: affectedDates)
+        timesheetUpdated(timesheet, syncSharedWeeks: true)
+    }
+
+    func timeEntryUpdated(
+        _ entry: TimeEntry,
+        in timesheet: TimesheetPeriod,
+        previousAffectedDateStrings: Set<String> = []
+    ) {
+        entry.normalize()
+        entry.applyBillingSnapshotIfNeeded(defaultRate: timesheet.tauxNormal, currency: companyInfo.deviseParDefaut)
+        entry.updatedAt = Date()
+        let affectedDates = previousAffectedDateStrings.union(Set(entry.secondsByDate().keys))
+        timesheet.recalculateHoursFromTimeEntries(affectedDateStrings: affectedDates)
+        timesheetUpdated(timesheet, syncSharedWeeks: true)
+    }
+
+    func updateRunningTimeEntryStart(_ entry: TimeEntry, in timesheet: TimesheetPeriod, startedAt: Date) {
+        guard entry.isRunning else { return }
+        let previousAffectedDates = Set(entry.secondsByDate().keys)
+        entry.startedAt = startedAt
+        timeEntryUpdated(entry, in: timesheet, previousAffectedDateStrings: previousAffectedDates)
+    }
+
+    func stopRunningTimeEntry(at endDate: Date = Date()) {
+        guard let context = runningTimeEntryContext else { return }
+        stopTimeEntry(context.entry, in: context.timesheet, at: endDate)
+    }
+
+    func stopTimeEntry(_ entry: TimeEntry, in timesheet: TimesheetPeriod, at endDate: Date = Date()) {
+        guard entry.isRunning else { return }
+        guard endDate > entry.startedAt else { return }
+        let affectedDates = Set(entry.secondsByDate(upTo: endDate).keys)
+        entry.stop(at: endDate)
+        entry.normalize()
+        timesheet.recalculateHoursFromTimeEntries(affectedDateStrings: affectedDates, referenceDate: endDate)
+        timesheetUpdated(timesheet, syncSharedWeeks: true)
+    }
+
+    func importableTimeEntries(for timesheet: TimesheetPeriod) -> [TimeEntry] {
+        timesheet.timeEntries
+            .filter { entry in
+                !entry.isDeleted
+                    && !entry.isRunning
+                    && entry.isBillable
+                    && !entry.isInvoiced
+                    && entry.endedAt != nil
+                    && entry.duration() > 0
+            }
+            .sorted { $0.startedAt < $1.startedAt }
+    }
+
+    func canGenerateInvoiceFromTimeEntries(for timesheet: TimesheetPeriod) -> Bool {
+        timesheet.hasClient
+            && existingInvoice(for: timesheet) == nil
+            && !importableTimeEntries(for: timesheet).isEmpty
+    }
+
+    func generateInvoiceFromUnbilledTimeEntries(
+        from timesheet: TimesheetPeriod,
+        grouping: TimeEntryInvoiceGrouping = .detailed
+    ) -> Document? {
+        generateInvoiceFromTimeEntries(
+            importableTimeEntries(for: timesheet),
+            from: timesheet,
+            grouping: grouping
+        )
+    }
+
+    func generateInvoiceFromTimeEntries(
+        _ selectedEntries: [TimeEntry],
+        from timesheet: TimesheetPeriod,
+        grouping: TimeEntryInvoiceGrouping = .detailed
+    ) -> Document? {
+        guard timesheet.hasClient else { return nil }
+        if let existingInvoice = existingBillableHoursInvoice(for: timesheet) {
+            let now = Date()
+            let markerChanges = markTimesheet(timesheet, invoicedBy: existingInvoice, at: existingInvoice.dateCreation)
+            let documentsChanged = refreshLinkedInvoice(for: timesheet, updatedAt: now)
+            if markerChanges.documentChanged || documentsChanged {
+                saveDocuments()
+            }
+            if markerChanges.timesheetChanged || documentsChanged {
+                saveTimesheets()
+            }
+            return existingInvoice
+        }
+
+        let importableEntries = importableTimeEntries(for: timesheet)
+        let importableIds = Set(importableEntries.map(\.id))
+        let entries = selectedEntries
+            .filter { importableIds.contains($0.id) }
+            .sorted { $0.startedAt < $1.startedAt }
+        guard !entries.isEmpty else { return nil }
+        let coversAllOpenTimeEntries = entries.count == importableEntries.count
+
+        let company = companyInfo
+        let invoiceLanguage = company.langueParDefaut
+        let creationDate = Date()
+        let currency = entries.first?.currencySnapshot ?? company.deviseParDefaut
+        let number = DocumentNumberService.nextNumber(
+            type: .facture,
+            existingDocuments: documents,
+            language: invoiceLanguage
+        )
+        let document = Document(
+            type: .facture,
+            number: number,
+            dateCreation: creationDate,
+            dateEcheance: dueDate(from: creationDate),
+            currency: currency,
+            blockchain: defaultBlockchain(for: currency)
+        )
+        document.langue = invoiceLanguage
+        timesheet.applyClient(to: document)
+        if coversAllOpenTimeEntries {
+            document.sourceTimesheetId = timesheet.id
+        }
+
+        let generated = timeEntryInvoiceLineItems(for: entries, timesheet: timesheet, grouping: grouping)
+        guard !generated.isEmpty else { return nil }
+        document.lignes = generated.map(\.line)
+
+        addDocument(document)
+
+        for item in generated {
+            for entry in item.entries {
+                entry.markInvoiced(documentId: document.id, lineItemId: item.line.id, at: creationDate)
+            }
+        }
+        if coversAllOpenTimeEntries {
+            let markerChanges = markTimesheet(timesheet, invoicedBy: document, at: creationDate)
+            if markerChanges.documentChanged {
+                saveDocuments()
+            }
+        } else {
+            timesheet.updatedAt = creationDate
+        }
+        saveTimesheets()
+        return document
+    }
+
     func timesheetExists(mois: Int, annee: Int, clientId: UUID?, excluding excludedId: UUID? = nil) -> Bool {
         TimesheetPeriod.periodExists(
             in: timesheets,
@@ -446,8 +697,58 @@ final class DataStore: Sendable {
         )
     }
 
+    func timesheetDateRangeLoss(
+        for timesheet: TimesheetPeriod,
+        startDate: Date,
+        endDate: Date
+    ) -> TimesheetDateRangeLossSummary {
+        let range = TimesheetPeriod.normalizedDateRange(startDate: startDate, endDate: endDate)
+        var summary = TimesheetDateRangeLossSummary()
+
+        for week in timesheet.semaines {
+            for day in week.jours where day.heures > 0 {
+                guard timesheet.isBillableDay(day) else { continue }
+                guard day.dateString < range.start || day.dateString > range.end else { continue }
+                summary.dayCount += 1
+                summary.hours += day.heures
+            }
+        }
+
+        return summary
+    }
+
+    func updateTimesheetDateRange(
+        _ timesheet: TimesheetPeriod,
+        startDate: Date,
+        endDate: Date
+    ) {
+        let range = TimesheetPeriod.normalizedDateRange(startDate: startDate, endDate: endDate)
+        let calendar = Calendar(identifier: .gregorian)
+        timesheet.customStartDateString = range.start
+        timesheet.customEndDateString = range.end
+        timesheet.mois = calendar.component(.month, from: range.startDate)
+        timesheet.annee = calendar.component(.year, from: range.startDate)
+        timesheet.nom = timesheet.periodLabel(for: .fr)
+
+        _ = timesheet.normalizeCalendar()
+        clearHoursOutsideActiveRange(for: timesheet)
+        timesheetUpdated(timesheet, syncSharedWeeks: true)
+    }
+
+    private func clearHoursOutsideActiveRange(for timesheet: TimesheetPeriod) {
+        for weekIndex in timesheet.semaines.indices {
+            for dayIndex in timesheet.semaines[weekIndex].jours.indices {
+                let day = timesheet.semaines[weekIndex].jours[dayIndex]
+                if !timesheet.isBillableDateString(day.dateString), day.heures != 0 {
+                    timesheet.semaines[weekIndex].jours[dayIndex].heures = 0
+                }
+            }
+        }
+    }
+
     func canGenerateInvoice(for timesheet: TimesheetPeriod) -> Bool {
         guard timesheet.hasClient else { return false }
+        guard !timesheet.hasGeneratedInvoice, existingBillableHoursInvoice(for: timesheet) == nil else { return false }
         return !invoiceLineItems(for: timesheet, detailMode: .summary).isEmpty
     }
 
@@ -455,13 +756,16 @@ final class DataStore: Sendable {
         from timesheet: TimesheetPeriod,
         detailMode: TimesheetInvoiceDetailMode
     ) -> Document? {
-        if let existingInvoice = existingInvoice(for: timesheet) {
-            timesheet.invoiceDetailMode = detailMode
-            markTimesheet(timesheet, invoicedBy: existingInvoice, at: existingInvoice.dateCreation)
-            if refreshLinkedInvoice(for: timesheet, updatedAt: Date()) {
+        if let existingInvoice = existingBillableHoursInvoice(for: timesheet) {
+            let now = Date()
+            let markerChanges = markTimesheet(timesheet, invoicedBy: existingInvoice, at: existingInvoice.dateCreation)
+            let documentsChanged = refreshLinkedInvoice(for: timesheet, updatedAt: now)
+            if markerChanges.documentChanged || documentsChanged {
                 saveDocuments()
             }
-            saveTimesheets()
+            if markerChanges.timesheetChanged || documentsChanged {
+                saveTimesheets()
+            }
             return existingInvoice
         }
         guard timesheet.hasClient else { return nil }
@@ -490,10 +794,15 @@ final class DataStore: Sendable {
         document.sourceTimesheetId = timesheet.id
         timesheet.applyClient(to: document)
         document.lignes = lineItems
+        document.timesheetAutoSyncSignature = timesheetAutoSyncSignature(for: document)
         timesheet.invoiceDetailMode = detailMode
 
         addDocument(document)
-        markTimesheet(timesheet, invoicedBy: document, at: creationDate)
+        let markerChanges = markTimesheet(timesheet, invoicedBy: document, at: creationDate)
+        let entriesChanged = markTimeEntriesCoveredByPeriodInvoice(timesheet, document: document, at: creationDate)
+        if markerChanges.timesheetChanged || entriesChanged {
+            saveTimesheets()
+        }
         return document
     }
 
@@ -503,6 +812,25 @@ final class DataStore: Sendable {
             return document
         }
         return documents.first { $0.type == .facture && $0.sourceTimesheetId == timesheet.id }
+    }
+
+    func existingBillableHoursInvoice(for timesheet: TimesheetPeriod) -> Document? {
+        existingInvoice(for: timesheet) ?? existingTimeEntryInvoice(for: timesheet)
+    }
+
+    private func existingTimeEntryInvoice(for timesheet: TimesheetPeriod) -> Document? {
+        guard importableTimeEntries(for: timesheet).isEmpty else { return nil }
+        let invoiceIds = Set(timesheet.timeEntries.compactMap { entry -> UUID? in
+            guard !entry.isDeleted,
+                  entry.isBillable,
+                  entry.isInvoiced,
+                  timesheet.isBillableDateString(entry.dateString) else {
+                return nil
+            }
+            return entry.invoiceDocumentId
+        })
+        guard invoiceIds.count == 1, let invoiceId = invoiceIds.first else { return nil }
+        return documents.first { $0.id == invoiceId && $0.type == .facture }
     }
 
     func invoiceLineItems(
@@ -518,7 +846,11 @@ final class DataStore: Sendable {
         )
     }
 
-    private func markTimesheet(_ timesheet: TimesheetPeriod, invoicedBy document: Document, at date: Date) {
+    private func markTimesheet(
+        _ timesheet: TimesheetPeriod,
+        invoicedBy document: Document,
+        at date: Date
+    ) -> (timesheetChanged: Bool, documentChanged: Bool) {
         var timesheetChanged = false
         if timesheet.invoiceDocumentId != document.id {
             timesheet.invoiceDocumentId = document.id
@@ -529,13 +861,16 @@ final class DataStore: Sendable {
             timesheetChanged = true
         }
         if timesheetChanged {
-            timesheetUpdated(timesheet)
+            timesheet.updatedAt = date
         }
 
+        var documentChanged = false
         if document.sourceTimesheetId != timesheet.id {
             document.sourceTimesheetId = timesheet.id
-            documentUpdated(document)
+            document.updatedAt = date
+            documentChanged = true
         }
+        return (timesheetChanged, documentChanged)
     }
 
     @discardableResult
@@ -559,6 +894,38 @@ final class DataStore: Sendable {
         let refreshedLineItems = preservingLineItemIds(generatedLineItems, from: invoice.lignes)
 
         var changed = false
+
+        if invoice.sourceTimesheetId != timesheet.id {
+            invoice.sourceTimesheetId = timesheet.id
+            changed = true
+        }
+
+        guard invoice.status == .brouillon else {
+            if changed {
+                invoice.updatedAt = now
+            }
+            return changed
+        }
+
+        if invoice.timesheetAutoSyncSignature == nil {
+            if lineItemsMatch(invoice.lignes, refreshedLineItems), !invoiceClientSnapshotDiffers(from: timesheet) {
+                invoice.timesheetAutoSyncSignature = timesheetAutoSyncSignature(for: invoice)
+                changed = true
+            } else {
+                if changed {
+                    invoice.updatedAt = now
+                }
+                return changed
+            }
+        }
+
+        guard invoice.timesheetAutoSyncSignature == timesheetAutoSyncSignature(for: invoice) else {
+            if changed {
+                invoice.updatedAt = now
+            }
+            return changed
+        }
+
         if !lineItemsMatch(invoice.lignes, refreshedLineItems) {
             invoice.lignes = refreshedLineItems
             changed = true
@@ -569,12 +936,14 @@ final class DataStore: Sendable {
             changed = true
         }
 
-        if invoice.sourceTimesheetId != timesheet.id {
-            invoice.sourceTimesheetId = timesheet.id
+        let refreshedSignature = timesheetAutoSyncSignature(for: invoice)
+        if invoice.timesheetAutoSyncSignature != refreshedSignature {
+            invoice.timesheetAutoSyncSignature = refreshedSignature
             changed = true
         }
 
         if changed {
+            _ = markTimeEntriesCoveredByPeriodInvoice(timesheet, document: invoice, at: now)
             invoice.updatedAt = now
         }
         return changed
@@ -605,6 +974,145 @@ final class DataStore: Sendable {
             }
         }
         return true
+    }
+
+    private func timesheetAutoSyncSignature(for document: Document) -> String {
+        var parts: [String] = [
+            "client",
+            document.clientNom,
+            document.clientAdresse,
+            document.clientCodePostal,
+            document.clientVille,
+            document.clientSiret,
+            document.clientTva,
+            document.clientApe,
+            "lines",
+            String(document.lignes.count)
+        ]
+
+        for line in document.lignes.sorted(by: { $0.ordre < $1.ordre }) {
+            parts.append(contentsOf: [
+                line.id.uuidString,
+                line.designation,
+                decimalSignature(line.quantite),
+                decimalSignature(line.prixUnitaire),
+                decimalSignature(line.tauxTVA),
+                String(line.ordre)
+            ])
+        }
+
+        return parts.map(signaturePart).joined()
+    }
+
+    private func signaturePart(_ value: String) -> String {
+        "\(value.count):\(value)"
+    }
+
+    private func decimalSignature(_ value: Decimal) -> String {
+        NSDecimalNumber(decimal: value).stringValue
+    }
+
+    @discardableResult
+    private func markTimeEntriesCoveredByPeriodInvoice(
+        _ timesheet: TimesheetPeriod,
+        document: Document,
+        at date: Date
+    ) -> Bool {
+        var changed = false
+        for entry in timesheet.timeEntries where shouldMarkTimeEntryInvoicedByPeriod(entry, in: timesheet) {
+            entry.markInvoiced(documentId: document.id, lineItemId: nil, at: date)
+            changed = true
+        }
+        if changed {
+            timesheet.updatedAt = date
+        }
+        return changed
+    }
+
+    private func shouldMarkTimeEntryInvoicedByPeriod(_ entry: TimeEntry, in timesheet: TimesheetPeriod) -> Bool {
+        !entry.isDeleted
+            && !entry.isRunning
+            && entry.isBillable
+            && !entry.isInvoiced
+            && entry.endedAt != nil
+            && timesheet.isBillableDateString(entry.dateString)
+            && entry.duration() > 0
+    }
+
+    private func timeEntryInvoiceLineItems(
+        for entries: [TimeEntry],
+        timesheet: TimesheetPeriod,
+        grouping: TimeEntryInvoiceGrouping
+    ) -> [(line: LineItem, entries: [TimeEntry])] {
+        switch grouping {
+        case .detailed:
+            return entries.enumerated().map { index, entry in
+                (
+                    line: LineItem(
+                        designation: timeEntryDetailedInvoiceLabel(entry, lang: companyInfo.langueParDefaut),
+                        quantite: entryBillableHours(entry),
+                        prixUnitaire: entry.rateSnapshot ?? timesheet.tauxNormal,
+                        tauxTVA: 0,
+                        ordre: index
+                    ),
+                    entries: [entry]
+                )
+            }
+
+        case .byProject:
+            let grouped = Dictionary(grouping: entries) { entry in
+                let project = entry.displayProject.isEmpty ? timesheet.clientDisplayName : entry.displayProject
+                let rate = entry.rateSnapshot ?? timesheet.tauxNormal
+                return "\(project)|\(rate.description)"
+            }
+            return grouped
+                .sorted { $0.key < $1.key }
+                .enumerated()
+                .map { index, group in
+                    let groupEntries = group.value.sorted { $0.startedAt < $1.startedAt }
+                    let first = groupEntries[0]
+                    let project = first.displayProject.isEmpty ? timesheet.clientDisplayName : first.displayProject
+                    let hours = groupEntries.reduce(Decimal(0)) { $0 + entryBillableHours($1) }
+                    return (
+                        line: LineItem(
+                            designation: project.isEmpty ? L10n.workHours(companyInfo.langueParDefaut) : project,
+                            quantite: hours,
+                            prixUnitaire: first.rateSnapshot ?? timesheet.tauxNormal,
+                            tauxTVA: 0,
+                            ordre: index
+                        ),
+                        entries: groupEntries
+                    )
+                }
+
+        case .singleLine:
+            let hours = entries.reduce(Decimal(0)) { $0 + entryBillableHours($1) }
+            let rate = entries.first?.rateSnapshot ?? timesheet.tauxNormal
+            return [(
+                line: LineItem(
+                    designation: L10n.workHoursForPeriod(companyInfo.langueParDefaut, period: timesheet.periodLabel(for: companyInfo.langueParDefaut)),
+                    quantite: hours,
+                    prixUnitaire: rate,
+                    tauxTVA: 0,
+                    ordre: 0
+                ),
+                entries: entries
+            )]
+        }
+    }
+
+    private func timeEntryDetailedInvoiceLabel(_ entry: TimeEntry, lang: AppLanguage) -> String {
+        let title = [entry.notes, entry.displayProject, entry.displayTask]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " - ")
+        let duration = entry.durationHours().formattedDecimal(maxFractionDigits: 2, for: lang)
+        let detail = title.isEmpty ? L10n.workHours(lang) : title
+        return "\(entry.dateString) - \(detail) - \(duration)h"
+    }
+
+    private func entryBillableHours(_ entry: TimeEntry) -> Decimal {
+        Decimal(entry.duration() / 3600)
     }
 
     private func invoiceClientSnapshotDiffers(from timesheet: TimesheetPeriod) -> Bool {
@@ -645,7 +1153,7 @@ final class DataStore: Sendable {
     }
 
     private func normalizedClients(_ clients: [ClientInfo]) -> [ClientInfo] {
-        clients.filter { !$0.isEmptyRecord }
+        clients
     }
 
     // MARK: - Cross-period sync

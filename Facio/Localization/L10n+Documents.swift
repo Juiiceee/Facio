@@ -80,6 +80,12 @@ extension L10n {
     static func clickToCreate(_ l: AppLanguage, type: String) -> String { l == .fr ? "Cliquez sur + pour créer un \(type)." : "Click + to create a \(type)." }
     static func noClient(_ l: AppLanguage) -> String { l == .fr ? "Sans client" : "No client" }
     static func overdue(_ l: AppLanguage) -> String { l == .fr ? "Retard" : "Overdue" }
+    static func deleteDocumentConfirmTitle(_ l: AppLanguage) -> String {
+        l == .fr ? "Supprimer ce document ?" : "Delete this document?"
+    }
+    static func deleteDocumentConfirmMessage(_ l: AppLanguage, number: String) -> String {
+        l == .fr ? "Le document \(number) sera supprimé définitivement." : "Document \(number) will be permanently deleted."
+    }
 
     // Etats vides
     static func noDocumentSelected(_ l: AppLanguage) -> String { l == .fr ? "Aucun document sélectionné" : "No document selected" }

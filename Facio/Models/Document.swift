@@ -60,6 +60,7 @@ final class Document: Identifiable, Codable, Hashable {
     var lignes: [LineItem] = []
     var transactionSignatures: [TransactionSignature] = []
     var sourceTimesheetId: UUID?
+    var timesheetAutoSyncSignature: String?
 
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
@@ -486,7 +487,7 @@ final class Document: Identifiable, Codable, Hashable {
         case accountingCurrencyRawValue, accountingExchangeRate, accountingExchangeRateDate
         case clientNom, clientAdresse, clientCodePostal, clientVille
         case clientSiret, clientTva, clientApe
-        case lignes, transactionSignatures, sourceTimesheetId
+        case lignes, transactionSignatures, sourceTimesheetId, timesheetAutoSyncSignature
         case createdAt, updatedAt, notes, selectedWalletId, selectedBankAccountId, langueRawValue
         case paymentSnapshot
     }
@@ -519,6 +520,7 @@ final class Document: Identifiable, Codable, Hashable {
         lignes = container.decodeOrDefault([LineItem].self, forKey: .lignes, default: [])
         transactionSignatures = container.decodeOrDefault([TransactionSignature].self, forKey: .transactionSignatures, default: [])
         sourceTimesheetId = try? container.decode(UUID.self, forKey: .sourceTimesheetId)
+        timesheetAutoSyncSignature = try? container.decode(String.self, forKey: .timesheetAutoSyncSignature)
         createdAt = container.decodeOrDefault(Date.self, forKey: .createdAt, default: dateCreation)
         updatedAt = container.decodeOrDefault(Date.self, forKey: .updatedAt, default: createdAt)
         notes = container.decodeOrDefault(String.self, forKey: .notes, default: "")
@@ -553,6 +555,7 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encode(lignes, forKey: .lignes)
         try container.encode(transactionSignatures, forKey: .transactionSignatures)
         try container.encodeIfPresent(sourceTimesheetId, forKey: .sourceTimesheetId)
+        try container.encodeIfPresent(timesheetAutoSyncSignature, forKey: .timesheetAutoSyncSignature)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(notes, forKey: .notes)

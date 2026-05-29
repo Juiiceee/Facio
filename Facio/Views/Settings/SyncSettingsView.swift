@@ -134,13 +134,7 @@ struct SyncSettingsView: View {
                         }
 
                         if let error = authService.error {
-                            HStack(spacing: 6) {
-                                Image(systemName: "exclamationmark.triangle")
-                                    .foregroundStyle(.red)
-                                Text(error)
-                                    .foregroundStyle(.red)
-                                    .font(.caption)
-                            }
+                            InlineWarning(text: "\(L10n.authenticationError(lang)): \(error)", tone: .danger)
                         }
                     }
                     .padding(12)
@@ -173,13 +167,7 @@ struct SyncSettingsView: View {
                         }
 
                         if let error = syncService.lastError {
-                            HStack(spacing: 6) {
-                                Image(systemName: "exclamationmark.triangle")
-                                    .foregroundStyle(.red)
-                                Text(error)
-                                    .foregroundStyle(.red)
-                                    .font(.caption)
-                            }
+                            InlineWarning(text: "\(L10n.synchronizationError(lang)): \(error)", tone: .danger)
                         }
 
                         HStack(spacing: 12) {
@@ -243,6 +231,8 @@ struct SyncSettingsView: View {
                                             .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.borderless)
+                                    .help(showApiKey ? L10n.hideApiKey(lang) : L10n.showApiKey(lang))
+                                    .accessibilityLabel(showApiKey ? L10n.hideApiKey(lang) : L10n.showApiKey(lang))
                                 }
                                 .onChange(of: customAPIKey) { SyncConfig.customAPIKey = customAPIKey }
                             }

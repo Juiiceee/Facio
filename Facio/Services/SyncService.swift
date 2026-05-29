@@ -472,49 +472,111 @@ final class SyncService: Sendable {
             ]
             guard await supabaseUpsert(table: "timesheet_periods", body: body, onConflict: "id") else { return false }
 
-            for week in ts.semaines {
-                let weekBody: [String: Any] = [
-                    "id": week.id.uuidString,
-                    "user_id": userId,
-                    "period_id": ts.id.uuidString,
-                    "numero": week.numero,
-                ]
-                guard await supabaseUpsert(table: "timesheet_weeks", body: weekBody, onConflict: "id") else { return false }
-
-                let localDayIds = Set(week.jours.map { $0.id.uuidString })
-                if !week.jours.isEmpty {
-                    let days: [[String: Any]] = week.jours.map { day in
-                        [
-                            "id": day.id.uuidString,
-                            "user_id": userId,
-                            "week_id": week.id.uuidString,
-                            "date_string": day.dateString,
-                            "heures": decimalPayload(day.heures),
-                        ]
+            let localEntryIds = Set(ts.timeEntries.map { $0.id.uuidString })
+            if !localEntryIds.isEmpty {
+                let legacyEntries: [[String: Any]] = ts.timeEntries.map { entry in
+                    [
+                        "id": entry.id.uuidString,
+                        "user_id": userId,
+                        "period_id": ts.id.uuidString,
+                        "date_string": entry.dateString,
+                        "project_name": entry.projectName,
+                        "task_name": entry.taskName,
+                        "notes": entry.notes,
+                        "started_at": syncDateString(entry.startedAt),
+                        "ended_at": entry.endedAt.map(syncDateString) ?? NSNull(),
+                        "created_at": syncDateString(entry.createdAt),
+                        "updated_at": syncDateString(entry.updatedAt),
+                    ]
+                }
+                let entries: [[String: Any]] = ts.timeEntries.enumerated().map { index, entry in
+                    var payload = legacyEntries[index]
+                    payload["tags_text"] = entry.tagsText
+                    payload["is_billable"] = entry.isBillable
+                    payload["rate_snapshot"] = entry.rateSnapshot.map(decimalPayload) ?? NSNull()
+                    payload["currency_snapshot_raw_value"] = entry.currencySnapshotRawValue ?? NSNull()
+                    payload["invoice_document_id"] = entry.invoiceDocumentId?.uuidString ?? NSNull()
+                    payload["invoice_line_item_id"] = entry.invoiceLineItemId?.uuidString ?? NSNull()
+                    payload["invoiced_at"] = entry.invoicedAt.map(syncDateString) ?? NSNull()
+                    payload["source_raw_value"] = entry.sourceRawValue
+                    payload["deleted_at"] = entry.deletedAt.map(syncDateString) ?? NSNull()
+                    return payload
+                }
+                if !(await supabaseBatchUpsert(table: "timesheet_entries", rows: entries, onConflict: "id")) {
+                    if isMissingTimeEntriesSchemaError,
+                       await supabaseBatchUpsert(table: "timesheet_entries", rows: legacyEntries, onConflict: "id") {
+                        lastError = nil
+                    } else {
+                        return false
                     }
-                    guard await supabaseBatchUpsert(table: "timesheet_days", rows: days, onConflict: "id") else { return false }
-                }
-                guard let remoteDayIds = await fetchRemoteIdsOrFail(
-                    table: "timesheet_days",
-                    query: "select=id&week_id=eq.\(week.id.uuidString)"
-                ) else { return false }
-                for id in remoteDayIds.subtracting(localDayIds) {
-                    guard await supabaseDelete(table: "timesheet_days", filter: "id=eq.\(id)") else { return false }
                 }
             }
 
-            let localWeekIds = Set(ts.semaines.map { $0.id.uuidString })
-            guard let remoteWeekIds = await fetchRemoteIdsOrFail(
-                table: "timesheet_weeks",
+            let remoteEntryIds = await fetchRemoteIdsOrFail(
+                table: "timesheet_entries",
                 query: "select=id&period_id=eq.\(ts.id.uuidString)"
-            ) else { return false }
-            for id in remoteWeekIds.subtracting(localWeekIds) {
-                guard await supabaseDelete(table: "timesheet_weeks", filter: "id=eq.\(id)") else { return false }
+            )
+            guard let remoteEntryIds else {
+                if localEntryIds.isEmpty && isMissingTimeEntriesSchemaError {
+                    lastError = nil
+                } else {
+                    return false
+                }
+                guard await pushTimesheetWeeks(ts, userId: userId) else { return false }
+                continue
             }
+            for id in remoteEntryIds.subtracting(localEntryIds) {
+                guard await supabaseDelete(table: "timesheet_entries", filter: "id=eq.\(id)") else { return false }
+            }
+
+            guard await pushTimesheetWeeks(ts, userId: userId) else { return false }
         }
 
         lastSyncDate = Date()
         lastError = nil
+        return true
+    }
+
+    private func pushTimesheetWeeks(_ ts: TimesheetPeriod, userId: String) async -> Bool {
+        for week in ts.semaines {
+            let weekBody: [String: Any] = [
+                "id": week.id.uuidString,
+                "user_id": userId,
+                "period_id": ts.id.uuidString,
+                "numero": week.numero,
+            ]
+            guard await supabaseUpsert(table: "timesheet_weeks", body: weekBody, onConflict: "id") else { return false }
+
+            let localDayIds = Set(week.jours.map { $0.id.uuidString })
+            if !week.jours.isEmpty {
+                let days: [[String: Any]] = week.jours.map { day in
+                    [
+                        "id": day.id.uuidString,
+                        "user_id": userId,
+                        "week_id": week.id.uuidString,
+                        "date_string": day.dateString,
+                        "heures": decimalPayload(day.heures),
+                    ]
+                }
+                guard await supabaseBatchUpsert(table: "timesheet_days", rows: days, onConflict: "id") else { return false }
+            }
+            guard let remoteDayIds = await fetchRemoteIdsOrFail(
+                table: "timesheet_days",
+                query: "select=id&week_id=eq.\(week.id.uuidString)"
+            ) else { return false }
+            for id in remoteDayIds.subtracting(localDayIds) {
+                guard await supabaseDelete(table: "timesheet_days", filter: "id=eq.\(id)") else { return false }
+            }
+        }
+
+        let localWeekIds = Set(ts.semaines.map { $0.id.uuidString })
+        guard let remoteWeekIds = await fetchRemoteIdsOrFail(
+            table: "timesheet_weeks",
+            query: "select=id&period_id=eq.\(ts.id.uuidString)"
+        ) else { return false }
+        for id in remoteWeekIds.subtracting(localWeekIds) {
+            guard await supabaseDelete(table: "timesheet_weeks", filter: "id=eq.\(id)") else { return false }
+        }
         return true
     }
 
@@ -710,10 +772,25 @@ final class SyncService: Sendable {
     }
 
     func pullTimesheets() async -> [TimesheetPeriod]? {
-        guard let periodsJson = await supabaseGet(
+        let periodsJson: [[String: Any]]
+        let includesEntries: Bool
+        if let pulled = await supabaseGet(
             table: "timesheet_periods",
-            query: "select=*,timesheet_weeks(*,timesheet_days(*))"
-        ) else { return nil }
+            query: "select=*,timesheet_entries(*),timesheet_weeks(*,timesheet_days(*))"
+        ) {
+            periodsJson = pulled
+            includesEntries = true
+        } else if isMissingTimeEntriesSchemaError,
+                  let pulled = await supabaseGet(
+                    table: "timesheet_periods",
+                    query: "select=*,timesheet_weeks(*,timesheet_days(*))"
+                  ) {
+            periodsJson = pulled
+            includesEntries = false
+            lastError = nil
+        } else {
+            return nil
+        }
 
         var periods: [TimesheetPeriod] = []
         for json in periodsJson {
@@ -745,6 +822,36 @@ final class SyncService: Sendable {
             period.seuilHebdo = decimalValue(json["seuil_hebdo"], default: 35)
             period.createdAt = parseDate(json["created_at"]) ?? period.createdAt
             period.updatedAt = parseDate(json["updated_at"]) ?? period.createdAt
+
+            // Entries
+            if includesEntries, let entriesJson = json["timesheet_entries"] as? [[String: Any]] {
+                period.timeEntries = entriesJson.compactMap { e in
+                    guard let entryId = (e["id"] as? String).flatMap({ UUID(uuidString: $0) }) else { return nil }
+                    let startedAt = parseDate(e["started_at"]) ?? Date()
+                    let entry = TimeEntry(
+                        id: entryId,
+                        dateString: e["date_string"] as? String,
+                        projectName: e["project_name"] as? String ?? "",
+                        taskName: e["task_name"] as? String ?? "",
+                        notes: e["notes"] as? String ?? "",
+                        tagsText: e["tags_text"] as? String ?? "",
+                        isBillable: e["is_billable"] as? Bool ?? true,
+                        rateSnapshot: decimalValueOrNil(e["rate_snapshot"]),
+                        currencySnapshot: (e["currency_snapshot_raw_value"] as? String).flatMap { CurrencyType(rawValue: $0) },
+                        invoiceDocumentId: (e["invoice_document_id"] as? String).flatMap { UUID(uuidString: $0) },
+                        invoiceLineItemId: (e["invoice_line_item_id"] as? String).flatMap { UUID(uuidString: $0) },
+                        invoicedAt: parseDate(e["invoiced_at"]),
+                        source: TimeEntrySource(rawValue: e["source_raw_value"] as? String ?? "") ?? .timer,
+                        deletedAt: parseDate(e["deleted_at"]),
+                        startedAt: startedAt,
+                        endedAt: parseDate(e["ended_at"]),
+                        createdAt: parseDate(e["created_at"]) ?? startedAt,
+                        updatedAt: parseDate(e["updated_at"]) ?? startedAt
+                    )
+                    entry.normalize()
+                    return entry
+                }.sorted { $0.startedAt > $1.startedAt }
+            }
 
             // Weeks
             if let weeksJson = json["timesheet_weeks"] as? [[String: Any]] {
@@ -1052,6 +1159,18 @@ final class SyncService: Sendable {
         guard let str = value as? String else { return nil }
         return Self.iso8601FractionalFormatter.date(from: str)
             ?? Self.iso8601Formatter.date(from: str)
+    }
+
+    private var isMissingTimeEntriesSchemaError: Bool {
+        guard let lastError else { return false }
+        let message = lastError.lowercased()
+        return message.contains("timesheet_entries")
+            && (
+                message.contains("could not find")
+                    || message.contains("schema cache")
+                    || message.contains("does not exist")
+                    || message.contains("relation")
+            )
     }
 
     private func decimalPayload(_ value: Decimal) -> String {
@@ -1387,6 +1506,30 @@ final class SyncService: Sendable {
       heures NUMERIC NOT NULL DEFAULT 0
     );
 
+    -- 12. Entrees de compteur
+    CREATE TABLE timesheet_entries (
+      id UUID PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+      period_id UUID NOT NULL REFERENCES timesheet_periods(id) ON DELETE CASCADE,
+      date_string TEXT NOT NULL,
+      project_name TEXT NOT NULL DEFAULT '',
+      task_name TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      tags_text TEXT NOT NULL DEFAULT '',
+      is_billable BOOLEAN NOT NULL DEFAULT true,
+      rate_snapshot NUMERIC,
+      currency_snapshot_raw_value TEXT,
+      invoice_document_id UUID REFERENCES documents(id) ON DELETE SET NULL,
+      invoice_line_item_id UUID REFERENCES line_items(id) ON DELETE SET NULL,
+      invoiced_at TIMESTAMPTZ,
+      source_raw_value TEXT NOT NULL DEFAULT 'timer',
+      deleted_at TIMESTAMPTZ,
+      started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      ended_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
     -- RLS (Row Level Security)
     ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
     ALTER TABLE line_items ENABLE ROW LEVEL SECURITY;
@@ -1399,6 +1542,7 @@ final class SyncService: Sendable {
     ALTER TABLE timesheet_periods ENABLE ROW LEVEL SECURITY;
     ALTER TABLE timesheet_weeks ENABLE ROW LEVEL SECURITY;
     ALTER TABLE timesheet_days ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE timesheet_entries ENABLE ROW LEVEL SECURITY;
 
     CREATE POLICY "own_data" ON documents FOR ALL
       USING (auth.uid() = user_id)
@@ -1500,6 +1644,16 @@ final class SyncService: Sendable {
         )
       );
 
+    CREATE POLICY "own_data" ON timesheet_entries FOR ALL
+      USING (
+        auth.uid() = user_id
+        AND EXISTS (SELECT 1 FROM timesheet_periods WHERE timesheet_periods.id = timesheet_entries.period_id AND timesheet_periods.user_id = auth.uid())
+      )
+      WITH CHECK (
+        auth.uid() = user_id
+        AND EXISTS (SELECT 1 FROM timesheet_periods WHERE timesheet_periods.id = timesheet_entries.period_id AND timesheet_periods.user_id = auth.uid())
+      );
+
     -- Index sur les cles etrangeres
     CREATE INDEX idx_line_items_document ON line_items(document_id);
     CREATE INDEX idx_tx_sigs_document ON transaction_signatures(document_id);
@@ -1508,5 +1662,6 @@ final class SyncService: Sendable {
     CREATE INDEX idx_presets_company ON prestation_presets(company_id);
     CREATE INDEX idx_weeks_period ON timesheet_weeks(period_id);
     CREATE INDEX idx_days_week ON timesheet_days(week_id);
+    CREATE INDEX idx_entries_period ON timesheet_entries(period_id);
     """
 }

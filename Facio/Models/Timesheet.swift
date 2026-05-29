@@ -24,6 +24,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     var clientSiret: String = ""
     var clientTva: String = ""
     var clientApe: String = ""
+    var timeEntries: [TimeEntry] = []
 
     // Parametres de calcul
     var tauxNormal: Decimal = 26.39
@@ -47,6 +48,12 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     var totalNet: Decimal { totalBrut * coefficientNet }
     var hasGeneratedInvoice: Bool { invoiceDocumentId != nil || billedAt != nil }
     var hasClient: Bool { clientId != nil || !clientNom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    var runningTimeEntry: TimeEntry? {
+        timeEntries
+            .filter(\.isRunning)
+            .sorted { $0.startedAt > $1.startedAt }
+            .first
+    }
 
     var invoiceDetailMode: TimesheetInvoiceDetailMode {
         get { TimesheetInvoiceDetailMode(rawValue: invoiceDetailModeRawValue) ?? .summary }
@@ -422,6 +429,52 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         return overtime
     }
 
+    func addTimeEntry(_ entry: TimeEntry) {
+        entry.normalize()
+        timeEntries.append(entry)
+    }
+
+    func deleteTimeEntry(_ entry: TimeEntry) {
+        timeEntries.removeAll { $0.id == entry.id }
+    }
+
+    func hasTimeEntries(on dateString: String) -> Bool {
+        timeEntries.contains { !$0.isDeleted && $0.dateString == dateString }
+    }
+
+    @discardableResult
+    func recalculateHoursFromTimeEntries(
+        affectedDateStrings: Set<String>? = nil,
+        referenceDate: Date = Date()
+    ) -> Bool {
+        let affectedDates = affectedDateStrings ?? Set(timeEntries.flatMap {
+            $0.secondsByDate(upTo: referenceDate).keys
+        })
+        guard !affectedDates.isEmpty else { return false }
+
+        var secondsByDate: [String: TimeInterval] = [:]
+        for entry in timeEntries {
+            for (dateString, seconds) in entry.secondsByDate(upTo: referenceDate) {
+                guard affectedDates.contains(dateString) else { continue }
+                secondsByDate[dateString, default: 0] += seconds
+            }
+        }
+
+        var changed = false
+        for weekIndex in semaines.indices {
+            for dayIndex in semaines[weekIndex].jours.indices {
+                let dateString = semaines[weekIndex].jours[dayIndex].dateString
+                guard affectedDates.contains(dateString), isBillableDateString(dateString) else { continue }
+                let hours = Decimal((secondsByDate[dateString] ?? 0) / 3600)
+                if semaines[weekIndex].jours[dayIndex].heures != hours {
+                    semaines[weekIndex].jours[dayIndex].heures = hours
+                    changed = true
+                }
+            }
+        }
+        return changed
+    }
+
     static func normalizedDateRange(startDate: Date, endDate: Date) -> (startDate: Date, endDate: Date, start: String, end: String) {
         let cal = Calendar(identifier: .gregorian)
         let start = cal.startOfDay(for: startDate)
@@ -470,6 +523,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         case invoiceDocumentId, billedAt, invoiceDetailModeRawValue
         case clientId, clientNom, clientAdresse, clientCodePostal, clientVille
         case clientSiret, clientTva, clientApe
+        case timeEntries
         case tauxNormal, tauxSupplementaire, coefficientNet, seuilHebdo
     }
 
@@ -498,6 +552,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         clientSiret = c.decodeOrDefault(String.self, forKey: .clientSiret, default: "")
         clientTva = c.decodeOrDefault(String.self, forKey: .clientTva, default: "")
         clientApe = c.decodeOrDefault(String.self, forKey: .clientApe, default: "")
+        timeEntries = c.decodeOrDefault([TimeEntry].self, forKey: .timeEntries, default: [])
         updatedAt = c.decodeOrDefault(Date.self, forKey: .updatedAt, default: createdAt)
         tauxNormal = c.decodeOrDefault(Decimal.self, forKey: .tauxNormal, default: 26.39)
         tauxSupplementaire = c.decodeOrDefault(Decimal.self, forKey: .tauxSupplementaire, default: 39.59)
@@ -528,6 +583,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         try c.encode(clientSiret, forKey: .clientSiret)
         try c.encode(clientTva, forKey: .clientTva)
         try c.encode(clientApe, forKey: .clientApe)
+        try c.encode(timeEntries, forKey: .timeEntries)
         try c.encode(tauxNormal, forKey: .tauxNormal)
         try c.encode(tauxSupplementaire, forKey: .tauxSupplementaire)
         try c.encode(coefficientNet, forKey: .coefficientNet)
