@@ -73,6 +73,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "timesheet invoice markers set generated invoice state", run: timesheetInvoiceMarkersSetGeneratedInvoiceState),
         RegressionCase(name: "timesheet periods are unique per client and month", run: timesheetPeriodsAreUniquePerClientAndMonth),
         RegressionCase(name: "timesheet custom ranges overlap by client", run: timesheetCustomRangesOverlapByClient),
+        RegressionCase(name: "timesheet date range update preserves overlapping hours", run: timesheetDateRangeUpdatePreservesOverlappingHours),
+        RegressionCase(name: "timesheet date range update clears excluded hours", run: timesheetDateRangeUpdateClearsExcludedHours),
         RegressionCase(name: "timesheet shared weeks are scoped by client", run: timesheetSharedWeeksAreScopedByClient),
         RegressionCase(name: "data store updates linked invoice when timesheet changes", run: dataStoreUpdatesLinkedInvoiceWhenTimesheetChanges),
         RegressionCase(name: "data store keeps existing invoice stable when requested again", run: dataStoreKeepsExistingInvoiceStableWhenRequestedAgain),
@@ -741,6 +743,67 @@ enum FacioRegressionSuite {
             ),
             "non-overlapping range should be allowed for same client"
         )
+    }
+
+    private static func timesheetDateRangeUpdatePreservesOverlappingHours() throws {
+        try withTemporaryDataStore { store in
+            let client = ClientInfo(nom: "Client A")
+            let period = TimesheetPeriod(
+                startDate: date("2025-05-05"),
+                endDate: date("2025-05-10"),
+                client: client
+            )
+            try setHours(period, dateString: "2025-05-05", hours: decimal("8"))
+            try setHours(period, dateString: "2025-05-10", hours: decimal("4"))
+
+            store.addTimesheet(period)
+            store.updateTimesheetDateRange(
+                period,
+                startDate: date("2025-05-03"),
+                endDate: date("2025-05-12")
+            )
+
+            try expectEqual(period.activeStartDateString, "2025-05-03")
+            try expectEqual(period.activeEndDateString, "2025-05-12")
+            try expectDecimal(hours(in: period, dateString: "2025-05-05"), equals: "8")
+            try expectDecimal(hours(in: period, dateString: "2025-05-10"), equals: "4")
+            try expectDecimal(hours(in: period, dateString: "2025-05-12"), equals: "0")
+        }
+    }
+
+    private static func timesheetDateRangeUpdateClearsExcludedHours() throws {
+        try withTemporaryDataStore { store in
+            let client = ClientInfo(nom: "Client A")
+            let period = TimesheetPeriod(
+                startDate: date("2025-05-05"),
+                endDate: date("2025-05-10"),
+                client: client
+            )
+            try setHours(period, dateString: "2025-05-05", hours: decimal("8"))
+            try setHours(period, dateString: "2025-05-07", hours: decimal("6"))
+            try setHours(period, dateString: "2025-05-10", hours: decimal("4"))
+            store.addTimesheet(period)
+
+            let loss = store.timesheetDateRangeLoss(
+                for: period,
+                startDate: date("2025-05-06"),
+                endDate: date("2025-05-09")
+            )
+            try expectEqual(loss.dayCount, 2)
+            try expectDecimal(loss.hours, equals: "12")
+
+            store.updateTimesheetDateRange(
+                period,
+                startDate: date("2025-05-06"),
+                endDate: date("2025-05-09")
+            )
+
+            try expectEqual(period.activeStartDateString, "2025-05-06")
+            try expectEqual(period.activeEndDateString, "2025-05-09")
+            try expectDecimal(hours(in: period, dateString: "2025-05-05"), equals: "0")
+            try expectDecimal(hours(in: period, dateString: "2025-05-07"), equals: "6")
+            try expectDecimal(hours(in: period, dateString: "2025-05-10"), equals: "0")
+        }
     }
 
     private static func timesheetSharedWeeksAreScopedByClient() throws {

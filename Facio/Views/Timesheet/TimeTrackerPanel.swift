@@ -78,7 +78,7 @@ struct TimeTrackerPanel: View {
 
     private var periodEntries: [TimeEntry] {
         timesheet.timeEntries
-            .filter { !$0.isDeleted }
+            .filter { !$0.isDeleted && timesheet.isBillableDateString($0.dateString) }
             .sorted { $0.startedAt > $1.startedAt }
     }
 

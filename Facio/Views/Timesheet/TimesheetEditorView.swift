@@ -9,10 +9,14 @@ struct TimesheetEditorView: View {
     @State private var showClientPicker = false
     @State private var showInvoiceDetailOptions = false
     @State private var showClientOverlapAlert = false
+    @State private var editedStartDate = Date()
+    @State private var editedEndDate = Date()
+    @State private var showRangeLossAlert = false
     @State private var hourFieldFocusRequest: TimeFieldFocusRequest?
     @State private var hourFieldFocusNonce = 0
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+    private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
 
     /// Heures des jours hors-mois depuis les périodes adjacentes
     private var adjHours: [String: Decimal] { dataStore.adjacentHours(for: timesheet) }
@@ -21,6 +25,7 @@ struct TimesheetEditorView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 timesheetHeroBar
+                periodRangeSection
                 TimeTrackerPanel(timesheet: timesheet, onOpenInvoice: onOpenInvoice)
                 clientSection
                 resumeSection
@@ -35,6 +40,12 @@ struct TimesheetEditorView: View {
             .padding(24)
         }
         .navigationTitle(timesheet.title(for: lang))
+        .onAppear {
+            resetRangeDraft()
+        }
+        .onChange(of: timesheet.id) { _, _ in
+            resetRangeDraft()
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if let invoice = dataStore.existingBillableHoursInvoice(for: timesheet) {
@@ -90,6 +101,19 @@ struct TimesheetEditorView: View {
             Button(L10n.understood(lang), role: .cancel) {}
         } message: {
             Text(L10n.periodOverlapsForClient(lang))
+        }
+        .alert(L10n.periodRangeLossTitle(lang), isPresented: $showRangeLossAlert) {
+            Button(L10n.cancel(lang), role: .cancel) {}
+            Button(L10n.updatePeriodAndDeleteValues(lang), role: .destructive) {
+                applyRangeUpdate()
+            }
+        } message: {
+            let loss = rangeLossSummary
+            Text(L10n.periodRangeLossMessage(
+                lang,
+                days: loss.dayCount,
+                hours: loss.hours.formatted2Decimals(for: numberFormat)
+            ))
         }
     }
 
@@ -149,6 +173,90 @@ struct TimesheetEditorView: View {
                     .clipShape(Capsule())
             }
         }
+    }
+
+    private var periodRangeSection: some View {
+        GroupBox(L10n.periodDates(lang)) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .center, spacing: 12) {
+                    DatePicker(
+                        L10n.startDate(lang),
+                        selection: $editedStartDate,
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.compact)
+
+                    DatePicker(
+                        L10n.endDate(lang),
+                        selection: $editedEndDate,
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.compact)
+
+                    Spacer()
+
+                    Button {
+                        requestRangeUpdate()
+                    } label: {
+                        Label(L10n.updatePeriodDates(lang), systemImage: "calendar.badge.clock")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!rangeDraftHasChanges || rangeDraftOverlaps)
+                }
+
+                if rangeDraftOverlaps {
+                    InlineWarning(text: L10n.periodOverlapsForClient(lang), tone: .warning)
+                } else if rangeDraftHasChanges, rangeLossSummary.hasLoss {
+                    let loss = rangeLossSummary
+                    InlineWarning(
+                        text: L10n.periodRangeLossPreview(
+                            lang,
+                            days: loss.dayCount,
+                            hours: loss.hours.formatted2Decimals(for: numberFormat)
+                        ),
+                        tone: .warning
+                    )
+                }
+            }
+            .padding(8)
+            .onChange(of: editedStartDate) { _, startDate in
+                if editedEndDate < startDate {
+                    editedEndDate = startDate
+                }
+            }
+            .onChange(of: editedEndDate) { _, endDate in
+                if endDate < editedStartDate {
+                    editedStartDate = endDate
+                }
+            }
+        }
+    }
+
+    private var rangeDraft: (start: String, end: String) {
+        let range = TimesheetPeriod.normalizedDateRange(startDate: editedStartDate, endDate: editedEndDate)
+        return (range.start, range.end)
+    }
+
+    private var rangeDraftHasChanges: Bool {
+        rangeDraft.start != timesheet.activeStartDateString || rangeDraft.end != timesheet.activeEndDateString
+    }
+
+    private var rangeDraftOverlaps: Bool {
+        guard rangeDraftHasChanges else { return false }
+        return dataStore.timesheetOverlaps(
+            startDate: editedStartDate,
+            endDate: editedEndDate,
+            clientId: timesheet.clientId,
+            excluding: timesheet.id
+        )
+    }
+
+    private var rangeLossSummary: TimesheetDateRangeLossSummary {
+        dataStore.timesheetDateRangeLoss(
+            for: timesheet,
+            startDate: editedStartDate,
+            endDate: editedEndDate
+        )
     }
 
     // MARK: - Resume
@@ -384,5 +492,28 @@ struct TimesheetEditorView: View {
         if let invoice = dataStore.generateInvoice(from: timesheet, detailMode: detailMode) {
             onOpenInvoice(invoice)
         }
+    }
+
+    private func resetRangeDraft() {
+        editedStartDate = timesheet.activeStartDate
+        editedEndDate = timesheet.activeEndDate
+    }
+
+    private func requestRangeUpdate() {
+        guard rangeDraftHasChanges, !rangeDraftOverlaps else { return }
+        if rangeLossSummary.hasLoss {
+            showRangeLossAlert = true
+        } else {
+            applyRangeUpdate()
+        }
+    }
+
+    private func applyRangeUpdate() {
+        dataStore.updateTimesheetDateRange(
+            timesheet,
+            startDate: editedStartDate,
+            endDate: editedEndDate
+        )
+        resetRangeDraft()
     }
 }

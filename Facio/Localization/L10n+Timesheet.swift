@@ -67,6 +67,22 @@ extension L10n {
     static func customPeriod(_ l: AppLanguage) -> String { l == .fr ? "Personnalisée" : "Custom" }
     static func startDate(_ l: AppLanguage) -> String { l == .fr ? "Début" : "Start" }
     static func endDate(_ l: AppLanguage) -> String { l == .fr ? "Fin" : "End" }
+    static func periodDates(_ l: AppLanguage) -> String { l == .fr ? "Dates de la période" : "Period dates" }
+    static func updatePeriodDates(_ l: AppLanguage) -> String { l == .fr ? "Mettre à jour" : "Update" }
+    static func periodRangeLossPreview(_ l: AppLanguage, days: Int, hours: String) -> String {
+        l == .fr ? "\(days) jour(s) avec \(hours)h sortiront de la période." :
+        "\(days) day(s) with \(hours)h will leave the period."
+    }
+    static func periodRangeLossTitle(_ l: AppLanguage) -> String {
+        l == .fr ? "Des heures vont être supprimées" : "Some hours will be removed"
+    }
+    static func periodRangeLossMessage(_ l: AppLanguage, days: Int, hours: String) -> String {
+        l == .fr ? "La nouvelle plage exclut \(days) jour(s) avec \(hours)h. Ces valeurs seront remises à zéro." :
+        "The new range excludes \(days) day(s) with \(hours)h. Those values will be reset to zero."
+    }
+    static func updatePeriodAndDeleteValues(_ l: AppLanguage) -> String {
+        l == .fr ? "Modifier et supprimer" : "Update and remove"
+    }
     static func month(_ l: AppLanguage) -> String { l == .fr ? "Mois" : "Month" }
     static func year(_ l: AppLanguage) -> String { l == .fr ? "Année" : "Year" }
     static func periodExists(_ l: AppLanguage) -> String { l == .fr ? "Cette période existe déjà" : "This period already exists" }

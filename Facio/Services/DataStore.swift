@@ -8,6 +8,15 @@ struct RunningTimeEntryContext: Identifiable {
     var id: UUID { entry.id }
 }
 
+struct TimesheetDateRangeLossSummary: Equatable {
+    var dayCount: Int = 0
+    var hours: Decimal = 0
+
+    var hasLoss: Bool {
+        dayCount > 0 || hours > 0
+    }
+}
+
 @Observable
 @MainActor
 final class DataStore: Sendable {
@@ -686,6 +695,54 @@ final class DataStore: Sendable {
             clientId: clientId,
             excluding: excludedId
         )
+    }
+
+    func timesheetDateRangeLoss(
+        for timesheet: TimesheetPeriod,
+        startDate: Date,
+        endDate: Date
+    ) -> TimesheetDateRangeLossSummary {
+        let range = TimesheetPeriod.normalizedDateRange(startDate: startDate, endDate: endDate)
+        var summary = TimesheetDateRangeLossSummary()
+
+        for week in timesheet.semaines {
+            for day in week.jours where day.heures > 0 {
+                guard day.dateString < range.start || day.dateString > range.end else { continue }
+                summary.dayCount += 1
+                summary.hours += day.heures
+            }
+        }
+
+        return summary
+    }
+
+    func updateTimesheetDateRange(
+        _ timesheet: TimesheetPeriod,
+        startDate: Date,
+        endDate: Date
+    ) {
+        let range = TimesheetPeriod.normalizedDateRange(startDate: startDate, endDate: endDate)
+        let calendar = Calendar(identifier: .gregorian)
+        timesheet.customStartDateString = range.start
+        timesheet.customEndDateString = range.end
+        timesheet.mois = calendar.component(.month, from: range.startDate)
+        timesheet.annee = calendar.component(.year, from: range.startDate)
+        timesheet.nom = timesheet.periodLabel(for: .fr)
+
+        _ = timesheet.normalizeCalendar()
+        clearHoursOutsideActiveRange(for: timesheet)
+        timesheetUpdated(timesheet, syncSharedWeeks: true)
+    }
+
+    private func clearHoursOutsideActiveRange(for timesheet: TimesheetPeriod) {
+        for weekIndex in timesheet.semaines.indices {
+            for dayIndex in timesheet.semaines[weekIndex].jours.indices {
+                let day = timesheet.semaines[weekIndex].jours[dayIndex]
+                if !timesheet.isBillableDateString(day.dateString), day.heures != 0 {
+                    timesheet.semaines[weekIndex].jours[dayIndex].heures = 0
+                }
+            }
+        }
     }
 
     func canGenerateInvoice(for timesheet: TimesheetPeriod) -> Bool {
