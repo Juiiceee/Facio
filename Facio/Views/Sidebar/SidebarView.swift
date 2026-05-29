@@ -7,6 +7,7 @@ enum SidebarSection: String, Hashable, Identifiable {
     case devis
     case clients
     case heures
+    case planning
     case dashboard
     case parametres
 
@@ -18,6 +19,7 @@ enum SidebarSection: String, Hashable, Identifiable {
         case .devis: return "Devis"
         case .clients: return "Clients"
         case .heures: return "Suivi des heures"
+        case .planning: return "Planning"
         case .dashboard: return "Tableau de bord"
         case .parametres: return "Parametres"
         }
@@ -29,6 +31,7 @@ enum SidebarSection: String, Hashable, Identifiable {
         case .devis: return L10n.sidebarQuotes(lang)
         case .clients: return L10n.sidebarClients(lang)
         case .heures: return L10n.sidebarTimeTracking(lang)
+        case .planning: return L10n.sidebarPlanning(lang)
         case .dashboard: return L10n.sidebarDashboard(lang)
         case .parametres: return L10n.sidebarSettings(lang)
         }
@@ -40,6 +43,7 @@ enum SidebarSection: String, Hashable, Identifiable {
         case .devis: return "doc.text.magnifyingglass"
         case .clients: return "person.2"
         case .heures: return "clock"
+        case .planning: return "calendar.badge.clock"
         case .dashboard: return "chart.bar"
         case .parametres: return "gearshape"
         }
@@ -70,6 +74,9 @@ struct SidebarView: View {
 
                 Label(SidebarSection.heures.label(for: lang), systemImage: SidebarSection.heures.icon)
                     .tag(SidebarSection.heures)
+
+                Label(SidebarSection.planning.label(for: lang), systemImage: SidebarSection.planning.icon)
+                    .tag(SidebarSection.planning)
 
                 Label(SidebarSection.dashboard.label(for: lang), systemImage: SidebarSection.dashboard.icon)
                     .tag(SidebarSection.dashboard)

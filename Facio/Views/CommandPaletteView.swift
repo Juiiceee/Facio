@@ -58,6 +58,28 @@ struct CommandPaletteView: View {
                 createClient()
             },
             PaletteAction(
+                id: "open-planning",
+                title: L10n.timeHubOpenPlanning(lang),
+                subtitle: L10n.sidebarPlanning(lang),
+                systemImage: "calendar.badge.clock"
+            ) {
+                selectedSection = .planning
+                selectedDocumentId = nil
+                selectedTimesheetId = nil
+                dismiss()
+            },
+            PaletteAction(
+                id: "open-time-calendar",
+                title: L10n.timeHubOpenCalendar(lang),
+                subtitle: L10n.sidebarPlanning(lang),
+                systemImage: "calendar"
+            ) {
+                selectedSection = .planning
+                selectedDocumentId = nil
+                selectedTimesheetId = nil
+                dismiss()
+            },
+            PaletteAction(
                 id: "settings-payment",
                 title: L10n.openSettingsPayment(lang),
                 subtitle: L10n.settings(lang),
@@ -70,6 +92,34 @@ struct CommandPaletteView: View {
                 dismiss()
             }
         ]
+
+        if let running = dataStore.runningTimeEntryContext {
+            items.append(
+                PaletteAction(
+                    id: "stop-timer",
+                    title: L10n.timeHubStopTimer(lang),
+                    subtitle: running.timesheet.title(for: lang),
+                    systemImage: "stop.fill"
+                ) {
+                    dataStore.stopTimeEntry(running.entry, in: running.timesheet)
+                    dismiss()
+                }
+            )
+        } else {
+            items.append(
+                PaletteAction(
+                    id: "start-timer",
+                    title: L10n.timeHubStartTimer(lang),
+                    subtitle: L10n.sidebarPlanning(lang),
+                    systemImage: "play.fill"
+                ) {
+                    selectedSection = .planning
+                    selectedDocumentId = nil
+                    selectedTimesheetId = nil
+                    dismiss()
+                }
+            )
+        }
 
         if let currentDocument {
             items.append(
@@ -325,4 +375,3 @@ struct CommandPaletteView: View {
         return compatible.first
     }
 }
-

@@ -95,6 +95,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "data store adjusts running timer start without new entry", run: dataStoreAdjustsRunningTimerStartWithoutNewEntry),
         RegressionCase(name: "data store imports unbilled time entries into invoice", run: dataStoreImportsUnbilledTimeEntriesIntoInvoice),
         RegressionCase(name: "time entry csv report includes billable columns", run: timeEntryCSVReportIncludesBillableColumns),
+        RegressionCase(name: "time hub stats exclude deleted entries", run: timeHubStatsExcludeDeletedEntries),
+        RegressionCase(name: "time hub groups entries by client and project", run: timeHubGroupsEntriesByClientAndProject),
         RegressionCase(name: "date and decimal formatting are stable across languages", run: dateAndDecimalFormattingAreStableAcrossLanguages)
     ]
 
@@ -1349,6 +1351,82 @@ enum FacioRegressionSuite {
         try expect(csv.contains("true"), "CSV should include billable status")
         try expect(csv.contains("5400"), "CSV should include raw duration seconds")
         try expect(csv.contains("110"), "CSV should include hourly rate snapshot")
+    }
+
+    private static func timeHubStatsExcludeDeletedEntries() throws {
+        let period = TimesheetPeriod(startDate: date("2026-04-01"), endDate: date("2026-04-30"), client: ClientInfo(nom: "Client A"))
+        period.tauxNormal = decimal("100")
+        let kept = TimeEntry(
+            projectName: "Project",
+            taskName: "Build",
+            isBillable: true,
+            rateSnapshot: decimal("100"),
+            startedAt: dateTime(year: 2026, month: 4, day: 1, hour: 9),
+            endedAt: dateTime(year: 2026, month: 4, day: 1, hour: 11)
+        )
+        let deleted = TimeEntry(
+            projectName: "Project",
+            taskName: "Deleted",
+            isBillable: true,
+            rateSnapshot: decimal("100"),
+            deletedAt: dateTime(year: 2026, month: 4, day: 1, hour: 12),
+            startedAt: dateTime(year: 2026, month: 4, day: 1, hour: 12),
+            endedAt: dateTime(year: 2026, month: 4, day: 1, hour: 13)
+        )
+        period.addTimeEntry(kept)
+        period.addTimeEntry(deleted)
+
+        let interval = TimeHubPeriodMode.day.interval(containing: date("2026-04-01"))
+        let contexts = TimeHubAggregationService.contexts(
+            from: [period],
+            in: interval,
+            filters: TimeTrackingFilters(),
+            now: dateTime(year: 2026, month: 4, day: 1, hour: 14)
+        )
+        let stats = TimeHubAggregationService.stats(
+            for: contexts,
+            now: dateTime(year: 2026, month: 4, day: 1, hour: 14)
+        )
+
+        try expectEqual(contexts.count, 1)
+        try expectEqual(stats.totalSeconds, 7200)
+        try expectEqual(stats.billableSeconds, 7200)
+        try expectEqual(stats.uninvoicedSeconds, 7200)
+        try expectDecimal(stats.estimatedAmount, equals: "200")
+    }
+
+    private static func timeHubGroupsEntriesByClientAndProject() throws {
+        let clientA = ClientInfo(nom: "Client A")
+        let clientB = ClientInfo(nom: "Client B")
+        let periodA = TimesheetPeriod(startDate: date("2026-04-01"), endDate: date("2026-04-30"), client: clientA)
+        let periodB = TimesheetPeriod(startDate: date("2026-04-01"), endDate: date("2026-04-30"), client: clientB)
+        periodA.addTimeEntry(TimeEntry(
+            projectName: "Project A",
+            taskName: "Build",
+            startedAt: dateTime(year: 2026, month: 4, day: 1, hour: 9),
+            endedAt: dateTime(year: 2026, month: 4, day: 1, hour: 10)
+        ))
+        periodB.addTimeEntry(TimeEntry(
+            projectName: "Project B",
+            taskName: "Review",
+            startedAt: dateTime(year: 2026, month: 4, day: 1, hour: 10),
+            endedAt: dateTime(year: 2026, month: 4, day: 1, hour: 12)
+        ))
+
+        let interval = TimeHubPeriodMode.day.interval(containing: date("2026-04-01"))
+        let contexts = TimeHubAggregationService.contexts(
+            from: [periodA, periodB],
+            in: interval,
+            filters: TimeTrackingFilters(),
+            now: dateTime(year: 2026, month: 4, day: 1, hour: 13)
+        )
+        let clientGroups = TimeHubAggregationService.clientGroups(for: contexts, now: dateTime(year: 2026, month: 4, day: 1, hour: 13))
+        let projectGroups = TimeHubAggregationService.projectGroups(for: contexts, now: dateTime(year: 2026, month: 4, day: 1, hour: 13))
+
+        try expectEqual(clientGroups.count, 2)
+        try expectEqual(clientGroups[0].clientName, "Client B")
+        try expectEqual(clientGroups[0].stats.totalSeconds, 7200)
+        try expectEqual(projectGroups.map(\.projectName).sorted(), ["Project A", "Project B"])
     }
 
     private static func dateAndDecimalFormattingAreStableAcrossLanguages() throws {

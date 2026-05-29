@@ -24,7 +24,7 @@ struct ContentView: View {
         switch selectedSection {
         case .factures, .devis, .heures:
             return true
-        case .clients, .dashboard, .parametres, .none:
+        case .clients, .planning, .dashboard, .parametres, .none:
             return false
         }
     }
@@ -85,7 +85,7 @@ struct ContentView: View {
                 selectedTimesheetId = nil
             case .heures:
                 selectedDocumentId = nil
-            case .clients, .dashboard, .parametres, .none:
+            case .clients, .planning, .dashboard, .parametres, .none:
                 selectedDocumentId = nil
                 selectedTimesheetId = nil
             }
@@ -109,7 +109,7 @@ struct ContentView: View {
             )
         case .heures:
             TimesheetListView(selectedTimesheetId: $selectedTimesheetId)
-        case .clients, .dashboard, .parametres, .none:
+        case .clients, .planning, .dashboard, .parametres, .none:
             EmptyView()
         }
     }
@@ -144,6 +144,8 @@ struct ContentView: View {
                 selectedSection = document.type == .facture ? .factures : .devis
                 selectedDocumentId = document.id
             }
+        case .planning:
+            TimeHubView()
         case .dashboard:
             DashboardView { document in
                 selectedSection = document.type == .facture ? .factures : .devis

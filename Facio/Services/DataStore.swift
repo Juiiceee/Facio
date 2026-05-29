@@ -581,8 +581,23 @@ final class DataStore: Sendable {
         from timesheet: TimesheetPeriod,
         grouping: TimeEntryInvoiceGrouping = .detailed
     ) -> Document? {
+        generateInvoiceFromTimeEntries(
+            importableTimeEntries(for: timesheet),
+            from: timesheet,
+            grouping: grouping
+        )
+    }
+
+    func generateInvoiceFromTimeEntries(
+        _ selectedEntries: [TimeEntry],
+        from timesheet: TimesheetPeriod,
+        grouping: TimeEntryInvoiceGrouping = .detailed
+    ) -> Document? {
         guard timesheet.hasClient else { return nil }
-        let entries = importableTimeEntries(for: timesheet)
+        let importableIds = Set(importableTimeEntries(for: timesheet).map(\.id))
+        let entries = selectedEntries
+            .filter { importableIds.contains($0.id) }
+            .sorted { $0.startedAt < $1.startedAt }
         guard !entries.isEmpty else { return nil }
 
         let company = companyInfo
