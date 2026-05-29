@@ -10,5 +10,6 @@ import Foundation
 /// - L10n+Clients     — gestion clients
 /// - L10n+Enums       — labels des enums
 /// - L10n+Sidebar     — navigation laterale
-/// - L10n+Settings    — tous les onglets parametres
+/// - L10n+Settings    — tous les onglets paramètres
+/// - L10n+Services    — persistence, sync, auth et exports
 struct L10n {}

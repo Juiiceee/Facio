@@ -21,13 +21,13 @@ extension L10n {
     static func thisMonth(_ l: AppLanguage) -> String { l == .fr ? "Ce mois" : "This month" }
     static func billableTime(_ l: AppLanguage) -> String { l == .fr ? "Temps facturable" : "Billable time" }
     static func nonBillableTime(_ l: AppLanguage) -> String { l == .fr ? "Temps non facturable" : "Non-billable time" }
-    static func uninvoicedTime(_ l: AppLanguage) -> String { l == .fr ? "Temps non facture" : "Uninvoiced time" }
+    static func uninvoicedTime(_ l: AppLanguage) -> String { l == .fr ? "Temps non facturé" : "Uninvoiced time" }
     static func uninvoicedEntries(_ l: AppLanguage) -> String { l == .fr ? "Entrées non facturées" : "Uninvoiced entries" }
     static func activeTasks(_ l: AppLanguage) -> String { l == .fr ? "Tâches en cours" : "Active tasks" }
     static func byClient(_ l: AppLanguage) -> String { l == .fr ? "Par client" : "By client" }
     static func byProject(_ l: AppLanguage) -> String { l == .fr ? "Par projet" : "By project" }
-    static func toInvoice(_ l: AppLanguage) -> String { l == .fr ? "A facturer" : "To invoice" }
-    static func recentActivity(_ l: AppLanguage) -> String { l == .fr ? "Activite recente" : "Recent activity" }
+    static func toInvoice(_ l: AppLanguage) -> String { l == .fr ? "À facturer" : "To invoice" }
+    static func recentActivity(_ l: AppLanguage) -> String { l == .fr ? "Activité récente" : "Recent activity" }
     static func todayTimeline(_ l: AppLanguage) -> String { l == .fr ? "Aujourd'hui" : "Today" }
     static func openLogToday(_ l: AppLanguage) -> String { l == .fr ? "Voir le journal" : "Open log" }
     static func openCalendarToday(_ l: AppLanguage) -> String { l == .fr ? "Voir le calendrier" : "Open calendar" }
@@ -54,7 +54,7 @@ extension L10n {
         l == .fr ? "Aucune entrée sur cette période." : "No entries in this period."
     }
     static func trackedTime(_ l: AppLanguage) -> String { l == .fr ? "Temps suivi" : "Tracked time" }
-    static func estimated(_ l: AppLanguage) -> String { l == .fr ? "Estime" : "Estimated" }
+    static func estimated(_ l: AppLanguage) -> String { l == .fr ? "Estimé" : "Estimated" }
     static func weekView(_ l: AppLanguage) -> String { l == .fr ? "Semaine" : "Week" }
     static func monthView(_ l: AppLanguage) -> String { l == .fr ? "Mois" : "Month" }
     static func dailyTotal(_ l: AppLanguage) -> String { l == .fr ? "Total jour" : "Daily total" }

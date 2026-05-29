@@ -140,26 +140,13 @@ enum TimeTrackingService {
         timesheet: TimesheetPeriod,
         roundingMode: TimeEntryRoundingMode = .none,
         roundingIntervalMinutes: Int = 1,
-        lang: AppLanguage
+        lang: AppLanguage,
+        numberFormat: AppLanguage? = nil
     ) -> String {
-        let header = [
-            "date",
-            "description",
-            "client",
-            "project",
-            "task",
-            "tags",
-            "start",
-            "end",
-            "duration_raw",
-            "duration_rounded",
-            "billable",
-            "hourly_rate",
-            "amount",
-            "currency",
-            "invoiced",
-            "invoice_number",
-        ].joined(separator: ",")
+        let valueFormat = numberFormat ?? lang
+        let header = L10n.csvHeaders(lang)
+            .map(csvEscape)
+            .joined(separator: ",")
 
         let rows = entries
             .filter { !$0.isDeleted }
@@ -187,8 +174,8 @@ enum TimeTrackingService {
                     String(rawSeconds),
                     String(roundedSeconds),
                     entry.isBillable ? "true" : "false",
-                    rate.formattedDecimal(maxFractionDigits: 2, for: lang),
-                    amount.formattedDecimal(maxFractionDigits: 2, for: lang),
+                    rate.formattedDecimal(maxFractionDigits: 2, for: valueFormat),
+                    amount.formattedDecimal(maxFractionDigits: 2, for: valueFormat),
                     currency,
                     entry.isInvoiced ? "true" : "false",
                     entry.invoiceDocumentId?.uuidString ?? "",

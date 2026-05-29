@@ -45,10 +45,11 @@ extension L10n {
     static func selectSection(_ l: AppLanguage) -> String { l == .fr ? "Sélectionnez une section" : "Select a section" }
 
     // Preview / Export
-    static func preview(_ l: AppLanguage) -> String { l == .fr ? "Apercu" : "Preview" }
+    static func preview(_ l: AppLanguage) -> String { l == .fr ? "Aperçu" : "Preview" }
     static func exportPDF(_ l: AppLanguage) -> String { l == .fr ? "Exporter PDF" : "Export PDF" }
     static func exportDocument(_ l: AppLanguage) -> String { l == .fr ? "Exporter le document" : "Export document" }
     static func chooseSaveLocation(_ l: AppLanguage) -> String { l == .fr ? "Choisissez où sauvegarder le fichier PDF" : "Choose where to save the PDF file" }
+    static func chooseCSVSaveLocation(_ l: AppLanguage) -> String { l == .fr ? "Choisissez où sauvegarder le fichier CSV" : "Choose where to save the CSV file" }
     static func previewTitle(_ l: AppLanguage, number: String) -> String { l == .fr ? "Aperçu — \(number)" : "Preview — \(number)" }
     static func pdfGenerationError(_ l: AppLanguage) -> String { l == .fr ? "Erreur de génération" : "Generation error" }
     static func cannotGeneratePDF(_ l: AppLanguage) -> String { l == .fr ? "Impossible de générer le PDF." : "Could not generate PDF." }

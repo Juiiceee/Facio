@@ -8,7 +8,7 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .fr: return "Francais"
+        case .fr: return "Français"
         case .en: return "English"
         }
     }

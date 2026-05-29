@@ -48,8 +48,8 @@ struct LanguageSettingsView: View {
                             get: { company.formatDate },
                             set: { company.formatDate = $0; dataStore.companyUpdated() }
                         )) {
-                            Text("dd/MM/yyyy (02/04/2026)").tag(AppLanguage.fr)
-                            Text("MM/dd/yyyy (04/02/2026)").tag(AppLanguage.en)
+                            Text(L10n.frenchDateFormatSample(lang)).tag(AppLanguage.fr)
+                            Text(L10n.englishDateFormatSample(lang)).tag(AppLanguage.en)
                         }
                         .labelsHidden()
                         .frame(maxWidth: 300)
@@ -69,8 +69,8 @@ struct LanguageSettingsView: View {
                             get: { company.formatNombre },
                             set: { company.formatNombre = $0; dataStore.companyUpdated() }
                         )) {
-                            Text("1 234,56 (FR)").tag(AppLanguage.fr)
-                            Text("1,234.56 (EN)").tag(AppLanguage.en)
+                            Text(L10n.frenchNumberFormatSample(lang)).tag(AppLanguage.fr)
+                            Text(L10n.englishNumberFormatSample(lang)).tag(AppLanguage.en)
                         }
                         .labelsHidden()
                         .frame(maxWidth: 300)

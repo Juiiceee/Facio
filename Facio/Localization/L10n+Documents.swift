@@ -21,6 +21,7 @@ extension L10n {
     static func accountingCurrency(_ l: AppLanguage) -> String { l == .fr ? "Devise comptable" : "Accounting currency" }
     static func exchangeRate(_ l: AppLanguage) -> String { l == .fr ? "Taux de conversion" : "Exchange rate" }
     static func accountingTotal(_ l: AppLanguage) -> String { l == .fr ? "Total comptable" : "Accounting total" }
+    static func exchangeRatePrefix(_ l: AppLanguage, source: String) -> String { "1 \(source) =" }
     static func exchangeRateHint(_ l: AppLanguage, source: String, target: String) -> String {
         l == .fr ? "1 \(source) = ... \(target)" : "1 \(source) = ... \(target)"
     }

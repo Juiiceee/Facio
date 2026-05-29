@@ -547,7 +547,7 @@ struct DocumentEditorView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             HStack(spacing: 8) {
-                                Text("1 \(document.currency.label) =")
+                                Text(L10n.exchangeRatePrefix(lang, source: document.currency.label))
                                     .foregroundStyle(.secondary)
                                 DecimalField(
                                     placeholder: L10n.exchangeRateHint(

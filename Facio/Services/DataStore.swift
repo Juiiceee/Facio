@@ -70,7 +70,10 @@ final class DataStore: Sendable {
                 try fileManager.createDirectory(at: storageDirectory, withIntermediateDirectories: true)
                 persistenceErrors.removeValue(forKey: "storage")
             } catch {
-                persistenceErrors["storage"] = "Impossible de creer le dossier de stockage: \(error.localizedDescription)"
+                persistenceErrors["storage"] = L10n.storageFolderCreationFailed(
+                    companyInfo.langueParDefaut,
+                    error: error.localizedDescription
+                )
             }
         }
     }
@@ -102,8 +105,14 @@ final class DataStore: Sendable {
             writeBlockedKeys.insert(key)
             let backupURL = backupCorruptFile(at: url, key: key.rawValue)
             corruptBackupURLs[key.rawValue] = backupURL
-            let backupPath = backupURL?.lastPathComponent ?? "backup indisponible"
-            persistenceErrors[key.rawValue] = "Lecture impossible de \(url.lastPathComponent): \(error.localizedDescription). Fichier preserve: \(backupPath)"
+            let lang = companyInfo.langueParDefaut
+            let backupPath = backupURL?.lastPathComponent ?? L10n.backupUnavailable(lang)
+            persistenceErrors[key.rawValue] = L10n.persistenceReadFailed(
+                lang,
+                fileName: url.lastPathComponent,
+                error: error.localizedDescription,
+                backupPath: backupPath
+            )
         }
     }
 
@@ -266,7 +275,10 @@ final class DataStore: Sendable {
         ensureStorageDirectory()
 
         guard allowBlockedWrite || !writeBlockedKeys.contains(key) else {
-            persistenceErrors[key.rawValue] = "Sauvegarde bloquee pour \(url.lastPathComponent): le fichier local n'a pas pu etre decode au chargement."
+            persistenceErrors[key.rawValue] = L10n.persistenceSaveBlocked(
+                companyInfo.langueParDefaut,
+                fileName: url.lastPathComponent
+            )
             return false
         }
 
@@ -279,7 +291,11 @@ final class DataStore: Sendable {
             writeBlockedKeys.remove(key)
             return true
         } catch {
-            persistenceErrors[key.rawValue] = "Sauvegarde impossible de \(url.lastPathComponent): \(error.localizedDescription)"
+            persistenceErrors[key.rawValue] = L10n.persistenceSaveFailed(
+                companyInfo.langueParDefaut,
+                fileName: url.lastPathComponent,
+                error: error.localizedDescription
+            )
             return false
         }
     }
@@ -300,7 +316,11 @@ final class DataStore: Sendable {
             try fileManager.copyItem(at: url, to: targetURL)
             return targetURL
         } catch {
-            persistenceErrors["\(key).backup"] = "Backup impossible de \(url.lastPathComponent): \(error.localizedDescription)"
+            persistenceErrors["\(key).backup"] = L10n.persistenceBackupFailed(
+                companyInfo.langueParDefaut,
+                fileName: url.lastPathComponent,
+                error: error.localizedDescription
+            )
             return nil
         }
     }

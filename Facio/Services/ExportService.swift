@@ -43,9 +43,9 @@ struct ExportService {
     static func exportCSV(data: Data, defaultFilename: String, language: AppLanguage = .fr) async -> ExportResult {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.commaSeparatedText]
-        panel.nameFieldStringValue = sanitizedFilename(defaultFilename, fallback: "time-entries", extension: "csv")
+        panel.nameFieldStringValue = sanitizedFilename(defaultFilename, fallback: L10n.defaultCSVName(language), extension: "csv")
         panel.title = L10n.exportDocument(language)
-        panel.message = L10n.chooseSaveLocation(language)
+        panel.message = L10n.chooseCSVSaveLocation(language)
         panel.canCreateDirectories = true
 
         let response = panel.runModal()

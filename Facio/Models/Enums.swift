@@ -8,15 +8,13 @@ enum PaymentMode: String, Codable, CaseIterable, Identifiable {
     case crypto = "Crypto"
 
     var id: String { rawValue }
-    var label: String { rawValue }
+    var label: String { label(for: .fr) }
 
     func label(for lang: AppLanguage) -> String {
-        switch (self, lang) {
-        case (.aucun, .fr): return "Aucun"
-        case (.aucun, .en): return "None"
-        case (.virement, .fr): return "Virement"
-        case (.virement, .en): return "Bank transfer"
-        case (.crypto, _): return "Crypto"
+        switch self {
+        case .aucun: return L10n.paymentNone(lang)
+        case .virement: return L10n.paymentTransfer(lang)
+        case .crypto: return L10n.paymentCrypto(lang)
         }
     }
 }
@@ -29,22 +27,17 @@ enum DocumentType: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String { rawValue }
+    var label: String { label(for: .fr) }
 
     func label(for lang: AppLanguage) -> String {
-        switch (self, lang) {
-        case (.facture, .fr): return "Facture"
-        case (.facture, .en): return "Invoice"
-        case (.devis, .fr): return "Devis"
-        case (.devis, .en): return "Quote"
+        switch self {
+        case .facture: return L10n.invoice(lang)
+        case .devis: return L10n.quote(lang)
         }
     }
 
     var prefix: String {
-        switch self {
-        case .facture: return "Facture"
-        case .devis: return "Devis"
-        }
+        prefix(for: .fr)
     }
 
     func prefix(for lang: AppLanguage) -> String {
@@ -62,18 +55,14 @@ enum DocumentStatus: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String { rawValue }
+    var label: String { label(for: .fr) }
 
     func label(for lang: AppLanguage) -> String {
-        switch (self, lang) {
-        case (.brouillon, .fr): return "Brouillon"
-        case (.brouillon, .en): return "Draft"
-        case (.envoyee, .fr): return "Envoyée"
-        case (.envoyee, .en): return "Sent"
-        case (.payee, .fr): return "Payée"
-        case (.payee, .en): return "Paid"
-        case (.annulee, .fr): return "Annulée"
-        case (.annulee, .en): return "Cancelled"
+        switch self {
+        case .brouillon: return L10n.draft(lang)
+        case .envoyee: return L10n.sent(lang)
+        case .payee: return L10n.paid(lang)
+        case .annulee: return L10n.cancelled(lang)
         }
     }
 

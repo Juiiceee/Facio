@@ -70,7 +70,7 @@ struct TimesheetWeek: Identifiable, Codable, Hashable {
 
     /// Label : "26 fev - 02 mar"
     var label: String {
-        guard let first = jours.first, let last = jours.last else { return "Semaine \(numero)" }
+        guard let first = jours.first, let last = jours.last else { return L10n.week(.fr, number: numero) }
         let f = DateFormatter()
         f.dateFormat = "dd MMM"
         f.locale = Locale(identifier: "fr_FR")
