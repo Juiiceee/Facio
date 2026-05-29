@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/Juiiceee/Facio/compare/Facio-v2.1.0...Facio-v2.1.1) (2026-05-29)
+
+
+### Corrections de bugs
+
+* **i18n:** localize remaining user-facing strings ([#68](https://github.com/Juiiceee/Facio/issues/68)) ([be126fb](https://github.com/Juiiceee/Facio/commit/be126fb4495458b70c886c5abd35b29a9ea054d2))
+
 ## [2.1.0](https://github.com/Juiiceee/Facio/compare/Facio-v2.0.0...Facio-v2.1.0) (2026-05-29)
 
 
