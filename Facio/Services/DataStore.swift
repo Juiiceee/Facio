@@ -707,6 +707,7 @@ final class DataStore: Sendable {
 
         for week in timesheet.semaines {
             for day in week.jours where day.heures > 0 {
+                guard timesheet.isBillableDay(day) else { continue }
                 guard day.dateString < range.start || day.dateString > range.end else { continue }
                 summary.dayCount += 1
                 summary.hours += day.heures

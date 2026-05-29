@@ -75,6 +75,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "timesheet custom ranges overlap by client", run: timesheetCustomRangesOverlapByClient),
         RegressionCase(name: "timesheet date range update preserves overlapping hours", run: timesheetDateRangeUpdatePreservesOverlappingHours),
         RegressionCase(name: "timesheet date range update clears excluded hours", run: timesheetDateRangeUpdateClearsExcludedHours),
+        RegressionCase(name: "timesheet date range loss ignores adjacent context", run: timesheetDateRangeLossIgnoresAdjacentContext),
         RegressionCase(name: "timesheet shared weeks are scoped by client", run: timesheetSharedWeeksAreScopedByClient),
         RegressionCase(name: "data store updates linked invoice when timesheet changes", run: dataStoreUpdatesLinkedInvoiceWhenTimesheetChanges),
         RegressionCase(name: "data store keeps existing invoice stable when requested again", run: dataStoreKeepsExistingInvoiceStableWhenRequestedAgain),
@@ -803,6 +804,42 @@ enum FacioRegressionSuite {
             try expectDecimal(hours(in: period, dateString: "2025-05-05"), equals: "0")
             try expectDecimal(hours(in: period, dateString: "2025-05-07"), equals: "6")
             try expectDecimal(hours(in: period, dateString: "2025-05-10"), equals: "0")
+        }
+    }
+
+    private static func timesheetDateRangeLossIgnoresAdjacentContext() throws {
+        try withTemporaryDataStore { store in
+            let client = ClientInfo(nom: "Client A")
+            let previous = TimesheetPeriod(
+                startDate: date("2026-04-27"),
+                endDate: date("2026-05-12"),
+                client: client
+            )
+            let current = TimesheetPeriod(
+                startDate: date("2026-05-13"),
+                endDate: date("2026-06-06"),
+                client: client
+            )
+
+            try setHours(previous, dateString: "2026-05-11", hours: decimal("10.95"))
+            try setHours(previous, dateString: "2026-05-12", hours: decimal("7.25"))
+            try setHours(current, dateString: "2026-05-29", hours: decimal("2"))
+
+            store.addTimesheet(previous)
+            store.addTimesheet(current)
+            store.syncSharedWeeks(for: current)
+
+            try expectDecimal(hours(in: current, dateString: "2026-05-11"), equals: "10.95")
+            try expectDecimal(hours(in: current, dateString: "2026-05-12"), equals: "7.25")
+
+            let loss = store.timesheetDateRangeLoss(
+                for: current,
+                startDate: date("2026-05-13"),
+                endDate: date("2026-06-18")
+            )
+
+            try expectEqual(loss.dayCount, 0)
+            try expectDecimal(loss.hours, equals: "0")
         }
     }
 
