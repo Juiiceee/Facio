@@ -592,13 +592,14 @@ struct TimeTrackerPanel: View {
         let csv = TimeTrackingService.csv(
             for: filteredEntries,
             timesheet: timesheet,
-            lang: numberFormat
+            lang: lang,
+            numberFormat: numberFormat
         )
         guard let data = csv.data(using: .utf8) else { return }
         Task {
             _ = await ExportService.exportCSV(
                 data: data,
-                defaultFilename: "time-entries-\(timesheet.activeStartDateString)-\(timesheet.activeEndDateString)",
+                defaultFilename: "\(L10n.defaultCSVName(lang))-\(timesheet.activeStartDateString)-\(timesheet.activeEndDateString)",
                 language: lang
             )
         }

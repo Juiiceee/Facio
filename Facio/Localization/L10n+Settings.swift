@@ -60,6 +60,10 @@ extension L10n {
     static func identity(_ l: AppLanguage) -> String { l == .fr ? "Identité" : "Identity" }
     static func companyName(_ l: AppLanguage) -> String { l == .fr ? "Nom de l'entreprise" : "Company name" }
     static func postalAddress(_ l: AppLanguage) -> String { l == .fr ? "Adresse postale" : "Postal address" }
+    static func postalCodePlaceholder(_ l: AppLanguage) -> String { l == .fr ? "54000" : "10001" }
+    static func siretPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "000 000 000 00000" : "Company registration number" }
+    static func phonePlaceholder(_ l: AppLanguage) -> String { l == .fr ? "06 00 00 00 00" : "(555) 010-0000" }
+    static func contactEmailPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "contact@entreprise.fr" : "contact@company.com" }
     static func chooseAnotherFile(_ l: AppLanguage) -> String { l == .fr ? "Choisir un autre fichier..." : "Choose another file..." }
     static func deleteLogo(_ l: AppLanguage) -> String { l == .fr ? "Supprimer le logo" : "Delete logo" }
     static func dragImageHere(_ l: AppLanguage) -> String { l == .fr ? "Glissez une image ici" : "Drag an image here" }
@@ -76,6 +80,8 @@ extension L10n {
     static func bankNamePlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Ex: Boursorama, BNP, Revolut..." : "Ex: Chase, Wise, Revolut..." }
     static func accountHolderLabel(_ l: AppLanguage) -> String { l == .fr ? "Titulaire du compte" : "Account holder" }
     static func accountHolderPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Nom du titulaire" : "Account holder name" }
+    static func ibanPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "FR76 0000 0000 0000 0000 0000 000" : "Bank account number / IBAN" }
+    static func bicPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "BNPAFRPP" : "SWIFT / BIC" }
     static func bankAccountIbanRequired(_ l: AppLanguage) -> String { l == .fr ? "IBAN requis pour utiliser ce compte sur une facture" : "IBAN required before this account can be used on an invoice" }
     static func cryptoWallets(_ l: AppLanguage) -> String { l == .fr ? "Wallets Crypto" : "Crypto wallets" }
     static func noWalletConfiguredShort(_ l: AppLanguage) -> String { l == .fr ? "Aucun wallet configuré" : "No wallet configured" }
@@ -109,23 +115,29 @@ extension L10n {
     static func defaultLanguageHint(_ l: AppLanguage) -> String { l == .fr ? "Langue utilisée pour les nouveaux documents" : "Language used for new documents" }
     static func dateFormat(_ l: AppLanguage) -> String { l == .fr ? "Format de date" : "Date format" }
     static func numberFormat(_ l: AppLanguage) -> String { l == .fr ? "Format des nombres" : "Number format" }
+    static func frenchDateFormatSample(_ l: AppLanguage) -> String { "dd/MM/yyyy (02/04/2026)" }
+    static func englishDateFormatSample(_ l: AppLanguage) -> String { "MM/dd/yyyy (04/02/2026)" }
+    static func frenchNumberFormatSample(_ l: AppLanguage) -> String { "1 234,56 (FR)" }
+    static func englishNumberFormatSample(_ l: AppLanguage) -> String { "1,234.56 (EN)" }
 
     // Synchronisation
     static func cloudSync(_ l: AppLanguage) -> String { l == .fr ? "Synchronisation cloud" : "Cloud sync" }
     static func enableOnlineBackup(_ l: AppLanguage) -> String { l == .fr ? "Activer la sauvegarde en ligne" : "Enable online backup" }
     static func syncDescription(_ l: AppLanguage) -> String {
-        l == .fr ? "Vos donnees sont synchronisees dans le cloud. Creez un compte ou connectez-vous pour activer la sync."
+        l == .fr ? "Vos données sont synchronisées dans le cloud. Créez un compte ou connectez-vous pour activer la sync."
         : "Your data is synced to the cloud. Create an account or sign in to enable sync."
     }
     static func account(_ l: AppLanguage) -> String { l == .fr ? "Compte" : "Account" }
     static func connected(_ l: AppLanguage, email: String) -> String { l == .fr ? "Connecté — \(email)" : "Connected — \(email)" }
     static func signOut(_ l: AppLanguage) -> String { l == .fr ? "Déconnexion" : "Sign out" }
-    static func otpSent(_ l: AppLanguage, email: String) -> String { l == .fr ? "Un code a 6 chiffres a ete envoye a **\(email)**" : "A 6-digit code was sent to **\(email)**" }
-    static func verificationCode(_ l: AppLanguage) -> String { l == .fr ? "Code de verification" : "Verification code" }
+    static func otpSent(_ l: AppLanguage, email: String) -> String { l == .fr ? "Un code à 6 chiffres a été envoyé à **\(email)**" : "A 6-digit code was sent to **\(email)**" }
+    static func verificationCode(_ l: AppLanguage) -> String { l == .fr ? "Code de vérification" : "Verification code" }
+    static func otpCodePlaceholder(_ l: AppLanguage) -> String { l == .fr ? "123456" : "123456" }
     static func verify(_ l: AppLanguage) -> String { l == .fr ? "Vérifier" : "Verify" }
     static func resendCode(_ l: AppLanguage) -> String { l == .fr ? "Renvoyer le code" : "Resend code" }
-    static func verifying(_ l: AppLanguage) -> String { l == .fr ? "Verification..." : "Verifying..." }
+    static func verifying(_ l: AppLanguage) -> String { l == .fr ? "Vérification..." : "Verifying..." }
     static func emailLoginPrompt(_ l: AppLanguage) -> String { l == .fr ? "Entrez votre email pour recevoir un code de connexion." : "Enter your email to receive a login code." }
+    static func emailPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "email@exemple.com" : "email@example.com" }
     static func receiveCode(_ l: AppLanguage) -> String { l == .fr ? "Recevoir un code" : "Receive code" }
     static func sendingCode(_ l: AppLanguage) -> String { l == .fr ? "Envoi du code..." : "Sending code..." }
     static func syncStatus(_ l: AppLanguage) -> String { l == .fr ? "Statut" : "Status" }
@@ -138,7 +150,9 @@ extension L10n {
     static func supabaseURL(_ l: AppLanguage) -> String { "URL Supabase" }
     static func apiKeyAnon(_ l: AppLanguage) -> String { l == .fr ? "Clé API (anon)" : "API key (anon)" }
     static func apiKey(_ l: AppLanguage) -> String { l == .fr ? "Clé API" : "API key" }
-    static func sqlSchema(_ l: AppLanguage) -> String { l == .fr ? "Schema SQL pour votre base" : "SQL schema for your database" }
+    static func supabaseURLPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "https://xxx.supabase.co" : "https://xxx.supabase.co" }
+    static func apiKeyPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "eyJhbG..." : "eyJhbG..." }
+    static func sqlSchema(_ l: AppLanguage) -> String { l == .fr ? "Schéma SQL pour votre base" : "SQL schema for your database" }
     static func copySQL(_ l: AppLanguage) -> String { l == .fr ? "Copier le SQL" : "Copy SQL" }
     static func authenticationError(_ l: AppLanguage) -> String {
         l == .fr ? "Connexion impossible" : "Sign-in issue"
@@ -168,19 +182,19 @@ extension L10n {
     static func resetHelp(_ l: AppLanguage) -> String { l == .fr ? "Supprime toutes les données et remet Facio à zéro" : "Deletes all data and resets Facio" }
     static func uninstall(_ l: AppLanguage) -> String { l == .fr ? "Désinstaller" : "Uninstall" }
     static func uninstallHelp(_ l: AppLanguage) -> String { l == .fr ? "Supprime toutes les données et ferme l'application" : "Deletes all data and closes the application" }
-    static func resetDone(_ l: AppLanguage) -> String { l == .fr ? "Reinitialisation effectuee. Relancez Facio." : "Reset complete. Restart Facio." }
+    static func resetDone(_ l: AppLanguage) -> String { l == .fr ? "Réinitialisation effectuée. Relancez Facio." : "Reset complete. Restart Facio." }
     static func irreversibleWarning(_ l: AppLanguage) -> String {
-        l == .fr ? "Ces actions sont irreversibles. Assurez-vous d'avoir exporte vos documents importants."
+        l == .fr ? "Ces actions sont irréversibles. Assurez-vous d'avoir exporté vos documents importants."
         : "These actions are irreversible. Make sure you have exported your important documents."
     }
     static func resetConfirmTitle(_ l: AppLanguage) -> String { l == .fr ? "Réinitialiser Facio ?" : "Reset Facio?" }
     static func resetConfirmMessage(_ l: AppLanguage) -> String {
-        l == .fr ? "Toutes vos donnees seront supprimees (factures, devis, clients, parametres). Cette action est irreversible."
+        l == .fr ? "Toutes vos données seront supprimées (factures, devis, clients, paramètres). Cette action est irréversible."
         : "All your data will be deleted (invoices, quotes, clients, settings). This action is irreversible."
     }
     static func uninstallConfirmTitle(_ l: AppLanguage) -> String { l == .fr ? "Désinstaller Facio ?" : "Uninstall Facio?" }
     static func uninstallConfirmMessage(_ l: AppLanguage) -> String {
-        l == .fr ? "L'application sera fermee et toutes les donnees locales seront supprimees. Vous devrez supprimer Facio.app manuellement."
+        l == .fr ? "L'application sera fermée et toutes les données locales seront supprimées. Vous devrez supprimer Facio.app manuellement."
         : "The application will be closed and all local data will be deleted. You will need to delete Facio.app manually."
     }
 
@@ -189,9 +203,9 @@ extension L10n {
     static func updateAvailable(_ l: AppLanguage, version: String) -> String { l == .fr ? "Version \(version) disponible" : "Version \(version) available" }
     static func upToDate(_ l: AppLanguage) -> String { l == .fr ? "Vous êtes à jour" : "You're up to date" }
     static func updateCheckUnavailable(_ l: AppLanguage) -> String {
-        l == .fr ? "Statut de mise a jour indisponible" : "Update status unavailable"
+        l == .fr ? "Statut de mise à jour indisponible" : "Update status unavailable"
     }
     static func updateCheckFailed(_ l: AppLanguage) -> String {
-        l == .fr ? "Impossible de verifier les mises a jour" : "Could not check for updates"
+        l == .fr ? "Impossible de vérifier les mises à jour" : "Could not check for updates"
     }
 }

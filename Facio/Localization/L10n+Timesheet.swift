@@ -25,7 +25,7 @@ extension L10n {
     static func normalHoursShort(_ l: AppLanguage, value: String) -> String { l == .fr ? "N: \(value)h" : "N: \(value)h" }
     static func overtimeHoursShort(_ l: AppLanguage, value: String) -> String { l == .fr ? "S: +\(value)h" : "OT: +\(value)h" }
     static func normalCost(_ l: AppLanguage) -> String { l == .fr ? "Coût normal" : "Normal cost" }
-    static func overtimeCost(_ l: AppLanguage) -> String { l == .fr ? "Cout sup." : "Overtime cost" }
+    static func overtimeCost(_ l: AppLanguage) -> String { l == .fr ? "Coût sup." : "Overtime cost" }
     static func grossTotal(_ l: AppLanguage) -> String { l == .fr ? "Total brut" : "Gross total" }
     static func netTotal(_ l: AppLanguage) -> String { l == .fr ? "Total net" : "Net total" }
 

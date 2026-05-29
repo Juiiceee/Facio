@@ -70,7 +70,7 @@ struct SyncSettingsView: View {
                             }
 
                             settingsRow(L10n.verificationCode(lang)) {
-                                TextField("123456", text: $otpCode)
+                                TextField(L10n.otpCodePlaceholder(lang), text: $otpCode)
                                     .textFieldStyle(.roundedBorder)
                                     .frame(maxWidth: 200)
                             }
@@ -115,7 +115,7 @@ struct SyncSettingsView: View {
                                 .foregroundStyle(.secondary)
 
                             settingsRow(L10n.email(lang)) {
-                                TextField("email@exemple.com", text: $email)
+                                TextField(L10n.emailPlaceholder(lang), text: $email)
                                     .textFieldStyle(.roundedBorder)
                             }
 
@@ -161,7 +161,7 @@ struct SyncSettingsView: View {
                                 Text(L10n.lastSync(lang))
                                     .foregroundStyle(.secondary)
                                 Spacer()
-                                Text(lastSync.frenchFormatted)
+                                Text(lastSync.formattedDate(for: lang))
                             }
                             .font(.subheadline)
                         }
@@ -209,7 +209,7 @@ struct SyncSettingsView: View {
 
                         if useCustomDB {
                             settingsRow(L10n.supabaseURL(lang)) {
-                                TextField("https://xxx.supabase.co", text: $customURL)
+                                TextField(L10n.supabaseURLPlaceholder(lang), text: $customURL)
                                     .textFieldStyle(.roundedBorder)
                                     .onChange(of: customURL) { SyncConfig.customURL = customURL }
                             }
@@ -217,7 +217,7 @@ struct SyncSettingsView: View {
                             settingsRow(L10n.apiKeyAnon(lang)) {
                                 HStack {
                                     if showApiKey {
-                                        TextField("eyJhbG...", text: $customAPIKey)
+                                        TextField(L10n.apiKeyPlaceholder(lang), text: $customAPIKey)
                                             .textFieldStyle(.roundedBorder)
                                     } else {
                                         SecureField(L10n.apiKey(lang), text: $customAPIKey)
@@ -266,6 +266,13 @@ struct SyncSettingsView: View {
             Spacer()
         }
         .padding(24)
+        .onAppear(perform: updateServiceLanguages)
+        .onChange(of: lang) { _, _ in updateServiceLanguages() }
+    }
+
+    private func updateServiceLanguages() {
+        authService.language = lang
+        syncService.language = lang
     }
 
     private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {

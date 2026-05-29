@@ -56,6 +56,8 @@ struct FacioApp: App {
                     Text(L10n.updateAvailableMessage(lang, version: updateService.latestVersion ?? ""))
                 }
                 .onAppear {
+                    authService.language = lang
+                    syncService.language = lang
                     if !UserDefaults.standard.bool(forKey: "facio_has_launched") {
                         showFirstLaunch = true
                     }
@@ -69,6 +71,10 @@ struct FacioApp: App {
                             await syncService.fullSync(dataStore: dataStore)
                         }
                     }
+                }
+                .onChange(of: lang) { _, newLanguage in
+                    authService.language = newLanguage
+                    syncService.language = newLanguage
                 }
                 .onChange(of: networkMonitor.isConnected) { _, isConnected in
                     if isConnected && SyncConfig.isEnabled {

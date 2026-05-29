@@ -10,12 +10,12 @@ extension L10n {
 
     // DocumentStatus
     static func draft(_ l: AppLanguage) -> String { l == .fr ? "Brouillon" : "Draft" }
-    static func sent(_ l: AppLanguage) -> String { l == .fr ? "Envoyee" : "Sent" }
-    static func paid(_ l: AppLanguage) -> String { l == .fr ? "Payee" : "Paid" }
-    static func cancelled(_ l: AppLanguage) -> String { l == .fr ? "Annulee" : "Cancelled" }
+    static func sent(_ l: AppLanguage) -> String { l == .fr ? "Envoyée" : "Sent" }
+    static func paid(_ l: AppLanguage) -> String { l == .fr ? "Payée" : "Paid" }
+    static func cancelled(_ l: AppLanguage) -> String { l == .fr ? "Annulée" : "Cancelled" }
 
     // PaymentMode
     static func paymentNone(_ l: AppLanguage) -> String { l == .fr ? "Aucun" : "None" }
-    static func paymentTransfer(_ l: AppLanguage) -> String { l == .fr ? "Virement" : "Transfer" }
+    static func paymentTransfer(_ l: AppLanguage) -> String { l == .fr ? "Virement" : "Bank transfer" }
     static func paymentCrypto(_ l: AppLanguage) -> String { "Crypto" }
 }

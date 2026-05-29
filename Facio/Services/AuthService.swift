@@ -46,6 +46,7 @@ final class AuthService: Sendable {
     var refreshToken: String = ""
     var error: String?
     var isLoading: Bool = false
+    var language: AppLanguage = .fr
 
     /// true apres envoi du code OTP, en attente de verification
     var awaitingOTP: Bool = false
@@ -93,7 +94,7 @@ final class AuthService: Sendable {
     /// Envoie un code OTP a 6 chiffres par email via Supabase
     func sendOTP(email: String) async {
         guard SyncConfig.isConfigured else {
-            error = "Configuration Supabase manquante"
+            error = L10n.authMissingSupabaseConfiguration(language)
             return
         }
         guard let url = buildURL(path: "/auth/v1/otp") else { return }
@@ -130,7 +131,7 @@ final class AuthService: Sendable {
                    let msg = json["msg"] as? String ?? json["error_description"] as? String ?? json["message"] as? String {
                     error = msg
                 } else {
-                    error = "Erreur d'envoi du code (HTTP \(httpResponse.statusCode))"
+                    error = L10n.authSendCodeFailed(language, statusCode: httpResponse.statusCode)
                 }
             }
         } catch {
@@ -144,7 +145,7 @@ final class AuthService: Sendable {
     /// Verifie le code OTP saisi par l'utilisateur
     func verifyOTP(code: String) async {
         guard SyncConfig.isConfigured else {
-            error = "Configuration Supabase manquante"
+            error = L10n.authMissingSupabaseConfiguration(language)
             return
         }
         guard let url = buildURL(path: "/auth/v1/verify") else { return }
@@ -185,7 +186,7 @@ final class AuthService: Sendable {
                    let msg = json["msg"] as? String ?? json["error_description"] as? String ?? json["message"] as? String {
                     error = msg
                 } else {
-                    error = "Code invalide ou expire"
+                    error = L10n.authInvalidOrExpiredCode(language)
                 }
             }
         } catch {
@@ -220,13 +221,13 @@ final class AuthService: Sendable {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
-                error = "Reponse Supabase invalide"
+                error = L10n.authInvalidSupabaseResponse(language)
                 return
             }
 
             if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
                 guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                    error = "Reponse Supabase invalide"
+                    error = L10n.authInvalidSupabaseResponse(language)
                     return
                 }
                 handleAuthResponse(json)
@@ -242,7 +243,7 @@ final class AuthService: Sendable {
                let msg = json["msg"] as? String ?? json["error_description"] as? String ?? json["message"] as? String {
                 error = msg
             } else {
-                error = "Erreur de rafraichissement de session (HTTP \(httpResponse.statusCode))"
+                error = L10n.authRefreshSessionFailed(language, statusCode: httpResponse.statusCode)
             }
         } catch {
             self.error = error.localizedDescription
@@ -350,7 +351,7 @@ final class AuthService: Sendable {
                 try KeychainService.set(refreshToken, for: KeychainAccount.refreshToken)
             }
         } catch {
-            self.error = "Erreur de migration de la session"
+            self.error = L10n.authSessionMigrationFailed(language)
         }
     }
 
@@ -380,7 +381,7 @@ final class AuthService: Sendable {
             }
             persistSessionState()
         } catch {
-            self.error = "Erreur de migration de la session"
+            self.error = L10n.authSessionMigrationFailed(language)
         }
     }
 
@@ -397,7 +398,7 @@ final class AuthService: Sendable {
                 try KeychainService.set(refreshToken, for: KeychainAccount.refreshToken)
             }
         } catch {
-            self.error = "Erreur d'enregistrement de la session"
+            self.error = L10n.authSessionSaveFailed(language)
         }
     }
 
@@ -420,34 +421,34 @@ final class AuthService: Sendable {
               let scheme = components.scheme?.lowercased(),
               let host = components.host,
               !host.isEmpty else {
-            if reportErrors { error = "URL Supabase invalide" }
+            if reportErrors { error = L10n.authInvalidSupabaseURL(language) }
             return nil
         }
 
         guard components.user == nil,
               components.password == nil,
               components.fragment == nil else {
-            if reportErrors { error = "URL Supabase invalide" }
+            if reportErrors { error = L10n.authInvalidSupabaseURL(language) }
             return nil
         }
 
         if scheme == "http" {
             #if DEBUG
             guard isLocalhost(host) else {
-                if reportErrors { error = "URL Supabase non securisee" }
+                if reportErrors { error = L10n.authInsecureSupabaseURL(language) }
                 return nil
             }
             #else
-            if reportErrors { error = "URL Supabase non securisee" }
+            if reportErrors { error = L10n.authInsecureSupabaseURL(language) }
             return nil
             #endif
         } else if scheme != "https" {
-            if reportErrors { error = "URL Supabase invalide" }
+            if reportErrors { error = L10n.authInvalidSupabaseURL(language) }
             return nil
         }
 
         guard let pathComponents = URLComponents(string: path) else {
-            if reportErrors { error = "URL Supabase invalide" }
+            if reportErrors { error = L10n.authInvalidSupabaseURL(language) }
             return nil
         }
 

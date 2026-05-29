@@ -8,27 +8,11 @@ enum JourSemaine: Int, Codable, CaseIterable, Identifiable {
     var id: Int { rawValue }
 
     var label: String {
-        switch self {
-        case .lundi: return "Lundi"
-        case .mardi: return "Mardi"
-        case .mercredi: return "Mercredi"
-        case .jeudi: return "Jeudi"
-        case .vendredi: return "Vendredi"
-        case .samedi: return "Samedi"
-        case .dimanche: return "Dimanche"
-        }
+        label(for: .fr)
     }
 
     var shortLabel: String {
-        switch self {
-        case .lundi: return "Lun"
-        case .mardi: return "Mar"
-        case .mercredi: return "Mer"
-        case .jeudi: return "Jeu"
-        case .vendredi: return "Ven"
-        case .samedi: return "Sam"
-        case .dimanche: return "Dim"
-        }
+        shortLabel(for: .fr)
     }
 
     func label(for lang: AppLanguage) -> String {

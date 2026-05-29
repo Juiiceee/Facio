@@ -140,7 +140,7 @@ private struct BankAccountRow: View {
                 }
 
                 settingsRow(L10n.iban(lang)) {
-                    TextField("FR76 0000 0000 0000 0000 0000 000", text: Binding(
+                    TextField(L10n.ibanPlaceholder(lang), text: Binding(
                         get: { account?.iban ?? "" },
                         set: { setAccountValue(\.iban, to: $0) }
                     ))
@@ -150,7 +150,7 @@ private struct BankAccountRow: View {
 
                 HStack(spacing: 12) {
                     settingsRow(L10n.bic(lang)) {
-                        TextField("BNPAFRPP", text: Binding(
+                        TextField(L10n.bicPlaceholder(lang), text: Binding(
                             get: { account?.bic ?? "" },
                             set: { setAccountValue(\.bic, to: $0) }
                         ))

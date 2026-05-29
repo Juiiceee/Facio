@@ -35,7 +35,7 @@ struct CompanySettingsView: View {
 
                     HStack(alignment: .top, spacing: 12) {
                         settingsRow(L10n.postalCode(lang)) {
-                            TextField("54000", text: Binding(
+                            TextField(L10n.postalCodePlaceholder(lang), text: Binding(
                                 get: { company.codePostal },
                                 set: { company.codePostal = $0; dataStore.companyUpdated() }
                             ))
@@ -52,8 +52,8 @@ struct CompanySettingsView: View {
                         }
                     }
 
-                    settingsRow("SIRET") {
-                        TextField("000 000 000 00000", text: Binding(
+                    settingsRow(L10n.siret(lang)) {
+                        TextField(L10n.siretPlaceholder(lang), text: Binding(
                             get: { company.siret },
                             set: { company.siret = $0; dataStore.companyUpdated() }
                         ))
@@ -70,7 +70,7 @@ struct CompanySettingsView: View {
                         .font(.headline)
 
                     settingsRow(L10n.phone(lang)) {
-                        TextField("06 00 00 00 00", text: Binding(
+                        TextField(L10n.phonePlaceholder(lang), text: Binding(
                             get: { company.telephone },
                             set: { company.telephone = $0; dataStore.companyUpdated() }
                         ))
@@ -78,7 +78,7 @@ struct CompanySettingsView: View {
                     }
 
                     settingsRow(L10n.email(lang)) {
-                        TextField("contact@entreprise.fr", text: Binding(
+                        TextField(L10n.contactEmailPlaceholder(lang), text: Binding(
                             get: { company.email },
                             set: { company.email = $0; dataStore.companyUpdated() }
                         ))

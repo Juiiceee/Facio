@@ -581,7 +581,7 @@ struct PDFGenerator {
         for tx in document.transactionSignatures {
             let rowHeight: CGFloat = tx.explorerURL == nil ? 24 : 38
             cy = ensurePageSpace(context, y: cy, needed: rowHeight)
-            drawText("\(formatDate(tx.date)) — \(document.currency.format(tx.montant, lang: lang)) via \(tx.blockchain.label)",
+            drawText("\(formatDate(tx.date)) — \(document.currency.format(tx.montant, lang: lang)) \(L10n.paymentProofVia(lang)) \(tx.blockchain.label)",
                      x: mL + 5, y: cy, font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
             cy += 13
 
@@ -801,7 +801,7 @@ struct PDFGenerator {
             // Pas de paiement — on n'affiche rien a droite
         } else if effectivePaymentMode == .crypto,
                   let walletAddress = snapshotWalletAddress ?? document.selectedPaymentWalletAddress(from: company.wallets) {
-            let chainLabel = document.paymentSnapshot?.blockchain?.label ?? document.blockchain?.label ?? "Crypto"
+            let chainLabel = document.paymentSnapshot?.blockchain?.label ?? document.blockchain?.label ?? L10n.paymentCrypto(lang)
             drawText(chainLabel, x: rightX, y: ry, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
             ry += 12
             drawText(L10n.cryptoTransfer(lang), x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)

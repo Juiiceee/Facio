@@ -140,7 +140,7 @@ struct TimesheetEditorView: View {
                     Text(L10n.totalHours(lang))
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("\(heures.formatted2Decimals)h")
+                    Text("\(heures.formatted2Decimals(for: numberFormat))h")
                         .font(.title3.monospacedDigit())
                         .fontWeight(.bold)
                 }
@@ -149,7 +149,7 @@ struct TimesheetEditorView: View {
                     Text(L10n.grossTotal(lang))
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(brut.formatted2Decimals)
+                    Text(brut.formatted2Decimals(for: numberFormat))
                         .font(.title3.monospacedDigit())
                         .fontWeight(.bold)
                 }
@@ -158,7 +158,7 @@ struct TimesheetEditorView: View {
                     Text(L10n.netTotal(lang))
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(net.formatted2Decimals)
+                    Text(net.formatted2Decimals(for: numberFormat))
                         .font(.title3.monospacedDigit())
                         .fontWeight(.bold)
                 }
@@ -307,14 +307,14 @@ struct TimesheetEditorView: View {
             LazyVGrid(columns: [
                 GridItem(.adaptive(minimum: 100, maximum: 160))
             ], spacing: 12) {
-                resumeCard(title: L10n.totalHours(lang), value: "\(heuresMois.formatted2Decimals)h", color: .primary)
-                resumeCard(title: L10n.normalHours(lang), value: "\(heuresNorm.formatted2Decimals)h", color: .blue)
-                resumeCard(title: L10n.overtimeHours(lang), value: "\(heuresSup.formatted2Decimals)h",
+                resumeCard(title: L10n.totalHours(lang), value: "\(heuresMois.formatted2Decimals(for: numberFormat))h", color: .primary)
+                resumeCard(title: L10n.normalHours(lang), value: "\(heuresNorm.formatted2Decimals(for: numberFormat))h", color: .blue)
+                resumeCard(title: L10n.overtimeHours(lang), value: "\(heuresSup.formatted2Decimals(for: numberFormat))h",
                            color: heuresSup > 0 ? .orange : .secondary)
-                resumeCard(title: L10n.normalCost(lang), value: coutNorm.formatted2Decimals, color: .secondary)
-                resumeCard(title: L10n.overtimeCost(lang), value: coutSup.formatted2Decimals, color: .secondary)
-                resumeCard(title: L10n.grossTotal(lang), value: brut.formatted2Decimals, color: .green)
-                resumeCard(title: L10n.netTotal(lang), value: net.formatted2Decimals, color: .green)
+                resumeCard(title: L10n.normalCost(lang), value: coutNorm.formatted2Decimals(for: numberFormat), color: .secondary)
+                resumeCard(title: L10n.overtimeCost(lang), value: coutSup.formatted2Decimals(for: numberFormat), color: .secondary)
+                resumeCard(title: L10n.grossTotal(lang), value: brut.formatted2Decimals(for: numberFormat), color: .green)
+                resumeCard(title: L10n.netTotal(lang), value: net.formatted2Decimals(for: numberFormat), color: .green)
             }
             .padding(8)
         }
@@ -376,14 +376,14 @@ struct TimesheetEditorView: View {
                     }
                     Spacer()
                     HStack(spacing: 16) {
-                        Label("\(heuresMoisSemaine.formatted2Decimals)h", systemImage: "clock")
+                        Label("\(heuresMoisSemaine.formatted2Decimals(for: numberFormat))h", systemImage: "clock")
                             .font(.subheadline.monospacedDigit())
                             .fontWeight(.medium)
-                        Text(L10n.normalHoursShort(lang, value: normSemaine.formatted2Decimals))
+                        Text(L10n.normalHoursShort(lang, value: normSemaine.formatted2Decimals(for: numberFormat)))
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.blue)
                         if supSemaine > 0 {
-                            Text(L10n.overtimeHoursShort(lang, value: supSemaine.formatted2Decimals))
+                            Text(L10n.overtimeHoursShort(lang, value: supSemaine.formatted2Decimals(for: numberFormat)))
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.orange)
                                 .fontWeight(.medium)
@@ -391,7 +391,7 @@ struct TimesheetEditorView: View {
                         Divider().frame(height: 14)
                         let coutSemaine = normSemaine * timesheet.tauxNormal
                             + supSemaine * timesheet.tauxSupplementaire
-                        Text(coutSemaine.formatted2Decimals)
+                        Text(coutSemaine.formatted2Decimals(for: numberFormat))
                             .font(.subheadline.monospacedDigit())
                             .fontWeight(.semibold)
                             .foregroundStyle(.green)

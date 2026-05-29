@@ -7,12 +7,12 @@ extension L10n {
     // Dates
     static func invoiceDate(_ l: AppLanguage) -> String { l == .fr ? "Date de facture: " : "Invoice date: " }
     static func quoteDate(_ l: AppLanguage) -> String { l == .fr ? "Date du devis: " : "Quote date: " }
-    static func dueDate(_ l: AppLanguage) -> String { l == .fr ? "Echeance: " : "Due date: " }
+    static func dueDate(_ l: AppLanguage) -> String { l == .fr ? "Échéance: " : "Due date: " }
     static func recipient(_ l: AppLanguage) -> String { l == .fr ? "DESTINATAIRE" : "RECIPIENT" }
 
     // Tableau
-    static func designation(_ l: AppLanguage) -> String { l == .fr ? "DESIGNATION" : "DESCRIPTION" }
-    static func quantity(_ l: AppLanguage) -> String { l == .fr ? "QUANTITE" : "QUANTITY" }
+    static func designation(_ l: AppLanguage) -> String { l == .fr ? "DÉSIGNATION" : "DESCRIPTION" }
+    static func quantity(_ l: AppLanguage) -> String { l == .fr ? "QUANTITÉ" : "QUANTITY" }
     static func price(_ l: AppLanguage) -> String { l == .fr ? "PRIX" : "PRICE" }
     static func total(_ l: AppLanguage) -> String { "TOTAL" }
     static func vat(_ l: AppLanguage) -> String { l == .fr ? "TVA" : "VAT" }
@@ -37,4 +37,5 @@ extension L10n {
     static func companyFallback(_ l: AppLanguage) -> String { l == .fr ? "ENTREPRISE" : "COMPANY" }
     static func notesLabel(_ l: AppLanguage) -> String { l == .fr ? "NOTES" : "NOTES" }
     static func defaultPDFName(_ l: AppLanguage) -> String { l == .fr ? "document" : "document" }
+    static func paymentProofVia(_ l: AppLanguage) -> String { l == .fr ? "via" : "via" }
 }

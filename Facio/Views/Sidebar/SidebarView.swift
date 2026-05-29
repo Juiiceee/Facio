@@ -14,15 +14,7 @@ enum SidebarSection: String, Hashable, Identifiable {
     var id: String { rawValue }
 
     var label: String {
-        switch self {
-        case .factures: return "Factures"
-        case .devis: return "Devis"
-        case .clients: return "Clients"
-        case .heures: return "Heures & facturation"
-        case .planning: return "Hub temps"
-        case .dashboard: return "Tableau de bord"
-        case .parametres: return "Paramètres"
-        }
+        label(for: .fr)
     }
 
     func label(for lang: AppLanguage) -> String {

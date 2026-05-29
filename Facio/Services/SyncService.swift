@@ -11,6 +11,7 @@ final class SyncService: Sendable {
     var lastError: String?
     var syncState: SyncState = SyncState()
     var authService: AuthService?
+    var language: AppLanguage = .fr
 
     private let encoder: JSONEncoder = {
         let e = JSONEncoder()
@@ -107,7 +108,7 @@ final class SyncService: Sendable {
                     syncState.setDirty(false, for: .documents)
                 }
             } else {
-                lastError = "Lecture locale impossible: documents.json"
+                lastError = L10n.syncLocalReadFailed(language, fileName: "documents.json")
             }
         }
 
@@ -118,7 +119,7 @@ final class SyncService: Sendable {
                     syncState.setDirty(false, for: .clients)
                 }
             } else {
-                lastError = "Lecture locale impossible: clients.json"
+                lastError = L10n.syncLocalReadFailed(language, fileName: "clients.json")
             }
         }
 
@@ -129,7 +130,7 @@ final class SyncService: Sendable {
                     syncState.setDirty(false, for: .company)
                 }
             } else {
-                lastError = "Lecture locale impossible: company.json"
+                lastError = L10n.syncLocalReadFailed(language, fileName: "company.json")
             }
         }
 
@@ -140,7 +141,7 @@ final class SyncService: Sendable {
                     syncState.setDirty(false, for: .timesheets)
                 }
             } else {
-                lastError = "Lecture locale impossible: timesheets.json"
+                lastError = L10n.syncLocalReadFailed(language, fileName: "timesheets.json")
             }
         }
 
@@ -958,9 +959,9 @@ final class SyncService: Sendable {
             markDirty(key)
         }
         if dirtyAfterPush.hasDirtyData || skippedPulledData || dirtyGeneration != pullGeneration {
-            lastError = "Synchronisation partielle: des donnees locales restent a envoyer."
+            lastError = L10n.syncPartialLocalDataPending(language)
         } else if localSaveFailed {
-            lastError = "Synchronisation partielle: sauvegarde locale impossible."
+            lastError = L10n.syncPartialLocalSaveFailed(language)
         }
 
         syncState.lastFullSyncAt = Date()
@@ -1059,6 +1060,9 @@ final class SyncService: Sendable {
     private func fetchRemoteIdsOrFail(table: String, query: String) async -> Set<String>? {
         do {
             return try await fetchRemoteIds(table: table, query: query)
+        } catch let error as RemoteIdFetchError {
+            lastError = error.description(language: language)
+            return nil
         } catch {
             lastError = error.localizedDescription
             return nil
@@ -1127,7 +1131,7 @@ final class SyncService: Sendable {
                    let msg = json["message"] as? String ?? json["msg"] as? String {
                     lastError = msg
                 } else {
-                    lastError = "Erreur HTTP \(httpResponse.statusCode)"
+                    lastError = L10n.syncHTTPError(language, statusCode: httpResponse.statusCode)
                 }
             }
             return false
@@ -1293,29 +1297,25 @@ final class SyncService: Sendable {
 
     private static let decimalLocale = Locale(identifier: "en_US_POSIX")
 
-    private enum RemoteIdFetchError: LocalizedError {
+    private enum RemoteIdFetchError: Error {
         case invalidURL(table: String)
         case invalidResponse(table: String)
         case httpStatus(table: String, statusCode: Int, message: String?)
         case invalidPayload(table: String)
         case requestFailed(table: String, error: Error)
 
-        var errorDescription: String? {
+        func description(language: AppLanguage) -> String {
             switch self {
             case .invalidURL(let table):
-                return "URL Supabase invalide pour \(table)."
+                return L10n.syncRemoteIDsInvalidURL(language, table: table)
             case .invalidResponse(let table):
-                return "Reponse Supabase invalide pendant la lecture des IDs \(table)."
+                return L10n.syncRemoteIDsInvalidResponse(language, table: table)
             case .httpStatus(let table, let statusCode, let message):
-                if let message, !message.isEmpty {
-                    return "Lecture des IDs \(table) impossible: HTTP \(statusCode) - \(message)"
-                } else {
-                    return "Lecture des IDs \(table) impossible: HTTP \(statusCode)"
-                }
+                return L10n.syncRemoteIDsHTTPStatus(language, table: table, statusCode: statusCode, message: message)
             case .invalidPayload(let table):
-                return "Payload Supabase invalide pendant la lecture des IDs \(table)."
+                return L10n.syncRemoteIDsInvalidPayload(language, table: table)
             case .requestFailed(let table, let error):
-                return "Lecture des IDs \(table) impossible: \(error.localizedDescription)"
+                return L10n.syncRemoteIDsRequestFailed(language, table: table, error: error.localizedDescription)
             }
         }
     }
