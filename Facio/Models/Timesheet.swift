@@ -439,7 +439,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     }
 
     func hasTimeEntries(on dateString: String) -> Bool {
-        timeEntries.contains { $0.dateString == dateString }
+        timeEntries.contains { !$0.isDeleted && $0.dateString == dateString }
     }
 
     @discardableResult

@@ -43,6 +43,9 @@ enum FacioRegressionSuite {
         RegressionCase(name: "time hour input requires explicit time syntax for minutes", run: timeHourInputRequiresExplicitTimeSyntaxForMinutes),
         RegressionCase(name: "hour input formatting matches selected mode and language", run: hourInputFormattingMatchesSelectedModeAndLanguage),
         RegressionCase(name: "hour input placeholder stays empty", run: hourInputPlaceholderStaysEmpty),
+        RegressionCase(name: "time tracking duration parser supports clockify-like inputs", run: timeTrackingDurationParserSupportsClockifyLikeInputs),
+        RegressionCase(name: "time tracking time parser supports flexible inputs", run: timeTrackingTimeParserSupportsFlexibleInputs),
+        RegressionCase(name: "time tracking rounding keeps raw durations separate", run: timeTrackingRoundingKeepsRawDurationsSeparate),
         RegressionCase(name: "currency precision keeps crypto amounts", run: currencyPrecisionKeepsCryptoAmounts),
         RegressionCase(name: "accounting currency format keeps document totals readable", run: accountingCurrencyFormatKeepsDocumentTotalsReadable),
         RegressionCase(name: "document totals include VAT and line ordering", run: documentTotalsIncludeVATAndLineOrdering),
@@ -83,11 +86,15 @@ enum FacioRegressionSuite {
         RegressionCase(name: "timesheet invoice daily lines do not split equal rates", run: timesheetInvoiceDailyLinesDoNotSplitEqualRates),
         RegressionCase(name: "timesheet cross-period overtime assigns overflow to current month", run: timesheetCrossPeriodOvertimeAssignsOverflowToCurrentMonth),
         RegressionCase(name: "time entry decodes old payloads with defaults", run: timeEntryDecodesOldPayloadsWithDefaults),
+        RegressionCase(name: "time entry billing snapshot survives codable round trip", run: timeEntryBillingSnapshotSurvivesCodableRoundTrip),
         RegressionCase(name: "time entries recalculate billable day hours", run: timeEntriesRecalculateBillableDayHours),
+        RegressionCase(name: "soft deleted time entries stop contributing hours", run: softDeletedTimeEntriesStopContributingHours),
         RegressionCase(name: "time entry crossing midnight stays on start day", run: timeEntryCrossingMidnightStaysOnStartDay),
         RegressionCase(name: "data store keeps one active timer across periods", run: dataStoreKeepsOneActiveTimerAcrossPeriods),
         RegressionCase(name: "data store continues entry with copied details", run: dataStoreContinuesEntryWithCopiedDetails),
         RegressionCase(name: "data store adjusts running timer start without new entry", run: dataStoreAdjustsRunningTimerStartWithoutNewEntry),
+        RegressionCase(name: "data store imports unbilled time entries into invoice", run: dataStoreImportsUnbilledTimeEntriesIntoInvoice),
+        RegressionCase(name: "time entry csv report includes billable columns", run: timeEntryCSVReportIncludesBillableColumns),
         RegressionCase(name: "date and decimal formatting are stable across languages", run: dateAndDecimalFormattingAreStableAcrossLanguages)
     ]
 
@@ -130,6 +137,76 @@ enum FacioRegressionSuite {
         try expectEqual(L10n.hourInputPlaceholder(.fr, mode: .time), "")
         try expectEqual(L10n.hourInputPlaceholder(.en, mode: .decimal), "")
         try expectEqual(L10n.hourInputPlaceholder(.en, mode: .time), "")
+    }
+
+    private static func timeTrackingDurationParserSupportsClockifyLikeInputs() throws {
+        let compactCases: [(String, Int)] = [
+            ("2h", 7200),
+            ("30m", 1800),
+            ("1s", 1),
+            ("1h30m", 5400),
+            ("1h30m1s", 5401),
+            ("2:45", 9900),
+            ("1:1", 3660),
+            ("1:61", 7260),
+            ("1:1:1", 3661),
+            (":30", 1800),
+            (".5", 1800),
+            (".25", 900),
+            ("2.75", 9900),
+            ("1,5", 5400),
+            ("123", 4980),
+            ("1234", 45240),
+            ("2", 120),
+        ]
+
+        for (input, expected) in compactCases {
+            let actual = try TimeTrackingService.parseDurationInput(input)
+            try expectEqual(actual, expected)
+        }
+        let decimalTwo = try TimeTrackingService.parseDurationInput("2", format: .decimal)
+        try expectEqual(decimalTwo, 7200)
+
+        try expectThrows(try TimeTrackingService.parseDurationInput(""), "empty duration should be rejected")
+        try expectThrows(try TimeTrackingService.parseDurationInput("abc"), "text duration should be rejected")
+        try expectThrows(try TimeTrackingService.parseDurationInput("-1h"), "negative duration should be rejected")
+        try expectThrows(try TimeTrackingService.parseDurationInput("0m"), "zero duration should be rejected")
+    }
+
+    private static func timeTrackingTimeParserSupportsFlexibleInputs() throws {
+        let cases: [(String, TimeOfDay)] = [
+            ("0345", TimeOfDay(hour: 3, minute: 45)),
+            ("9.45", TimeOfDay(hour: 9, minute: 45)),
+            ("1pm", TimeOfDay(hour: 13, minute: 0)),
+            ("1 am", TimeOfDay(hour: 1, minute: 0)),
+            ("13", TimeOfDay(hour: 13, minute: 0)),
+            ("130", TimeOfDay(hour: 1, minute: 30)),
+        ]
+
+        for (input, expected) in cases {
+            let actual = try TimeTrackingService.parseTimeOfDayInput(input)
+            try expectEqual(actual, expected)
+        }
+
+        try expectThrows(try TimeTrackingService.parseTimeOfDayInput("25:00"), "hour over 23 should be rejected")
+        try expectThrows(try TimeTrackingService.parseTimeOfDayInput("12:99"), "minute over 59 should be rejected")
+        try expectThrows(try TimeTrackingService.parseTimeOfDayInput("9999"), "four digit invalid time should be rejected")
+        try expectThrows(try TimeTrackingService.parseTimeOfDayInput("abc"), "text time should be rejected")
+        try expectThrows(try TimeTrackingService.parseTimeOfDayInput("-1"), "negative time should be rejected")
+    }
+
+    private static func timeTrackingRoundingKeepsRawDurationsSeparate() throws {
+        try expectEqual(TimeTrackingService.roundDurationSeconds(65, mode: .nearest, intervalMinutes: 1), 60)
+        try expectEqual(TimeTrackingService.roundDurationSeconds(90, mode: .nearest, intervalMinutes: 1), 120)
+        try expectEqual(TimeTrackingService.roundDurationSeconds(61, mode: .up, intervalMinutes: 1), 120)
+        try expectEqual(TimeTrackingService.roundDurationSeconds(119, mode: .down, intervalMinutes: 1), 60)
+        try expectEqual(TimeTrackingService.roundDurationSeconds(7 * 60, mode: .up, intervalMinutes: 15), 15 * 60)
+
+        let roundedSeparately = [
+            TimeTrackingService.roundDurationSeconds(7 * 60, mode: .up, intervalMinutes: 15),
+            TimeTrackingService.roundDurationSeconds(7 * 60, mode: .up, intervalMinutes: 15),
+        ].reduce(0, +)
+        try expectEqual(roundedSeparately, 30 * 60)
     }
 
     private static func currencyPrecisionKeepsCryptoAmounts() throws {
@@ -1000,8 +1077,44 @@ enum FacioRegressionSuite {
         try expectEqual(entry.projectName, "Client work")
         try expectEqual(entry.taskName, "")
         try expectEqual(entry.notes, "")
+        try expectEqual(entry.tagsText, "")
+        try expect(entry.isBillable, "old payload should default to billable")
+        try expect(entry.rateSnapshot == nil, "old payload should not invent a rate snapshot")
+        try expect(!entry.isDeleted, "old payload should not decode as deleted")
         try expectEqual(entry.dateString, "2026-04-01")
         try expect(entry.endedAt == nil, "old payload without end date should decode as running")
+    }
+
+    private static func timeEntryBillingSnapshotSurvivesCodableRoundTrip() throws {
+        let entry = TimeEntry(
+            projectName: "Facio",
+            taskName: "Billing",
+            notes: "Snapshot",
+            tagsText: "dev, billing, dev",
+            isBillable: true,
+            rateSnapshot: decimal("80"),
+            currencySnapshot: .eur,
+            invoiceDocumentId: UUID(uuidString: "00000000-0000-0000-0000-000000000111"),
+            invoiceLineItemId: UUID(uuidString: "00000000-0000-0000-0000-000000000222"),
+            invoicedAt: dateTime(year: 2026, month: 4, day: 2, hour: 9),
+            source: .manual,
+            startedAt: dateTime(year: 2026, month: 4, day: 1, hour: 9),
+            endedAt: dateTime(year: 2026, month: 4, day: 1, hour: 10)
+        )
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let decoded = try decoder.decode(TimeEntry.self, from: encoder.encode(entry))
+        try expectEqual(decoded.tagsText, "dev, billing")
+        try expect(decoded.isBillable, "billable flag should survive")
+        try expectDecimal(decoded.rateSnapshot, equals: "80")
+        try expectEqual(decoded.currencySnapshot, .eur)
+        try expectEqual(decoded.invoiceDocumentId, entry.invoiceDocumentId)
+        try expectEqual(decoded.invoiceLineItemId, entry.invoiceLineItemId)
+        try expectEqual(decoded.source, .manual)
     }
 
     private static func timeEntriesRecalculateBillableDayHours() throws {
@@ -1018,6 +1131,29 @@ enum FacioRegressionSuite {
 
         try expectDecimal(hours(in: period, dateString: "2026-04-01"), equals: "2.5")
         try expectDecimal(hours(in: period, dateString: "2026-04-02"), equals: "0")
+    }
+
+    private static func softDeletedTimeEntriesStopContributingHours() throws {
+        try withTemporaryDataStore { store in
+            let period = TimesheetPeriod(startDate: date("2026-04-01"), endDate: date("2026-04-03"))
+            store.addTimesheet(period)
+            let entry = TimeEntry(
+                projectName: "Facio",
+                taskName: "Timer",
+                startedAt: dateTime(year: 2026, month: 4, day: 1, hour: 9),
+                endedAt: dateTime(year: 2026, month: 4, day: 1, hour: 11)
+            )
+            store.addTimeEntry(entry, to: period)
+            try expectDecimal(hours(in: period, dateString: "2026-04-01"), equals: "2")
+
+            store.deleteTimeEntry(entry, from: period)
+            try expect(entry.isDeleted, "delete should soft-delete the entry")
+            try expectDecimal(hours(in: period, dateString: "2026-04-01"), equals: "0")
+
+            store.restoreTimeEntry(entry, in: period)
+            try expect(!entry.isDeleted, "restore should clear deletedAt")
+            try expectDecimal(hours(in: period, dateString: "2026-04-01"), equals: "2")
+        }
     }
 
     private static func timeEntryCrossingMidnightStaysOnStartDay() throws {
@@ -1053,7 +1189,7 @@ enum FacioRegressionSuite {
             )
             try expect(periodA.runningTimeEntry != nil, "first timer should be active")
 
-            _ = store.startTimeEntry(
+            let rejected = store.startTimeEntry(
                 in: periodB,
                 projectName: "Project B",
                 taskName: "Review",
@@ -1061,9 +1197,10 @@ enum FacioRegressionSuite {
                 at: dateTime(year: 2026, month: 4, day: 1, hour: 10)
             )
 
-            try expect(periodA.runningTimeEntry == nil, "starting a second timer should stop the first")
-            try expect(periodB.runningTimeEntry != nil, "second timer should be active")
-            try expectDecimal(hours(in: periodA, dateString: "2026-04-01"), equals: "1")
+            try expect(rejected == nil, "starting a second timer should be rejected")
+            try expect(periodA.runningTimeEntry != nil, "first timer should keep running")
+            try expect(periodB.runningTimeEntry == nil, "second period should not get an active timer")
+            try expectDecimal(hours(in: periodA, dateString: "2026-04-01"), equals: "0")
         }
     }
 
@@ -1075,6 +1212,13 @@ enum FacioRegressionSuite {
                 projectName: "Facio",
                 taskName: "Timer UX",
                 notes: "Continue",
+                tagsText: "dev, ux",
+                isBillable: true,
+                rateSnapshot: decimal("120"),
+                currencySnapshot: .usd,
+                invoiceDocumentId: UUID(),
+                invoiceLineItemId: UUID(),
+                invoicedAt: dateTime(year: 2026, month: 4, day: 1, hour: 10),
                 startedAt: dateTime(year: 2026, month: 4, day: 1, hour: 9),
                 endedAt: dateTime(year: 2026, month: 4, day: 1, hour: 10)
             )
@@ -1093,6 +1237,12 @@ enum FacioRegressionSuite {
             try expectEqual(continued.projectName, "Facio")
             try expectEqual(continued.taskName, "Timer UX")
             try expectEqual(continued.notes, "Continue")
+            try expectEqual(continued.tagsText, "dev, ux")
+            try expect(continued.isBillable, "continued entry should copy billable flag")
+            try expectDecimal(continued.rateSnapshot, equals: "26.39")
+            try expect(continued.invoiceDocumentId == nil, "continued entry must not copy invoice id")
+            try expect(continued.invoiceLineItemId == nil, "continued entry must not copy invoice line id")
+            try expect(continued.invoicedAt == nil, "continued entry must not copy invoiced timestamp")
             try expect(continued.isRunning, "continued entry should be running")
             try expectDecimal(hours(in: period, dateString: "2026-04-01"), equals: "1")
         }
@@ -1126,6 +1276,79 @@ enum FacioRegressionSuite {
                 equals: "2"
             )
         }
+    }
+
+    private static func dataStoreImportsUnbilledTimeEntriesIntoInvoice() throws {
+        try withTemporaryDataStore { store in
+            let client = ClientInfo(nom: "Client A", adresse: "1 rue A", codePostal: "75001", ville: "Paris")
+            let period = TimesheetPeriod(startDate: date("2026-04-01"), endDate: date("2026-04-30"), client: client)
+            period.tauxNormal = decimal("100")
+            store.addTimesheet(period)
+
+            let billable = TimeEntry(
+                projectName: "Project",
+                taskName: "Build",
+                notes: "Feature",
+                isBillable: true,
+                rateSnapshot: decimal("120"),
+                currencySnapshot: .eur,
+                startedAt: dateTime(year: 2026, month: 4, day: 1, hour: 9),
+                endedAt: dateTime(year: 2026, month: 4, day: 1, hour: 11)
+            )
+            let nonBillable = TimeEntry(
+                projectName: "Internal",
+                taskName: "Admin",
+                isBillable: false,
+                startedAt: dateTime(year: 2026, month: 4, day: 2, hour: 9),
+                endedAt: dateTime(year: 2026, month: 4, day: 2, hour: 10)
+            )
+            store.addTimeEntry(billable, to: period)
+            store.addTimeEntry(nonBillable, to: period)
+
+            let invoice = try require(
+                store.generateInvoiceFromUnbilledTimeEntries(from: period, grouping: .detailed),
+                "invoice import should create a document"
+            )
+
+            try expectEqual(invoice.lignes.count, 1)
+            try expectDecimal(invoice.lignes[0].quantite, equals: "2")
+            try expectDecimal(invoice.lignes[0].prixUnitaire, equals: "120")
+            try expectEqual(billable.invoiceDocumentId, invoice.id)
+            try expectEqual(billable.invoiceLineItemId, invoice.lignes[0].id)
+            try expect(billable.invoicedAt != nil, "imported entry should be marked invoiced")
+            try expect(nonBillable.invoiceDocumentId == nil, "non-billable entry should not be imported")
+            try expect(!store.canGenerateInvoiceFromTimeEntries(for: period), "already invoiced entry should not be proposed again")
+
+            store.deleteDocument(invoice)
+            try expect(billable.invoiceDocumentId == nil, "deleting invoice should clear entry invoice id")
+            try expect(billable.invoiceLineItemId == nil, "deleting invoice should clear entry line id")
+            try expect(billable.invoicedAt == nil, "deleting invoice should clear entry invoiced timestamp")
+        }
+    }
+
+    private static func timeEntryCSVReportIncludesBillableColumns() throws {
+        let client = ClientInfo(nom: "Client CSV")
+        let period = TimesheetPeriod(startDate: date("2026-04-01"), endDate: date("2026-04-30"), client: client)
+        period.tauxNormal = decimal("90")
+        let entry = TimeEntry(
+            projectName: "Project",
+            taskName: "Build",
+            notes: "Feature, CSV",
+            tagsText: "dev, export",
+            isBillable: true,
+            rateSnapshot: decimal("110"),
+            currencySnapshot: .eur,
+            startedAt: dateTime(year: 2026, month: 4, day: 1, hour: 9),
+            endedAt: dateTime(year: 2026, month: 4, day: 1, hour: 10, minute: 30)
+        )
+        period.addTimeEntry(entry)
+
+        let csv = TimeTrackingService.csv(for: [entry], timesheet: period, lang: .en)
+        try expect(csv.contains("date,description,client,project,task,tags,start,end,duration_raw"), "CSV header should include report columns")
+        try expect(csv.contains("\"Feature, CSV\""), "CSV should escape commas")
+        try expect(csv.contains("true"), "CSV should include billable status")
+        try expect(csv.contains("5400"), "CSV should include raw duration seconds")
+        try expect(csv.contains("110"), "CSV should include hourly rate snapshot")
     }
 
     private static func dateAndDecimalFormattingAreStableAcrossLanguages() throws {
@@ -1171,6 +1394,17 @@ enum FacioRegressionSuite {
 
     private static func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {
         guard condition() else { throw RegressionFailure(message: message) }
+    }
+
+    private static func expectThrows<T>(_ expression: @autoclosure () throws -> T, _ message: String) throws {
+        do {
+            _ = try expression()
+            throw RegressionFailure(message: message)
+        } catch is RegressionFailure {
+            throw RegressionFailure(message: message)
+        } catch {
+            return
+        }
     }
 
     private static func expectEqual<T: Equatable>(_ actual: @autoclosure () -> T, _ expected: @autoclosure () -> T) throws {

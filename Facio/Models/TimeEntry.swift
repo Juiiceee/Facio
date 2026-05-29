@@ -8,6 +8,15 @@ final class TimeEntry: Identifiable, Codable, Hashable {
     var projectName: String = ""
     var taskName: String = ""
     var notes: String = ""
+    var tagsText: String = ""
+    var isBillable: Bool = true
+    var rateSnapshot: Decimal?
+    var currencySnapshotRawValue: String?
+    var invoiceDocumentId: UUID?
+    var invoiceLineItemId: UUID?
+    var invoicedAt: Date?
+    var sourceRawValue: String = TimeEntrySource.timer.rawValue
+    var deletedAt: Date?
     var startedAt: Date = Date()
     var endedAt: Date?
     var createdAt: Date = Date()
@@ -27,6 +36,15 @@ final class TimeEntry: Identifiable, Codable, Hashable {
         projectName: String = "",
         taskName: String = "",
         notes: String = "",
+        tagsText: String = "",
+        isBillable: Bool = true,
+        rateSnapshot: Decimal? = nil,
+        currencySnapshot: CurrencyType? = nil,
+        invoiceDocumentId: UUID? = nil,
+        invoiceLineItemId: UUID? = nil,
+        invoicedAt: Date? = nil,
+        source: TimeEntrySource = .timer,
+        deletedAt: Date? = nil,
         startedAt: Date = Date(),
         endedAt: Date? = nil,
         createdAt: Date = Date(),
@@ -37,6 +55,15 @@ final class TimeEntry: Identifiable, Codable, Hashable {
         self.projectName = projectName
         self.taskName = taskName
         self.notes = notes
+        self.tagsText = tagsText
+        self.isBillable = isBillable
+        self.rateSnapshot = rateSnapshot
+        self.currencySnapshotRawValue = currencySnapshot?.rawValue
+        self.invoiceDocumentId = invoiceDocumentId
+        self.invoiceLineItemId = invoiceLineItemId
+        self.invoicedAt = invoicedAt
+        self.sourceRawValue = source.rawValue
+        self.deletedAt = deletedAt
         self.startedAt = startedAt
         self.endedAt = endedAt
         self.createdAt = createdAt
@@ -45,7 +72,37 @@ final class TimeEntry: Identifiable, Codable, Hashable {
     }
 
     var isRunning: Bool {
-        endedAt == nil
+        endedAt == nil && !isDeleted
+    }
+
+    var isDeleted: Bool {
+        deletedAt != nil
+    }
+
+    var isInvoiced: Bool {
+        invoiceDocumentId != nil || invoicedAt != nil
+    }
+
+    var source: TimeEntrySource {
+        get { TimeEntrySource(rawValue: sourceRawValue) ?? .timer }
+        set { sourceRawValue = newValue.rawValue }
+    }
+
+    var currencySnapshot: CurrencyType? {
+        get {
+            guard let currencySnapshotRawValue else { return nil }
+            return CurrencyType(rawValue: currencySnapshotRawValue)
+        }
+        set {
+            currencySnapshotRawValue = newValue?.rawValue
+        }
+    }
+
+    var tags: [String] {
+        tagsText
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
     }
 
     var displayProject: String {
@@ -57,6 +114,7 @@ final class TimeEntry: Identifiable, Codable, Hashable {
     }
 
     func duration(at referenceDate: Date = Date()) -> TimeInterval {
+        guard !isDeleted else { return 0 }
         let end = endedAt ?? referenceDate
         return max(0, end.timeIntervalSince(startedAt))
     }
@@ -70,17 +128,63 @@ final class TimeEntry: Identifiable, Codable, Hashable {
         updatedAt = Date()
     }
 
+    func applyBillingSnapshotIfNeeded(defaultRate: Decimal, currency: CurrencyType) {
+        guard isBillable else { return }
+        if rateSnapshot == nil {
+            rateSnapshot = defaultRate
+        }
+        if currencySnapshot == nil {
+            currencySnapshot = currency
+        }
+    }
+
+    func clearInvoiceMarkers() {
+        invoiceDocumentId = nil
+        invoiceLineItemId = nil
+        invoicedAt = nil
+        updatedAt = Date()
+    }
+
+    func markInvoiced(documentId: UUID, lineItemId: UUID?, at date: Date) {
+        invoiceDocumentId = documentId
+        invoiceLineItemId = lineItemId
+        invoicedAt = date
+        updatedAt = date
+    }
+
+    func softDelete(at date: Date = Date()) {
+        let wasRunning = endedAt == nil
+        if wasRunning {
+            endedAt = date
+        }
+        deletedAt = date
+        updatedAt = date
+    }
+
+    func restore(at date: Date = Date()) {
+        deletedAt = nil
+        updatedAt = date
+    }
+
     func normalize() {
         dateString = Self.dateString(for: startedAt)
         projectName = projectName.trimmingCharacters(in: .whitespacesAndNewlines)
         taskName = taskName.trimmingCharacters(in: .whitespacesAndNewlines)
         notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        tagsText = normalizedTagsText(tagsText)
+        if CurrencyType(rawValue: currencySnapshotRawValue ?? "") == nil {
+            currencySnapshotRawValue = nil
+        }
+        if TimeEntrySource(rawValue: sourceRawValue) == nil {
+            sourceRawValue = TimeEntrySource.timer.rawValue
+        }
         if let endedAt, endedAt < startedAt {
             self.endedAt = startedAt
         }
     }
 
     func secondsByDate(upTo referenceDate: Date = Date()) -> [String: TimeInterval] {
+        guard !isDeleted else { return [:] }
         let end = endedAt ?? referenceDate
         return [dateString: max(0, end.timeIntervalSince(startedAt))]
     }
@@ -89,8 +193,25 @@ final class TimeEntry: Identifiable, Codable, Hashable {
         TimesheetDay.dateFormatter.string(from: date)
     }
 
+    private func normalizedTagsText(_ value: String) -> String {
+        var seen: Set<String> = []
+        let tags = value
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .filter { tag in
+                let key = tag.lowercased()
+                if seen.contains(key) { return false }
+                seen.insert(key)
+                return true
+            }
+        return tags.joined(separator: ", ")
+    }
+
     enum CodingKeys: String, CodingKey {
-        case id, dateString, projectName, taskName, notes
+        case id, dateString, projectName, taskName, notes, tagsText, isBillable
+        case rateSnapshot, currencySnapshotRawValue, invoiceDocumentId, invoiceLineItemId, invoicedAt
+        case sourceRawValue, deletedAt
         case startedAt, endedAt, createdAt, updatedAt
     }
 
@@ -101,6 +222,15 @@ final class TimeEntry: Identifiable, Codable, Hashable {
         projectName = c.decodeOrDefault(String.self, forKey: .projectName, default: "")
         taskName = c.decodeOrDefault(String.self, forKey: .taskName, default: "")
         notes = c.decodeOrDefault(String.self, forKey: .notes, default: "")
+        tagsText = c.decodeOrDefault(String.self, forKey: .tagsText, default: "")
+        isBillable = c.decodeOrDefault(Bool.self, forKey: .isBillable, default: true)
+        rateSnapshot = try c.decodeIfPresent(Decimal.self, forKey: .rateSnapshot)
+        currencySnapshotRawValue = try c.decodeIfPresent(String.self, forKey: .currencySnapshotRawValue)
+        invoiceDocumentId = try c.decodeIfPresent(UUID.self, forKey: .invoiceDocumentId)
+        invoiceLineItemId = try c.decodeIfPresent(UUID.self, forKey: .invoiceLineItemId)
+        invoicedAt = try c.decodeIfPresent(Date.self, forKey: .invoicedAt)
+        sourceRawValue = c.decodeOrDefault(String.self, forKey: .sourceRawValue, default: TimeEntrySource.timer.rawValue)
+        deletedAt = try c.decodeIfPresent(Date.self, forKey: .deletedAt)
         startedAt = c.decodeOrDefault(Date.self, forKey: .startedAt, default: Date())
         endedAt = try c.decodeIfPresent(Date.self, forKey: .endedAt)
         createdAt = c.decodeOrDefault(Date.self, forKey: .createdAt, default: startedAt)
@@ -115,6 +245,15 @@ final class TimeEntry: Identifiable, Codable, Hashable {
         try c.encode(projectName, forKey: .projectName)
         try c.encode(taskName, forKey: .taskName)
         try c.encode(notes, forKey: .notes)
+        try c.encode(tagsText, forKey: .tagsText)
+        try c.encode(isBillable, forKey: .isBillable)
+        try c.encodeIfPresent(rateSnapshot, forKey: .rateSnapshot)
+        try c.encodeIfPresent(currencySnapshotRawValue, forKey: .currencySnapshotRawValue)
+        try c.encodeIfPresent(invoiceDocumentId, forKey: .invoiceDocumentId)
+        try c.encodeIfPresent(invoiceLineItemId, forKey: .invoiceLineItemId)
+        try c.encodeIfPresent(invoicedAt, forKey: .invoicedAt)
+        try c.encode(sourceRawValue, forKey: .sourceRawValue)
+        try c.encodeIfPresent(deletedAt, forKey: .deletedAt)
         try c.encode(startedAt, forKey: .startedAt)
         try c.encodeIfPresent(endedAt, forKey: .endedAt)
         try c.encode(createdAt, forKey: .createdAt)

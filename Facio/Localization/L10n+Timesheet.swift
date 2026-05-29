@@ -124,8 +124,8 @@ extension L10n {
         l == .fr ? "Pret a chronometrer cette periode" : "Ready to track this period"
     }
     static func timerRunningElsewhere(_ l: AppLanguage, period: String) -> String {
-        l == .fr ? "Un compteur tourne deja sur \(period). Demarrer ici l'arretera." :
-        "A timer is already running on \(period). Starting here will stop it."
+        l == .fr ? "Un compteur tourne deja sur \(period). Arretez-le avant d'en demarrer un autre." :
+        "A timer is already running on \(period). Stop it before starting another one."
     }
     static func timerOutsidePeriod(_ l: AppLanguage) -> String {
         l == .fr ? "Le compteur live est disponible uniquement si aujourd'hui est dans cette periode." :
@@ -133,6 +133,33 @@ extension L10n {
     }
     static func project(_ l: AppLanguage) -> String { l == .fr ? "Projet" : "Project" }
     static func task(_ l: AppLanguage) -> String { l == .fr ? "Tache" : "Task" }
+    static func timeEntryDescription(_ l: AppLanguage) -> String { l == .fr ? "Description" : "Description" }
+    static func tags(_ l: AppLanguage) -> String { l == .fr ? "Tags" : "Tags" }
+    static func billable(_ l: AppLanguage) -> String { l == .fr ? "Facturable" : "Billable" }
+    static func nonBillable(_ l: AppLanguage) -> String { l == .fr ? "Non facturable" : "Non-billable" }
+    static func manualMode(_ l: AppLanguage) -> String { l == .fr ? "Manuel" : "Manual" }
+    static func timerMode(_ l: AppLanguage) -> String { l == .fr ? "Timer" : "Timer" }
+    static func duration(_ l: AppLanguage) -> String { l == .fr ? "Duree" : "Duration" }
+    static func durationExamples(_ l: AppLanguage) -> String {
+        l == .fr ? "Exemples: 2h, 1h30m, 2:45, .5" : "Examples: 2h, 1h30m, 2:45, .5"
+    }
+    static func addTimeEntry(_ l: AppLanguage) -> String { l == .fr ? "Ajouter" : "Add" }
+    static func exportCSV(_ l: AppLanguage) -> String { l == .fr ? "Exporter CSV" : "Export CSV" }
+    static func invoiceTimeEntries(_ l: AppLanguage) -> String { l == .fr ? "Facturer les heures" : "Invoice time" }
+    static func estimatedAmount(_ l: AppLanguage) -> String { l == .fr ? "Montant estime" : "Estimated amount" }
+    static func entryDeleted(_ l: AppLanguage) -> String { l == .fr ? "Entree supprimee." : "Entry deleted." }
+    static func undo(_ l: AppLanguage) -> String { l == .fr ? "Annuler" : "Undo" }
+    static func invalidDuration(_ l: AppLanguage) -> String { l == .fr ? "Duree invalide" : "Invalid duration" }
+    static func invalidTimeRange(_ l: AppLanguage) -> String {
+        l == .fr ? "L'heure de fin doit etre apres l'heure de debut." :
+        "End time must be after start time."
+    }
+    static func activeTimerExists(_ l: AppLanguage) -> String {
+        l == .fr ? "Un timer est deja en cours. Arretez-le avant d'en demarrer un autre." :
+        "A timer is already running. Stop it before starting another one."
+    }
+    static func saved(_ l: AppLanguage) -> String { l == .fr ? "Enregistre" : "Saved" }
+    static func notSaved(_ l: AppLanguage) -> String { l == .fr ? "Non enregistre" : "Not saved" }
     static func startedEarlier(_ l: AppLanguage) -> String { l == .fr ? "Commence avant" : "Started earlier" }
     static func startedEarlierHint(_ l: AppLanguage) -> String {
         l == .fr ? "Ajuste le timer en cours sans creer une nouvelle entree." :

@@ -474,7 +474,7 @@ final class SyncService: Sendable {
 
             let localEntryIds = Set(ts.timeEntries.map { $0.id.uuidString })
             if !localEntryIds.isEmpty {
-                let entries: [[String: Any]] = ts.timeEntries.map { entry in
+                let legacyEntries: [[String: Any]] = ts.timeEntries.map { entry in
                     [
                         "id": entry.id.uuidString,
                         "user_id": userId,
@@ -489,8 +489,26 @@ final class SyncService: Sendable {
                         "updated_at": syncDateString(entry.updatedAt),
                     ]
                 }
-                guard await supabaseBatchUpsert(table: "timesheet_entries", rows: entries, onConflict: "id") else {
-                    return false
+                let entries: [[String: Any]] = ts.timeEntries.enumerated().map { index, entry in
+                    var payload = legacyEntries[index]
+                    payload["tags_text"] = entry.tagsText
+                    payload["is_billable"] = entry.isBillable
+                    payload["rate_snapshot"] = entry.rateSnapshot.map(decimalPayload) ?? NSNull()
+                    payload["currency_snapshot_raw_value"] = entry.currencySnapshotRawValue ?? NSNull()
+                    payload["invoice_document_id"] = entry.invoiceDocumentId?.uuidString ?? NSNull()
+                    payload["invoice_line_item_id"] = entry.invoiceLineItemId?.uuidString ?? NSNull()
+                    payload["invoiced_at"] = entry.invoicedAt.map(syncDateString) ?? NSNull()
+                    payload["source_raw_value"] = entry.sourceRawValue
+                    payload["deleted_at"] = entry.deletedAt.map(syncDateString) ?? NSNull()
+                    return payload
+                }
+                if !(await supabaseBatchUpsert(table: "timesheet_entries", rows: entries, onConflict: "id")) {
+                    if isMissingTimeEntriesSchemaError,
+                       await supabaseBatchUpsert(table: "timesheet_entries", rows: legacyEntries, onConflict: "id") {
+                        lastError = nil
+                    } else {
+                        return false
+                    }
                 }
             }
 
@@ -816,6 +834,15 @@ final class SyncService: Sendable {
                         projectName: e["project_name"] as? String ?? "",
                         taskName: e["task_name"] as? String ?? "",
                         notes: e["notes"] as? String ?? "",
+                        tagsText: e["tags_text"] as? String ?? "",
+                        isBillable: e["is_billable"] as? Bool ?? true,
+                        rateSnapshot: decimalValueOrNil(e["rate_snapshot"]),
+                        currencySnapshot: (e["currency_snapshot_raw_value"] as? String).flatMap { CurrencyType(rawValue: $0) },
+                        invoiceDocumentId: (e["invoice_document_id"] as? String).flatMap { UUID(uuidString: $0) },
+                        invoiceLineItemId: (e["invoice_line_item_id"] as? String).flatMap { UUID(uuidString: $0) },
+                        invoicedAt: parseDate(e["invoiced_at"]),
+                        source: TimeEntrySource(rawValue: e["source_raw_value"] as? String ?? "") ?? .timer,
+                        deletedAt: parseDate(e["deleted_at"]),
                         startedAt: startedAt,
                         endedAt: parseDate(e["ended_at"]),
                         createdAt: parseDate(e["created_at"]) ?? startedAt,
@@ -1488,6 +1515,15 @@ final class SyncService: Sendable {
       project_name TEXT NOT NULL DEFAULT '',
       task_name TEXT NOT NULL DEFAULT '',
       notes TEXT NOT NULL DEFAULT '',
+      tags_text TEXT NOT NULL DEFAULT '',
+      is_billable BOOLEAN NOT NULL DEFAULT true,
+      rate_snapshot NUMERIC,
+      currency_snapshot_raw_value TEXT,
+      invoice_document_id UUID REFERENCES documents(id) ON DELETE SET NULL,
+      invoice_line_item_id UUID REFERENCES line_items(id) ON DELETE SET NULL,
+      invoiced_at TIMESTAMPTZ,
+      source_raw_value TEXT NOT NULL DEFAULT 'timer',
+      deleted_at TIMESTAMPTZ,
       started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       ended_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
