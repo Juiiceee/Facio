@@ -10,6 +10,55 @@ struct DocumentPaymentSnapshot: Codable, Hashable {
     var bic: String = ""
     var accountHolder: String = ""
     var createdAt: Date = Date()
+    var isTrustedForExport: Bool = true
+
+    init(
+        paymentModeRawValue: String = PaymentMode.aucun.rawValue,
+        blockchainRawValue: String? = nil,
+        walletAddress: String = "",
+        bankName: String = "",
+        iban: String = "",
+        bic: String = "",
+        accountHolder: String = "",
+        createdAt: Date = Date(),
+        isTrustedForExport: Bool = true
+    ) {
+        self.paymentModeRawValue = paymentModeRawValue
+        self.blockchainRawValue = blockchainRawValue
+        self.walletAddress = walletAddress
+        self.bankName = bankName
+        self.iban = iban
+        self.bic = bic
+        self.accountHolder = accountHolder
+        self.createdAt = createdAt
+        self.isTrustedForExport = isTrustedForExport
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        paymentModeRawValue = try container.decodeIfPresent(String.self, forKey: .paymentModeRawValue)
+            ?? PaymentMode.aucun.rawValue
+        blockchainRawValue = try container.decodeIfPresent(String.self, forKey: .blockchainRawValue)
+        walletAddress = try container.decodeIfPresent(String.self, forKey: .walletAddress) ?? ""
+        bankName = try container.decodeIfPresent(String.self, forKey: .bankName) ?? ""
+        iban = try container.decodeIfPresent(String.self, forKey: .iban) ?? ""
+        bic = try container.decodeIfPresent(String.self, forKey: .bic) ?? ""
+        accountHolder = try container.decodeIfPresent(String.self, forKey: .accountHolder) ?? ""
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        isTrustedForExport = try container.decodeIfPresent(Bool.self, forKey: .isTrustedForExport) ?? true
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case paymentModeRawValue
+        case blockchainRawValue
+        case walletAddress
+        case bankName
+        case iban
+        case bic
+        case accountHolder
+        case createdAt
+        case isTrustedForExport
+    }
 
     var paymentMode: PaymentMode {
         PaymentMode(rawValue: paymentModeRawValue) ?? .aucun
@@ -279,9 +328,14 @@ final class Document: Identifiable, Codable, Hashable {
         return calendar.startOfDay(for: dateEcheance) < calendar.startOfDay(for: Date())
     }
 
+    var trustedPaymentSnapshot: DocumentPaymentSnapshot? {
+        guard let paymentSnapshot, paymentSnapshot.isTrustedForExport else { return nil }
+        return paymentSnapshot
+    }
+
     func solanaPayWalletAddress(from wallets: [WalletEntry]) -> String? {
         guard shouldRenderPaymentRequest, isSolanaPayEligible, totalTTC > 0 else { return nil }
-        if let paymentSnapshot,
+        if let paymentSnapshot = trustedPaymentSnapshot,
            paymentSnapshot.paymentMode == .crypto,
            paymentSnapshot.blockchain == .solana {
             let snapshotAddress = paymentSnapshot.walletAddress.trimmingCharacters(in: .whitespacesAndNewlines)

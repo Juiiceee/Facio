@@ -641,8 +641,12 @@ struct PDFGenerator {
         11
     }
 
+    private var paymentSnapshot: DocumentPaymentSnapshot? {
+        document.trustedPaymentSnapshot
+    }
+
     private var shouldRenderPaymentDetails: Bool {
-        if let paymentSnapshot = document.paymentSnapshot {
+        if let paymentSnapshot {
             return paymentSnapshot.hasUsablePaymentDetails
         }
 
@@ -657,7 +661,7 @@ struct PDFGenerator {
     }
 
     private var effectivePaymentMode: PaymentMode {
-        document.paymentSnapshot?.paymentMode ?? document.paymentMode
+        paymentSnapshot?.paymentMode ?? document.paymentMode
     }
 
     private func trimmedPaymentValue(_ value: String) -> String {
@@ -691,7 +695,7 @@ struct PDFGenerator {
             return height
         case .virement:
             var height: CGFloat = 12
-            if let snapshot = document.paymentSnapshot, snapshot.paymentMode == .virement {
+            if let snapshot = paymentSnapshot, snapshot.paymentMode == .virement {
                 let bankName = trimmedPaymentValue(snapshot.bankName)
                 if !bankName.isEmpty {
                     height += wrappedTextHeight(bankName, font: PDFLayout.fontSmall, maxWidth: footerRightWidth, lineHeight: footerLineHeight)
@@ -731,7 +735,7 @@ struct PDFGenerator {
     }
 
     private var snapshotWalletAddress: String? {
-        guard let snapshot = document.paymentSnapshot, snapshot.paymentMode == .crypto else { return nil }
+        guard let snapshot = paymentSnapshot, snapshot.paymentMode == .crypto else { return nil }
         let address = snapshot.walletAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         return address.isEmpty ? nil : address
     }
@@ -801,7 +805,7 @@ struct PDFGenerator {
             // Pas de paiement — on n'affiche rien a droite
         } else if effectivePaymentMode == .crypto,
                   let walletAddress = snapshotWalletAddress ?? document.selectedPaymentWalletAddress(from: company.wallets) {
-            let chainLabel = document.paymentSnapshot?.blockchain?.label ?? document.blockchain?.label ?? L10n.paymentCrypto(lang)
+            let chainLabel = paymentSnapshot?.blockchain?.label ?? document.blockchain?.label ?? L10n.paymentCrypto(lang)
             drawText(chainLabel, x: rightX, y: ry, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
             ry += 12
             drawText(L10n.cryptoTransfer(lang), x: rightX, y: ry, font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
@@ -811,7 +815,7 @@ struct PDFGenerator {
             ry = drawWrappedText(walletAddress, x: rightX, y: ry, font: PDFLayout.fontSmall,
                                  color: PDFLayout.textBlack, context: context, maxWidth: footerRightWidth,
                                  lineHeight: footerLineHeight)
-        } else if let snapshot = document.paymentSnapshot, snapshot.paymentMode == .virement {
+        } else if let snapshot = paymentSnapshot, snapshot.paymentMode == .virement {
             drawText(L10n.bankTransfer(lang), x: rightX, y: ry, font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context)
             ry += 12
             let bankName = trimmedPaymentValue(snapshot.bankName)
