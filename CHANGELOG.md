@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.1.2](https://github.com/Juiiceee/Facio/compare/Facio-v2.1.1...Facio-v2.1.2) (2026-05-30)
+
+
+### Corrections de bugs
+
+* **data:** fail closed on malformed JSON fields ([#71](https://github.com/Juiiceee/Facio/issues/71)) ([46ffa34](https://github.com/Juiiceee/Facio/commit/46ffa345a4507960b63bf6b9ba8d209cde791e2c))
+* **security:** encrypt local persistence files ([#72](https://github.com/Juiiceee/Facio/issues/72)) ([ce7e21f](https://github.com/Juiiceee/Facio/commit/ce7e21ffd590ece69956a3770344804067a689b0))
+* **sync:** distrust remote payment snapshots ([#70](https://github.com/Juiiceee/Facio/issues/70)) ([863bc09](https://github.com/Juiiceee/Facio/commit/863bc096f46b08a7e305ddace36f0157ba16d0d7))
+
 ## [2.1.1](https://github.com/Juiiceee/Facio/compare/Facio-v2.1.0...Facio-v2.1.1) (2026-05-29)
 
 
