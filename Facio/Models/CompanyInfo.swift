@@ -23,7 +23,7 @@ struct DesignationPreset: Identifiable, Codable, Hashable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
+        id = try container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
         designation = try container.decodeOrDefault(String.self, forKey: .designation, default: "")
         prixUnitaire = try container.decodeOrDefault(Decimal.self, forKey: .prixUnitaire, default: 0)
         tauxTVA = try container.decodeOrDefault(Decimal.self, forKey: .tauxTVA, default: 0)
@@ -56,7 +56,7 @@ struct WalletEntry: Identifiable, Codable, Hashable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
+        id = try container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
         label = try container.decodeOrDefault(String.self, forKey: .label, default: "")
         blockchainRawValue = try container.decodeOrDefault(String.self, forKey: .blockchainRawValue, default: Blockchain.solana.rawValue)
         address = try container.decodeOrDefault(String.self, forKey: .address, default: "")
@@ -118,7 +118,7 @@ struct BankAccountEntry: Identifiable, Codable, Hashable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
+        id = try container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
         label = try container.decodeOrDefault(String.self, forKey: .label, default: "")
         bankName = try container.decodeOrDefault(String.self, forKey: .bankName, default: "")
         iban = try container.decodeOrDefault(String.self, forKey: .iban, default: "")
@@ -285,7 +285,7 @@ final class CompanyInfo: Identifiable, Codable {
 
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
+        id = try container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
         nom = try container.decodeOrDefault(String.self, forKey: .nom, default: "")
         adresse = try container.decodeOrDefault(String.self, forKey: .adresse, default: "")
         codePostal = try container.decodeOrDefault(String.self, forKey: .codePostal, default: "")

@@ -93,7 +93,7 @@ struct TimesheetWeek: Identifiable, Codable, Hashable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
+        id = try container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
         numero = try container.decodeOrDefault(Int.self, forKey: .numero, default: 1)
         jours = try container.decodeOrDefault([TimesheetDay].self, forKey: .jours, default: [])
     }

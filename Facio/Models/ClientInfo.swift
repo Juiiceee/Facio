@@ -88,7 +88,7 @@ final class ClientInfo: Identifiable, Codable, Hashable {
 
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
+        id = try container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
         nom = try container.decodeOrDefault(String.self, forKey: .nom, default: "")
         adresse = try container.decodeOrDefault(String.self, forKey: .adresse, default: "")
         codePostal = try container.decodeOrDefault(String.self, forKey: .codePostal, default: "")

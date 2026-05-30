@@ -494,7 +494,7 @@ final class Document: Identifiable, Codable, Hashable {
 
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
+        id = try container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
         typeRawValue = try container.decodeOrDefault(String.self, forKey: .typeRawValue, default: DocumentType.facture.rawValue)
         number = try container.decodeOrDefault(String.self, forKey: .number, default: "")
         dateCreation = try container.decodeOrDefault(Date.self, forKey: .dateCreation, default: Date())

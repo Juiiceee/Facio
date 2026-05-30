@@ -50,7 +50,7 @@ struct TimesheetDay: Identifiable, Codable, Hashable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
+        id = try container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
         if let persistedDateString = try container.decodeIfPresent(String.self, forKey: .dateString),
            !persistedDateString.isEmpty {
             dateString = persistedDateString

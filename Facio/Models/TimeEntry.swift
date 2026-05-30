@@ -217,7 +217,7 @@ final class TimeEntry: Identifiable, Codable, Hashable {
 
     required init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(UUID.self, forKey: .id)
+        id = try c.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
         dateString = try c.decodeOrDefault(String.self, forKey: .dateString, default: "")
         projectName = try c.decodeOrDefault(String.self, forKey: .projectName, default: "")
         taskName = try c.decodeOrDefault(String.self, forKey: .taskName, default: "")

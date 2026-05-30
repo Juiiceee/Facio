@@ -47,7 +47,7 @@ struct TransactionSignature: Identifiable, Codable, Hashable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
+        id = try container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
         signature = try container.decodeOrDefault(String.self, forKey: .signature, default: "")
         date = try container.decodeOrDefault(Date.self, forKey: .date, default: Date())
         montant = try container.decodeOrDefault(Decimal.self, forKey: .montant, default: 0)

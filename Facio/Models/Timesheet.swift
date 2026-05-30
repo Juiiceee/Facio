@@ -529,7 +529,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
 
     required init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(UUID.self, forKey: .id)
+        id = try c.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
         nom = try c.decodeOrDefault(String.self, forKey: .nom, default: "")
         mois = try c.decodeOrDefault(Int.self, forKey: .mois, default: Calendar.current.component(.month, from: Date()))
         annee = try c.decodeOrDefault(Int.self, forKey: .annee, default: Calendar.current.component(.year, from: Date()))
