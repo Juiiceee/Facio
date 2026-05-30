@@ -65,16 +65,14 @@ final class DataStore: Sendable {
     }
 
     private func ensureStorageDirectory() {
-        if !fileManager.fileExists(atPath: storageDirectory.path) {
-            do {
-                try fileManager.createDirectory(at: storageDirectory, withIntermediateDirectories: true)
-                persistenceErrors.removeValue(forKey: "storage")
-            } catch {
-                persistenceErrors["storage"] = L10n.storageFolderCreationFailed(
-                    companyInfo.langueParDefaut,
-                    error: error.localizedDescription
-                )
-            }
+        do {
+            try SecurePersistence.ensureStorageDirectory(at: storageDirectory)
+            persistenceErrors.removeValue(forKey: "storage")
+        } catch {
+            persistenceErrors["storage"] = L10n.storageFolderCreationFailed(
+                companyInfo.langueParDefaut,
+                error: error.localizedDescription
+            )
         }
     }
 
@@ -87,8 +85,9 @@ final class DataStore: Sendable {
         load([TimesheetPeriod].self, key: .timesheets, from: timesheetsFileURL) { timesheets = normalizedTimesheets($0) }
     }
 
-    private func load<T: Decodable>(_ type: T.Type, key: SyncDataKey, from url: URL, assign: (T) -> Void) {
+    private func load<T: Codable>(_ type: T.Type, key: SyncDataKey, from url: URL, assign: (T) -> Void) {
         guard fileManager.fileExists(atPath: url.path) else {
+            try? SecurePersistence.markLegacyPlaintextMigrationCompleted(at: url)
             persistenceErrors.removeValue(forKey: key.rawValue)
             corruptBackupURLs.removeValue(forKey: key.rawValue)
             writeBlockedKeys.remove(key)
@@ -96,8 +95,25 @@ final class DataStore: Sendable {
         }
 
         do {
-            let data = try Data(contentsOf: url)
-            assign(try decoder.decode(type, from: data))
+            let persisted = try SecurePersistence.decode(
+                type,
+                from: url,
+                using: decoder,
+                allowLegacyPlaintext: SecurePersistence.canReadLegacyPlaintext(at: url)
+            )
+            assign(persisted.value)
+            if persisted.wasLegacyPlaintext {
+                guard write(
+                    type,
+                    persisted.value,
+                    key: key,
+                    to: url,
+                    allowBlockedWrite: true
+                ) else { return }
+            } else {
+                try SecurePersistence.hardenFile(at: url)
+                try? SecurePersistence.markLegacyPlaintextMigrationCompleted(at: url)
+            }
             persistenceErrors.removeValue(forKey: key.rawValue)
             corruptBackupURLs.removeValue(forKey: key.rawValue)
             writeBlockedKeys.remove(key)
@@ -283,9 +299,8 @@ final class DataStore: Sendable {
         }
 
         do {
-            let data = try encoder.encode(value)
-            try data.write(to: url, options: .atomic)
-            try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+            try SecurePersistence.encode(value, to: url, using: encoder)
+            try? SecurePersistence.markLegacyPlaintextMigrationCompleted(at: url)
             persistenceErrors.removeValue(forKey: key.rawValue)
             corruptBackupURLs.removeValue(forKey: key.rawValue)
             writeBlockedKeys.remove(key)
