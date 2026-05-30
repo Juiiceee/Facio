@@ -27,10 +27,10 @@ private struct SessionData: Codable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        accessToken = container.decodeOrDefault(String.self, forKey: .accessToken, default: "")
-        refreshToken = container.decodeOrDefault(String.self, forKey: .refreshToken, default: "")
-        userId = container.decodeOrDefault(String.self, forKey: .userId, default: "")
-        userEmail = container.decodeOrDefault(String.self, forKey: .userEmail, default: "")
+        accessToken = try container.decodeOrDefault(String.self, forKey: .accessToken, default: "")
+        refreshToken = try container.decodeOrDefault(String.self, forKey: .refreshToken, default: "")
+        userId = try container.decodeOrDefault(String.self, forKey: .userId, default: "")
+        userEmail = try container.decodeOrDefault(String.self, forKey: .userEmail, default: "")
     }
 }
 

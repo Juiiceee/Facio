@@ -88,17 +88,17 @@ final class ClientInfo: Identifiable, Codable, Hashable {
 
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
-        nom = container.decodeOrDefault(String.self, forKey: .nom, default: "")
-        adresse = container.decodeOrDefault(String.self, forKey: .adresse, default: "")
-        codePostal = container.decodeOrDefault(String.self, forKey: .codePostal, default: "")
-        ville = container.decodeOrDefault(String.self, forKey: .ville, default: "")
-        email = container.decodeOrDefault(String.self, forKey: .email, default: "")
-        siret = container.decodeOrDefault(String.self, forKey: .siret, default: "")
-        tva = container.decodeOrDefault(String.self, forKey: .tva, default: "")
-        ape = container.decodeOrDefault(String.self, forKey: .ape, default: "")
-        createdAt = container.decodeOrDefault(Date.self, forKey: .createdAt, default: Date())
-        updatedAt = container.decodeOrDefault(Date.self, forKey: .updatedAt, default: createdAt)
+        id = try container.decode(UUID.self, forKey: .id)
+        nom = try container.decodeOrDefault(String.self, forKey: .nom, default: "")
+        adresse = try container.decodeOrDefault(String.self, forKey: .adresse, default: "")
+        codePostal = try container.decodeOrDefault(String.self, forKey: .codePostal, default: "")
+        ville = try container.decodeOrDefault(String.self, forKey: .ville, default: "")
+        email = try container.decodeOrDefault(String.self, forKey: .email, default: "")
+        siret = try container.decodeOrDefault(String.self, forKey: .siret, default: "")
+        tva = try container.decodeOrDefault(String.self, forKey: .tva, default: "")
+        ape = try container.decodeOrDefault(String.self, forKey: .ape, default: "")
+        createdAt = try container.decodeOrDefault(Date.self, forKey: .createdAt, default: Date())
+        updatedAt = try container.decodeOrDefault(Date.self, forKey: .updatedAt, default: createdAt)
     }
 
     func encode(to encoder: Encoder) throws {

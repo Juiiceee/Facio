@@ -111,14 +111,14 @@ struct SyncState: Codable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        documentsDirty = container.decodeOrDefault(Bool.self, forKey: .documentsDirty, default: false)
-        clientsDirty = container.decodeOrDefault(Bool.self, forKey: .clientsDirty, default: false)
-        companyDirty = container.decodeOrDefault(Bool.self, forKey: .companyDirty, default: false)
-        timesheetsDirty = container.decodeOrDefault(Bool.self, forKey: .timesheetsDirty, default: false)
+        documentsDirty = try container.decodeOrDefault(Bool.self, forKey: .documentsDirty, default: false)
+        clientsDirty = try container.decodeOrDefault(Bool.self, forKey: .clientsDirty, default: false)
+        companyDirty = try container.decodeOrDefault(Bool.self, forKey: .companyDirty, default: false)
+        timesheetsDirty = try container.decodeOrDefault(Bool.self, forKey: .timesheetsDirty, default: false)
         lastFullSyncAt = try container.decodeIfPresent(Date.self, forKey: .lastFullSyncAt)
-        migrationCompleted = container.decodeOrDefault(Bool.self, forKey: .migrationCompleted, default: false)
-        pendingDocumentDeleteIds = container.decodeOrDefault([String].self, forKey: .pendingDocumentDeleteIds, default: [])
-        pendingClientDeleteIds = container.decodeOrDefault([String].self, forKey: .pendingClientDeleteIds, default: [])
-        pendingTimesheetDeleteIds = container.decodeOrDefault([String].self, forKey: .pendingTimesheetDeleteIds, default: [])
+        migrationCompleted = try container.decodeOrDefault(Bool.self, forKey: .migrationCompleted, default: false)
+        pendingDocumentDeleteIds = try container.decodeOrDefault([String].self, forKey: .pendingDocumentDeleteIds, default: [])
+        pendingClientDeleteIds = try container.decodeOrDefault([String].self, forKey: .pendingClientDeleteIds, default: [])
+        pendingTimesheetDeleteIds = try container.decodeOrDefault([String].self, forKey: .pendingTimesheetDeleteIds, default: [])
     }
 }
