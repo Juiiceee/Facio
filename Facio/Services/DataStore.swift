@@ -43,7 +43,6 @@ final class DataStore: Sendable {
         return d
     }()
     private let storageDirectoryOverride: URL?
-    private var allowsLegacyPlaintextMigration: Bool
 
     private var storageDirectory: URL {
         if let storageDirectoryOverride {
@@ -61,7 +60,6 @@ final class DataStore: Sendable {
 
     init(storageDirectory: URL? = nil) {
         self.storageDirectoryOverride = storageDirectory
-        self.allowsLegacyPlaintextMigration = SecurePersistence.canMigrateLegacyPlaintext()
         ensureStorageDirectory()
         load()
     }
@@ -85,11 +83,11 @@ final class DataStore: Sendable {
         load([ClientInfo].self, key: .clients, from: clientsFileURL) { clients = normalizedClients($0) }
         load(CompanyInfo.self, key: .company, from: companyFileURL) { companyInfo = $0 }
         load([TimesheetPeriod].self, key: .timesheets, from: timesheetsFileURL) { timesheets = normalizedTimesheets($0) }
-        allowsLegacyPlaintextMigration = SecurePersistence.canMigrateLegacyPlaintext()
     }
 
     private func load<T: Codable>(_ type: T.Type, key: SyncDataKey, from url: URL, assign: (T) -> Void) {
         guard fileManager.fileExists(atPath: url.path) else {
+            try? SecurePersistence.markLegacyPlaintextMigrationCompleted(at: url)
             persistenceErrors.removeValue(forKey: key.rawValue)
             corruptBackupURLs.removeValue(forKey: key.rawValue)
             writeBlockedKeys.remove(key)
@@ -101,7 +99,7 @@ final class DataStore: Sendable {
                 type,
                 from: url,
                 using: decoder,
-                allowLegacyPlaintext: allowsLegacyPlaintextMigration
+                allowLegacyPlaintext: SecurePersistence.canReadLegacyPlaintext(at: url)
             )
             assign(persisted.value)
             if persisted.wasLegacyPlaintext {
@@ -110,11 +108,11 @@ final class DataStore: Sendable {
                     persisted.value,
                     key: key,
                     to: url,
-                    allowBlockedWrite: true,
-                    updateMigrationFlag: false
+                    allowBlockedWrite: true
                 ) else { return }
             } else {
                 try SecurePersistence.hardenFile(at: url)
+                try? SecurePersistence.markLegacyPlaintextMigrationCompleted(at: url)
             }
             persistenceErrors.removeValue(forKey: key.rawValue)
             corruptBackupURLs.removeValue(forKey: key.rawValue)
@@ -288,8 +286,7 @@ final class DataStore: Sendable {
         _ value: T,
         key: SyncDataKey,
         to url: URL,
-        allowBlockedWrite: Bool,
-        updateMigrationFlag: Bool = true
+        allowBlockedWrite: Bool
     ) -> Bool {
         ensureStorageDirectory()
 
@@ -303,9 +300,7 @@ final class DataStore: Sendable {
 
         do {
             try SecurePersistence.encode(value, to: url, using: encoder)
-            if updateMigrationFlag {
-                allowsLegacyPlaintextMigration = SecurePersistence.canMigrateLegacyPlaintext()
-            }
+            try? SecurePersistence.markLegacyPlaintextMigrationCompleted(at: url)
             persistenceErrors.removeValue(forKey: key.rawValue)
             corruptBackupURLs.removeValue(forKey: key.rawValue)
             writeBlockedKeys.remove(key)

@@ -6,8 +6,8 @@ import Security
 ///
 /// Data files remain in Application Support for compatibility with sync and backup flows, but their
 /// JSON payload is encrypted and authenticated with a per-install AES-GCM key stored in the user's
-/// Keychain. Legacy plaintext JSON can still be read once and is rewritten in the encrypted format
-/// on the next successful load/save.
+/// Keychain. Legacy plaintext JSON can still be read until each file is successfully rewritten in
+/// the encrypted format on a load/save.
 enum SecurePersistence {
     struct PersistedValue<T> {
         let value: T
@@ -20,12 +20,17 @@ enum SecurePersistence {
         let combinedSealedBox: String
     }
 
+    private struct MigrationState: Codable {
+        var completedFiles: Set<String> = []
+    }
+
     private enum Constants {
         static let format = "com.facio.secure-persistence.v1"
         static let algorithm = "AES.GCM.256"
         static let keychainService = "com.facio.persistence"
         static let keychainAccount = "localDataKey.v1"
         static let keyByteCount = 32
+        static let migrationStateFileName = ".secure-persistence-migration.json"
     }
 
     enum SecurePersistenceError: LocalizedError {
@@ -58,12 +63,18 @@ enum SecurePersistence {
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
 
-    static func canMigrateLegacyPlaintext() -> Bool {
+    static func canReadLegacyPlaintext(at url: URL) -> Bool {
         do {
-            return try keychainData() == nil
+            return try !migrationState(for: url).completedFiles.contains(migrationFileIdentifier(for: url))
         } catch {
             return false
         }
+    }
+
+    static func markLegacyPlaintextMigrationCompleted(at url: URL) throws {
+        var state = try migrationState(for: url)
+        state.completedFiles.insert(migrationFileIdentifier(for: url))
+        try saveMigrationState(state, for: url)
     }
 
     static func decode<T: Decodable>(
@@ -106,10 +117,38 @@ enum SecurePersistence {
             }
             return decrypted
         }
-        guard canMigrateLegacyPlaintext() else {
+        guard canReadLegacyPlaintext(at: url) else {
             throw SecurePersistenceError.invalidEncryptedPayload
         }
         return data
+    }
+
+    private static func migrationState(for url: URL) throws -> MigrationState {
+        let stateURL = migrationStateURL(for: url)
+        guard FileManager.default.fileExists(atPath: stateURL.path) else {
+            return MigrationState()
+        }
+        let data = try Data(contentsOf: stateURL)
+        return try JSONDecoder().decode(MigrationState.self, from: data)
+    }
+
+    private static func saveMigrationState(_ state: MigrationState, for url: URL) throws {
+        let stateURL = migrationStateURL(for: url)
+        try ensureStorageDirectory(at: stateURL.deletingLastPathComponent())
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(state)
+        try data.write(to: stateURL, options: .atomic)
+        try hardenFile(at: stateURL)
+    }
+
+    private static func migrationStateURL(for url: URL) -> URL {
+        url.deletingLastPathComponent().appendingPathComponent(Constants.migrationStateFileName)
+    }
+
+    private static func migrationFileIdentifier(for url: URL) -> String {
+        url.lastPathComponent
     }
 
     private static func encrypt(_ plaintext: Data) throws -> Envelope {
