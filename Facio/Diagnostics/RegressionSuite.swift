@@ -65,6 +65,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "document duplication keeps payment and line data without reusing identity", run: documentDuplicationKeepsPaymentAndLineDataWithoutReusingIdentity),
         RegressionCase(name: "sync state tracks pending deletes as dirty data", run: syncStateTracksPendingDeletesAsDirtyData),
         RegressionCase(name: "sync state decodes old payloads without pending delete arrays", run: syncStateDecodesOldPayloadsWithoutPendingDeleteArrays),
+        RegressionCase(name: "sync state decodes malformed fields without dropping valid state", run: syncStateDecodesMalformedFieldsWithoutDroppingValidState),
         RegressionCase(name: "timesheet calendar generation uses whole weeks", run: timesheetCalendarGenerationUsesWholeWeeks),
         RegressionCase(name: "timesheet custom range generation uses whole weeks", run: timesheetCustomRangeGenerationUsesWholeWeeks),
         RegressionCase(name: "timesheet normalize calendar restores shape and keeps stored hours", run: timesheetNormalizeCalendarRestoresShapeAndKeepsStoredHours),
@@ -583,7 +584,10 @@ enum FacioRegressionSuite {
     private static func syncStateDecodesOldPayloadsWithoutPendingDeleteArrays() throws {
         let data = Data(#"{"documentsDirty":true,"migrationCompleted":true}"#.utf8)
 
-        let state = try JSONDecoder().decode(SyncState.self, from: data)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let state = try decoder.decode(SyncState.self, from: data)
 
         try expect(state.documentsDirty, "old dirty flag should decode")
         try expect(state.migrationCompleted, "old migration flag should decode")
@@ -592,6 +596,40 @@ enum FacioRegressionSuite {
         try expectEqual(state.pendingDeleteIds(for: .timesheets), [])
         try expect(state.isDirty(.documents), "documents should remain dirty")
         try expect(!state.isDirty(.clients), "clients should remain clean")
+    }
+
+    private static func syncStateDecodesMalformedFieldsWithoutDroppingValidState() throws {
+        let documentId = "11111111-1111-1111-1111-111111111111"
+        let clientId = "22222222-2222-2222-2222-222222222222"
+        let data = Data(
+            """
+            {
+              "documentsDirty": "malformed",
+              "clientsDirty": false,
+              "companyDirty": true,
+              "timesheetsDirty": false,
+              "lastFullSyncAt": "malformed",
+              "migrationCompleted": "malformed",
+              "pendingDocumentDeleteIds": ["\(documentId)", 42, null],
+              "pendingClientDeleteIds": ["\(clientId)"],
+              "pendingTimesheetDeleteIds": 42
+            }
+            """.utf8
+        )
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let state = try decoder.decode(SyncState.self, from: data)
+
+        try expect(state.documentsDirty, "malformed document state should decode conservatively")
+        try expect(!state.clientsDirty, "valid clean client flag should remain clean")
+        try expect(state.companyDirty, "valid company dirty flag should be preserved")
+        try expect(state.timesheetsDirty, "malformed timesheet delete queue should decode conservatively")
+        try expect(!state.migrationCompleted, "malformed migration flag should not be treated as complete")
+        try expectEqual(state.pendingDeleteIds(for: .documents), [documentId])
+        try expectEqual(state.pendingDeleteIds(for: .clients), [clientId])
+        try expectEqual(state.pendingDeleteIds(for: .timesheets), [])
     }
 
     private static func timesheetCalendarGenerationUsesWholeWeeks() throws {
