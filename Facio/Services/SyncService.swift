@@ -102,7 +102,7 @@ final class SyncService: Sendable {
             .appendingPathComponent("Facio", isDirectory: true)
 
         if syncState.documentsDirty {
-            if let data = try? Data(contentsOf: storageDir.appendingPathComponent("documents.json")),
+            if let data = try? SecurePersistence.decodeData(from: storageDir.appendingPathComponent("documents.json")),
                let docs = try? decoder.decode([Document].self, from: data) {
                 if await pushDocuments(docs), dirtyGeneration == generation, !failedDeleteKeys.contains(.documents) {
                     syncState.setDirty(false, for: .documents)
@@ -113,7 +113,7 @@ final class SyncService: Sendable {
         }
 
         if syncState.clientsDirty {
-            if let data = try? Data(contentsOf: storageDir.appendingPathComponent("clients.json")),
+            if let data = try? SecurePersistence.decodeData(from: storageDir.appendingPathComponent("clients.json")),
                let clients = try? decoder.decode([ClientInfo].self, from: data) {
                 if await pushClients(clients), dirtyGeneration == generation, !failedDeleteKeys.contains(.clients) {
                     syncState.setDirty(false, for: .clients)
@@ -124,7 +124,7 @@ final class SyncService: Sendable {
         }
 
         if syncState.companyDirty {
-            if let data = try? Data(contentsOf: storageDir.appendingPathComponent("company.json")),
+            if let data = try? SecurePersistence.decodeData(from: storageDir.appendingPathComponent("company.json")),
                let company = try? decoder.decode(CompanyInfo.self, from: data) {
                 if await pushCompany(company), dirtyGeneration == generation {
                     syncState.setDirty(false, for: .company)
@@ -135,7 +135,7 @@ final class SyncService: Sendable {
         }
 
         if syncState.timesheetsDirty {
-            if let data = try? Data(contentsOf: storageDir.appendingPathComponent("timesheets.json")),
+            if let data = try? SecurePersistence.decodeData(from: storageDir.appendingPathComponent("timesheets.json")),
                let timesheets = try? decoder.decode([TimesheetPeriod].self, from: data) {
                 if await pushTimesheets(timesheets), dirtyGeneration == generation, !failedDeleteKeys.contains(.timesheets) {
                     syncState.setDirty(false, for: .timesheets)
