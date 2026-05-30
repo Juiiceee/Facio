@@ -47,10 +47,10 @@ struct TransactionSignature: Identifiable, Codable, Hashable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
-        signature = container.decodeOrDefault(String.self, forKey: .signature, default: "")
-        date = container.decodeOrDefault(Date.self, forKey: .date, default: Date())
-        montant = container.decodeOrDefault(Decimal.self, forKey: .montant, default: 0)
-        blockchainRawValue = container.decodeOrDefault(String.self, forKey: .blockchainRawValue, default: Blockchain.solana.rawValue)
+        id = try container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        signature = try container.decodeOrDefault(String.self, forKey: .signature, default: "")
+        date = try container.decodeOrDefault(Date.self, forKey: .date, default: Date())
+        montant = try container.decodeOrDefault(Decimal.self, forKey: .montant, default: 0)
+        blockchainRawValue = try container.decodeOrDefault(String.self, forKey: .blockchainRawValue, default: Blockchain.solana.rawValue)
     }
 }

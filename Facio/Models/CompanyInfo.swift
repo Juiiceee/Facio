@@ -23,10 +23,10 @@ struct DesignationPreset: Identifiable, Codable, Hashable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
-        designation = container.decodeOrDefault(String.self, forKey: .designation, default: "")
-        prixUnitaire = container.decodeOrDefault(Decimal.self, forKey: .prixUnitaire, default: 0)
-        tauxTVA = container.decodeOrDefault(Decimal.self, forKey: .tauxTVA, default: 0)
+        id = try container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        designation = try container.decodeOrDefault(String.self, forKey: .designation, default: "")
+        prixUnitaire = try container.decodeOrDefault(Decimal.self, forKey: .prixUnitaire, default: 0)
+        tauxTVA = try container.decodeOrDefault(Decimal.self, forKey: .tauxTVA, default: 0)
     }
 }
 
@@ -56,10 +56,10 @@ struct WalletEntry: Identifiable, Codable, Hashable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
-        label = container.decodeOrDefault(String.self, forKey: .label, default: "")
-        blockchainRawValue = container.decodeOrDefault(String.self, forKey: .blockchainRawValue, default: Blockchain.solana.rawValue)
-        address = container.decodeOrDefault(String.self, forKey: .address, default: "")
+        id = try container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        label = try container.decodeOrDefault(String.self, forKey: .label, default: "")
+        blockchainRawValue = try container.decodeOrDefault(String.self, forKey: .blockchainRawValue, default: Blockchain.solana.rawValue)
+        address = try container.decodeOrDefault(String.self, forKey: .address, default: "")
     }
 }
 
@@ -118,12 +118,12 @@ struct BankAccountEntry: Identifiable, Codable, Hashable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
-        label = container.decodeOrDefault(String.self, forKey: .label, default: "")
-        bankName = container.decodeOrDefault(String.self, forKey: .bankName, default: "")
-        iban = container.decodeOrDefault(String.self, forKey: .iban, default: "")
-        bic = container.decodeOrDefault(String.self, forKey: .bic, default: "")
-        accountHolder = container.decodeOrDefault(String.self, forKey: .accountHolder, default: "")
+        id = try container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        label = try container.decodeOrDefault(String.self, forKey: .label, default: "")
+        bankName = try container.decodeOrDefault(String.self, forKey: .bankName, default: "")
+        iban = try container.decodeOrDefault(String.self, forKey: .iban, default: "")
+        bic = try container.decodeOrDefault(String.self, forKey: .bic, default: "")
+        accountHolder = try container.decodeOrDefault(String.self, forKey: .accountHolder, default: "")
     }
 }
 
@@ -285,35 +285,35 @@ final class CompanyInfo: Identifiable, Codable {
 
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
-        nom = container.decodeOrDefault(String.self, forKey: .nom, default: "")
-        adresse = container.decodeOrDefault(String.self, forKey: .adresse, default: "")
-        codePostal = container.decodeOrDefault(String.self, forKey: .codePostal, default: "")
-        ville = container.decodeOrDefault(String.self, forKey: .ville, default: "")
-        siret = container.decodeOrDefault(String.self, forKey: .siret, default: "")
-        telephone = container.decodeOrDefault(String.self, forKey: .telephone, default: "")
-        email = container.decodeOrDefault(String.self, forKey: .email, default: "")
+        id = try container.decodeOrDefault(UUID.self, forKey: .id, default: UUID())
+        nom = try container.decodeOrDefault(String.self, forKey: .nom, default: "")
+        adresse = try container.decodeOrDefault(String.self, forKey: .adresse, default: "")
+        codePostal = try container.decodeOrDefault(String.self, forKey: .codePostal, default: "")
+        ville = try container.decodeOrDefault(String.self, forKey: .ville, default: "")
+        siret = try container.decodeOrDefault(String.self, forKey: .siret, default: "")
+        telephone = try container.decodeOrDefault(String.self, forKey: .telephone, default: "")
+        email = try container.decodeOrDefault(String.self, forKey: .email, default: "")
         logoData = try container.decodeIfPresent(Data.self, forKey: .logoData)
-        nomBanque = container.decodeOrDefault(String.self, forKey: .nomBanque, default: "")
-        iban = container.decodeOrDefault(String.self, forKey: .iban, default: "")
-        bic = container.decodeOrDefault(String.self, forKey: .bic, default: "")
-        titulaireCompte = container.decodeOrDefault(String.self, forKey: .titulaireCompte, default: "")
-        bankAccounts = container.decodeOrDefault([BankAccountEntry].self, forKey: .bankAccounts, default: [])
+        nomBanque = try container.decodeOrDefault(String.self, forKey: .nomBanque, default: "")
+        iban = try container.decodeOrDefault(String.self, forKey: .iban, default: "")
+        bic = try container.decodeOrDefault(String.self, forKey: .bic, default: "")
+        titulaireCompte = try container.decodeOrDefault(String.self, forKey: .titulaireCompte, default: "")
+        bankAccounts = try container.decodeOrDefault([BankAccountEntry].self, forKey: .bankAccounts, default: [])
         normalizeBankAccountsFromLegacyFields()
-        wallets = container.decodeOrDefault([WalletEntry].self, forKey: .wallets, default: [])
-        prestations = container.decodeOrDefault([DesignationPreset].self, forKey: .prestations, default: [])
-        tauxTVAParDefaut = container.decodeOrDefault(Decimal.self, forKey: .tauxTVAParDefaut, default: 0)
-        delaiPaiementJours = container.decodeOrDefault(Int.self, forKey: .delaiPaiementJours, default: 30)
-        deviseParDefautRawValue = container.decodeOrDefault(String.self, forKey: .deviseParDefautRawValue, default: CurrencyType.usdc.rawValue)
-        deviseComptableRawValue = container.decodeOrDefault(String.self, forKey: .deviseComptableRawValue, default: CurrencyType.eur.rawValue)
-        let defaultBlockchain = container
+        wallets = try container.decodeOrDefault([WalletEntry].self, forKey: .wallets, default: [])
+        prestations = try container.decodeOrDefault([DesignationPreset].self, forKey: .prestations, default: [])
+        tauxTVAParDefaut = try container.decodeOrDefault(Decimal.self, forKey: .tauxTVAParDefaut, default: 0)
+        delaiPaiementJours = try container.decodeOrDefault(Int.self, forKey: .delaiPaiementJours, default: 30)
+        deviseParDefautRawValue = try container.decodeOrDefault(String.self, forKey: .deviseParDefautRawValue, default: CurrencyType.usdc.rawValue)
+        deviseComptableRawValue = try container.decodeOrDefault(String.self, forKey: .deviseComptableRawValue, default: CurrencyType.eur.rawValue)
+        let defaultBlockchain = try container
             .decodeOrDefault(String.self, forKey: .blockchainParDefautRawValue, default: Blockchain.solana.rawValue)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         blockchainParDefautRawValue = defaultBlockchain.isEmpty ? Blockchain.solana.rawValue : defaultBlockchain
-        updatedAt = container.decodeOrDefault(Date.self, forKey: .updatedAt, default: Date())
-        langueParDefautRawValue = container.decodeOrDefault(String.self, forKey: .langueParDefautRawValue, default: AppLanguage.fr.rawValue)
-        formatDateRawValue = container.decodeOrDefault(String.self, forKey: .formatDateRawValue, default: AppLanguage.fr.rawValue)
-        formatNombreRawValue = container.decodeOrDefault(String.self, forKey: .formatNombreRawValue, default: AppLanguage.fr.rawValue)
+        updatedAt = try container.decodeOrDefault(Date.self, forKey: .updatedAt, default: Date())
+        langueParDefautRawValue = try container.decodeOrDefault(String.self, forKey: .langueParDefautRawValue, default: AppLanguage.fr.rawValue)
+        formatDateRawValue = try container.decodeOrDefault(String.self, forKey: .formatDateRawValue, default: AppLanguage.fr.rawValue)
+        formatNombreRawValue = try container.decodeOrDefault(String.self, forKey: .formatNombreRawValue, default: AppLanguage.fr.rawValue)
         couleurAccentHex = try? container.decode(String.self, forKey: .couleurAccentHex)
     }
 

@@ -111,14 +111,126 @@ struct SyncState: Codable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        documentsDirty = container.decodeOrDefault(Bool.self, forKey: .documentsDirty, default: false)
-        clientsDirty = container.decodeOrDefault(Bool.self, forKey: .clientsDirty, default: false)
-        companyDirty = container.decodeOrDefault(Bool.self, forKey: .companyDirty, default: false)
-        timesheetsDirty = container.decodeOrDefault(Bool.self, forKey: .timesheetsDirty, default: false)
-        lastFullSyncAt = try container.decodeIfPresent(Date.self, forKey: .lastFullSyncAt)
-        migrationCompleted = container.decodeOrDefault(Bool.self, forKey: .migrationCompleted, default: false)
-        pendingDocumentDeleteIds = container.decodeOrDefault([String].self, forKey: .pendingDocumentDeleteIds, default: [])
-        pendingClientDeleteIds = container.decodeOrDefault([String].self, forKey: .pendingClientDeleteIds, default: [])
-        pendingTimesheetDeleteIds = container.decodeOrDefault([String].self, forKey: .pendingTimesheetDeleteIds, default: [])
+        let documentDeletes = container.decodeSyncStateStringArray(forKey: .pendingDocumentDeleteIds)
+        let clientDeletes = container.decodeSyncStateStringArray(forKey: .pendingClientDeleteIds)
+        let timesheetDeletes = container.decodeSyncStateStringArray(forKey: .pendingTimesheetDeleteIds)
+
+        documentsDirty = container.decodeSyncStateValue(
+            Bool.self,
+            forKey: .documentsDirty,
+            missingDefault: false,
+            malformedDefault: true
+        ) || documentDeletes.wasMalformed
+        clientsDirty = container.decodeSyncStateValue(
+            Bool.self,
+            forKey: .clientsDirty,
+            missingDefault: false,
+            malformedDefault: true
+        ) || clientDeletes.wasMalformed
+        companyDirty = container.decodeSyncStateValue(
+            Bool.self,
+            forKey: .companyDirty,
+            missingDefault: false,
+            malformedDefault: true
+        )
+        timesheetsDirty = container.decodeSyncStateValue(
+            Bool.self,
+            forKey: .timesheetsDirty,
+            missingDefault: false,
+            malformedDefault: true
+        ) || timesheetDeletes.wasMalformed
+        lastFullSyncAt = container.decodeSyncStateOptionalValue(Date.self, forKey: .lastFullSyncAt)
+        migrationCompleted = container.decodeSyncStateValue(
+            Bool.self,
+            forKey: .migrationCompleted,
+            missingDefault: false,
+            malformedDefault: false
+        )
+        pendingDocumentDeleteIds = documentDeletes.values
+        pendingClientDeleteIds = clientDeletes.values
+        pendingTimesheetDeleteIds = timesheetDeletes.values
+    }
+}
+
+private struct SyncStateLossyStringArray: Decodable {
+    let values: [String]
+    let wasMalformed: Bool
+
+    init(from decoder: Decoder) throws {
+        let items = try [SyncStateLossyString](from: decoder)
+        values = items.compactMap(\.value)
+        wasMalformed = items.contains { $0.wasMalformed }
+    }
+}
+
+private struct SyncStateLossyString: Decodable {
+    let value: String?
+    let wasMalformed: Bool
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() {
+            value = nil
+            wasMalformed = true
+        } else if let decoded = try? container.decode(String.self) {
+            value = decoded
+            wasMalformed = false
+        } else {
+            value = nil
+            wasMalformed = true
+        }
+    }
+}
+
+private extension KeyedDecodingContainer {
+    func decodeSyncStateValue<T: Decodable>(
+        _ type: T.Type,
+        forKey key: Key,
+        missingDefault: @autoclosure () -> T,
+        malformedDefault: @autoclosure () -> T
+    ) -> T {
+        guard contains(key) else {
+            return missingDefault()
+        }
+
+        do {
+            if try decodeNil(forKey: key) {
+                return missingDefault()
+            }
+            return try decode(type, forKey: key)
+        } catch {
+            return malformedDefault()
+        }
+    }
+
+    func decodeSyncStateOptionalValue<T: Decodable>(_ type: T.Type, forKey key: Key) -> T? {
+        guard contains(key) else {
+            return nil
+        }
+
+        do {
+            if try decodeNil(forKey: key) {
+                return nil
+            }
+            return try decode(type, forKey: key)
+        } catch {
+            return nil
+        }
+    }
+
+    func decodeSyncStateStringArray(forKey key: Key) -> (values: [String], wasMalformed: Bool) {
+        guard contains(key) else {
+            return ([], false)
+        }
+
+        do {
+            if try decodeNil(forKey: key) {
+                return ([], false)
+            }
+            let decoded = try decode(SyncStateLossyStringArray.self, forKey: key)
+            return (decoded.values, decoded.wasMalformed)
+        } catch {
+            return ([], true)
+        }
     }
 }
