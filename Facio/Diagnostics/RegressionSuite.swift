@@ -60,6 +60,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "crypto payment selects only compatible non-blank wallets", run: cryptoPaymentSelectsOnlyCompatibleNonBlankWallets),
         RegressionCase(name: "payment snapshot freezes exported bank account", run: paymentSnapshotFreezesExportedBankAccount),
         RegressionCase(name: "payment snapshot survives codable round trip", run: paymentSnapshotSurvivesCodableRoundTrip),
+        RegressionCase(name: "untrusted payment snapshots do not override configured payments", run: untrustedPaymentSnapshotsDoNotOverrideConfiguredPayments),
         RegressionCase(name: "paid invoices do not expose Solana Pay request", run: paidInvoicesDoNotExposeSolanaPayRequest),
         RegressionCase(name: "bitcoin payment is crypto but not Solana Pay eligible", run: bitcoinPaymentIsCryptoButNotSolanaPayEligible),
         RegressionCase(name: "document duplication keeps payment and line data without reusing identity", run: documentDuplicationKeepsPaymentAndLineDataWithoutReusingIdentity),
@@ -473,6 +474,27 @@ enum FacioRegressionSuite {
 
         decoded.currency = .eur
         try expect(decoded.paymentSnapshot == nil, "changing currency should clear stale payment snapshot")
+    }
+
+    private static func untrustedPaymentSnapshotsDoNotOverrideConfiguredPayments() throws {
+        let wallet = WalletEntry(blockchain: .solana, address: "LegitSolAddr", label: "Main")
+        let company = CompanyInfo()
+        company.wallets = [wallet]
+
+        let document = Document(type: .facture, number: "F-REMOTE", currency: .usdc, blockchain: .solana)
+        document.paymentMode = .crypto
+        document.selectedWalletId = wallet.id
+        document.ajouterLigne(LineItem(quantite: decimal("1"), prixUnitaire: decimal("10")))
+        document.normalizePaymentConfiguration(availableWallets: company.wallets)
+        document.paymentSnapshot = DocumentPaymentSnapshot(
+            paymentModeRawValue: PaymentMode.crypto.rawValue,
+            blockchainRawValue: Blockchain.solana.rawValue,
+            walletAddress: "AttackerSolAddr",
+            isTrustedForExport: false
+        )
+
+        try expect(document.trustedPaymentSnapshot == nil, "remote sync snapshots should not be trusted for export")
+        try expectEqual(document.solanaPayWalletAddress(from: company.wallets), "LegitSolAddr")
     }
 
     private static func paidInvoicesDoNotExposeSolanaPayRequest() throws {

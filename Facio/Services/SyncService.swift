@@ -1207,7 +1207,8 @@ final class SyncService: Sendable {
             iban: dictionary["iban"] as? String ?? "",
             bic: dictionary["bic"] as? String ?? "",
             accountHolder: dictionary["accountHolder"] as? String ?? "",
-            createdAt: parseDate(dictionary["createdAt"]) ?? Date()
+            createdAt: parseDate(dictionary["createdAt"]) ?? Date(),
+            isTrustedForExport: false
         )
     }
 

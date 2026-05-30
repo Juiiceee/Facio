@@ -753,7 +753,7 @@ struct DocumentEditorView: View {
     }
 
     private func exporterPDF() {
-        if document.paymentSnapshot == nil {
+        if document.trustedPaymentSnapshot == nil {
             if document.freezePaymentSnapshot(from: company) {
                 saveDocument()
             }
