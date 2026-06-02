@@ -45,10 +45,10 @@ struct ClientListView: View {
             .searchable(text: $searchText, prompt: L10n.searchClientPrompt(lang))
             .overlay {
                 if filteredClients.isEmpty {
-                    ContentUnavailableView(
-                        searchText.isEmpty ? L10n.noClientsYet(lang) : L10n.noSearchResults(lang),
+                    FacioEmptyState(
+                        title: searchText.isEmpty ? L10n.noClientsYet(lang) : L10n.noSearchResults(lang),
                         systemImage: searchText.isEmpty ? "person.2" : "magnifyingglass",
-                        description: Text(searchText.isEmpty ? L10n.selectOrCreateClient(lang) : L10n.noSearchResultsHint(lang))
+                        message: searchText.isEmpty ? L10n.selectOrCreateClient(lang) : L10n.noSearchResultsHint(lang)
                     )
                 }
             }
@@ -64,10 +64,10 @@ struct ClientListView: View {
                 )
                     .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ContentUnavailableView(
-                    L10n.noClientSelected(lang),
+                FacioEmptyState(
+                    title: L10n.noClientSelected(lang),
                     systemImage: "person.crop.circle",
-                    description: Text(L10n.selectOrCreateClient(lang))
+                    message: L10n.selectOrCreateClient(lang)
                 )
                 .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
             }

@@ -399,10 +399,10 @@ struct TimeTrackerPanel: View {
     @ViewBuilder
     private func entriesList(now: Date) -> some View {
         if filteredEntries.isEmpty {
-            ContentUnavailableView(
-                L10n.noTimeEntries(lang),
+            FacioEmptyState(
+                title: L10n.noTimeEntries(lang),
                 systemImage: "timer",
-                description: Text(L10n.noTimeEntriesHint(lang))
+                message: L10n.noTimeEntriesHint(lang)
             )
             .frame(maxWidth: .infinity, minHeight: 120)
         } else {

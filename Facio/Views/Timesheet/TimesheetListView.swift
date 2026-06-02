@@ -161,10 +161,10 @@ struct TimesheetListView: View {
         }
         .overlay {
             if timesheets.isEmpty {
-                ContentUnavailableView(
-                    L10n.noPeriod(lang),
+                FacioEmptyState(
+                    title: L10n.noPeriod(lang),
                     systemImage: "clock",
-                    description: Text(L10n.clickToCreatePeriod(lang))
+                    message: L10n.clickToCreatePeriod(lang)
                 )
             }
         }

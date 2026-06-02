@@ -174,10 +174,10 @@ struct ContentView: View {
             if let doc = selectedDocument {
                 DocumentEditorView(document: doc)
             } else {
-                ContentUnavailableView(
-                    L10n.noDocumentSelected(lang),
+                FacioEmptyState(
+                    title: L10n.noDocumentSelected(lang),
                     systemImage: "doc.text",
-                    description: Text(L10n.selectDocumentHint(lang))
+                    message: L10n.selectDocumentHint(lang)
                 )
             }
         case .heures:
@@ -186,10 +186,10 @@ struct ContentView: View {
                     openInvoice(invoice)
                 }
             } else {
-                ContentUnavailableView(
-                    L10n.noPeriodSelected(lang),
+                FacioEmptyState(
+                    title: L10n.noPeriodSelected(lang),
                     systemImage: "clock",
-                    description: Text(L10n.selectPeriodHint(lang))
+                    message: L10n.selectPeriodHint(lang)
                 )
             }
         case .clients:

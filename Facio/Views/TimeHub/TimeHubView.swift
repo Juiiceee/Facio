@@ -282,10 +282,10 @@ struct TimeHubView: View {
                     }
                 }
                 if todayContexts.isEmpty {
-                    ContentUnavailableView(
-                        L10n.noTimeToday(lang),
+                    FacioEmptyState(
+                        title: L10n.noTimeToday(lang),
                         systemImage: "timer",
-                        description: Text(L10n.noTimeTodayHint(lang))
+                        message: L10n.noTimeTodayHint(lang)
                     )
                     .frame(maxWidth: .infinity, minHeight: 130)
                 } else {
@@ -349,10 +349,9 @@ struct TimeHubView: View {
         return SectionPanel(L10n.toInvoice(lang), systemImage: "doc.text") {
             VStack(alignment: .leading, spacing: FacioLayout.space10) {
                 if groups.isEmpty {
-                    ContentUnavailableView(
-                        L10n.noBillableTimePending(lang),
-                        systemImage: "checkmark.circle",
-                        description: Text("")
+                    FacioEmptyState(
+                        title: L10n.noBillableTimePending(lang),
+                        systemImage: "checkmark.circle"
                     )
                     .frame(maxWidth: .infinity, minHeight: 120)
                 } else {
@@ -401,10 +400,10 @@ struct TimeHubView: View {
         return SectionPanel(L10n.timeHubTasks(lang), systemImage: "checklist") {
             VStack(alignment: .leading, spacing: FacioLayout.space12) {
                 if groups.isEmpty {
-                    ContentUnavailableView(
-                        L10n.noTaskYet(lang),
+                    FacioEmptyState(
+                        title: L10n.noTaskYet(lang),
                         systemImage: "checklist",
-                        description: Text(L10n.noTaskYetHint(lang))
+                        message: L10n.noTaskYetHint(lang)
                     )
                     .frame(maxWidth: .infinity, minHeight: 180)
                 } else {
@@ -593,10 +592,9 @@ struct TimeHubView: View {
         return SectionPanel(L10n.timeHubLog(lang), systemImage: "list.bullet.rectangle") {
             VStack(alignment: .leading, spacing: FacioLayout.space16) {
                 if groups.isEmpty {
-                    ContentUnavailableView(
-                        L10n.noTimeEntriesForPeriod(lang),
-                        systemImage: "list.bullet.rectangle",
-                        description: Text("")
+                    FacioEmptyState(
+                        title: L10n.noTimeEntriesForPeriod(lang),
+                        systemImage: "list.bullet.rectangle"
                     )
                     .frame(maxWidth: .infinity, minHeight: 160)
                 } else {

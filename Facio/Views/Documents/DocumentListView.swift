@@ -76,16 +76,16 @@ struct DocumentListView: View {
         }
         .overlay {
             if documents.isEmpty {
-                ContentUnavailableView(
-                    searchText.isEmpty
+                FacioEmptyState(
+                    title: searchText.isEmpty
                         ? L10n.noDocuments(lang, type: documentType.label(for: lang).lowercased())
                         : L10n.noSearchResults(lang),
                     systemImage: searchText.isEmpty
                         ? (documentType == .facture ? "doc.text" : "doc.text.magnifyingglass")
                         : "magnifyingglass",
-                    description: Text(searchText.isEmpty
+                    message: searchText.isEmpty
                         ? L10n.clickToCreate(lang, type: documentType.label(for: lang).lowercased())
-                        : L10n.noSearchResultsHint(lang))
+                        : L10n.noSearchResultsHint(lang)
                 )
             }
         }
@@ -158,7 +158,7 @@ struct DocumentRowView: View {
     private var dateFormat: AppLanguage { dataStore.companyInfo.formatDate }
     private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
     private var rowTone: Color {
-        document.isOverdue ? .red : Color.statusColor(for: document.status)
+        document.isOverdue ? Color.intentDanger : Color.statusColor(for: document.status)
     }
 
     var body: some View {
