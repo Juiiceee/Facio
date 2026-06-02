@@ -1,37 +1,16 @@
 import SwiftUI
 
+/// Scène de réglages native (Cmd-,). Rend la même surface canonique que
+/// l'onglet Réglages intégré, pour une seule source de vérité (tous les
+/// onglets présents, plus de fenêtre figée 500×480).
 struct SettingsView: View {
-    @Environment(DataStore.self) private var dataStore
-
-    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+    @State private var selectedTab = 0
 
     var body: some View {
-        TabView {
-            CompanySettingsView()
-                .tabItem {
-                    Label(L10n.settingsCompany(lang), systemImage: "building.2")
-                }
-
-            CustomisationSettingsView()
-                .tabItem {
-                    Label(L10n.settingsCustomisation(lang), systemImage: "paintpalette")
-                }
-
-            PaymentSettingsView()
-                .tabItem {
-                    Label(L10n.settingsPayment(lang), systemImage: "creditcard")
-                }
-
-            DefaultsSettingsView()
-                .tabItem {
-                    Label(L10n.settingsDefaults(lang), systemImage: "slider.horizontal.3")
-                }
-
-            LanguageSettingsView()
-                .tabItem {
-                    Label(L10n.settingsLanguage(lang), systemImage: "globe")
-                }
-        }
-        .frame(width: 500, height: 480)
+        SettingsInlineView(selectedTab: $selectedTab)
+            .frame(
+                minWidth: 720, idealWidth: 880,
+                minHeight: 520, idealHeight: 660
+            )
     }
 }
