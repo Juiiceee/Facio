@@ -322,40 +322,40 @@ struct ClientDetailView: View {
     private var informationSection: some View {
         SectionPanel(L10n.information(lang), systemImage: "person.text.rectangle") {
             VStack(alignment: .leading, spacing: 12) {
-                settingsRow(L10n.name(lang)) {
+                LabeledField(L10n.name(lang)) {
                     TextField(L10n.name(lang), text: Bindable(client).nom)
                         .textFieldStyle(.roundedBorder)
                 }
-                settingsRow(L10n.address(lang)) {
+                LabeledField(L10n.address(lang)) {
                     TextField(L10n.address(lang), text: Bindable(client).adresse)
                         .textFieldStyle(.roundedBorder)
                 }
                 HStack(spacing: 12) {
-                    settingsRow(L10n.postalCode(lang)) {
+                    LabeledField(L10n.postalCode(lang)) {
                         TextField(L10n.postalCode(lang), text: Bindable(client).codePostal)
                             .textFieldStyle(.roundedBorder)
                     }
                     .frame(maxWidth: 140)
 
-                    settingsRow(L10n.city(lang)) {
+                    LabeledField(L10n.city(lang)) {
                         TextField(L10n.city(lang), text: Bindable(client).ville)
                             .textFieldStyle(.roundedBorder)
                     }
                 }
-                settingsRow(L10n.email(lang)) {
+                LabeledField(L10n.email(lang)) {
                     TextField(L10n.email(lang), text: Bindable(client).email)
                         .textFieldStyle(.roundedBorder)
                 }
                 HStack(spacing: 12) {
-                    settingsRow(L10n.siret(lang)) {
+                    LabeledField(L10n.siret(lang)) {
                         TextField(L10n.siret(lang), text: Bindable(client).siret)
                             .textFieldStyle(.roundedBorder)
                     }
-                    settingsRow(L10n.vatNumber(lang)) {
+                    LabeledField(L10n.vatNumber(lang)) {
                         TextField(L10n.vatNumber(lang), text: Bindable(client).tva)
                             .textFieldStyle(.roundedBorder)
                     }
-                    settingsRow(L10n.apeCode(lang)) {
+                    LabeledField(L10n.apeCode(lang)) {
                         TextField(L10n.apeCode(lang), text: Bindable(client).ape)
                             .textFieldStyle(.roundedBorder)
                     }
@@ -429,12 +429,4 @@ struct ClientDetailView: View {
         }
     }
 
-    private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            content()
-        }
-    }
 }

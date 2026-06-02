@@ -139,7 +139,7 @@ private struct BankAccountRow: View {
                     .accessibilityLabel(L10n.removeBankAccount(lang))
                 }
 
-                settingsRow(L10n.iban(lang)) {
+                LabeledField(L10n.iban(lang)) {
                     TextField(L10n.ibanPlaceholder(lang), text: Binding(
                         get: { account?.iban ?? "" },
                         set: { setAccountValue(\.iban, to: $0) }
@@ -149,7 +149,7 @@ private struct BankAccountRow: View {
                 }
 
                 HStack(spacing: 12) {
-                    settingsRow(L10n.bic(lang)) {
+                    LabeledField(L10n.bic(lang)) {
                         TextField(L10n.bicPlaceholder(lang), text: Binding(
                             get: { account?.bic ?? "" },
                             set: { setAccountValue(\.bic, to: $0) }
@@ -158,7 +158,7 @@ private struct BankAccountRow: View {
                         .textFieldStyle(.roundedBorder)
                     }
 
-                    settingsRow(L10n.accountHolderLabel(lang)) {
+                    LabeledField(L10n.accountHolderLabel(lang)) {
                         TextField(L10n.accountHolderPlaceholder(lang), text: Binding(
                             get: { account?.accountHolder ?? "" },
                             set: { setAccountValue(\.accountHolder, to: $0) }
@@ -191,14 +191,6 @@ private struct BankAccountRow: View {
         }
     }
 
-    private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            content()
-        }
-    }
 }
 
 /// Ligne wallet avec acces securise par ID (pas par index)

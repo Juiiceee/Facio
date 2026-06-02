@@ -69,7 +69,7 @@ struct SyncSettingsView: View {
                                     .font(.subheadline)
                             }
 
-                            settingsRow(L10n.verificationCode(lang)) {
+                            LabeledField(L10n.verificationCode(lang)) {
                                 TextField(L10n.otpCodePlaceholder(lang), text: $otpCode)
                                     .textFieldStyle(.roundedBorder)
                                     .frame(maxWidth: 200)
@@ -114,7 +114,7 @@ struct SyncSettingsView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
 
-                            settingsRow(L10n.email(lang)) {
+                            LabeledField(L10n.email(lang)) {
                                 TextField(L10n.emailPlaceholder(lang), text: $email)
                                     .textFieldStyle(.roundedBorder)
                             }
@@ -208,13 +208,13 @@ struct SyncSettingsView: View {
                             }
 
                         if useCustomDB {
-                            settingsRow(L10n.supabaseURL(lang)) {
+                            LabeledField(L10n.supabaseURL(lang)) {
                                 TextField(L10n.supabaseURLPlaceholder(lang), text: $customURL)
                                     .textFieldStyle(.roundedBorder)
                                     .onChange(of: customURL) { SyncConfig.customURL = customURL }
                             }
 
-                            settingsRow(L10n.apiKeyAnon(lang)) {
+                            LabeledField(L10n.apiKeyAnon(lang)) {
                                 HStack {
                                     if showApiKey {
                                         TextField(L10n.apiKeyPlaceholder(lang), text: $customAPIKey)
@@ -275,12 +275,4 @@ struct SyncSettingsView: View {
         syncService.language = lang
     }
 
-    private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            content()
-        }
-    }
 }

@@ -17,7 +17,7 @@ struct CompanySettingsView: View {
                     Label(L10n.identity(lang), systemImage: "building.2")
                         .font(.headline)
 
-                    settingsRow(L10n.name(lang)) {
+                    LabeledField(L10n.name(lang)) {
                         TextField(L10n.companyName(lang), text: Binding(
                             get: { company.nom },
                             set: { company.nom = $0; dataStore.companyUpdated() }
@@ -25,7 +25,7 @@ struct CompanySettingsView: View {
                         .textFieldStyle(.roundedBorder)
                     }
 
-                    settingsRow(L10n.address(lang)) {
+                    LabeledField(L10n.address(lang)) {
                         TextField(L10n.postalAddress(lang), text: Binding(
                             get: { company.adresse },
                             set: { company.adresse = $0; dataStore.companyUpdated() }
@@ -34,7 +34,7 @@ struct CompanySettingsView: View {
                     }
 
                     HStack(alignment: .top, spacing: 12) {
-                        settingsRow(L10n.postalCode(lang)) {
+                        LabeledField(L10n.postalCode(lang)) {
                             TextField(L10n.postalCodePlaceholder(lang), text: Binding(
                                 get: { company.codePostal },
                                 set: { company.codePostal = $0; dataStore.companyUpdated() }
@@ -43,7 +43,7 @@ struct CompanySettingsView: View {
                             .frame(maxWidth: 120)
                         }
 
-                        settingsRow(L10n.city(lang)) {
+                        LabeledField(L10n.city(lang)) {
                             TextField(L10n.city(lang), text: Binding(
                                 get: { company.ville },
                                 set: { company.ville = $0; dataStore.companyUpdated() }
@@ -52,7 +52,7 @@ struct CompanySettingsView: View {
                         }
                     }
 
-                    settingsRow(L10n.siret(lang)) {
+                    LabeledField(L10n.siret(lang)) {
                         TextField(L10n.siretPlaceholder(lang), text: Binding(
                             get: { company.siret },
                             set: { company.siret = $0; dataStore.companyUpdated() }
@@ -69,7 +69,7 @@ struct CompanySettingsView: View {
                     Label(L10n.contact(lang), systemImage: "phone")
                         .font(.headline)
 
-                    settingsRow(L10n.phone(lang)) {
+                    LabeledField(L10n.phone(lang)) {
                         TextField(L10n.phonePlaceholder(lang), text: Binding(
                             get: { company.telephone },
                             set: { company.telephone = $0; dataStore.companyUpdated() }
@@ -77,7 +77,7 @@ struct CompanySettingsView: View {
                         .textFieldStyle(.roundedBorder)
                     }
 
-                    settingsRow(L10n.email(lang)) {
+                    LabeledField(L10n.email(lang)) {
                         TextField(L10n.contactEmailPlaceholder(lang), text: Binding(
                             get: { company.email },
                             set: { company.email = $0; dataStore.companyUpdated() }
@@ -92,17 +92,4 @@ struct CompanySettingsView: View {
         }
         .padding(24)
     }
-
-    // MARK: - Helpers
-
-    /// Ligne label + champ alignee
-    private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            content()
-        }
-    }
-
 }

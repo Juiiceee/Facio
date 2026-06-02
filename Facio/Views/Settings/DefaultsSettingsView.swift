@@ -20,7 +20,7 @@ struct DefaultsSettingsView: View {
                     Label(L10n.vatRate(lang), systemImage: "percent")
                         .font(.headline)
 
-                    settingsRow(L10n.defaultRate(lang)) {
+                    LabeledField(L10n.defaultRate(lang)) {
                         Picker("", selection: Binding(
                             get: { company.tauxTVAParDefaut },
                             set: { company.tauxTVAParDefaut = $0; dataStore.companyUpdated() }
@@ -42,7 +42,7 @@ struct DefaultsSettingsView: View {
                     Label(L10n.currency(lang), systemImage: "dollarsign.circle")
                         .font(.headline)
 
-                    settingsRow(L10n.defaultCurrency(lang)) {
+                    LabeledField(L10n.defaultCurrency(lang)) {
                         Picker("", selection: Binding(
                             get: { company.deviseParDefaut },
                             set: { newValue in
@@ -59,7 +59,7 @@ struct DefaultsSettingsView: View {
                         .frame(maxWidth: 200)
                     }
 
-                    settingsRow(L10n.accountingCurrencySetting(lang)) {
+                    LabeledField(L10n.accountingCurrencySetting(lang)) {
                         Picker("", selection: Binding(
                             get: { company.deviseComptable },
                             set: { company.deviseComptable = $0; dataStore.companyUpdated() }
@@ -75,7 +75,7 @@ struct DefaultsSettingsView: View {
                     if company.deviseParDefaut.requiresBlockchain {
                         let compatible = Blockchain.compatibleBlockchains(for: company.deviseParDefaut)
 
-                        settingsRow(L10n.defaultBlockchain(lang)) {
+                        LabeledField(L10n.defaultBlockchain(lang)) {
                             Picker("", selection: Binding(
                                 get: { company.blockchainParDefaut ?? compatible.first ?? .solana },
                                 set: { company.blockchainParDefaut = $0; dataStore.companyUpdated() }
@@ -121,15 +121,6 @@ struct DefaultsSettingsView: View {
             Spacer()
         }
         .padding(24)
-    }
-
-    private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            content()
-        }
     }
 
     private func percentLabel(_ value: Decimal) -> String {

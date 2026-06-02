@@ -17,7 +17,7 @@ struct LanguageSettingsView: View {
                     Label(L10n.language(lang), systemImage: "globe")
                         .font(.headline)
 
-                    settingsRow(L10n.defaultLanguage(lang)) {
+                    LabeledField(L10n.defaultLanguage(lang)) {
                         Picker("", selection: Binding(
                             get: { company.langueParDefaut },
                             set: { company.langueParDefaut = $0; dataStore.companyUpdated() }
@@ -43,7 +43,7 @@ struct LanguageSettingsView: View {
                     Label(L10n.dateFormat(lang), systemImage: "calendar")
                         .font(.headline)
 
-                    settingsRow(L10n.dateFormat(lang)) {
+                    LabeledField(L10n.dateFormat(lang)) {
                         Picker("", selection: Binding(
                             get: { company.formatDate },
                             set: { company.formatDate = $0; dataStore.companyUpdated() }
@@ -64,7 +64,7 @@ struct LanguageSettingsView: View {
                     Label(L10n.numberFormat(lang), systemImage: "textformat.123")
                         .font(.headline)
 
-                    settingsRow(L10n.numberFormat(lang)) {
+                    LabeledField(L10n.numberFormat(lang)) {
                         Picker("", selection: Binding(
                             get: { company.formatNombre },
                             set: { company.formatNombre = $0; dataStore.companyUpdated() }
@@ -84,12 +84,4 @@ struct LanguageSettingsView: View {
         .padding(24)
     }
 
-    private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            content()
-        }
-    }
 }
