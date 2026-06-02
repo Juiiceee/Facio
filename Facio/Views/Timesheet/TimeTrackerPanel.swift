@@ -138,7 +138,7 @@ struct TimeTrackerPanel: View {
                 Spacer()
 
                 if let activeEntryInThisPeriod {
-                    Text(formatClock(activeEntryInThisPeriod.duration(at: now)))
+                    Text(DurationFormatter.clock(activeEntryInThisPeriod.duration(at: now)))
                         .font(.system(size: 34, weight: .semibold, design: .monospaced))
                         .lineLimit(1)
                     Button {
@@ -415,7 +415,7 @@ struct TimeTrackerPanel: View {
                                 .fontWeight(.semibold)
                                 .foregroundStyle(.secondary)
                                 .textCase(.uppercase)
-                            Text(formatClock(totalDuration(for: entries(for: dateString), now: now)))
+                            Text(DurationFormatter.clock(totalDuration(for: entries(for: dateString), now: now)))
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
@@ -646,14 +646,6 @@ struct TimeTrackerPanel: View {
         return "\(hours.formattedDecimal(maxFractionDigits: 2, for: numberFormat))h"
     }
 
-    private func formatClock(_ seconds: TimeInterval) -> String {
-        let totalSeconds = max(0, Int(seconds.rounded(.down)))
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
-    }
-
     private func dateLabel(_ dateString: String) -> String {
         guard let date = TimesheetDay.dateFormatter.date(from: dateString) else { return dateString }
         return date.formattedDate(for: lang)
@@ -740,7 +732,7 @@ private struct TimeEntryRow: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 3) {
-                Text(formatClock(entry.duration(at: now)))
+                Text(DurationFormatter.clock(entry.duration(at: now)))
                     .font(.subheadline.monospacedDigit())
                     .fontWeight(.semibold)
                 if entry.isBillable {
@@ -823,14 +815,6 @@ private struct TimeEntryRow: View {
             .background(color.opacity(0.12))
             .foregroundStyle(color)
             .clipShape(RoundedRectangle(cornerRadius: 6))
-    }
-
-    private func formatClock(_ seconds: TimeInterval) -> String {
-        let totalSeconds = max(0, Int(seconds.rounded(.down)))
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }
 

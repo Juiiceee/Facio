@@ -1,14 +1,89 @@
 import SwiftUI
 
+// MARK: - Layout tokens
+
+/// Tokens de layout de Facio : espacements, rayons et largeurs.
+///
+/// Règle d'or : aucune valeur magique dans les vues. Toute dimension
+/// (padding, spacing, cornerRadius, largeur de colonne ou de champ) passe par
+/// l'un de ces tokens. Les couleurs de surface et de bordure vivent dans
+/// `Color+Theme` (`surfacePanel`, `borderSubtle`, …), la typo dans `FacioFont`.
 enum FacioLayout {
+    // MARK: Échelle d'espacement (grille 4 pt)
+    static let space2: CGFloat = 2
+    static let space4: CGFloat = 4
+    static let space6: CGFloat = 6
+    static let space8: CGFloat = 8
+    static let space10: CGFloat = 10
+    static let space12: CGFloat = 12
+    static let space16: CGFloat = 16
+    static let space20: CGFloat = 20
+    static let space24: CGFloat = 24
+    static let space32: CGFloat = 32
+
+    /// Marge intérieure d'un écran.
     static let screenPadding: CGFloat = 24
+    /// Espacement vertical entre sections d'un écran.
     static let sectionSpacing: CGFloat = 18
+    /// Padding intérieur d'un panneau / d'une carte.
+    static let panelPadding: CGFloat = 16
+    /// Padding intérieur d'une tuile.
+    static let tilePadding: CGFloat = 14
+    /// Padding intérieur d'une ligne de liste.
+    static let rowPadding: CGFloat = 10
+
+    // MARK: Rayons nommés
+    static let radiusField: CGFloat = 6
+    static let radiusBadge: CGFloat = 6
+    static let radiusRow: CGFloat = 7
+    static let radiusTile: CGFloat = 7
+    static let radiusPanel: CGFloat = 8
+
+    // Conservés pour compatibilité (alias des rayons nommés).
     static let panelRadius: CGFloat = 8
     static let rowRadius: CGFloat = 7
+
+    // MARK: Largeurs
+    /// Largeur standard d'un champ « court » (montants, codes, pickers).
+    static let fieldWidth: CGFloat = 200
+    /// Cap de lisibilité pour le contenu d'une colonne de détail.
+    static let contentMaxWidth: CGFloat = 760
+    /// Largeur d'un formulaire d'édition centré.
+    static let formMaxWidth: CGFloat = 680
+
+    /// Cible de clic minimale pour un bouton-icône.
+    static let iconHitTarget: CGFloat = 28
+
+    // MARK: Colonnes & fenêtre (min / ideal / max)
+    static let sidebarMin: CGFloat = 200
+    static let sidebarIdeal: CGFloat = 230
+    static let sidebarMax: CGFloat = 300
+
+    static let contentColumnMin: CGFloat = 300
+    static let contentColumnIdeal: CGFloat = 320
+    static let contentColumnMax: CGFloat = 400
+
+    static let detailMin: CGFloat = 560
+
+    static let inspectorMin: CGFloat = 260
+    static let inspectorIdeal: CGFloat = 300
+    static let inspectorMax: CGFloat = 360
+    /// Conservé pour compatibilité.
     static let inspectorWidth: CGFloat = 280
+
+    /// Largeur en deçà de laquelle l'inspecteur du document est masqué.
     static let documentInspectorBreakpoint: CGFloat = 1120
+
+    static let windowMinWidth: CGFloat = 1060
+    static let windowMinHeight: CGFloat = 640
+    static let windowIdealWidth: CGFloat = 1280
+    static let windowIdealHeight: CGFloat = 820
 }
 
+// MARK: - Intent / tone
+
+/// Tonalité sémantique partagée par les bannières, badges et accents.
+/// Adossée à la palette d'intention unique de `Color+Theme`.
 enum InlineTone {
     case info
     case success
@@ -17,10 +92,10 @@ enum InlineTone {
 
     var color: Color {
         switch self {
-        case .info: return .blue
-        case .success: return .green
-        case .warning: return .orange
-        case .danger: return .red
+        case .info: return .intentInfo
+        case .success: return .intentSuccess
+        case .warning: return .intentWarning
+        case .danger: return .intentDanger
         }
     }
 
@@ -34,6 +109,8 @@ enum InlineTone {
     }
 }
 
+// MARK: - Panels & cards
+
 struct SectionPanel<Content: View>: View {
     let title: String?
     let systemImage: String?
@@ -46,23 +123,23 @@ struct SectionPanel<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: FacioLayout.space16) {
             if let title {
                 Label(title, systemImage: systemImage ?? "square.grid.2x2")
-                    .font(.headline)
+                    .font(FacioFont.sectionTitle)
                     .foregroundStyle(.primary)
                     .labelStyle(.titleAndIcon)
             }
             content
         }
-        .padding(16)
+        .padding(FacioLayout.panelPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.78))
+        .background(Color.surfacePanel)
         .overlay(
-            RoundedRectangle(cornerRadius: FacioLayout.panelRadius)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: FacioLayout.radiusPanel)
+                .strokeBorder(Color.borderSubtle, lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
     }
 }
 
@@ -72,33 +149,38 @@ struct MetricTile: View {
     var subtitle: String?
     let systemImage: String
     let color: Color
+    /// Variante mise en avant (KPI principal) : valeur plus grande.
+    var emphasized: Bool = false
+    /// Tendance optionnelle vs période précédente.
+    var trend: MetricTrend?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            RoundedRectangle(cornerRadius: 2)
+        HStack(alignment: .top, spacing: FacioLayout.space12) {
+            RoundedRectangle(cornerRadius: FacioLayout.space2)
                 .fill(color)
                 .frame(width: 3)
-                .padding(.vertical, 2)
+                .padding(.vertical, FacioLayout.space2)
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: FacioLayout.space6) {
                 Text(title)
-                    .font(.caption)
+                    .font(FacioFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                 Text(value)
-                    .font(.title2.monospacedDigit())
-                    .fontWeight(.semibold)
+                    .font(emphasized ? FacioFont.heroValue : FacioFont.metricValue)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
-                if let subtitle, !subtitle.isEmpty {
+                if let trend {
+                    trend.label
+                } else if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.caption2)
+                        .font(FacioFont.captionSmall)
                         .foregroundStyle(.tertiary)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
                     Text(" ")
-                        .font(.caption2)
+                        .font(FacioFont.captionSmall)
                         .lineLimit(2)
                         .hidden()
                 }
@@ -112,19 +194,46 @@ struct MetricTile: View {
                 .foregroundStyle(color)
                 .frame(width: 30, height: 30)
                 .background(color.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 7))
+                .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusTile))
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 128, alignment: .topLeading)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.68))
+        .padding(FacioLayout.tilePadding)
+        .frame(maxWidth: .infinity, minHeight: 128, maxHeight: 148, alignment: .topLeading)
+        .background(Color.surfaceTile)
         .overlay(
-            RoundedRectangle(cornerRadius: FacioLayout.panelRadius)
-                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
+            RoundedRectangle(cornerRadius: FacioLayout.radiusPanel)
+                .strokeBorder(Color.borderSubtle, lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
     }
 }
 
+/// Tendance d'une métrique (delta vs période précédente).
+struct MetricTrend {
+    let text: String
+    let direction: Direction
+
+    enum Direction { case up, down, flat }
+
+    @ViewBuilder var label: some View {
+        let (icon, color): (String, Color) = {
+            switch direction {
+            case .up: return ("arrow.up.right", .intentSuccess)
+            case .down: return ("arrow.down.right", .intentDanger)
+            case .flat: return ("arrow.right", .secondary)
+            }
+        }()
+        HStack(spacing: FacioLayout.space4) {
+            Image(systemName: icon)
+            Text(text)
+        }
+        .font(FacioFont.captionSmall)
+        .foregroundStyle(color)
+        .lineLimit(1)
+    }
+}
+
+/// Tuile d'action cliquable (icône + titre + sous-titre + chevron).
+/// Utilisée pour les raccourcis (dashboard, fiche client).
 struct ActionTile: View {
     let title: String
     var subtitle: String?
@@ -132,22 +241,23 @@ struct ActionTile: View {
     var tone: InlineTone = .info
     let action: () -> Void
 
+    @State private var isHovering = false
+
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: FacioLayout.space12) {
                 Image(systemName: systemImage)
                     .font(.title3)
                     .foregroundStyle(tone.color)
                     .frame(width: 26)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: FacioLayout.space2) {
                     Text(title)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                        .font(FacioFont.rowTitle)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     if let subtitle, !subtitle.isEmpty {
                         Text(subtitle)
-                            .font(.caption)
+                            .font(FacioFont.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }
@@ -157,13 +267,18 @@ struct ActionTile: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
-            .padding(10)
+            .padding(FacioLayout.rowPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+            .contentShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
         }
         .buttonStyle(.plain)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.68))
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+        .background(isHovering ? Color.surfaceRowHover : Color.surfaceTile)
+        .overlay(
+            RoundedRectangle(cornerRadius: FacioLayout.radiusPanel)
+                .strokeBorder(isHovering ? Color.borderHover : Color.borderSubtle, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+        .onHover { isHovering = $0 }
     }
 }
 
@@ -179,45 +294,44 @@ struct FacioListRow<Content: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            RoundedRectangle(cornerRadius: 2)
+        HStack(spacing: FacioLayout.space10) {
+            RoundedRectangle(cornerRadius: FacioLayout.space2)
                 .fill(tone.opacity(0.75))
                 .frame(width: 3)
             content
         }
-        .padding(10)
+        .padding(FacioLayout.rowPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            Color(nsColor: .textBackgroundColor)
-                .opacity(isHovering ? 0.9 : 0.62)
-        )
+        .background(isHovering ? Color.surfaceRowHover : Color.surfaceRow)
         .overlay(
-            RoundedRectangle(cornerRadius: FacioLayout.rowRadius)
-                .strokeBorder(Color.primary.opacity(isHovering ? 0.12 : 0.06), lineWidth: 1)
+            RoundedRectangle(cornerRadius: FacioLayout.radiusRow)
+                .strokeBorder(isHovering ? Color.borderHover : Color.borderHairline, lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.rowRadius))
-        .contentShape(RoundedRectangle(cornerRadius: FacioLayout.rowRadius))
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusRow))
+        .contentShape(RoundedRectangle(cornerRadius: FacioLayout.radiusRow))
         .onHover { isHovering = $0 }
     }
 }
+
+// MARK: - Inline feedback
 
 struct InlineWarning: View {
     let text: String
     var tone: InlineTone = .warning
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: FacioLayout.space8) {
             Image(systemName: tone.icon)
                 .foregroundStyle(tone.color)
             Text(text)
-                .font(.caption)
+                .font(FacioFont.caption)
                 .foregroundStyle(tone.color)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-        .padding(8)
+        .padding(FacioLayout.space8)
         .background(tone.color.opacity(0.09))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusField))
     }
 }
 
@@ -227,17 +341,17 @@ struct ChecklistRow: View {
     let isComplete: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: FacioLayout.space8) {
             Image(systemName: isComplete ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(isComplete ? .green : .secondary)
+                .foregroundStyle(isComplete ? Color.intentSuccess : .secondary)
                 .font(.subheadline)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: FacioLayout.space2) {
                 Text(title)
-                    .font(.caption)
+                    .font(FacioFont.caption)
                     .foregroundStyle(.primary)
                 if let detail, !detail.isEmpty {
                     Text(detail)
-                        .font(.caption2)
+                        .font(FacioFont.captionSmall)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -246,6 +360,8 @@ struct ChecklistRow: View {
         }
     }
 }
+
+// MARK: - Inspector
 
 struct InspectorPanel<Content: View>: View {
     let content: Content
@@ -256,13 +372,17 @@ struct InspectorPanel<Content: View>: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: FacioLayout.space16) {
                 content
             }
-            .padding(14)
+            .padding(FacioLayout.tilePadding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(width: FacioLayout.inspectorWidth)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(
+            minWidth: FacioLayout.inspectorMin,
+            idealWidth: FacioLayout.inspectorIdeal,
+            maxWidth: FacioLayout.inspectorMax
+        )
+        .background(Color.surfaceInspector)
     }
 }

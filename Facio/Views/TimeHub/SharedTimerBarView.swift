@@ -119,8 +119,8 @@ struct SharedTimerBarView: View {
 
             Spacer(minLength: 8)
 
-            Text(formatClock(activeContext?.entry.duration(at: now) ?? 0))
-                .font(.system(size: 30, weight: .semibold, design: .monospaced))
+            Text(DurationFormatter.clock(activeContext?.entry.duration(at: now) ?? 0))
+                .font(FacioFont.clock)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .frame(minWidth: 128, alignment: .trailing)
@@ -369,11 +369,4 @@ struct SharedTimerBarView: View {
         return min(max(date, liveStartDateRange.lowerBound), liveStartDateRange.upperBound)
     }
 
-    private func formatClock(_ seconds: TimeInterval) -> String {
-        let totalSeconds = max(0, Int(seconds.rounded(.down)))
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
-    }
 }

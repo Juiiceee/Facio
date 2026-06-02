@@ -831,7 +831,7 @@ private struct TimeHubEntryRow: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 3) {
-                Text(formatClock(context.durationSeconds(at: now)))
+                Text(DurationFormatter.clock(context.durationSeconds(at: now)))
                     .font(.subheadline.monospacedDigit())
                     .fontWeight(.semibold)
                 if context.entry.isBillable {
@@ -872,13 +872,6 @@ private struct TimeHubEntryRow: View {
         if !context.entry.notes.isEmpty { return context.entry.notes }
         let task = TimeHubAggregationService.taskTitle(for: context.entry)
         return task == "untitled" ? L10n.untitledTask(lang) : task
-    }
-
-    private func formatClock(_ seconds: Int) -> String {
-        let hours = seconds / 3600
-        let minutes = (seconds % 3600) / 60
-        let seconds = seconds % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 
     private func badge(_ text: String, color: Color) -> some View {
