@@ -19,6 +19,8 @@ struct CommandPaletteView: View {
     @Environment(DataStore.self) private var dataStore
 
     @State private var searchText = ""
+    @State private var selectedIndex = 0
+    @FocusState private var searchFocused: Bool
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -64,11 +66,7 @@ struct CommandPaletteView: View {
                 subtitle: L10n.sidebarPlanning(lang),
                 systemImage: "calendar.badge.clock"
             ) {
-                selectedSection = .planning
-                selectedDocumentId = nil
-                selectedTimesheetId = nil
-                selectedClientId = nil
-                dismiss()
+                goTo(.planning)
             },
             PaletteAction(
                 id: "open-time-calendar",
@@ -76,11 +74,7 @@ struct CommandPaletteView: View {
                 subtitle: L10n.sidebarPlanning(lang),
                 systemImage: "calendar"
             ) {
-                selectedSection = .planning
-                selectedDocumentId = nil
-                selectedTimesheetId = nil
-                selectedClientId = nil
-                dismiss()
+                goTo(.planning)
             },
             PaletteAction(
                 id: "settings-payment",
@@ -89,11 +83,7 @@ struct CommandPaletteView: View {
                 systemImage: "creditcard"
             ) {
                 selectedSettingsTab = 2
-                selectedSection = .parametres
-                selectedDocumentId = nil
-                selectedTimesheetId = nil
-                selectedClientId = nil
-                dismiss()
+                goTo(.parametres)
             }
         ]
 
@@ -117,11 +107,7 @@ struct CommandPaletteView: View {
                     subtitle: L10n.sidebarPlanning(lang),
                     systemImage: "play.fill"
                 ) {
-                    selectedSection = .planning
-                    selectedDocumentId = nil
-                    selectedTimesheetId = nil
-                    selectedClientId = nil
-                    dismiss()
+                    goTo(.planning)
                 }
             )
         }
@@ -147,11 +133,7 @@ struct CommandPaletteView: View {
                     subtitle: invoice.number,
                     systemImage: "doc.text.magnifyingglass"
                 ) {
-                    selectedSection = .factures
-                    selectedDocumentId = invoice.id
-                    selectedTimesheetId = nil
-                    selectedClientId = nil
-                    dismiss()
+                    openInvoice(invoice)
                 }
             )
         } else if let currentTimesheet, dataStore.canGenerateInvoice(for: currentTimesheet) {
@@ -163,12 +145,10 @@ struct CommandPaletteView: View {
                     systemImage: "doc.text"
                 ) {
                     if let invoice = dataStore.generateInvoice(from: currentTimesheet, detailMode: .summary) {
-                        selectedSection = .factures
-                        selectedDocumentId = invoice.id
-                        selectedTimesheetId = nil
-                        selectedClientId = nil
+                        openInvoice(invoice)
+                    } else {
+                        dismiss()
                     }
-                    dismiss()
                 }
             )
         }
@@ -205,9 +185,48 @@ struct CommandPaletteView: View {
             .sorted { $0.displayName < $1.displayName }
     }
 
+    private var documentActions: [PaletteAction] {
+        filteredDocuments.prefix(8).map { document in
+            PaletteAction(
+                id: "doc-\(document.id)",
+                title: document.number,
+                subtitle: document.clientNom.isEmpty ? document.type.label(for: lang) : document.clientNom,
+                systemImage: document.type == .facture ? "doc.text" : "doc.text.magnifyingglass"
+            ) {
+                selectedSection = document.type == .facture ? .factures : .devis
+                selectedDocumentId = document.id
+                selectedTimesheetId = nil
+                selectedClientId = nil
+                dismiss()
+            }
+        }
+    }
+
+    private var clientActions: [PaletteAction] {
+        filteredClients.prefix(8).map { client in
+            PaletteAction(
+                id: "cli-\(client.id)",
+                title: client.displayName.isEmpty ? L10n.noClient(lang) : client.displayName,
+                subtitle: client.email,
+                systemImage: "person.crop.circle"
+            ) {
+                selectedSection = .clients
+                selectedDocumentId = nil
+                selectedTimesheetId = nil
+                selectedClientId = client.id
+                dismiss()
+            }
+        }
+    }
+
+    /// Tous les résultats visibles, à plat et dans l'ordre d'affichage — base de la navigation clavier.
+    private var allItems: [PaletteAction] {
+        filteredActions + documentActions + clientActions
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: FacioLayout.space12) {
                 HStack {
                     Label(L10n.commandPaletteTitle(lang), systemImage: "command")
                         .font(.headline)
@@ -218,13 +237,15 @@ struct CommandPaletteView: View {
 
                 TextField(L10n.commandPalettePlaceholder(lang), text: $searchText)
                     .textFieldStyle(.roundedBorder)
+                    .focused($searchFocused)
+                    .onSubmit { runSelected() }
             }
             .padding(18)
 
             Divider()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     actionSection
                     documentSection
                     clientSection
@@ -232,6 +253,10 @@ struct CommandPaletteView: View {
                 .padding(18)
             }
         }
+        .onAppear { searchFocused = true }
+        .onChange(of: searchText) { selectedIndex = 0 }
+        .onKeyPress(.downArrow) { moveSelection(1); return .handled }
+        .onKeyPress(.upArrow) { moveSelection(-1); return .handled }
     }
 
     private var actionSection: some View {
@@ -239,13 +264,8 @@ struct CommandPaletteView: View {
             if filteredActions.isEmpty {
                 emptyRow
             } else {
-                ForEach(filteredActions) { action in
-                    Button {
-                        action.run()
-                    } label: {
-                        paletteRow(title: action.title, subtitle: action.subtitle, systemImage: action.systemImage)
-                    }
-                    .buttonStyle(.plain)
+                ForEach(Array(filteredActions.enumerated()), id: \.element.id) { index, action in
+                    itemButton(action, globalIndex: index)
                 }
             }
         }
@@ -253,23 +273,10 @@ struct CommandPaletteView: View {
 
     @ViewBuilder
     private var documentSection: some View {
-        if !filteredDocuments.isEmpty {
+        if !documentActions.isEmpty {
             paletteSection(title: L10n.searchDocumentsAndClients(lang)) {
-                ForEach(filteredDocuments.prefix(8)) { document in
-                    Button {
-                        selectedSection = document.type == .facture ? .factures : .devis
-                        selectedDocumentId = document.id
-                        selectedTimesheetId = nil
-                        selectedClientId = nil
-                        dismiss()
-                    } label: {
-                        paletteRow(
-                            title: document.number,
-                            subtitle: document.clientNom.isEmpty ? document.type.label(for: lang) : document.clientNom,
-                            systemImage: document.type == .facture ? "doc.text" : "doc.text.magnifyingglass"
-                        )
-                    }
-                    .buttonStyle(.plain)
+                ForEach(Array(documentActions.enumerated()), id: \.element.id) { index, action in
+                    itemButton(action, globalIndex: filteredActions.count + index)
                 }
             }
         }
@@ -277,37 +284,38 @@ struct CommandPaletteView: View {
 
     @ViewBuilder
     private var clientSection: some View {
-        if !filteredClients.isEmpty {
+        if !clientActions.isEmpty {
             paletteSection(title: L10n.sidebarClients(lang)) {
-                ForEach(filteredClients.prefix(8)) { client in
-                    Button {
-                        selectedSection = .clients
-                        selectedDocumentId = nil
-                        selectedTimesheetId = nil
-                        selectedClientId = client.id
-                        dismiss()
-                    } label: {
-                        paletteRow(
-                            title: client.displayName.isEmpty ? L10n.noClient(lang) : client.displayName,
-                            subtitle: client.email,
-                            systemImage: "person.crop.circle"
-                        )
-                    }
-                    .buttonStyle(.plain)
+                ForEach(Array(clientActions.enumerated()), id: \.element.id) { index, action in
+                    itemButton(action, globalIndex: filteredActions.count + documentActions.count + index)
                 }
             }
         }
+    }
+
+    private func itemButton(_ action: PaletteAction, globalIndex: Int) -> some View {
+        Button {
+            action.run()
+        } label: {
+            paletteRow(
+                title: action.title,
+                subtitle: action.subtitle,
+                systemImage: action.systemImage,
+                isSelected: globalIndex == selectedIndex
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private var emptyRow: some View {
         Text(L10n.noCommandResults(lang))
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 8)
+            .padding(.vertical, FacioLayout.space8)
     }
 
     private func paletteSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: FacioLayout.space8) {
             Text(title)
                 .font(.caption)
                 .fontWeight(.semibold)
@@ -317,12 +325,13 @@ struct CommandPaletteView: View {
         }
     }
 
-    private func paletteRow(title: String, subtitle: String, systemImage: String) -> some View {
-        HStack(spacing: 12) {
+    private func paletteRow(title: String, subtitle: String, systemImage: String, isSelected: Bool) -> some View {
+        let accent = Color.appPrimary(from: dataStore.companyInfo)
+        return HStack(spacing: FacioLayout.space12) {
             Image(systemName: systemImage)
-                .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
+                .foregroundStyle(accent)
                 .frame(width: 24)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: FacioLayout.space2) {
                 Text(title)
                     .fontWeight(.medium)
                     .foregroundStyle(.primary)
@@ -336,10 +345,48 @@ struct CommandPaletteView: View {
             }
             Spacer()
         }
-        .padding(10)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.72))
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.rowRadius))
+        .padding(FacioLayout.rowPadding)
+        .background(isSelected ? accent.opacity(0.16) : Color.surfaceRow)
+        .overlay(
+            RoundedRectangle(cornerRadius: FacioLayout.radiusRow)
+                .strokeBorder(isSelected ? accent.opacity(0.5) : Color.borderHairline, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusRow))
         .contentShape(Rectangle())
+    }
+
+    // MARK: - Navigation clavier
+
+    private func moveSelection(_ delta: Int) {
+        let count = allItems.count
+        guard count > 0 else { return }
+        selectedIndex = max(0, min(count - 1, selectedIndex + delta))
+    }
+
+    private func runSelected() {
+        guard allItems.indices.contains(selectedIndex) else {
+            allItems.first?.run()
+            return
+        }
+        allItems[selectedIndex].run()
+    }
+
+    // MARK: - Actions
+
+    private func goTo(_ section: SidebarSection) {
+        selectedSection = section
+        selectedDocumentId = nil
+        selectedTimesheetId = nil
+        selectedClientId = nil
+        dismiss()
+    }
+
+    private func openInvoice(_ invoice: Document) {
+        selectedSection = .factures
+        selectedDocumentId = invoice.id
+        selectedTimesheetId = nil
+        selectedClientId = nil
+        dismiss()
     }
 
     private func createDocument(type: DocumentType) {

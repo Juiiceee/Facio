@@ -12,4 +12,11 @@ extension L10n {
     static func sidebarSettings(_ l: AppLanguage) -> String { l == .fr ? "Paramètres" : "Settings" }
     static func sidebarDocuments(_ l: AppLanguage) -> String { "Documents" }
     static func sidebarManagement(_ l: AppLanguage) -> String { l == .fr ? "Gestion" : "Management" }
+
+    static func sidebarTimeTrackingHelp(_ l: AppLanguage) -> String {
+        l == .fr ? "Feuilles de temps hebdomadaires et conversion en factures." : "Weekly timesheets and conversion to invoices."
+    }
+    static func sidebarPlanningHelp(_ l: AppLanguage) -> String {
+        l == .fr ? "Vue d'ensemble du temps : minuteur, calendrier et agrégations." : "Time overview: timer, calendar and aggregations."
+    }
 }

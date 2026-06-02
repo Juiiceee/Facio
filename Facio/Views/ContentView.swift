@@ -65,7 +65,10 @@ struct ContentView: View {
                 selectedClientId: $selectedClientId,
                 selectedSettingsTab: $selectedSettingsTab
             )
-            .frame(width: 560, height: 520)
+            .frame(
+                minWidth: 520, idealWidth: 600, maxWidth: 760,
+                minHeight: 440, idealHeight: 560, maxHeight: 720
+            )
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {

@@ -96,9 +96,11 @@ struct SidebarView: View {
 
                 Label(SidebarSection.heures.label(for: lang), systemImage: SidebarSection.heures.icon)
                     .tag(SidebarSection.heures)
+                    .help(L10n.sidebarTimeTrackingHelp(lang))
 
                 Label(SidebarSection.planning.label(for: lang), systemImage: SidebarSection.planning.icon)
                     .tag(SidebarSection.planning)
+                    .help(L10n.sidebarPlanningHelp(lang))
             }
 
             Section {
