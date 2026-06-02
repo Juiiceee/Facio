@@ -340,6 +340,31 @@ final class DataStore: Sendable {
         saveDocuments()
     }
 
+    /// Crée un document (facture/devis) pré-rempli — numérotation automatique,
+    /// échéance selon le délai de paiement, devise et blockchain par défaut —,
+    /// l'ajoute au store et le retourne. Source unique de la création de document.
+    @discardableResult
+    func createDocument(type: DocumentType) -> Document {
+        let company = companyInfo
+        let creationDate = Date()
+        let currency = company.deviseParDefaut
+        let document = Document(
+            type: type,
+            number: DocumentNumberService.nextNumber(
+                type: type,
+                existingDocuments: documents,
+                language: company.langueParDefaut
+            ),
+            dateCreation: creationDate,
+            dateEcheance: dueDate(from: creationDate),
+            currency: currency,
+            blockchain: defaultBlockchain(for: currency)
+        )
+        document.langue = company.langueParDefaut
+        addDocument(document)
+        return document
+    }
+
     func deleteDocument(_ doc: Document) {
         guard documents.contains(where: { $0.id == doc.id }) else { return }
         let previousDocuments = documents
@@ -398,6 +423,14 @@ final class DataStore: Sendable {
         guard !client.isEmptyRecord else { return }
         clients.append(client)
         saveClients()
+    }
+
+    /// Crée un client portant `name`, l'ajoute au store et le retourne.
+    @discardableResult
+    func createClient(name: String) -> ClientInfo {
+        let client = ClientInfo(nom: name)
+        addClient(client)
+        return client
     }
 
     func deleteClient(_ client: ClientInfo) {

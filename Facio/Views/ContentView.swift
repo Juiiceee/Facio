@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(DataStore.self) private var dataStore
+    @Environment(SyncService.self) private var syncService
     @State private var selectedSection: SidebarSection? = .dashboard
     @State private var selectedDocumentId: UUID?
     @State private var selectedTimesheetId: UUID?
@@ -67,7 +68,33 @@ struct ContentView: View {
             .frame(width: 560, height: 520)
         }
         .toolbar {
-            ToolbarItem(placement: .automatic) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Menu {
+                    Button {
+                        newDocument(.facture)
+                    } label: {
+                        Label(L10n.quickCreateInvoice(lang), systemImage: SidebarSection.factures.icon)
+                    }
+                    Button {
+                        newDocument(.devis)
+                    } label: {
+                        Label(L10n.quickCreateQuote(lang), systemImage: SidebarSection.devis.icon)
+                    }
+                    Divider()
+                    Button {
+                        newClient()
+                    } label: {
+                        Label(L10n.quickCreateClient(lang), systemImage: "person.crop.circle.badge.plus")
+                    }
+                } label: {
+                    Label(L10n.new(lang), systemImage: "plus")
+                }
+                .help(L10n.new(lang))
+
+                if SyncConfig.isEnabled {
+                    syncIndicator
+                }
+
                 Button {
                     showCommandPalette = true
                 } label: {
@@ -193,5 +220,36 @@ struct ContentView: View {
         selectedDocumentId = invoice.id
         selectedTimesheetId = nil
         selectedClientId = nil
+    }
+
+    // MARK: - Toolbar
+
+    @ViewBuilder
+    private var syncIndicator: some View {
+        if syncService.isSyncing {
+            ProgressView()
+                .controlSize(.small)
+                .help(L10n.syncing(lang))
+        } else {
+            Image(systemName: "checkmark.icloud")
+                .foregroundStyle(.secondary)
+                .help(L10n.syncUpToDate(lang))
+        }
+    }
+
+    private func newDocument(_ type: DocumentType) {
+        let document = dataStore.createDocument(type: type)
+        selectedSection = type == .facture ? .factures : .devis
+        selectedDocumentId = document.id
+        selectedTimesheetId = nil
+        selectedClientId = nil
+    }
+
+    private func newClient() {
+        let client = dataStore.createClient(name: L10n.newClient(lang))
+        selectedSection = .clients
+        selectedClientId = client.id
+        selectedDocumentId = nil
+        selectedTimesheetId = nil
     }
 }

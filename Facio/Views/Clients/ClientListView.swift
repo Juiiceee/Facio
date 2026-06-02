@@ -108,8 +108,7 @@ struct ClientListView: View {
     }
 
     private func createClient() {
-        let client = ClientInfo(nom: L10n.newClient(lang))
-        dataStore.addClient(client)
+        let client = dataStore.createClient(name: L10n.newClient(lang))
         selectedClientId = client.id
     }
 

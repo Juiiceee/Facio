@@ -113,24 +113,7 @@ struct DocumentListView: View {
     // MARK: - Actions
 
     private func creerDocument() {
-        let company = dataStore.companyInfo
-        let creationDate = Date()
-        let currency = company.deviseParDefaut
-        let number = DocumentNumberService.nextNumber(
-            type: documentType,
-            existingDocuments: allDocuments,
-            language: company.langueParDefaut
-        )
-        let document = Document(
-            type: documentType,
-            number: number,
-            dateCreation: creationDate,
-            dateEcheance: dueDate(from: creationDate),
-            currency: currency,
-            blockchain: defaultBlockchain(for: currency)
-        )
-        document.langue = company.langueParDefaut
-        dataStore.addDocument(document)
+        let document = dataStore.createDocument(type: documentType)
         selectedDocumentId = document.id
     }
 
@@ -163,24 +146,6 @@ struct DocumentListView: View {
         onOpenDocument(facture)
     }
 
-    private func dueDate(from creationDate: Date) -> Date {
-        Calendar.current.date(
-            byAdding: .day,
-            value: dataStore.companyInfo.delaiPaiementJours,
-            to: creationDate
-        ) ?? creationDate
-    }
-
-    private func defaultBlockchain(for currency: CurrencyType) -> Blockchain? {
-        guard currency.requiresBlockchain else { return nil }
-        let compatible = Blockchain.compatibleBlockchains(for: currency)
-        guard !compatible.isEmpty else { return nil }
-        if let defaultBlockchain = dataStore.companyInfo.blockchainParDefaut,
-           compatible.contains(defaultBlockchain) {
-            return defaultBlockchain
-        }
-        return compatible.first
-    }
 }
 
 // MARK: - Document Row

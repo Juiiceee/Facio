@@ -343,27 +343,7 @@ struct CommandPaletteView: View {
     }
 
     private func createDocument(type: DocumentType) {
-        let company = dataStore.companyInfo
-        let creationDate = Date()
-        let currency = company.deviseParDefaut
-        let document = Document(
-            type: type,
-            number: DocumentNumberService.nextNumber(
-                type: type,
-                existingDocuments: dataStore.documents,
-                language: company.langueParDefaut
-            ),
-            dateCreation: creationDate,
-            dateEcheance: Calendar.current.date(
-                byAdding: .day,
-                value: company.delaiPaiementJours,
-                to: creationDate
-            ) ?? creationDate,
-            currency: currency,
-            blockchain: defaultBlockchain(for: currency)
-        )
-        document.langue = company.langueParDefaut
-        dataStore.addDocument(document)
+        let document = dataStore.createDocument(type: type)
         selectedSection = type == .facture ? .factures : .devis
         selectedDocumentId = document.id
         selectedTimesheetId = nil
@@ -372,8 +352,7 @@ struct CommandPaletteView: View {
     }
 
     private func createClient() {
-        let client = ClientInfo(nom: L10n.newClient(lang))
-        dataStore.addClient(client)
+        let client = dataStore.createClient(name: L10n.newClient(lang))
         selectedSection = .clients
         selectedDocumentId = nil
         selectedTimesheetId = nil
@@ -387,16 +366,5 @@ struct CommandPaletteView: View {
             _ = await ExportService.exportPDF(data: pdfData, defaultFilename: document.number, language: lang)
         }
         dismiss()
-    }
-
-    private func defaultBlockchain(for currency: CurrencyType) -> Blockchain? {
-        guard currency.requiresBlockchain else { return nil }
-        let compatible = Blockchain.compatibleBlockchains(for: currency)
-        guard !compatible.isEmpty else { return nil }
-        if let defaultBlockchain = dataStore.companyInfo.blockchainParDefaut,
-           compatible.contains(defaultBlockchain) {
-            return defaultBlockchain
-        }
-        return compatible.first
     }
 }
