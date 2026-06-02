@@ -38,8 +38,8 @@ struct TimeField: View {
             }
             .overlay {
                 if validationError != nil {
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(.red, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: FacioLayout.radiusField)
+                        .stroke(Color.intentDanger, lineWidth: 1)
                 }
             }
             .help(validationError ?? L10n.hourInputHelp(lang, mode: mode))

@@ -6,7 +6,7 @@ struct StatusBadge: View {
     @Environment(DataStore.self) private var dataStore
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
-    private var color: Color { isOverdue ? .red : Color.statusColor(for: status) }
+    private var color: Color { isOverdue ? Color.intentDanger : Color.statusColor(for: status) }
     private var label: String { isOverdue ? L10n.overdue(lang) : status.label(for: lang) }
     private var icon: String {
         if isOverdue { return "exclamationmark.triangle.fill" }
