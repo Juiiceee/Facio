@@ -60,7 +60,7 @@ struct AddSignatureSheet: View {
             }
 
             TextField(L10n.txHash(lang), text: $signature)
-                .font(.system(.body, design: .monospaced))
+                .font(FacioFont.mono)
 
             TextField(L10n.amount(lang), value: $montant, format: .number)
 

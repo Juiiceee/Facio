@@ -1,5 +1,15 @@
 import SwiftUI
 
+/// Largeurs de colonnes du tableau de lignes, partagées entre l'en-tête
+/// (`DocumentLineItemsSection.header`) et les lignes (`LineItemRowView`).
+enum LineItemColumns {
+    static let qty: CGFloat = 80
+    static let unitPrice: CGFloat = 110
+    static let vat: CGFloat = 80
+    static let totalHT: CGFloat = 110
+    static let actions: CGFloat = 32
+}
+
 struct DocumentLineItemsSection: View {
     let document: Document
     let company: CompanyInfo
@@ -8,34 +18,33 @@ struct DocumentLineItemsSection: View {
 
     var body: some View {
         SectionPanel(L10n.linesSection(lang), systemImage: "list.bullet.rectangle") {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: FacioLayout.space8) {
                 header
                 Divider()
                 content
                 Divider()
                 addLineButton
             }
-            .padding(8)
         }
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: FacioLayout.space8) {
             Text(L10n.designationLabel(lang))
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text(L10n.quantityLabel(lang))
-                .frame(width: 80, alignment: .trailing)
+                .frame(width: LineItemColumns.qty, alignment: .trailing)
             Text(L10n.unitPrice(lang))
-                .frame(width: 110, alignment: .trailing)
+                .frame(width: LineItemColumns.unitPrice, alignment: .trailing)
             Text(L10n.vatLabel(lang))
-                .frame(width: 80, alignment: .center)
+                .frame(width: LineItemColumns.vat, alignment: .center)
             Text(L10n.totalHTLabel(lang))
-                .frame(width: 110, alignment: .trailing)
-            Spacer().frame(width: 32)
+                .frame(width: LineItemColumns.totalHT, alignment: .trailing)
+            Spacer().frame(width: LineItemColumns.actions)
         }
         .font(.caption)
         .foregroundStyle(.secondary)
-        .padding(.horizontal, 4)
+        .padding(.horizontal, FacioLayout.space4)
     }
 
     private var content: some View {
@@ -62,13 +71,13 @@ struct DocumentLineItemsSection: View {
                 Text(L10n.noLines(lang))
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, FacioLayout.space12)
             }
         }
     }
 
     private var addLineButton: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: FacioLayout.space12) {
             Button {
                 let ligne = LineItem(
                     designation: "",

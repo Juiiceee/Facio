@@ -64,8 +64,8 @@ struct ClientPickerSheet: View {
     @ViewBuilder
     private var newClientForm: some View {
         if showNewClient {
-            GroupBox(L10n.newClient(lang)) {
-                VStack(spacing: 8) {
+            SectionPanel(L10n.newClient(lang), systemImage: "person.crop.circle.badge.plus") {
+                VStack(spacing: FacioLayout.space8) {
                     TextField(L10n.name(lang), text: $newNom)
                         .textFieldStyle(.roundedBorder)
                     TextField(L10n.address(lang), text: $newAdresse)
@@ -104,10 +104,9 @@ struct ClientPickerSheet: View {
                         .disabled(newNom.isEmpty)
                     }
                 }
-                .padding(4)
             }
             .padding(.horizontal)
-            .padding(.bottom, 8)
+            .padding(.bottom, FacioLayout.space8)
         }
     }
 
@@ -116,7 +115,7 @@ struct ClientPickerSheet: View {
             Button {
                 onSelect(client)
             } label: {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: FacioLayout.space2) {
                     Text(client.nom)
                         .font(.body)
                     if !client.ville.isEmpty {

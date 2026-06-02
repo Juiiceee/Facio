@@ -24,8 +24,8 @@ struct TotalsView: View {
         HStack {
             Spacer()
 
-            GroupBox {
-                VStack(alignment: .trailing, spacing: 8) {
+            SectionPanel {
+                VStack(alignment: .trailing, spacing: FacioLayout.space8) {
                     totalRow(label: L10n.totalHT(lang), value: document.currency.formatAccounting(document.totalHT, lang: numberFormat), isDetail: false)
 
                     // Ventilation TVA
@@ -52,7 +52,6 @@ struct TotalsView: View {
                             .fontWeight(.bold)
                     }
                 }
-                .padding(8)
             }
             .frame(maxWidth: 350)
         }

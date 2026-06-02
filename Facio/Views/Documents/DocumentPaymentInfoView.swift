@@ -20,8 +20,8 @@ struct DocumentPaymentInfoView: View {
     }
 
     private var bankTransferSection: some View {
-        GroupBox(L10n.paymentBankSection(lang)) {
-            VStack(alignment: .leading, spacing: 8) {
+        SectionPanel(L10n.paymentBankSection(lang), systemImage: "building.columns") {
+            VStack(alignment: .leading, spacing: FacioLayout.space8) {
                 let bankAccounts = document.paymentBankAccounts(from: company.bankAccounts)
 
                 if bankAccounts.count > 1 {
@@ -33,7 +33,6 @@ struct DocumentPaymentInfoView: View {
                     warningRow(L10n.noBankAccountConfigured(lang))
                 }
             }
-            .padding(8)
         }
     }
 
@@ -68,7 +67,7 @@ struct DocumentPaymentInfoView: View {
     }
 
     private func bankAccountDetails(_ account: BankAccountEntry) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: FacioLayout.space8) {
             if !account.trimmedBankName.isEmpty || !account.trimmedLabel.isEmpty {
                 HStack {
                     Label(account.displayName.isEmpty ? L10n.bankAccount(lang) : account.displayName, systemImage: "building.columns")
@@ -80,7 +79,7 @@ struct DocumentPaymentInfoView: View {
                 Label(L10n.iban(lang), systemImage: "number")
                     .foregroundStyle(.secondary)
                 Text(account.trimmedIBAN)
-                    .font(.system(.body, design: .monospaced))
+                    .font(FacioFont.mono)
                     .textSelection(.enabled)
             }
 
@@ -89,7 +88,7 @@ struct DocumentPaymentInfoView: View {
                     Label(L10n.bic(lang), systemImage: "building.columns.fill")
                         .foregroundStyle(.secondary)
                     Text(account.trimmedBIC)
-                        .font(.system(.body, design: .monospaced))
+                        .font(FacioFont.mono)
                 }
             }
 
@@ -104,8 +103,8 @@ struct DocumentPaymentInfoView: View {
     }
 
     private var cryptoSection: some View {
-        GroupBox(L10n.paymentCryptoSection(lang)) {
-            VStack(alignment: .leading, spacing: 8) {
+        SectionPanel(L10n.paymentCryptoSection(lang), systemImage: "bitcoinsign.circle") {
+            VStack(alignment: .leading, spacing: FacioLayout.space8) {
                 if let chain = document.blockchain {
                     let walletsForChain = document.paymentWallets(from: company.wallets, for: chain)
 
@@ -128,7 +127,6 @@ struct DocumentPaymentInfoView: View {
                     warningRow(L10n.selectNetwork(lang))
                 }
             }
-            .padding(8)
         }
     }
 
@@ -160,7 +158,7 @@ struct DocumentPaymentInfoView: View {
     private func selectedWalletAddress(_ wallets: [WalletEntry]) -> some View {
         if let selected = wallets.first(where: { $0.id == document.selectedWalletId }) ?? wallets.first {
             Text(document.paymentAddress(for: selected))
-                .font(.system(.caption, design: .monospaced))
+                .font(FacioFont.monoCaption)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
@@ -173,7 +171,7 @@ struct DocumentPaymentInfoView: View {
             Label(wallet.label.isEmpty ? L10n.wallet(lang) : wallet.label, systemImage: "wallet.pass")
                 .foregroundStyle(.secondary)
             Text(document.paymentAddress(for: wallet))
-                .font(.system(.caption, design: .monospaced))
+                .font(FacioFont.monoCaption)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
@@ -183,9 +181,9 @@ struct DocumentPaymentInfoView: View {
     private func warningRow(_ text: String) -> some View {
         HStack {
             Image(systemName: "exclamationmark.triangle")
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.intentWarning)
             Text(text)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.intentWarning)
         }
     }
 }
