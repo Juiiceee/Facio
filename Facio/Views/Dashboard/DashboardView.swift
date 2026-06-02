@@ -103,33 +103,33 @@ struct DashboardView: View {
 
                 LazyVGrid(columns: [
                     GridItem(.adaptive(minimum: 180, maximum: 300))
-                ], spacing: 16) {
+                ], spacing: FacioLayout.space16) {
                     MetricTile(
                         title: L10n.revenueThisMonth(lang),
                         value: accountingCurrency.formatAccounting(caMoisEnCours.total, lang: numberFormat),
                         subtitle: missingConversionSubtitle(caMoisEnCours),
                         systemImage: "chart.line.uptrend.xyaxis",
-                        color: .green
+                        color: .appRevenue
                     )
                     MetricTile(
                         title: L10n.revenueThisYear(lang),
                         value: accountingCurrency.formatAccounting(caAnneeEnCours.total, lang: numberFormat),
                         subtitle: missingConversionSubtitle(caAnneeEnCours),
                         systemImage: "chart.bar.fill",
-                        color: .blue
+                        color: .appRevenue
                     )
                     MetricTile(
                         title: L10n.pending(lang),
                         value: accountingCurrency.formatAccounting(montantEnAttente.total, lang: numberFormat),
                         subtitle: pendingSubtitle,
                         systemImage: "clock.fill",
-                        color: .orange
+                        color: .appPending
                     )
                     MetricTile(
                         title: L10n.quotesInProgress(lang),
                         value: "\(devis.filter { $0.status == .envoyee }.count)",
                         systemImage: "doc.text",
-                        color: .purple
+                        color: .appQuote
                     )
                 }
 
@@ -138,12 +138,11 @@ struct DashboardView: View {
             }
             .padding(FacioLayout.screenPadding)
         }
-        .navigationTitle(L10n.dashboard(lang))
     }
 
     private var dashboardHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .top, spacing: FacioLayout.space16) {
+            VStack(alignment: .leading, spacing: FacioLayout.space4) {
                 Text(L10n.dashboard(lang))
                     .font(.largeTitle)
                     .fontWeight(.bold)
@@ -152,13 +151,21 @@ struct DashboardView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            HStack(spacing: FacioLayout.space8) {
+                FacioButton(L10n.quickCreateInvoice(lang), systemImage: "doc.badge.plus", role: .primary) {
+                    onSelectDocument(dataStore.createDocument(type: .facture))
+                }
+                FacioButton(L10n.quickCreateQuote(lang), systemImage: "doc.text", role: .secondary) {
+                    onSelectDocument(dataStore.createDocument(type: .devis))
+                }
+            }
         }
     }
 
     private var focusSection: some View {
         SectionPanel(L10n.todayFocus(lang), systemImage: "target") {
             if hasFocusItems {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     documentGroup(title: L10n.overdueInvoices(lang), icon: "exclamationmark.triangle.fill", tone: .danger, documents: overdueInvoices)
                     documentGroup(title: L10n.awaitingPayment(lang), icon: "clock.fill", tone: .warning, documents: awaitingPaymentInvoices)
                     documentGroup(title: L10n.quotesToFollowUp(lang), icon: "paperplane.fill", tone: .info, documents: quotesToFollowUp)
@@ -166,10 +173,10 @@ struct DashboardView: View {
                     timesheetGroup(title: L10n.uninvoicedPeriods(lang), icon: "calendar.badge.clock", tone: .success, timesheets: uninvoicedTimesheets)
                 }
             } else {
-                ContentUnavailableView(
-                    L10n.nothingToHandle(lang),
+                FacioEmptyState(
+                    title: L10n.nothingToHandle(lang),
                     systemImage: "checkmark.circle",
-                    description: Text(L10n.nothingToHandleHint(lang))
+                    message: L10n.nothingToHandleHint(lang)
                 )
                 .frame(maxWidth: .infinity, minHeight: 160)
             }
@@ -180,7 +187,7 @@ struct DashboardView: View {
         SectionPanel(L10n.recentWork(lang), systemImage: "clock.arrow.circlepath") {
             LazyVGrid(columns: [
                 GridItem(.adaptive(minimum: 320, maximum: 520), alignment: .top)
-            ], spacing: 16) {
+            ], spacing: FacioLayout.space16) {
                 recentDocumentList(title: L10n.latestInvoices(lang), empty: L10n.noInvoicesYet(lang), documents: Array(factures.prefix(5)))
                 recentDocumentList(title: L10n.latestQuotes(lang), empty: L10n.noQuotesYet(lang), documents: Array(devis.prefix(5)))
             }
@@ -202,7 +209,7 @@ struct DashboardView: View {
     @ViewBuilder
     private func documentGroup(title: String, icon: String, tone: InlineTone, documents: [Document]) -> some View {
         if !documents.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: FacioLayout.space8) {
                 Label(title, systemImage: icon)
                     .font(.subheadline)
                     .fontWeight(.semibold)
@@ -226,7 +233,7 @@ struct DashboardView: View {
     @ViewBuilder
     private func timesheetGroup(title: String, icon: String, tone: InlineTone, timesheets: [TimesheetPeriod]) -> some View {
         if !timesheets.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: FacioLayout.space8) {
                 Label(title, systemImage: icon)
                     .font(.subheadline)
                     .fontWeight(.semibold)
@@ -248,13 +255,12 @@ struct DashboardView: View {
     }
 
     private func recentDocumentList(title: String, empty: String, documents: [Document]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: FacioLayout.space10) {
             Text(title)
                 .font(.headline)
             if documents.isEmpty {
-                Text(empty)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                FacioEmptyState(title: empty, systemImage: "tray")
+                    .frame(maxWidth: .infinity, minHeight: 120)
             } else {
                 ForEach(documents) { doc in
                     Button {
@@ -270,7 +276,7 @@ struct DashboardView: View {
     }
 
     private func documentRow(_ doc: Document) -> some View {
-        FacioListRow(tone: doc.isOverdue ? .red : Color.statusColor(for: doc.status)) {
+        FacioListRow(tone: doc.isOverdue ? Color.intentDanger : Color.statusColor(for: doc.status)) {
             VStack(alignment: .leading) {
                 Text(doc.number)
                     .fontWeight(.medium)
@@ -286,13 +292,13 @@ struct DashboardView: View {
             }
             .layoutPriority(1)
 
-            Spacer(minLength: 10)
+            Spacer(minLength: FacioLayout.space10)
 
             Text(doc.currency.formatAccounting(doc.totalTTC, lang: numberFormat))
                 .font(.body.monospacedDigit())
                 .fontWeight(.medium)
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                .minimumScaleFactor(0.72)
                 .frame(minWidth: 92, maxWidth: 130, alignment: .trailing)
             StatusBadge(status: doc.status, isOverdue: doc.isOverdue)
             Image(systemName: "chevron.right")
@@ -304,8 +310,8 @@ struct DashboardView: View {
 
     private func timesheetRow(_ timesheet: TimesheetPeriod) -> some View {
         let hours = timesheet.totalHeuresDuMois().formatted2Decimals(for: numberFormat)
-        return FacioListRow(tone: .green) {
-            VStack(alignment: .leading, spacing: 3) {
+        return FacioListRow(tone: Color.intentSuccess) {
+            VStack(alignment: .leading, spacing: FacioLayout.space2) {
                 Text(timesheet.periodLabel(for: lang))
                     .fontWeight(.medium)
                     .lineLimit(1)
@@ -316,7 +322,7 @@ struct DashboardView: View {
             }
             .layoutPriority(1)
 
-            Spacer(minLength: 10)
+            Spacer(minLength: FacioLayout.space10)
 
             Text("\(hours)h")
                 .font(.body.monospacedDigit())
@@ -333,8 +339,8 @@ struct DashboardView: View {
         Text(L10n.moreItems(lang, count: count))
             .font(.caption)
             .foregroundStyle(.secondary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
+            .padding(.horizontal, FacioLayout.space10)
+            .padding(.vertical, FacioLayout.space4)
     }
 
     private func documentRowDetail(_ doc: Document) -> String {
