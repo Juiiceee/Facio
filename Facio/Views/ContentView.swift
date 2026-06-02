@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(DataStore.self) private var dataStore
-    @Environment(SyncService.self) private var syncService
     @State private var selectedSection: SidebarSection? = .dashboard
     @State private var selectedDocumentId: UUID?
     @State private var selectedTimesheetId: UUID?
@@ -93,10 +92,6 @@ struct ContentView: View {
                     Label(L10n.new(lang), systemImage: "plus")
                 }
                 .help(L10n.new(lang))
-
-                if SyncConfig.isEnabled {
-                    syncIndicator
-                }
 
                 Button {
                     showCommandPalette = true
@@ -226,19 +221,6 @@ struct ContentView: View {
     }
 
     // MARK: - Toolbar
-
-    @ViewBuilder
-    private var syncIndicator: some View {
-        if syncService.isSyncing {
-            ProgressView()
-                .controlSize(.small)
-                .help(L10n.syncing(lang))
-        } else {
-            Image(systemName: "checkmark.icloud")
-                .foregroundStyle(.secondary)
-                .help(L10n.syncUpToDate(lang))
-        }
-    }
 
     private func newDocument(_ type: DocumentType) {
         let document = dataStore.createDocument(type: type)
