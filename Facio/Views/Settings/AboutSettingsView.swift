@@ -15,10 +15,10 @@ struct AboutSettingsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: FacioLayout.space20) {
             // MARK: - Header
-            GroupBox {
-                HStack(spacing: 16) {
+            SectionPanel {
+                HStack(spacing: FacioLayout.space16) {
                     Group {
                         if let icon = NSApp.applicationIconImage {
                             Image(nsImage: icon)
@@ -26,7 +26,7 @@ struct AboutSettingsView: View {
                                 .frame(width: 64, height: 64)
                         } else {
                             RoundedRectangle(cornerRadius: 14)
-                                .fill(Color.purple.gradient)
+                                .fill(Color.appPrimary.gradient)
                                 .frame(width: 64, height: 64)
                                 .overlay {
                                     Text("F")
@@ -36,7 +36,7 @@ struct AboutSettingsView: View {
                         }
                     }
 
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: FacioLayout.space4) {
                         Text("Facio")
                             .font(.title)
                             .fontWeight(.bold)
@@ -52,16 +52,12 @@ struct AboutSettingsView: View {
 
                     Spacer()
                 }
-                .padding(12)
             }
 
             // MARK: - Liens
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.links(lang), systemImage: "link")
-                        .font(.headline)
-
-                    HStack(spacing: 10) {
+            SectionPanel(L10n.links(lang), systemImage: "link") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
+                    HStack(spacing: FacioLayout.space10) {
                         linkButton(
                             title: L10n.sourceCode(lang),
                             icon: "chevron.left.forwardslash.chevron.right",
@@ -77,13 +73,13 @@ struct AboutSettingsView: View {
 
                     Divider()
 
-                    HStack(spacing: 10) {
+                    HStack(spacing: FacioLayout.space10) {
                         Button {
                             Task {
                                 await updateService.checkForUpdates()
                             }
                         } label: {
-                            HStack(spacing: 6) {
+                            HStack(spacing: FacioLayout.space6) {
                                 if updateService.isChecking {
                                     ProgressView().controlSize(.small)
                                 } else {
@@ -92,11 +88,11 @@ struct AboutSettingsView: View {
                                 Text(L10n.checkForUpdates(lang))
                             }
                             .font(.subheadline)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, FacioLayout.space12)
+                            .padding(.vertical, FacioLayout.space8)
                             .background(.quaternary)
-                            .contentShape(RoundedRectangle(cornerRadius: 8))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .contentShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+                            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
                         }
                         .buttonStyle(.plain)
                         .disabled(updateService.isChecking)
@@ -104,7 +100,7 @@ struct AboutSettingsView: View {
                         updateStatusView
                     }
 
-                    HStack(spacing: 10) {
+                    HStack(spacing: FacioLayout.space10) {
 
                         linkButton(
                             title: L10n.reportBug(lang),
@@ -113,31 +109,30 @@ struct AboutSettingsView: View {
                         )
                     }
                 }
-                .padding(12)
             }
 
             // MARK: - Zone dangereuse
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
+            SectionPanel {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     Label(L10n.dangerZone(lang), systemImage: "exclamationmark.triangle")
-                        .font(.headline)
-                        .foregroundStyle(.red)
+                        .font(FacioFont.sectionTitle)
+                        .foregroundStyle(Color.intentDanger)
 
-                    HStack(spacing: 10) {
+                    HStack(spacing: FacioLayout.space10) {
                         Button {
                             showResetAlert = true
                         } label: {
-                            HStack(spacing: 6) {
+                            HStack(spacing: FacioLayout.space6) {
                                 Image(systemName: "arrow.counterclockwise")
                                 Text(L10n.reset(lang))
                             }
                             .font(.subheadline)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(.red.opacity(0.1))
-                            .foregroundStyle(.red)
-                            .contentShape(RoundedRectangle(cornerRadius: 8))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .padding(.horizontal, FacioLayout.space12)
+                            .padding(.vertical, FacioLayout.space8)
+                            .background(Color.intentDanger.opacity(0.1))
+                            .foregroundStyle(Color.intentDanger)
+                            .contentShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+                            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
                         }
                         .buttonStyle(.plain)
                         .help(L10n.resetHelp(lang))
@@ -145,29 +140,29 @@ struct AboutSettingsView: View {
                         Button {
                             showUninstallAlert = true
                         } label: {
-                            HStack(spacing: 6) {
+                            HStack(spacing: FacioLayout.space6) {
                                 Image(systemName: "trash")
                                 Text(L10n.uninstall(lang))
                             }
                             .font(.subheadline)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(.red.opacity(0.1))
-                            .foregroundStyle(.red)
-                            .contentShape(RoundedRectangle(cornerRadius: 8))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .padding(.horizontal, FacioLayout.space12)
+                            .padding(.vertical, FacioLayout.space8)
+                            .background(Color.intentDanger.opacity(0.1))
+                            .foregroundStyle(Color.intentDanger)
+                            .contentShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+                            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
                         }
                         .buttonStyle(.plain)
                         .help(L10n.uninstallHelp(lang))
                     }
 
                     if resetDone {
-                        HStack(spacing: 6) {
+                        HStack(spacing: FacioLayout.space6) {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(Color.intentSuccess)
                             Text(L10n.resetDone(lang))
                                 .font(.caption)
-                                .foregroundStyle(.green)
+                                .foregroundStyle(Color.intentSuccess)
                         }
                     }
 
@@ -175,12 +170,11 @@ struct AboutSettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
-                .padding(12)
             }
 
             Spacer()
         }
-        .padding(24)
+        .padding(FacioLayout.screenPadding)
         .alert(L10n.resetConfirmTitle(lang), isPresented: $showResetAlert) {
             Button(L10n.cancel(lang), role: .cancel) {}
             Button(L10n.reset(lang), role: .destructive) { resetApp() }
@@ -199,17 +193,17 @@ struct AboutSettingsView: View {
 
     private func linkButton(title: String, icon: String, url: String) -> some View {
         Link(destination: URL(string: url)!) {
-            HStack(spacing: 6) {
+            HStack(spacing: FacioLayout.space6) {
                 Image(systemName: icon)
                     .font(.subheadline)
                 Text(title)
                     .font(.subheadline)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.horizontal, FacioLayout.space12)
+            .padding(.vertical, FacioLayout.space8)
             .background(.quaternary)
-            .contentShape(RoundedRectangle(cornerRadius: 8))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .contentShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
         }
         .buttonStyle(.plain)
     }
@@ -224,7 +218,7 @@ struct AboutSettingsView: View {
                 Link(destination: url) {
                     updateStatusLabel(
                         icon: "arrow.down.circle.fill",
-                        color: .green,
+                        color: .intentSuccess,
                         text: L10n.updateAvailable(lang, version: updateService.latestVersion ?? "")
                     )
                 }
@@ -232,33 +226,33 @@ struct AboutSettingsView: View {
             } else {
                 updateStatusLabel(
                     icon: "arrow.down.circle.fill",
-                    color: .green,
+                    color: .intentSuccess,
                     text: L10n.updateAvailable(lang, version: updateService.latestVersion ?? "")
                 )
             }
         case .upToDate:
             updateStatusLabel(
                 icon: "checkmark.circle.fill",
-                color: .green,
+                color: .intentSuccess,
                 text: L10n.upToDate(lang)
             )
         case .unavailable:
             updateStatusLabel(
                 icon: "questionmark.circle.fill",
-                color: .orange,
+                color: .intentWarning,
                 text: L10n.updateCheckUnavailable(lang)
             )
         case .failed:
             updateStatusLabel(
                 icon: "exclamationmark.triangle.fill",
-                color: .red,
+                color: .intentDanger,
                 text: L10n.updateCheckFailed(lang)
             )
         }
     }
 
     private func updateStatusLabel(icon: String, color: Color, text: String) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: FacioLayout.space4) {
             Image(systemName: icon)
                 .foregroundStyle(color)
             Text(text)

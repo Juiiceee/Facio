@@ -10,13 +10,10 @@ struct LanguageSettingsView: View {
     private var lang: AppLanguage { company.langueParDefaut }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: FacioLayout.space20) {
             // MARK: - Langue par defaut
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.language(lang), systemImage: "globe")
-                        .font(.headline)
-
+            SectionPanel(L10n.language(lang), systemImage: "globe") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     LabeledField(L10n.defaultLanguage(lang)) {
                         Picker("", selection: Binding(
                             get: { company.langueParDefaut },
@@ -34,15 +31,11 @@ struct LanguageSettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                .padding(12)
             }
 
             // MARK: - Format de date
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.dateFormat(lang), systemImage: "calendar")
-                        .font(.headline)
-
+            SectionPanel(L10n.dateFormat(lang), systemImage: "calendar") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     LabeledField(L10n.dateFormat(lang)) {
                         Picker("", selection: Binding(
                             get: { company.formatDate },
@@ -55,15 +48,11 @@ struct LanguageSettingsView: View {
                         .frame(maxWidth: 300)
                     }
                 }
-                .padding(12)
             }
 
             // MARK: - Format des nombres
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.numberFormat(lang), systemImage: "textformat.123")
-                        .font(.headline)
-
+            SectionPanel(L10n.numberFormat(lang), systemImage: "textformat.123") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     LabeledField(L10n.numberFormat(lang)) {
                         Picker("", selection: Binding(
                             get: { company.formatNombre },
@@ -76,12 +65,11 @@ struct LanguageSettingsView: View {
                         .frame(maxWidth: 300)
                     }
                 }
-                .padding(12)
             }
 
             Spacer()
         }
-        .padding(24)
+        .padding(FacioLayout.screenPadding)
     }
 
 }

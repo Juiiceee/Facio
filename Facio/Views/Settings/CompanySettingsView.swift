@@ -10,13 +10,10 @@ struct CompanySettingsView: View {
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: FacioLayout.space20) {
             // MARK: - Identite
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.identity(lang), systemImage: "building.2")
-                        .font(.headline)
-
+            SectionPanel(L10n.identity(lang), systemImage: "building.2") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     LabeledField(L10n.name(lang)) {
                         TextField(L10n.companyName(lang), text: Binding(
                             get: { company.nom },
@@ -33,7 +30,7 @@ struct CompanySettingsView: View {
                         .textFieldStyle(.roundedBorder)
                     }
 
-                    HStack(alignment: .top, spacing: 12) {
+                    HStack(alignment: .top, spacing: FacioLayout.space12) {
                         LabeledField(L10n.postalCode(lang)) {
                             TextField(L10n.postalCodePlaceholder(lang), text: Binding(
                                 get: { company.codePostal },
@@ -60,15 +57,11 @@ struct CompanySettingsView: View {
                         .textFieldStyle(.roundedBorder)
                     }
                 }
-                .padding(12)
             }
 
             // MARK: - Contact
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.contact(lang), systemImage: "phone")
-                        .font(.headline)
-
+            SectionPanel(L10n.contact(lang), systemImage: "phone") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     LabeledField(L10n.phone(lang)) {
                         TextField(L10n.phonePlaceholder(lang), text: Binding(
                             get: { company.telephone },
@@ -85,11 +78,10 @@ struct CompanySettingsView: View {
                         .textFieldStyle(.roundedBorder)
                     }
                 }
-                .padding(12)
             }
 
             Spacer()
         }
-        .padding(24)
+        .padding(FacioLayout.screenPadding)
     }
 }

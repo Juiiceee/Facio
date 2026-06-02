@@ -34,23 +34,20 @@ struct CustomisationSettingsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: FacioLayout.space20) {
             // MARK: - Logo
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.logo(lang), systemImage: "photo")
-                        .font(.headline)
-
+            SectionPanel(L10n.logo(lang), systemImage: "photo") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     if let logoData = company.logoData,
                        let nsImage = Self.validatedLogoPreview(from: logoData) {
-                        HStack(spacing: 16) {
+                        HStack(spacing: FacioLayout.space16) {
                             Image(nsImage: nsImage)
                                 .resizable()
                                 .scaledToFit()
                                 .frame(maxWidth: 100, maxHeight: 80)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
 
-                            VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .leading, spacing: FacioLayout.space8) {
                                 Button(L10n.chooseAnotherFile(lang)) {
                                     pickLogoFile()
                                 }
@@ -58,17 +55,17 @@ struct CustomisationSettingsView: View {
                                     company.logoData = nil
                                     dataStore.companyUpdated()
                                 }
-                                .foregroundStyle(.red)
+                                .foregroundStyle(Color.intentDanger)
                             }
                         }
                     } else {
                         ZStack {
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: FacioLayout.radiusPanel)
                                 .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6]))
-                                .foregroundStyle(isDropTargeted ? .blue : .secondary.opacity(0.5))
+                                .foregroundStyle(isDropTargeted ? Color.intentInfo : .secondary.opacity(0.5))
                                 .frame(height: 80)
 
-                            VStack(spacing: 4) {
+                            VStack(spacing: FacioLayout.space4) {
                                 Image(systemName: "photo.badge.plus")
                                     .font(.title2)
                                     .foregroundStyle(.secondary)
@@ -90,15 +87,11 @@ struct CustomisationSettingsView: View {
                         InlineWarning(text: logoValidationMessage, tone: .warning)
                     }
                 }
-                .padding(12)
             }
 
             // MARK: - Couleur du theme
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.themeColor(lang), systemImage: "paintpalette")
-                        .font(.headline)
-
+            SectionPanel(L10n.themeColor(lang), systemImage: "paintpalette") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     HStack {
                         ColorPicker(L10n.mainColor(lang), selection: accentColorBinding, supportsOpacity: false)
 
@@ -114,35 +107,34 @@ struct CustomisationSettingsView: View {
                     }
 
                     // Apercu
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: FacioLayout.space6) {
                         Text(L10n.colorPreview(lang))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
-                        HStack(spacing: 12) {
+                        HStack(spacing: FacioLayout.space12) {
                             colorSwatch(L10n.colorHeader(lang), color: Color(nsColor: company.accentNSColor))
                             colorSwatch(L10n.colorSections(lang), color: Color(nsColor: company.accentNSColor.darkened(by: 0.15)))
                             colorSwatch(L10n.colorAlternating(lang), color: Color(nsColor: company.accentNSColor.withAlphaComponent(0.15)))
                         }
                     }
                 }
-                .padding(12)
             }
 
             Spacer()
         }
-        .padding(24)
+        .padding(FacioLayout.screenPadding)
     }
 
     // MARK: - Helpers
 
     private func colorSwatch(_ label: String, color: Color) -> some View {
-        VStack(spacing: 4) {
-            RoundedRectangle(cornerRadius: 6)
+        VStack(spacing: FacioLayout.space4) {
+            RoundedRectangle(cornerRadius: FacioLayout.radiusField)
                 .fill(color)
                 .frame(width: 60, height: 32)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 6)
+                    RoundedRectangle(cornerRadius: FacioLayout.radiusField)
                         .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5)
                 )
             Text(label)

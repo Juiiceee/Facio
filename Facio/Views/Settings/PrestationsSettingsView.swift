@@ -10,9 +10,9 @@ struct PrestationsSettingsView: View {
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: FacioLayout.space20) {
             // Info
-            HStack(spacing: 8) {
+            HStack(spacing: FacioLayout.space8) {
                 Image(systemName: "info.circle")
                     .foregroundStyle(.secondary)
                 Text(L10n.servicesInfo(lang))
@@ -21,11 +21,8 @@ struct PrestationsSettingsView: View {
             }
 
             // MARK: - Prestations
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.favoriteServices(lang), systemImage: "star")
-                        .font(.headline)
-
+            SectionPanel(L10n.favoriteServices(lang), systemImage: "star") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     if company.prestations.isEmpty {
                         HStack {
                             Image(systemName: "tray")
@@ -33,12 +30,12 @@ struct PrestationsSettingsView: View {
                             Text(L10n.noServiceConfigured(lang))
                                 .foregroundStyle(.secondary)
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, FacioLayout.space4)
                     }
 
                     // Header
                     if !company.prestations.isEmpty {
-                        HStack(spacing: 10) {
+                        HStack(spacing: FacioLayout.space10) {
                             Text(L10n.designationLabel(lang))
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             Text(L10n.priceLabel(lang))
@@ -49,7 +46,7 @@ struct PrestationsSettingsView: View {
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .padding(.horizontal, 4)
+                        .padding(.horizontal, FacioLayout.space4)
 
                         Divider()
                     }
@@ -65,12 +62,11 @@ struct PrestationsSettingsView: View {
                         Label(L10n.addService(lang), systemImage: "plus.circle")
                     }
                 }
-                .padding(12)
             }
 
             Spacer()
         }
-        .padding(24)
+        .padding(FacioLayout.screenPadding)
     }
 }
 
@@ -91,7 +87,7 @@ private struct PrestationRow: View {
 
     var body: some View {
         if company.prestations.contains(where: { $0.id == presetId }) {
-            HStack(spacing: 10) {
+            HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.designationLabel(lang), text: Binding(
                     get: { company.prestations.first(where: { $0.id == presetId })?.designation ?? "" },
                     set: { newVal in
@@ -132,7 +128,7 @@ private struct PrestationRow: View {
                     dataStore.companyUpdated()
                 } label: {
                     Image(systemName: "minus.circle.fill")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.intentDanger)
                         .frame(width: 28, height: 28)
                         .contentShape(Rectangle())
                 }
