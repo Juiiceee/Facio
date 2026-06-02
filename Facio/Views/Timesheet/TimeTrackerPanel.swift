@@ -101,7 +101,7 @@ struct TimeTrackerPanel: View {
     var body: some View {
         SectionPanel(L10n.timeTracker(lang), systemImage: "timer") {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     trackerHeader(now: context.date)
                     Divider()
                     filterBar
@@ -124,8 +124,8 @@ struct TimeTrackerPanel: View {
     }
 
     private func trackerHeader(now: Date) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: FacioLayout.space16) {
+            HStack(spacing: FacioLayout.space12) {
                 Picker("", selection: $inputMode) {
                     ForEach(TimeEntryInputMode.allCases) { mode in
                         Text(mode.label(for: lang)).tag(mode)
@@ -139,7 +139,7 @@ struct TimeTrackerPanel: View {
 
                 if let activeEntryInThisPeriod {
                     Text(DurationFormatter.clock(activeEntryInThisPeriod.duration(at: now)))
-                        .font(.system(size: 34, weight: .semibold, design: .monospaced))
+                        .font(FacioFont.clock)
                         .lineLimit(1)
                     Button {
                         dataStore.stopTimeEntry(activeEntryInThisPeriod, in: timesheet)
@@ -147,10 +147,10 @@ struct TimeTrackerPanel: View {
                         Label(L10n.stopTimer(lang), systemImage: "stop.fill")
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.red)
+                    .tint(Color.intentDanger)
                 } else {
                     Text("00:00:00")
-                        .font(.system(size: 34, weight: .semibold, design: .monospaced))
+                        .font(FacioFont.clock)
                         .lineLimit(1)
                 }
             }
@@ -175,11 +175,11 @@ struct TimeTrackerPanel: View {
     }
 
     private func timerControls(now: Date) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: FacioLayout.space12) {
             if let activeEntryInThisPeriod {
                 entryFields(for: activeEntryInThisPeriod)
                 if let liveStartDateRange {
-                    HStack(spacing: 12) {
+                    HStack(spacing: FacioLayout.space12) {
                         Label(L10n.startDate(lang), systemImage: "clock.arrow.circlepath")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -199,7 +199,7 @@ struct TimeTrackerPanel: View {
                 }
             } else {
                 inputFields
-                HStack(spacing: 12) {
+                HStack(spacing: FacioLayout.space12) {
                     Button {
                         startTimer()
                     } label: {
@@ -232,8 +232,8 @@ struct TimeTrackerPanel: View {
     }
 
     private var inputFields: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: FacioLayout.space10) {
+            HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.timeEntryDescription(lang), text: $notes)
                     .textFieldStyle(.roundedBorder)
                 TextField(L10n.project(lang), text: $projectName)
@@ -241,7 +241,7 @@ struct TimeTrackerPanel: View {
                 TextField(L10n.task(lang), text: $taskName)
                     .textFieldStyle(.roundedBorder)
             }
-            HStack(spacing: 10) {
+            HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.tags(lang), text: $tagsText)
                     .textFieldStyle(.roundedBorder)
                 Toggle(L10n.billable(lang), isOn: $isBillable)
@@ -252,8 +252,8 @@ struct TimeTrackerPanel: View {
     }
 
     private func entryFields(for entry: TimeEntry) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: FacioLayout.space10) {
+            HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.timeEntryDescription(lang), text: entryStringBinding(entry, \.notes))
                     .textFieldStyle(.roundedBorder)
                 TextField(L10n.project(lang), text: entryStringBinding(entry, \.projectName))
@@ -261,7 +261,7 @@ struct TimeTrackerPanel: View {
                 TextField(L10n.task(lang), text: entryStringBinding(entry, \.taskName))
                     .textFieldStyle(.roundedBorder)
             }
-            HStack(spacing: 10) {
+            HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.tags(lang), text: entryStringBinding(entry, \.tagsText))
                     .textFieldStyle(.roundedBorder)
                 Toggle(L10n.billable(lang), isOn: entryBoolBinding(entry, \.isBillable))
@@ -272,9 +272,9 @@ struct TimeTrackerPanel: View {
     }
 
     private var manualControls: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: FacioLayout.space12) {
             inputFields
-            HStack(spacing: 10) {
+            HStack(spacing: FacioLayout.space10) {
                 DatePicker(
                     L10n.period(lang),
                     selection: $manualDate,
@@ -304,7 +304,7 @@ struct TimeTrackerPanel: View {
     }
 
     private var filterBar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: FacioLayout.space12) {
             Picker("", selection: $range) {
                 ForEach(TimeEntryRange.allCases) { range in
                     Text(range.label(for: lang)).tag(range)
@@ -352,7 +352,7 @@ struct TimeTrackerPanel: View {
     @ViewBuilder
     private var undoBar: some View {
         if let deletedUndo {
-            HStack(spacing: 10) {
+            HStack(spacing: FacioLayout.space10) {
                 Label(L10n.entryDeleted(lang), systemImage: "trash")
                     .font(.subheadline)
                 Button(L10n.undo(lang)) {
@@ -361,37 +361,37 @@ struct TimeTrackerPanel: View {
                 }
                 Spacer()
             }
-            .padding(10)
-            .background(Color.orange.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+            .padding(FacioLayout.space10)
+            .background(Color.intentWarning.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
         }
     }
 
     private func statsGrid(now: Date) -> some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 140, maximum: 220))], spacing: 12) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 140, maximum: 220))], spacing: FacioLayout.space12) {
             MetricTile(
                 title: L10n.today(lang),
                 value: formatHours(totalDuration(for: periodEntries.filter { isToday($0) }, now: now)),
                 systemImage: "calendar",
-                color: .blue
+                color: .intentInfo
             )
             MetricTile(
                 title: L10n.thisWeek(lang),
                 value: formatHours(totalDuration(for: periodEntries.filter { isThisWeek($0) }, now: now)),
                 systemImage: "calendar.badge.clock",
-                color: .orange
+                color: .intentWarning
             )
             MetricTile(
                 title: L10n.period(lang),
                 value: formatHours(totalDuration(for: periodEntries, now: now)),
                 systemImage: "clock",
-                color: .green
+                color: .intentSuccess
             )
             MetricTile(
                 title: L10n.estimatedAmount(lang),
                 value: dataStore.companyInfo.deviseParDefaut.formatAccounting(estimatedBillableAmount(now: now), lang: numberFormat),
                 systemImage: "banknote",
-                color: .purple
+                color: Color.appPrimary(from: dataStore.companyInfo)
             )
         }
     }
@@ -406,9 +406,9 @@ struct TimeTrackerPanel: View {
             )
             .frame(maxWidth: .infinity, minHeight: 120)
         } else {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: FacioLayout.space12) {
                 ForEach(groupedDateStrings, id: \.self) { dateString in
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: FacioLayout.space6) {
                         HStack {
                             Text(dateLabel(dateString))
                                 .font(.caption)
@@ -421,7 +421,7 @@ struct TimeTrackerPanel: View {
                         }
 
                         ForEach(entries(for: dateString)) { entry in
-                            VStack(spacing: 6) {
+                            VStack(spacing: FacioLayout.space6) {
                                 TimeEntryRow(
                                     entry: entry,
                                     now: now,
@@ -691,17 +691,17 @@ private struct TimeEntryRow: View {
     let onDelete: () -> Void
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: FacioLayout.space12) {
             Image(systemName: entry.isRunning ? "timer" : "clock")
-                .foregroundStyle(entry.isRunning ? .green : .secondary)
+                .foregroundStyle(entry.isRunning ? Color.intentSuccess : .secondary)
                 .frame(width: 22)
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: FacioLayout.space4) {
                 Text(primaryTitle)
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .lineLimit(1)
-                HStack(spacing: 8) {
+                HStack(spacing: FacioLayout.space8) {
                     if !clientName.isEmpty {
                         Text(clientName)
                     }
@@ -716,11 +716,11 @@ private struct TimeEntryRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                HStack(spacing: 6) {
-                    statusBadge(entry.isBillable ? L10n.billable(lang) : L10n.nonBillable(lang), color: entry.isBillable ? .green : .secondary)
-                    statusBadge(entry.isInvoiced ? L10n.invoiced(lang) : L10n.notInvoiced(lang), color: entry.isInvoiced ? .green : .orange)
+                HStack(spacing: FacioLayout.space6) {
+                    statusBadge(entry.isBillable ? L10n.billable(lang) : L10n.nonBillable(lang), color: entry.isBillable ? .intentSuccess : .secondary)
+                    statusBadge(entry.isInvoiced ? L10n.invoiced(lang) : L10n.notInvoiced(lang), color: entry.isInvoiced ? .intentSuccess : .intentWarning)
                     ForEach(entry.tags.prefix(4), id: \.self) { tag in
-                        statusBadge(tag, color: .blue)
+                        statusBadge(tag, color: .intentInfo)
                     }
                 }
             }
@@ -731,7 +731,7 @@ private struct TimeEntryRow: View {
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 3) {
+            VStack(alignment: .trailing, spacing: FacioLayout.space2) {
                 Text(DurationFormatter.clock(entry.duration(at: now)))
                     .font(.subheadline.monospacedDigit())
                     .fontWeight(.semibold)
@@ -746,40 +746,30 @@ private struct TimeEntryRow: View {
                 onEdit()
             }
 
-            HStack(spacing: 4) {
-                Button {
-                    onContinue()
-                } label: {
-                    Image(systemName: "play.fill")
-                        .frame(width: 22, height: 22)
-                }
-                .buttonStyle(.borderless)
-                .help(canContinue ? L10n.continueTimer(lang) : L10n.timerOutsidePeriod(lang))
-                .disabled(entry.isRunning || !canContinue)
-
-                Button {
-                    onEdit()
-                } label: {
-                    Image(systemName: "pencil")
-                        .frame(width: 22, height: 22)
-                }
-                .buttonStyle(.borderless)
-                .help(L10n.editTimeEntry(lang))
-
-                Button(role: .destructive) {
-                    onDelete()
-                } label: {
-                    Image(systemName: "trash")
-                        .frame(width: 22, height: 22)
-                }
-                .buttonStyle(.borderless)
-                .help(L10n.delete(lang))
-                .disabled(entry.isInvoiced)
+            HStack(spacing: FacioLayout.space4) {
+                FacioIconButton(
+                    systemImage: "play.fill",
+                    help: canContinue ? L10n.continueTimer(lang) : L10n.timerOutsidePeriod(lang),
+                    isEnabled: !entry.isRunning && canContinue,
+                    action: onContinue
+                )
+                FacioIconButton(
+                    systemImage: "pencil",
+                    help: L10n.editTimeEntry(lang),
+                    action: onEdit
+                )
+                FacioIconButton(
+                    systemImage: "trash",
+                    tone: .intentDanger,
+                    help: L10n.delete(lang),
+                    isEnabled: !entry.isInvoiced,
+                    action: onDelete
+                )
             }
         }
-        .padding(10)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.65))
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+        .padding(FacioLayout.space10)
+        .background(Color.surfaceTile)
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
     }
 
     private var primaryTitle: String {
@@ -810,11 +800,11 @@ private struct TimeEntryRow: View {
     private func statusBadge(_ text: String, color: Color) -> some View {
         Text(text)
             .font(.caption2)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
+            .padding(.horizontal, FacioLayout.space6)
+            .padding(.vertical, FacioLayout.space4)
             .background(color.opacity(0.12))
             .foregroundStyle(color)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusBadge))
     }
 }
 
@@ -857,8 +847,8 @@ private struct TimeEntryInlineEditor: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: FacioLayout.space10) {
+            HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.timeEntryDescription(lang), text: $notes)
                     .textFieldStyle(.roundedBorder)
                 TextField(L10n.project(lang), text: $projectName)
@@ -866,7 +856,7 @@ private struct TimeEntryInlineEditor: View {
                 TextField(L10n.task(lang), text: $taskName)
                     .textFieldStyle(.roundedBorder)
             }
-            HStack(spacing: 10) {
+            HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.tags(lang), text: $tagsText)
                     .textFieldStyle(.roundedBorder)
                 Toggle(L10n.billable(lang), isOn: $isBillable)
@@ -891,9 +881,9 @@ private struct TimeEntryInlineEditor: View {
                 .buttonStyle(.borderedProminent)
             }
         }
-        .padding(10)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.7))
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+        .padding(FacioLayout.space10)
+        .background(Color.surfaceField)
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
         .onChange(of: startedAt) { _, newStart in
             if endedAt < newStart {
                 endedAt = newStart

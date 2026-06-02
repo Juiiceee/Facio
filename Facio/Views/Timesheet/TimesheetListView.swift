@@ -173,7 +173,7 @@ struct TimesheetListView: View {
     // MARK: - Popover nouvelle periode
 
     private var newPeriodPopover: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: FacioLayout.space16) {
             Text(L10n.newPeriod(lang))
                 .font(.headline)
 
@@ -186,7 +186,7 @@ struct TimesheetListView: View {
 
             switch newPeriodMode {
             case .month:
-                HStack(spacing: 12) {
+                HStack(spacing: FacioLayout.space12) {
                     Picker(L10n.month(lang), selection: $selectedMois) {
                         ForEach(1...12, id: \.self) { m in
                             Text(moisLabels[m - 1]).tag(m)
@@ -204,7 +204,7 @@ struct TimesheetListView: View {
                     .frame(width: 80)
                 }
             case .custom:
-                VStack(spacing: 10) {
+                VStack(spacing: FacioLayout.space10) {
                     DatePicker(
                         L10n.startDate(lang),
                         selection: $selectedStartDate,
@@ -228,7 +228,7 @@ struct TimesheetListView: View {
                 }
             }
 
-            HStack(spacing: 12) {
+            HStack(spacing: FacioLayout.space12) {
                 Text(L10n.selectClientForPeriod(lang))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -247,24 +247,12 @@ struct TimesheetListView: View {
             }
 
             if selectedClientId == nil {
-                HStack(spacing: 6) {
-                    Image(systemName: "person.crop.circle.badge.exclamationmark")
-                        .foregroundStyle(.orange)
-                    Text(L10n.clientRequired(lang))
-                        .foregroundStyle(.orange)
-                        .font(.caption)
-                }
+                InlineWarning(text: L10n.clientRequired(lang), tone: .warning)
             } else if selectedRangeOverlaps {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
-                    Text(L10n.periodOverlapsForClient(lang))
-                        .foregroundStyle(.orange)
-                        .font(.caption)
-                }
+                InlineWarning(text: L10n.periodOverlapsForClient(lang), tone: .warning)
             }
 
-            HStack(spacing: 12) {
+            HStack(spacing: FacioLayout.space12) {
                 Button(L10n.cancel(lang)) {
                     showNewPeriod = false
                 }
@@ -278,7 +266,7 @@ struct TimesheetListView: View {
                 .disabled(selectedClient == nil || selectedRangeOverlaps)
             }
         }
-        .padding(20)
+        .padding(FacioLayout.space20)
         .frame(width: 400)
     }
 
@@ -339,8 +327,8 @@ private struct TimesheetRowView: View {
         let heuresSup = timesheet.totalHeuresSupCrossPeriod(adjacentHours: adjacentHours)
         let brut = timesheet.totalBrutCrossPeriod(adjacentHours: adjacentHours)
 
-        FacioListRow(tone: timesheet.hasGeneratedInvoice ? .green : .orange) {
-            VStack(alignment: .leading, spacing: 4) {
+        FacioListRow(tone: timesheet.hasGeneratedInvoice ? .intentSuccess : .intentWarning) {
+            VStack(alignment: .leading, spacing: FacioLayout.space4) {
                 HStack {
                     Text(timesheet.periodLabel(for: lang))
                         .font(.headline)
@@ -353,7 +341,7 @@ private struct TimesheetRowView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                HStack(spacing: 8) {
+                HStack(spacing: FacioLayout.space8) {
                     Text(timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName)
                         .font(.caption)
                         .foregroundStyle(timesheet.clientDisplayName.isEmpty ? .tertiary : .secondary)
@@ -364,12 +352,12 @@ private struct TimesheetRowView: View {
                     if heuresSup > 0 {
                         Text(L10n.overtimeHoursShort(lang, value: heuresSup.formatted2Decimals(for: numberFormat)))
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color.intentWarning)
                     }
                     if timesheet.hasGeneratedInvoice {
                         Text(L10n.invoiced(lang))
                             .font(.caption)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(Color.intentSuccess)
                     }
                 }
             }
