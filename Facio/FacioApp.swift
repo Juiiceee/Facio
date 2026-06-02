@@ -33,7 +33,7 @@ struct FacioApp: App {
                 .environment(syncService)
                 .environment(authService)
                 .environment(networkMonitor)
-                .frame(minWidth: 1200, minHeight: 650)
+                .frame(minWidth: FacioLayout.windowMinWidth, minHeight: FacioLayout.windowMinHeight)
                 .alert(L10n.firstLaunchTitle(lang), isPresented: $showFirstLaunch) {
                     Button(L10n.understood(lang)) {
                         UserDefaults.standard.set(true, forKey: "facio_has_launched")
@@ -86,7 +86,7 @@ struct FacioApp: App {
                 }
         }
         .windowStyle(.titleBar)
-        .defaultSize(width: 1200, height: 800)
+        .defaultSize(width: FacioLayout.windowIdealWidth, height: FacioLayout.windowIdealHeight)
 
         Settings {
             SettingsView()

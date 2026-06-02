@@ -37,22 +37,25 @@ struct ContentView: View {
                     SidebarView(selection: $selectedSection)
                 } content: {
                     contentForSection
-                        .navigationSplitViewColumnWidth(min: 300, ideal: 320, max: 400)
+                        .navigationSplitViewColumnWidth(
+                            min: FacioLayout.contentColumnMin,
+                            ideal: FacioLayout.contentColumnIdeal,
+                            max: FacioLayout.contentColumnMax
+                        )
                 } detail: {
                     detailForSection
-                        .frame(minWidth: 500)
+                        .frame(minWidth: FacioLayout.detailMin)
                 }
             } else {
                 NavigationSplitView {
                     SidebarView(selection: $selectedSection)
                 } detail: {
                     detailForSection
-                        .frame(minWidth: 700)
+                        .frame(minWidth: FacioLayout.detailMin)
                 }
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .frame(minWidth: 900, minHeight: 600)
         .sheet(isPresented: $showCommandPalette) {
             CommandPaletteView(
                 selectedSection: $selectedSection,
