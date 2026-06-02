@@ -16,4 +16,13 @@ extension L10n {
         l == .fr ? "Le client « \(name) » sera supprimé du carnet. Les documents existants ne seront pas effacés." :
         "Client “\(name)” will be removed from the directory. Existing documents will not be deleted."
     }
+
+    // MARK: Placeholders de format des champs fiscaux
+
+    static func clientSiretPlaceholder(_ l: AppLanguage) -> String {
+        l == .fr ? "14 chiffres" : "14 digits"
+    }
+    static func clientTvaPlaceholder(_ l: AppLanguage) -> String {
+        l == .fr ? "FR + 11 chiffres" : "FR + 11 digits"
+    }
 }

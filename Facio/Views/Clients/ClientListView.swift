@@ -62,14 +62,14 @@ struct ClientListView: View {
                     onSelectDocument: onSelectDocument,
                     onCreateDocument: createDocument
                 )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ContentUnavailableView(
                     L10n.noClientSelected(lang),
                     systemImage: "person.crop.circle",
                     description: Text(L10n.selectOrCreateClient(lang))
                 )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -167,7 +167,7 @@ struct ClientRow: View {
 
     var body: some View {
         FacioListRow(tone: Color.appPrimary(from: dataStore.companyInfo)) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: FacioLayout.space2) {
                 Text(client.displayName.isEmpty ? L10n.noClient(lang) : client.displayName)
                     .fontWeight(.medium)
                     .lineLimit(1)
@@ -243,6 +243,8 @@ struct ClientDetailView: View {
                 informationSection
                 timelineSection
             }
+            .frame(maxWidth: FacioLayout.formMaxWidth)
+            .frame(maxWidth: .infinity)
             .padding(FacioLayout.screenPadding)
         }
         .onChange(of: client.nom) { dataStore.clientUpdated(client) }
@@ -257,7 +259,7 @@ struct ClientDetailView: View {
 
     private var clientHeader: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: FacioLayout.space4) {
                 Text(client.displayName.isEmpty ? L10n.noClient(lang) : client.displayName)
                     .font(.largeTitle)
                     .fontWeight(.bold)
@@ -275,31 +277,31 @@ struct ClientDetailView: View {
     private var clientMetrics: some View {
         LazyVGrid(columns: [
             GridItem(.adaptive(minimum: 160, maximum: 260))
-        ], spacing: 12) {
+        ], spacing: FacioLayout.space12) {
             MetricTile(
                 title: L10n.clientRevenue(lang),
                 value: dataStore.companyInfo.deviseComptable.formatAccounting(totalInvoiced, lang: numberFormat),
                 systemImage: "doc.text",
-                color: .blue
+                color: .appRevenue
             )
             MetricTile(
                 title: L10n.clientPaid(lang),
                 value: dataStore.companyInfo.deviseComptable.formatAccounting(totalPaid, lang: numberFormat),
                 systemImage: "checkmark.circle",
-                color: .green
+                color: .intentSuccess
             )
             MetricTile(
                 title: L10n.recentWork(lang),
                 value: "\(relatedDocuments.count)",
                 systemImage: "clock.arrow.circlepath",
-                color: .orange
+                color: .intentWarning
             )
         }
     }
 
     private var quickActions: some View {
         SectionPanel(L10n.businessActions(lang), systemImage: "bolt") {
-            HStack(spacing: 12) {
+            HStack(spacing: FacioLayout.space12) {
                 Button {
                     onCreateDocument(.facture, client)
                 } label: {
@@ -321,7 +323,7 @@ struct ClientDetailView: View {
 
     private var informationSection: some View {
         SectionPanel(L10n.information(lang), systemImage: "person.text.rectangle") {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: FacioLayout.space12) {
                 LabeledField(L10n.name(lang)) {
                     TextField(L10n.name(lang), text: Bindable(client).nom)
                         .textFieldStyle(.roundedBorder)
@@ -330,7 +332,7 @@ struct ClientDetailView: View {
                     TextField(L10n.address(lang), text: Bindable(client).adresse)
                         .textFieldStyle(.roundedBorder)
                 }
-                HStack(spacing: 12) {
+                HStack(spacing: FacioLayout.space12) {
                     LabeledField(L10n.postalCode(lang)) {
                         TextField(L10n.postalCode(lang), text: Bindable(client).codePostal)
                             .textFieldStyle(.roundedBorder)
@@ -346,13 +348,13 @@ struct ClientDetailView: View {
                     TextField(L10n.email(lang), text: Bindable(client).email)
                         .textFieldStyle(.roundedBorder)
                 }
-                HStack(spacing: 12) {
+                HStack(spacing: FacioLayout.space12) {
                     LabeledField(L10n.siret(lang)) {
-                        TextField(L10n.siret(lang), text: Bindable(client).siret)
+                        TextField(L10n.clientSiretPlaceholder(lang), text: Bindable(client).siret)
                             .textFieldStyle(.roundedBorder)
                     }
                     LabeledField(L10n.vatNumber(lang)) {
-                        TextField(L10n.vatNumber(lang), text: Bindable(client).tva)
+                        TextField(L10n.clientTvaPlaceholder(lang), text: Bindable(client).tva)
                             .textFieldStyle(.roundedBorder)
                     }
                     LabeledField(L10n.apeCode(lang)) {
@@ -371,7 +373,7 @@ struct ClientDetailView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                VStack(spacing: 8) {
+                VStack(spacing: FacioLayout.space8) {
                     ForEach(relatedDocuments.prefix(8)) { document in
                         Button {
                             onSelectDocument(document)
@@ -386,30 +388,32 @@ struct ClientDetailView: View {
     }
 
     private func documentTimelineRow(_ document: Document) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: document.type == .facture ? "doc.text" : "doc.text.magnifyingglass")
-                .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
-                .frame(width: 24)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(document.number)
+        FacioListRow(tone: timelineRowTone(for: document)) {
+            HStack(spacing: FacioLayout.space12) {
+                Image(systemName: document.type == .facture ? "doc.text" : "doc.text.magnifyingglass")
+                    .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: FacioLayout.space2) {
+                    Text(document.number)
+                        .fontWeight(.medium)
+                    Text(document.dateCreation.formattedDate(for: dataStore.companyInfo.formatDate))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text(document.currency.formatAccounting(document.totalTTC, lang: numberFormat))
+                    .font(.body.monospacedDigit())
                     .fontWeight(.medium)
-                Text(document.dateCreation.formattedDate(for: dataStore.companyInfo.formatDate))
+                StatusBadge(status: document.status, isOverdue: document.isOverdue)
+                Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
             }
-            Spacer()
-            Text(document.currency.formatAccounting(document.totalTTC, lang: numberFormat))
-                .font(.body.monospacedDigit())
-                .fontWeight(.medium)
-            StatusBadge(status: document.status, isOverdue: document.isOverdue)
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
         }
-        .padding(10)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.6))
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
-        .contentShape(Rectangle())
+    }
+
+    private func timelineRowTone(for document: Document) -> Color {
+        document.isOverdue ? .intentDanger : Color.statusColor(for: document.status)
     }
 
     private func documentMatchesClient(_ document: Document) -> Bool {
