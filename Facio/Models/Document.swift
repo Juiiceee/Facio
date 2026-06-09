@@ -104,10 +104,13 @@ final class Document: Identifiable, Codable, Hashable {
     var clientSiret: String = ""
     var clientTva: String = ""
     var clientApe: String = ""
+    var clientEmail: String = ""
 
     // Relations
     var lignes: [LineItem] = []
     var transactionSignatures: [TransactionSignature] = []
+    /// Justificatifs joints (métadonnées ; fichiers stockés localement par DataStore).
+    var attachments: [DocumentAttachment] = []
     var sourceTimesheetId: UUID?
     var timesheetAutoSyncSignature: String?
 
@@ -504,6 +507,7 @@ final class Document: Identifiable, Codable, Hashable {
         copie.clientSiret = clientSiret
         copie.clientTva = clientTva
         copie.clientApe = clientApe
+        copie.clientEmail = clientEmail
         copie.notes = notes
         copie.langueRawValue = langueRawValue
         copie.paymentModeRawValue = paymentModeRawValue
@@ -540,8 +544,8 @@ final class Document: Identifiable, Codable, Hashable {
         case currencyRawValue, blockchainRawValue, paymentModeRawValue
         case accountingCurrencyRawValue, accountingExchangeRate, accountingExchangeRateDate
         case clientNom, clientAdresse, clientCodePostal, clientVille
-        case clientSiret, clientTva, clientApe
-        case lignes, transactionSignatures, sourceTimesheetId, timesheetAutoSyncSignature
+        case clientSiret, clientTva, clientApe, clientEmail
+        case lignes, transactionSignatures, attachments, sourceTimesheetId, timesheetAutoSyncSignature
         case createdAt, updatedAt, notes, selectedWalletId, selectedBankAccountId, langueRawValue
         case paymentSnapshot
     }
@@ -571,8 +575,10 @@ final class Document: Identifiable, Codable, Hashable {
         clientSiret = try container.decodeOrDefault(String.self, forKey: .clientSiret, default: "")
         clientTva = try container.decodeOrDefault(String.self, forKey: .clientTva, default: "")
         clientApe = try container.decodeOrDefault(String.self, forKey: .clientApe, default: "")
+        clientEmail = try container.decodeOrDefault(String.self, forKey: .clientEmail, default: "")
         lignes = try container.decodeOrDefault([LineItem].self, forKey: .lignes, default: [])
         transactionSignatures = try container.decodeOrDefault([TransactionSignature].self, forKey: .transactionSignatures, default: [])
+        attachments = try container.decodeOrDefault([DocumentAttachment].self, forKey: .attachments, default: [])
         sourceTimesheetId = try? container.decode(UUID.self, forKey: .sourceTimesheetId)
         timesheetAutoSyncSignature = try? container.decode(String.self, forKey: .timesheetAutoSyncSignature)
         createdAt = try container.decodeOrDefault(Date.self, forKey: .createdAt, default: dateCreation)
@@ -606,8 +612,10 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encode(clientSiret, forKey: .clientSiret)
         try container.encode(clientTva, forKey: .clientTva)
         try container.encode(clientApe, forKey: .clientApe)
+        try container.encode(clientEmail, forKey: .clientEmail)
         try container.encode(lignes, forKey: .lignes)
         try container.encode(transactionSignatures, forKey: .transactionSignatures)
+        try container.encode(attachments, forKey: .attachments)
         try container.encodeIfPresent(sourceTimesheetId, forKey: .sourceTimesheetId)
         try container.encodeIfPresent(timesheetAutoSyncSignature, forKey: .timesheetAutoSyncSignature)
         try container.encode(createdAt, forKey: .createdAt)

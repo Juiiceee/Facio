@@ -403,6 +403,7 @@ final class DataStore: Sendable {
             marker.timesheet.updatedAt = Date()
         }
         if persist(.documents, allowBlockedWrite: false) {
+            deleteAttachmentsDirectory(for: doc.id)
             syncService?.markDeleted(doc.id, for: .documents)
             if !affectedTimesheets.isEmpty || !affectedTimeEntries.isEmpty {
                 saveTimesheets()
@@ -429,6 +430,108 @@ final class DataStore: Sendable {
     }
 
     func documentUpdated() {
+        saveDocuments()
+    }
+
+    // MARK: - Document attachments (justificatifs, stockés localement)
+    //
+    // Les fichiers binaires sont copiés dans
+    // `<storage>/attachments/<documentId>/<attachmentId>.<ext>` (perms 0o600).
+    // Seules les métadonnées (`DocumentAttachment`) sont sérialisées dans
+    // documents.json ; les fichiers ne transitent pas par la sync (v1 locale).
+
+    private var attachmentsRootDirectory: URL {
+        storageDirectory.appendingPathComponent("attachments", isDirectory: true)
+    }
+
+    func attachmentsDirectory(for documentId: UUID) -> URL {
+        attachmentsRootDirectory.appendingPathComponent(documentId.uuidString, isDirectory: true)
+    }
+
+    /// URL sur disque d'un justificatif d'un document.
+    func attachmentURL(_ attachment: DocumentAttachment, in document: Document) -> URL {
+        attachmentsDirectory(for: document.id).appendingPathComponent(attachment.storedFilename)
+    }
+
+    /// URLs existantes des justificatifs d'un document (fichiers présents uniquement).
+    func attachmentURLs(for document: Document) -> [URL] {
+        document.attachments
+            .map { attachmentURL($0, in: document) }
+            .filter { fileManager.fileExists(atPath: $0.path) }
+    }
+
+    /// Importe un fichier comme justificatif : copie sur disque, ajoute la
+    /// métadonnée au document et sauvegarde. Retourne nil en cas d'échec.
+    @discardableResult
+    func importAttachment(from sourceURL: URL, to document: Document, label: String = "") -> DocumentAttachment? {
+        let size = (try? sourceURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        let attachment = DocumentAttachment(
+            originalFilename: sourceURL.lastPathComponent,
+            fileExtension: sourceURL.pathExtension,
+            label: label,
+            fileSize: size
+        )
+        let dir = attachmentsDirectory(for: document.id)
+        do {
+            try SecurePersistence.ensureStorageDirectory(at: dir)
+            let dest = dir.appendingPathComponent(attachment.storedFilename)
+            if fileManager.fileExists(atPath: dest.path) {
+                try fileManager.removeItem(at: dest)
+            }
+            try fileManager.copyItem(at: sourceURL, to: dest)
+            try? SecurePersistence.hardenFile(at: dest)
+        } catch {
+            return nil
+        }
+        document.attachments.append(attachment)
+        document.updatedAt = Date()
+        saveDocuments()
+        return attachment
+    }
+
+    /// Met à jour le libellé d'un justificatif.
+    func updateAttachmentLabel(_ attachment: DocumentAttachment, label: String, in document: Document) {
+        guard let index = document.attachments.firstIndex(where: { $0.id == attachment.id }) else { return }
+        document.attachments[index].label = label
+        document.updatedAt = Date()
+        saveDocuments()
+    }
+
+    /// Supprime un justificatif (fichier + métadonnée) et sauvegarde.
+    func deleteAttachment(_ attachment: DocumentAttachment, from document: Document) {
+        try? fileManager.removeItem(at: attachmentURL(attachment, in: document))
+        document.attachments.removeAll { $0.id == attachment.id }
+        document.updatedAt = Date()
+        saveDocuments()
+    }
+
+    /// Supprime tout le dossier de justificatifs d'un document.
+    func deleteAttachmentsDirectory(for documentId: UUID) {
+        try? fileManager.removeItem(at: attachmentsDirectory(for: documentId))
+    }
+
+    /// Copie les justificatifs d'un document vers un autre (nouveaux ids/fichiers).
+    /// Utilisé lors de la duplication d'un document.
+    func duplicateAttachments(from source: Document, to destination: Document) {
+        guard !source.attachments.isEmpty else { return }
+        let destDir = attachmentsDirectory(for: destination.id)
+        try? SecurePersistence.ensureStorageDirectory(at: destDir)
+        var copied: [DocumentAttachment] = []
+        for attachment in source.attachments {
+            let sourceFile = attachmentURL(attachment, in: source)
+            guard fileManager.fileExists(atPath: sourceFile.path) else { continue }
+            var copy = attachment
+            copy.id = UUID()
+            let destFile = destDir.appendingPathComponent(copy.storedFilename)
+            do {
+                try fileManager.copyItem(at: sourceFile, to: destFile)
+                try? SecurePersistence.hardenFile(at: destFile)
+                copied.append(copy)
+            } catch {
+                continue
+            }
+        }
+        destination.attachments = copied
         saveDocuments()
     }
 

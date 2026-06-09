@@ -10,6 +10,7 @@ struct DocumentEditorView: View {
     @State private var showAddSignature = false
     @State private var showPDFGenerationAlert = false
     @State private var showPDFExportAlert = false
+    @State private var showEmailUnavailableAlert = false
     @State private var signatureCountBeforeSheet = 0
 
     // Debounce timer for auto-save
@@ -106,6 +107,11 @@ struct DocumentEditorView: View {
         } message: {
             Text(L10n.cannotExportPDF(lang))
         }
+        .alert(L10n.emailUnavailableTitle(lang), isPresented: $showEmailUnavailableAlert) {
+            Button(L10n.understood(lang), role: .cancel) {}
+        } message: {
+            Text(L10n.emailUnavailableMessage(lang))
+        }
     }
 
     private func documentMainScroll(showInlineInspector: Bool) -> some View {
@@ -126,6 +132,8 @@ struct DocumentEditorView: View {
                 DocumentPaymentInfoView(document: document, company: company, lang: lang) {
                     saveDocument()
                 }
+
+                DocumentAttachmentsSection(document: document, lang: lang)
 
                 if document.status == .payee {
                     DocumentSignaturesSection(
@@ -373,6 +381,12 @@ struct DocumentEditorView: View {
                 exporterPDF()
             } label: {
                 Label(L10n.exportPDF(lang), systemImage: "square.and.arrow.up")
+            }
+
+            Button {
+                envoyerParEmail()
+            } label: {
+                Label(L10n.sendByEmail(lang), systemImage: "paperplane")
             }
         }
     }
@@ -770,6 +784,31 @@ struct DocumentEditorView: View {
             if result == .failed {
                 showPDFExportAlert = true
             }
+        }
+    }
+
+    private func envoyerParEmail() {
+        if document.trustedPaymentSnapshot == nil {
+            if document.freezePaymentSnapshot(from: company) {
+                saveDocument()
+            }
+        }
+
+        let pdfData = PDFGenerator(document: document, company: company).generate()
+        guard !pdfData.isEmpty else {
+            showPDFGenerationAlert = true
+            return
+        }
+
+        let attachmentURLs = dataStore.attachmentURLs(for: document)
+        let result = EmailService.composeInvoiceEmail(
+            document: document,
+            company: company,
+            pdfData: pdfData,
+            attachmentURLs: attachmentURLs
+        )
+        if result == .unavailable {
+            showEmailUnavailableAlert = true
         }
     }
 }
