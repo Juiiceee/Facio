@@ -14,6 +14,7 @@ struct SettingsInlineView: View {
             (L10n.settingsCompany(lang), "building.2", L10n.settingsCompanyHelp(lang)),
             (L10n.settingsCustomisation(lang), "paintpalette", L10n.settingsCustomisationHelp(lang)),
             (L10n.settingsPayment(lang), "creditcard", L10n.settingsPaymentHelp(lang)),
+            (L10n.settingsEmail(lang), "paperplane", L10n.settingsEmailHelp(lang)),
             (L10n.settingsDefaults(lang), "slider.horizontal.3", L10n.settingsDefaultsHelp(lang)),
             (L10n.settingsServices(lang), "star", L10n.settingsServicesHelp(lang)),
             (L10n.settingsLanguage(lang), "globe", L10n.settingsLanguageHelp(lang)),
@@ -84,11 +85,12 @@ struct SettingsInlineView: View {
         case 0: CompanySettingsView()
         case 1: CustomisationSettingsView()
         case 2: PaymentSettingsView()
-        case 3: DefaultsSettingsView()
-        case 4: PrestationsSettingsView()
-        case 5: LanguageSettingsView()
-        case 6: SyncSettingsView(syncService: syncService, authService: authService)
-        case 7: AboutSettingsView()
+        case 3: EmailSettingsView()
+        case 4: DefaultsSettingsView()
+        case 5: PrestationsSettingsView()
+        case 6: LanguageSettingsView()
+        case 7: SyncSettingsView(syncService: syncService, authService: authService)
+        case 8: AboutSettingsView()
         default: EmptyView()
         }
     }

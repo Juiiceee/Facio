@@ -156,6 +156,26 @@ final class CompanyInfo: Identifiable, Codable {
     // Prestations favorites
     var prestations: [DesignationPreset] = []
 
+    // Modèles d'email (par langue ; vide → modèle par défaut localisé)
+    var emailSubjectTemplateFR: String = ""
+    var emailBodyTemplateFR: String = ""
+    var emailSubjectTemplateEN: String = ""
+    var emailBodyTemplateEN: String = ""
+
+    /// Objet du modèle d'email pour une langue (repli sur le défaut si vide).
+    func emailSubjectTemplate(for lang: AppLanguage) -> String {
+        let stored = (lang == .fr ? emailSubjectTemplateFR : emailSubjectTemplateEN)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return stored.isEmpty ? L10n.emailDefaultSubject(lang) : stored
+    }
+
+    /// Corps du modèle d'email pour une langue (repli sur le défaut si vide).
+    func emailBodyTemplate(for lang: AppLanguage) -> String {
+        let stored = (lang == .fr ? emailBodyTemplateFR : emailBodyTemplateEN)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return stored.isEmpty ? L10n.emailDefaultBody(lang) : stored
+    }
+
     // Valeurs par defaut
     var tauxTVAParDefaut: Decimal = 0
     var delaiPaiementJours: Int = 30
@@ -277,6 +297,7 @@ final class CompanyInfo: Identifiable, Codable {
     enum CodingKeys: String, CodingKey {
         case id, nom, adresse, codePostal, ville, siret, telephone, email, logoData
         case nomBanque, iban, bic, titulaireCompte, bankAccounts, wallets, prestations
+        case emailSubjectTemplateFR, emailBodyTemplateFR, emailSubjectTemplateEN, emailBodyTemplateEN
         case tauxTVAParDefaut, delaiPaiementJours, deviseParDefautRawValue, deviseComptableRawValue, blockchainParDefautRawValue
         case updatedAt
         case langueParDefautRawValue, formatDateRawValue, formatNombreRawValue
@@ -302,6 +323,10 @@ final class CompanyInfo: Identifiable, Codable {
         normalizeBankAccountsFromLegacyFields()
         wallets = try container.decodeOrDefault([WalletEntry].self, forKey: .wallets, default: [])
         prestations = try container.decodeOrDefault([DesignationPreset].self, forKey: .prestations, default: [])
+        emailSubjectTemplateFR = try container.decodeOrDefault(String.self, forKey: .emailSubjectTemplateFR, default: "")
+        emailBodyTemplateFR = try container.decodeOrDefault(String.self, forKey: .emailBodyTemplateFR, default: "")
+        emailSubjectTemplateEN = try container.decodeOrDefault(String.self, forKey: .emailSubjectTemplateEN, default: "")
+        emailBodyTemplateEN = try container.decodeOrDefault(String.self, forKey: .emailBodyTemplateEN, default: "")
         tauxTVAParDefaut = try container.decodeOrDefault(Decimal.self, forKey: .tauxTVAParDefaut, default: 0)
         delaiPaiementJours = try container.decodeOrDefault(Int.self, forKey: .delaiPaiementJours, default: 30)
         deviseParDefautRawValue = try container.decodeOrDefault(String.self, forKey: .deviseParDefautRawValue, default: CurrencyType.usdc.rawValue)
@@ -336,6 +361,10 @@ final class CompanyInfo: Identifiable, Codable {
         try container.encode(bankAccounts, forKey: .bankAccounts)
         try container.encode(wallets, forKey: .wallets)
         try container.encode(prestations, forKey: .prestations)
+        try container.encode(emailSubjectTemplateFR, forKey: .emailSubjectTemplateFR)
+        try container.encode(emailBodyTemplateFR, forKey: .emailBodyTemplateFR)
+        try container.encode(emailSubjectTemplateEN, forKey: .emailSubjectTemplateEN)
+        try container.encode(emailBodyTemplateEN, forKey: .emailBodyTemplateEN)
         try container.encode(tauxTVAParDefaut, forKey: .tauxTVAParDefaut)
         try container.encode(delaiPaiementJours, forKey: .delaiPaiementJours)
         try container.encode(deviseParDefautRawValue, forKey: .deviseParDefautRawValue)

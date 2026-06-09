@@ -132,6 +132,7 @@ struct DocumentListView: View {
             language: lang
         )
         dataStore.addDocument(copie)
+        dataStore.duplicateAttachments(from: document, to: copie)
         selectedDocumentId = copie.id
     }
 
@@ -143,6 +144,7 @@ struct DocumentListView: View {
             language: lang
         )
         dataStore.addDocument(facture)
+        dataStore.duplicateAttachments(from: document, to: facture)
         onOpenDocument(facture)
     }
 

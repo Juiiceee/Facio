@@ -78,6 +78,7 @@ final class ClientInfo: Identifiable, Codable, Hashable {
         document.clientSiret = siret
         document.clientTva = tva
         document.clientApe = ape
+        document.clientEmail = email
     }
 
     // MARK: - Codable
