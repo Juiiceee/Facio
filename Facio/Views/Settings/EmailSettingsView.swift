@@ -55,6 +55,7 @@ struct EmailSettingsView: View {
             Spacer()
         }
         .padding(FacioLayout.screenPadding)
+        .onAppear { templateLang = dataStore.companyInfo.langueParDefaut }
     }
 
     // Le champ affiche le modèle par défaut tant qu'il n'est pas personnalisé.

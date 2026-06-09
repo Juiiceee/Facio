@@ -40,8 +40,15 @@ extension L10n {
     static func emailResetTemplate(_ l: AppLanguage) -> String { l == .fr ? "Réinitialiser le modèle" : "Reset template" }
     static func emailPlaceholdersHelp(_ l: AppLanguage) -> String {
         l == .fr
-            ? "Variables disponibles : {client} {number} {amount} {due_date} {company}"
-            : "Available variables: {client} {number} {amount} {due_date} {company}"
+            ? "Variables disponibles : {client} {number} {amount} {due_date} {company} {attachments}"
+            : "Available variables: {client} {number} {amount} {due_date} {company} {attachments}"
+    }
+
+    /// Phrase insérée par {attachments} quand le document a des justificatifs.
+    static func emailAttachmentsLine(_ l: AppLanguage) -> String {
+        l == .fr
+            ? "Les justificatifs associés sont également joints à ce message."
+            : "The related supporting documents are also attached to this message."
     }
 
     // Modèles par défaut (utilisés si l'utilisateur n'a rien personnalisé)
@@ -55,7 +62,7 @@ extension L10n {
 
             Veuillez trouver ci-joint la facture {number} d'un montant de {amount}, à régler avant le {due_date}.
 
-            Les justificatifs associés sont également joints à ce message.
+            {attachments}
 
             Cordialement,
             {company}
@@ -65,7 +72,7 @@ extension L10n {
 
             Please find attached invoice {number} for {amount}, due by {due_date}.
 
-            The related supporting documents are also attached to this message.
+            {attachments}
 
             Best regards,
             {company}

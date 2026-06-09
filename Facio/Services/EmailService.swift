@@ -13,12 +13,24 @@ enum EmailService {
     static func resolveTemplate(_ template: String, document: Document, company: CompanyInfo) -> String {
         let amount = document.currency.formatAccounting(document.totalTTC, lang: company.formatNombre)
         let dueDate = document.dateEcheance.formattedDate(for: company.formatDate)
-        return template
+        let attachmentsLine = document.attachments.isEmpty ? "" : L10n.emailAttachmentsLine(document.langue)
+        let resolved = template
             .replacingOccurrences(of: "{client}", with: document.clientNom)
             .replacingOccurrences(of: "{number}", with: document.number)
             .replacingOccurrences(of: "{amount}", with: amount)
             .replacingOccurrences(of: "{due_date}", with: dueDate)
             .replacingOccurrences(of: "{company}", with: company.nom)
+            .replacingOccurrences(of: "{attachments}", with: attachmentsLine)
+        return collapseBlankLines(resolved)
+    }
+
+    /// Supprime les lignes vides résiduelles laissées par un placeholder vide.
+    private static func collapseBlankLines(_ text: String) -> String {
+        var result = text
+        while result.contains("\n\n\n") {
+            result = result.replacingOccurrences(of: "\n\n\n", with: "\n\n")
+        }
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Ouvre le composer mail pré-rempli (objet, message, destinataire) avec le
@@ -35,10 +47,13 @@ enum EmailService {
         let subject = resolveTemplate(company.emailSubjectTemplate(for: lang), document: document, company: company)
         let body = resolveTemplate(company.emailBodyTemplate(for: lang), document: document, company: company)
 
-        // PDF de la facture → fichier temporaire pour la pièce jointe.
-        let pdfURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(safeFilename(document.number)).pdf")
+        // PDF de la facture → fichier temporaire (sous-dossier unique pour
+        // éviter toute collision entre envois).
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FacioEmail-\(UUID().uuidString)", isDirectory: true)
+        let pdfURL = tempDir.appendingPathComponent("\(safeFilename(document.number)).pdf")
         do {
+            try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
             try pdfData.write(to: pdfURL, options: .atomic)
         } catch {
             return .unavailable
@@ -49,6 +64,7 @@ enum EmailService {
 
         guard let service = NSSharingService(named: .composeEmail),
               service.canPerform(withItems: items) else {
+            try? FileManager.default.removeItem(at: tempDir)
             return .unavailable
         }
         service.subject = subject
@@ -57,6 +73,12 @@ enum EmailService {
             service.recipients = [recipient]
         }
         service.perform(withItems: items)
+
+        // Nettoyage différé : le composer lit le fichier de façon asynchrone,
+        // on ne peut donc pas le supprimer immédiatement après perform().
+        DispatchQueue.main.asyncAfter(deadline: .now() + 300) {
+            try? FileManager.default.removeItem(at: tempDir)
+        }
         return .composed
     }
 

@@ -754,6 +754,7 @@ struct DocumentEditorView: View {
             language: lang
         )
         dataStore.addDocument(copie)
+        dataStore.duplicateAttachments(from: document, to: copie)
     }
 
     private func convertirEnFacture() {
@@ -764,6 +765,7 @@ struct DocumentEditorView: View {
             language: lang
         )
         dataStore.addDocument(facture)
+        dataStore.duplicateAttachments(from: document, to: facture)
     }
 
     private func exporterPDF() {

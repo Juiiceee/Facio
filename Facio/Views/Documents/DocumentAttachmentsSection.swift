@@ -79,9 +79,14 @@ struct DocumentAttachmentsSection: View {
         NSWorkspace.shared.open(dataStore.attachmentURL(attachment, in: document))
     }
 
+    /// Types acceptés (cohérents entre sélecteur de fichiers et glisser-déposer).
+    private static let allowedExtensions: Set<String> = [
+        "pdf", "png", "jpg", "jpeg", "heic", "heif", "gif", "tiff", "tif", "bmp"
+    ]
+
     private func pickFiles() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.pdf, .png, .jpeg, .heic, .tiff]
+        panel.allowedContentTypes = [.pdf, .png, .jpeg, .heic, .gif, .tiff, .bmp]
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         guard panel.runModal() == .OK else { return }
@@ -92,6 +97,7 @@ struct DocumentAttachmentsSection: View {
     }
 
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
+        importError = nil
         var handledAny = false
         for provider in providers where provider.hasItemConformingToTypeIdentifier("public.file-url") {
             handledAny = true
@@ -99,10 +105,12 @@ struct DocumentAttachmentsSection: View {
                 guard let data = item as? Data,
                       let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
                 DispatchQueue.main.async {
+                    guard Self.allowedExtensions.contains(url.pathExtension.lowercased()) else {
+                        importError = L10n.attachmentImportFailed(lang)
+                        return
+                    }
                     if dataStore.importAttachment(from: url, to: document) == nil {
                         importError = L10n.attachmentImportFailed(lang)
-                    } else {
-                        importError = nil
                     }
                 }
             }
@@ -160,6 +168,9 @@ private struct AttachmentRowView: View {
         }
         .padding(.vertical, FacioLayout.space4)
         .onAppear { labelText = attachment.label }
+        .onChange(of: attachment.label) { _, newValue in
+            if !labelFocused { labelText = newValue }
+        }
     }
 
     private func commitLabel() {
