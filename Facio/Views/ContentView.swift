@@ -37,22 +37,25 @@ struct ContentView: View {
                     SidebarView(selection: $selectedSection)
                 } content: {
                     contentForSection
-                        .navigationSplitViewColumnWidth(min: 300, ideal: 320, max: 400)
+                        .navigationSplitViewColumnWidth(
+                            min: FacioLayout.contentColumnMin,
+                            ideal: FacioLayout.contentColumnIdeal,
+                            max: FacioLayout.contentColumnMax
+                        )
                 } detail: {
                     detailForSection
-                        .frame(minWidth: 500)
+                        .frame(minWidth: FacioLayout.detailMin)
                 }
             } else {
                 NavigationSplitView {
                     SidebarView(selection: $selectedSection)
                 } detail: {
                     detailForSection
-                        .frame(minWidth: 700)
+                        .frame(minWidth: FacioLayout.detailMin)
                 }
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .frame(minWidth: 900, minHeight: 600)
         .sheet(isPresented: $showCommandPalette) {
             CommandPaletteView(
                 selectedSection: $selectedSection,
@@ -61,10 +64,35 @@ struct ContentView: View {
                 selectedClientId: $selectedClientId,
                 selectedSettingsTab: $selectedSettingsTab
             )
-            .frame(width: 560, height: 520)
+            .frame(
+                minWidth: 520, idealWidth: 600, maxWidth: 760,
+                minHeight: 440, idealHeight: 560, maxHeight: 720
+            )
         }
         .toolbar {
-            ToolbarItem(placement: .automatic) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Menu {
+                    Button {
+                        newDocument(.facture)
+                    } label: {
+                        Label(L10n.quickCreateInvoice(lang), systemImage: SidebarSection.factures.icon)
+                    }
+                    Button {
+                        newDocument(.devis)
+                    } label: {
+                        Label(L10n.quickCreateQuote(lang), systemImage: SidebarSection.devis.icon)
+                    }
+                    Divider()
+                    Button {
+                        newClient()
+                    } label: {
+                        Label(L10n.quickCreateClient(lang), systemImage: "person.crop.circle.badge.plus")
+                    }
+                } label: {
+                    Label(L10n.new(lang), systemImage: "plus")
+                }
+                .help(L10n.new(lang))
+
                 Button {
                     showCommandPalette = true
                 } label: {
@@ -141,10 +169,10 @@ struct ContentView: View {
             if let doc = selectedDocument {
                 DocumentEditorView(document: doc)
             } else {
-                ContentUnavailableView(
-                    L10n.noDocumentSelected(lang),
+                FacioEmptyState(
+                    title: L10n.noDocumentSelected(lang),
                     systemImage: "doc.text",
-                    description: Text(L10n.selectDocumentHint(lang))
+                    message: L10n.selectDocumentHint(lang)
                 )
             }
         case .heures:
@@ -153,10 +181,10 @@ struct ContentView: View {
                     openInvoice(invoice)
                 }
             } else {
-                ContentUnavailableView(
-                    L10n.noPeriodSelected(lang),
+                FacioEmptyState(
+                    title: L10n.noPeriodSelected(lang),
                     systemImage: "clock",
-                    description: Text(L10n.selectPeriodHint(lang))
+                    message: L10n.selectPeriodHint(lang)
                 )
             }
         case .clients:
@@ -190,5 +218,23 @@ struct ContentView: View {
         selectedDocumentId = invoice.id
         selectedTimesheetId = nil
         selectedClientId = nil
+    }
+
+    // MARK: - Toolbar
+
+    private func newDocument(_ type: DocumentType) {
+        let document = dataStore.createDocument(type: type)
+        selectedSection = type == .facture ? .factures : .devis
+        selectedDocumentId = document.id
+        selectedTimesheetId = nil
+        selectedClientId = nil
+    }
+
+    private func newClient() {
+        let client = dataStore.createClient(name: L10n.newClient(lang))
+        selectedSection = .clients
+        selectedClientId = client.id
+        selectedDocumentId = nil
+        selectedTimesheetId = nil
     }
 }

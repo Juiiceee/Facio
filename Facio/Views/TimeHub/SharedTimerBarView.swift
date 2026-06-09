@@ -56,7 +56,7 @@ struct SharedTimerBarView: View {
     var body: some View {
         SectionPanel(nil) {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: FacioLayout.space12) {
                     timerComposer(now: context.date)
 
                     if let activeContext {
@@ -85,13 +85,13 @@ struct SharedTimerBarView: View {
 
     private func timerComposer(now: Date) -> some View {
         ViewThatFits(in: .horizontal) {
-            HStack(alignment: .center, spacing: 14) {
+            HStack(alignment: .center, spacing: FacioLayout.space16) {
                 descriptionField
                     .frame(minWidth: 260)
                 timerControls(now: now)
             }
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: FacioLayout.space10) {
                 descriptionField
                 timerControls(now: now)
             }
@@ -112,15 +112,15 @@ struct SharedTimerBarView: View {
     }
 
     private func timerControls(now: Date) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: FacioLayout.space12) {
             Label(L10n.timeTracker(lang), systemImage: "timer")
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
-            Spacer(minLength: 8)
+            Spacer(minLength: FacioLayout.space8)
 
-            Text(formatClock(activeContext?.entry.duration(at: now) ?? 0))
-                .font(.system(size: 30, weight: .semibold, design: .monospaced))
+            Text(DurationFormatter.clock(activeContext?.entry.duration(at: now) ?? 0))
+                .font(FacioFont.clock)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .frame(minWidth: 128, alignment: .trailing)
@@ -132,7 +132,7 @@ struct SharedTimerBarView: View {
                     Label(L10n.stopTimer(lang), systemImage: "stop.fill")
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.red)
+                .tint(Color.intentDanger)
                 .help(L10n.stopTimer(lang))
             } else {
                 Button {
@@ -148,7 +148,7 @@ struct SharedTimerBarView: View {
     }
 
     private var startTimerFields: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: FacioLayout.space10) {
             ViewThatFits(in: .horizontal) {
                 startTimerFieldsHorizontal
                 startTimerFieldsVertical
@@ -157,7 +157,7 @@ struct SharedTimerBarView: View {
     }
 
     private var startTimerFieldsHorizontal: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: FacioLayout.space10) {
             periodPicker
                 .frame(minWidth: 220)
             TextField(L10n.project(lang), text: $projectName)
@@ -173,9 +173,9 @@ struct SharedTimerBarView: View {
     }
 
     private var startTimerFieldsVertical: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: FacioLayout.space10) {
             periodPicker
-            HStack(spacing: 10) {
+            HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.project(lang), text: $projectName)
                     .textFieldStyle(.roundedBorder)
                 TextField(L10n.task(lang), text: $taskName)
@@ -183,7 +183,7 @@ struct SharedTimerBarView: View {
                 TextField(L10n.tags(lang), text: $tagsText)
                     .textFieldStyle(.roundedBorder)
             }
-            HStack(spacing: 10) {
+            HStack(spacing: FacioLayout.space10) {
                 Toggle(L10n.billable(lang), isOn: $isBillable)
                     .toggleStyle(.switch)
                 startedEarlierControl
@@ -221,15 +221,15 @@ struct SharedTimerBarView: View {
     }
 
     private func activeTimerFields(context: RunningTimeEntryContext) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: FacioLayout.space10) {
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: 10) {
+                HStack(spacing: FacioLayout.space10) {
                     activePeriodLabel(context)
                     activeMetadataFields(context)
                     activeStartDatePicker(context)
                 }
 
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: FacioLayout.space10) {
                     activePeriodLabel(context)
                     activeMetadataFields(context)
                     activeStartDatePicker(context)
@@ -247,7 +247,7 @@ struct SharedTimerBarView: View {
     }
 
     private func activeMetadataFields(_ context: RunningTimeEntryContext) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: FacioLayout.space10) {
             TextField(L10n.project(lang), text: entryStringBinding(context, \.projectName))
                 .textFieldStyle(.roundedBorder)
             TextField(L10n.task(lang), text: entryStringBinding(context, \.taskName))
@@ -260,7 +260,7 @@ struct SharedTimerBarView: View {
     }
 
     private func activeStartDatePicker(_ context: RunningTimeEntryContext) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: FacioLayout.space10) {
             Label(L10n.startDate(lang), systemImage: "clock.arrow.circlepath")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -369,11 +369,4 @@ struct SharedTimerBarView: View {
         return min(max(date, liveStartDateRange.lowerBound), liveStartDateRange.upperBound)
     }
 
-    private func formatClock(_ seconds: TimeInterval) -> String {
-        let totalSeconds = max(0, Int(seconds.rounded(.down)))
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
-    }
 }

@@ -23,7 +23,7 @@ struct TimesheetEditorView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: FacioLayout.sectionSpacing) {
                 timesheetHeroBar
                 periodRangeSection
                 TimeTrackerPanel(timesheet: timesheet, onOpenInvoice: onOpenInvoice)
@@ -37,7 +37,7 @@ struct TimesheetEditorView: View {
 
                 parametresSection
             }
-            .padding(24)
+            .padding(FacioLayout.screenPadding)
         }
         .navigationTitle(timesheet.title(for: lang))
         .onAppear {
@@ -123,9 +123,11 @@ struct TimesheetEditorView: View {
         let brut = timesheet.totalBrutCrossPeriod(adjacentHours: adj)
         let net = timesheet.totalNetCrossPeriod(adjacentHours: adj)
 
+        let invoiceTone: Color = timesheet.hasGeneratedInvoice ? .intentSuccess : .intentWarning
+
         return SectionPanel {
-            HStack(alignment: .center, spacing: 18) {
-                VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: FacioLayout.space16) {
+                VStack(alignment: .leading, spacing: FacioLayout.space6) {
                     Text(timesheet.periodLabel(for: lang))
                         .font(.title2)
                         .fontWeight(.semibold)
@@ -136,7 +138,7 @@ struct TimesheetEditorView: View {
 
                 Spacer()
 
-                VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .trailing, spacing: FacioLayout.space4) {
                     Text(L10n.totalHours(lang))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -145,7 +147,7 @@ struct TimesheetEditorView: View {
                         .fontWeight(.bold)
                 }
 
-                VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .trailing, spacing: FacioLayout.space4) {
                     Text(L10n.grossTotal(lang))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -154,7 +156,7 @@ struct TimesheetEditorView: View {
                         .fontWeight(.bold)
                 }
 
-                VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .trailing, spacing: FacioLayout.space4) {
                     Text(L10n.netTotal(lang))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -166,19 +168,19 @@ struct TimesheetEditorView: View {
                 Text(timesheet.hasGeneratedInvoice ? L10n.invoiced(lang) : L10n.notInvoiced(lang))
                     .font(.caption)
                     .fontWeight(.medium)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background((timesheet.hasGeneratedInvoice ? Color.green : Color.orange).opacity(0.14))
-                    .foregroundStyle(timesheet.hasGeneratedInvoice ? .green : .orange)
+                    .padding(.horizontal, FacioLayout.space8)
+                    .padding(.vertical, FacioLayout.space4)
+                    .background(invoiceTone.opacity(0.14))
+                    .foregroundStyle(invoiceTone)
                     .clipShape(Capsule())
             }
         }
     }
 
     private var periodRangeSection: some View {
-        GroupBox(L10n.periodDates(lang)) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .center, spacing: 12) {
+        SectionPanel(L10n.periodDates(lang), systemImage: "calendar") {
+            VStack(alignment: .leading, spacing: FacioLayout.space10) {
+                HStack(alignment: .center, spacing: FacioLayout.space12) {
                     DatePicker(
                         L10n.startDate(lang),
                         selection: $editedStartDate,
@@ -218,7 +220,6 @@ struct TimesheetEditorView: View {
                     )
                 }
             }
-            .padding(8)
             .onChange(of: editedStartDate) { _, startDate in
                 if editedEndDate < startDate {
                     editedEndDate = startDate
@@ -262,11 +263,11 @@ struct TimesheetEditorView: View {
     // MARK: - Resume
 
     private var clientSection: some View {
-        GroupBox(L10n.selectClientForPeriod(lang)) {
+        SectionPanel(L10n.selectClientForPeriod(lang), systemImage: "person.crop.circle") {
             Button {
                 showClientPicker = true
             } label: {
-                HStack(spacing: 12) {
+                HStack(spacing: FacioLayout.space12) {
                     Label(
                         timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName,
                         systemImage: "person.crop.circle"
@@ -277,7 +278,7 @@ struct TimesheetEditorView: View {
 
                     if timesheet.hasGeneratedInvoice {
                         Text(L10n.invoiced(lang))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(Color.intentSuccess)
                     }
 
                     Label(
@@ -289,7 +290,6 @@ struct TimesheetEditorView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .padding(8)
         }
     }
 
@@ -303,39 +303,58 @@ struct TimesheetEditorView: View {
         let brut = coutNorm + coutSup
         let net = brut * timesheet.coefficientNet
 
-        return GroupBox("\(L10n.summary(lang)) — \(timesheet.periodLabel(for: lang))") {
+        return SectionPanel("\(L10n.summary(lang)) — \(timesheet.periodLabel(for: lang))", systemImage: "sum") {
             LazyVGrid(columns: [
-                GridItem(.adaptive(minimum: 100, maximum: 160))
-            ], spacing: 12) {
-                resumeCard(title: L10n.totalHours(lang), value: "\(heuresMois.formatted2Decimals(for: numberFormat))h", color: .primary)
-                resumeCard(title: L10n.normalHours(lang), value: "\(heuresNorm.formatted2Decimals(for: numberFormat))h", color: .blue)
-                resumeCard(title: L10n.overtimeHours(lang), value: "\(heuresSup.formatted2Decimals(for: numberFormat))h",
-                           color: heuresSup > 0 ? .orange : .secondary)
-                resumeCard(title: L10n.normalCost(lang), value: coutNorm.formatted2Decimals(for: numberFormat), color: .secondary)
-                resumeCard(title: L10n.overtimeCost(lang), value: coutSup.formatted2Decimals(for: numberFormat), color: .secondary)
-                resumeCard(title: L10n.grossTotal(lang), value: brut.formatted2Decimals(for: numberFormat), color: .green)
-                resumeCard(title: L10n.netTotal(lang), value: net.formatted2Decimals(for: numberFormat), color: .green)
+                GridItem(.adaptive(minimum: 150, maximum: 230))
+            ], spacing: FacioLayout.space12) {
+                MetricTile(
+                    title: L10n.totalHours(lang),
+                    value: "\(heuresMois.formatted2Decimals(for: numberFormat))h",
+                    systemImage: "clock",
+                    color: Color.appPrimary(from: dataStore.companyInfo)
+                )
+                MetricTile(
+                    title: L10n.normalHours(lang),
+                    value: "\(heuresNorm.formatted2Decimals(for: numberFormat))h",
+                    systemImage: "clock.badge.checkmark",
+                    color: .intentInfo
+                )
+                MetricTile(
+                    title: L10n.overtimeHours(lang),
+                    value: "\(heuresSup.formatted2Decimals(for: numberFormat))h",
+                    systemImage: "clock.badge.exclamationmark",
+                    color: heuresSup > 0 ? .intentWarning : .secondary
+                )
+                MetricTile(
+                    title: L10n.normalCost(lang),
+                    value: coutNorm.formatted2Decimals(for: numberFormat),
+                    systemImage: "banknote",
+                    color: .secondary
+                )
+                MetricTile(
+                    title: L10n.overtimeCost(lang),
+                    value: coutSup.formatted2Decimals(for: numberFormat),
+                    systemImage: "banknote",
+                    color: .secondary
+                )
+                MetricTile(
+                    title: L10n.grossTotal(lang),
+                    value: brut.formatted2Decimals(for: numberFormat),
+                    systemImage: "sum",
+                    color: .intentSuccess
+                )
+                MetricTile(
+                    title: L10n.netTotal(lang),
+                    value: net.formatted2Decimals(for: numberFormat),
+                    systemImage: "checkmark.seal",
+                    color: .intentSuccess
+                )
             }
-            .padding(8)
         }
-    }
-
-    private func resumeCard(title: String, value: String, color: Color) -> some View {
-        VStack(spacing: 6) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.title3.monospacedDigit())
-                .fontWeight(.semibold)
-                .foregroundStyle(color)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
     }
 
     private var hourInputModeControl: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: FacioLayout.space12) {
             Label(L10n.hourInputMode(lang), systemImage: "clock.badge")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -363,11 +382,11 @@ struct TimesheetEditorView: View {
         let supSemaine = timesheet.heuresSupPourSemaine(week, adjacentHours: adj)
         let normSemaine = heuresMoisSemaine - supSemaine
 
-        return GroupBox {
-            VStack(spacing: 10) {
+        return SectionPanel {
+            VStack(spacing: FacioLayout.space10) {
                 // En-tete
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: FacioLayout.space2) {
                         Text(L10n.week(lang, number: week.numero))
                             .font(.headline)
                         Text(week.label(for: lang))
@@ -375,17 +394,17 @@ struct TimesheetEditorView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    HStack(spacing: 16) {
+                    HStack(spacing: FacioLayout.space16) {
                         Label("\(heuresMoisSemaine.formatted2Decimals(for: numberFormat))h", systemImage: "clock")
                             .font(.subheadline.monospacedDigit())
                             .fontWeight(.medium)
                         Text(L10n.normalHoursShort(lang, value: normSemaine.formatted2Decimals(for: numberFormat)))
                             .font(.caption.monospacedDigit())
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Color.intentInfo)
                         if supSemaine > 0 {
                             Text(L10n.overtimeHoursShort(lang, value: supSemaine.formatted2Decimals(for: numberFormat)))
                                 .font(.caption.monospacedDigit())
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(Color.intentWarning)
                                 .fontWeight(.medium)
                         }
                         Divider().frame(height: 14)
@@ -394,7 +413,7 @@ struct TimesheetEditorView: View {
                         Text(coutSemaine.formatted2Decimals(for: numberFormat))
                             .font(.subheadline.monospacedDigit())
                             .fontWeight(.semibold)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(Color.intentSuccess)
                     }
                 }
 
@@ -405,7 +424,7 @@ struct TimesheetEditorView: View {
                     ForEach(Array(week.jours.enumerated()), id: \.offset) { dayIndex, jour in
                         let estDansMois = timesheet.isBillableDay(jour)
                         let hasTimerEntries = timesheet.hasTimeEntries(on: jour.dateString)
-                        VStack(spacing: 4) {
+                        VStack(spacing: FacioLayout.space4) {
                             Text(jour.jourSemaine.shortLabel(for: lang))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
@@ -447,17 +466,16 @@ struct TimesheetEditorView: View {
                     }
                 }
             }
-            .padding(8)
         }
     }
 
     // MARK: - Parametres
 
     private var parametresSection: some View {
-        GroupBox(L10n.calculationParams(lang)) {
+        SectionPanel(L10n.calculationParams(lang), systemImage: "slider.horizontal.3") {
             LazyVGrid(columns: [
                 GridItem(.adaptive(minimum: 150, maximum: 250))
-            ], spacing: 12) {
+            ], spacing: FacioLayout.space12) {
                 settingsField(L10n.weeklyThreshold(lang), placeholder: "35", value: Binding(
                     get: { timesheet.seuilHebdo },
                     set: { timesheet.seuilHebdo = $0; dataStore.timesheetUpdated(timesheet) }
@@ -475,12 +493,11 @@ struct TimesheetEditorView: View {
                     set: { timesheet.coefficientNet = $0; dataStore.timesheetUpdated(timesheet) }
                 ))
             }
-            .padding(8)
         }
     }
 
     private func settingsField(_ label: String, placeholder: String, value: Binding<Decimal>) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: FacioLayout.space4) {
             Text(label)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

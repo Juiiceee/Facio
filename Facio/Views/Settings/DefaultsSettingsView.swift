@@ -13,14 +13,11 @@ struct DefaultsSettingsView: View {
     private let tauxTVAOptions: [Decimal] = [0, 5.5, 10, 20]
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: FacioLayout.space20) {
             // MARK: - TVA
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.vatRate(lang), systemImage: "percent")
-                        .font(.headline)
-
-                    settingsRow(L10n.defaultRate(lang)) {
+            SectionPanel(L10n.vatRate(lang), systemImage: "percent") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
+                    LabeledField(L10n.defaultRate(lang)) {
                         Picker("", selection: Binding(
                             get: { company.tauxTVAParDefaut },
                             set: { company.tauxTVAParDefaut = $0; dataStore.companyUpdated() }
@@ -33,16 +30,12 @@ struct DefaultsSettingsView: View {
                         .frame(maxWidth: 200)
                     }
                 }
-                .padding(12)
             }
 
             // MARK: - Devise
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.currency(lang), systemImage: "dollarsign.circle")
-                        .font(.headline)
-
-                    settingsRow(L10n.defaultCurrency(lang)) {
+            SectionPanel(L10n.currency(lang), systemImage: "dollarsign.circle") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
+                    LabeledField(L10n.defaultCurrency(lang)) {
                         Picker("", selection: Binding(
                             get: { company.deviseParDefaut },
                             set: { newValue in
@@ -59,7 +52,7 @@ struct DefaultsSettingsView: View {
                         .frame(maxWidth: 200)
                     }
 
-                    settingsRow(L10n.accountingCurrencySetting(lang)) {
+                    LabeledField(L10n.accountingCurrencySetting(lang)) {
                         Picker("", selection: Binding(
                             get: { company.deviseComptable },
                             set: { company.deviseComptable = $0; dataStore.companyUpdated() }
@@ -75,7 +68,7 @@ struct DefaultsSettingsView: View {
                     if company.deviseParDefaut.requiresBlockchain {
                         let compatible = Blockchain.compatibleBlockchains(for: company.deviseParDefaut)
 
-                        settingsRow(L10n.defaultBlockchain(lang)) {
+                        LabeledField(L10n.defaultBlockchain(lang)) {
                             Picker("", selection: Binding(
                                 get: { company.blockchainParDefaut ?? compatible.first ?? .solana },
                                 set: { company.blockchainParDefaut = $0; dataStore.companyUpdated() }
@@ -89,15 +82,11 @@ struct DefaultsSettingsView: View {
                         }
                     }
                 }
-                .padding(12)
             }
 
             // MARK: - Delai de paiement
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.paymentDelay(lang), systemImage: "calendar.badge.clock")
-                        .font(.headline)
-
+            SectionPanel(L10n.paymentDelay(lang), systemImage: "calendar.badge.clock") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     HStack {
                         Text(L10n.defaultDelay(lang))
                             .font(.subheadline)
@@ -115,21 +104,11 @@ struct DefaultsSettingsView: View {
                         .frame(maxWidth: 200)
                     }
                 }
-                .padding(12)
             }
 
             Spacer()
         }
-        .padding(24)
-    }
-
-    private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            content()
-        }
+        .padding(FacioLayout.screenPadding)
     }
 
     private func percentLabel(_ value: Decimal) -> String {

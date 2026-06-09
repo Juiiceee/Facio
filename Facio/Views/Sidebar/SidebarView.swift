@@ -58,18 +58,19 @@ struct SidebarView: View {
         List(selection: $selection) {
             Section {
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: FacioLayout.space8) {
                         Image(systemName: "building.2")
                             .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
                         Text(companyName)
                             .font(.headline)
                             .lineLimit(1)
+                            .help(companyName)
                     }
 
                     if let running = dataStore.runningTimeEntryContext {
                         Label(running.timesheet.clientDisplayName.isEmpty ? L10n.timerRunning(lang) : running.timesheet.clientDisplayName, systemImage: "timer")
                             .font(.caption)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(Color.intentSuccess)
                             .lineLimit(1)
                     }
                 }
@@ -95,9 +96,11 @@ struct SidebarView: View {
 
                 Label(SidebarSection.heures.label(for: lang), systemImage: SidebarSection.heures.icon)
                     .tag(SidebarSection.heures)
+                    .help(L10n.sidebarTimeTrackingHelp(lang))
 
                 Label(SidebarSection.planning.label(for: lang), systemImage: SidebarSection.planning.icon)
                     .tag(SidebarSection.planning)
+                    .help(L10n.sidebarPlanningHelp(lang))
             }
 
             Section {
@@ -106,6 +109,10 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
-        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+        .navigationSplitViewColumnWidth(
+            min: FacioLayout.sidebarMin,
+            ideal: FacioLayout.sidebarIdeal,
+            max: FacioLayout.sidebarMax
+        )
     }
 }

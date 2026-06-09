@@ -6,7 +6,7 @@ struct StatusBadge: View {
     @Environment(DataStore.self) private var dataStore
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
-    private var color: Color { isOverdue ? .red : Color.statusColor(for: status) }
+    private var color: Color { isOverdue ? Color.intentDanger : Color.statusColor(for: status) }
     private var label: String { isOverdue ? L10n.overdue(lang) : status.label(for: lang) }
     private var icon: String {
         if isOverdue { return "exclamationmark.triangle.fill" }
@@ -20,14 +20,15 @@ struct StatusBadge: View {
 
     var body: some View {
         Label(label, systemImage: icon)
-            .font(.caption2)
+            .font(FacioFont.captionSmall)
             .fontWeight(.medium)
             .labelStyle(.titleAndIcon)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .padding(.horizontal, FacioLayout.space8)
+            .padding(.vertical, FacioLayout.space4)
             .background(color.opacity(0.14))
             .foregroundStyle(color)
             .clipShape(Capsule())
-            .fixedSize()
     }
 }

@@ -8,8 +8,8 @@ struct DocumentSignaturesSection: View {
     @Environment(DataStore.self) private var dataStore
 
     var body: some View {
-        GroupBox(L10n.paymentProofsSection(lang)) {
-            VStack(alignment: .leading, spacing: 8) {
+        SectionPanel(L10n.paymentProofsSection(lang), systemImage: "checkmark.seal") {
+            VStack(alignment: .leading, spacing: FacioLayout.space8) {
                 content
                 Button {
                     onAdd()
@@ -18,7 +18,6 @@ struct DocumentSignaturesSection: View {
                 }
                 .buttonStyle(.borderless)
             }
-            .padding(8)
         }
     }
 
@@ -27,7 +26,7 @@ struct DocumentSignaturesSection: View {
             if document.transactionSignatures.isEmpty {
                 Text(L10n.noSignatures(lang))
                     .foregroundStyle(.tertiary)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, FacioLayout.space8)
             } else {
                 ForEach(document.transactionSignatures) { signature in
                     SignatureRowView(
@@ -56,16 +55,16 @@ private struct SignatureRowView: View {
 
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: FacioLayout.space2) {
                 Text(signature.signature)
-                    .font(.system(.caption, design: .monospaced))
+                    .font(FacioFont.monoCaption)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                HStack(spacing: 8) {
+                HStack(spacing: FacioLayout.space8) {
                     Text(signature.blockchain.label)
                         .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                        .padding(.horizontal, FacioLayout.space6)
+                        .padding(.vertical, FacioLayout.space2)
                         .background(Color.appPrimary.opacity(0.1))
                         .clipShape(Capsule())
                     Text(signature.date.formattedDate(for: dateFormat))
@@ -83,16 +82,14 @@ private struct SignatureRowView: View {
                         .font(.caption)
                 }
             }
-            Button(role: .destructive) {
+            FacioIconButton(
+                systemImage: "trash",
+                tone: .intentDanger,
+                help: L10n.delete(lang)
+            ) {
                 onDelete()
-            } label: {
-                Image(systemName: "trash")
-                    .font(.caption)
-                    .frame(width: 32, height: 28)
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(.borderless)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, FacioLayout.space4)
     }
 }

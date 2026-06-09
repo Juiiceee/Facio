@@ -20,12 +20,40 @@ extension Color {
     /// Fond de la sidebar
     static var sidebarBackground: Color { Color(nsColor: .controlBackgroundColor) }
 
-    // MARK: - Couleurs de statut
+    // MARK: - Palette d'intention (source de vérité unique)
+    //
+    // Toute couleur "sémantique" de l'app dérive d'ici. StatusBadge, InlineTone,
+    // KPI et badges doivent référencer ces tokens — jamais .green/.blue/.orange crus.
 
-    static var statusBrouillon: Color { .gray }
-    static var statusEnvoyee: Color { .orange }
-    static var statusPayee: Color { .green }
-    static var statusAnnulee: Color { .red }
+    /// Succès / payé / terminé.
+    static var intentSuccess: Color { .green }
+    /// Attente / en cours / à relancer.
+    static var intentWarning: Color { .orange }
+    /// Erreur / annulé / destructif.
+    static var intentDanger: Color { .red }
+    /// Information / accent neutre — porte l'accent de marque olive.
+    static var intentInfo: Color { appPrimary }
+    /// Neutre / brouillon / désactivé.
+    static var intentNeutral: Color { .secondary }
+
+    // MARK: - Couleurs sémantiques métier (dérivées de la marque)
+
+    /// Revenu / chiffre d'affaires — porte l'accent de marque.
+    static var appRevenue: Color { appPrimary }
+    /// Montant en attente de paiement.
+    static var appPending: Color { intentWarning }
+    /// Devis.
+    static var appQuote: Color { intentInfo }
+
+    static func appRevenue(from company: CompanyInfo) -> Color { appPrimary(from: company) }
+    static func appQuote(from company: CompanyInfo) -> Color { appPrimary(from: company) }
+
+    // MARK: - Couleurs de statut (dérivées de la palette d'intention)
+
+    static var statusBrouillon: Color { intentNeutral }
+    static var statusEnvoyee: Color { intentWarning }
+    static var statusPayee: Color { intentSuccess }
+    static var statusAnnulee: Color { intentDanger }
 
     static func statusColor(for status: DocumentStatus) -> Color {
         switch status {
@@ -35,4 +63,30 @@ extension Color {
         case .annulee: return .statusAnnulee
         }
     }
+
+    // MARK: - Surfaces sémantiques
+    //
+    // Une seule opacité par rôle (remplace les 8 opacités de panneau divergentes).
+
+    /// Fond des panneaux / cartes (SectionPanel).
+    static var surfacePanel: Color { Color(nsColor: .controlBackgroundColor).opacity(0.78) }
+    /// Fond des tuiles métriques et tuiles d'action.
+    static var surfaceTile: Color { Color(nsColor: .textBackgroundColor).opacity(0.68) }
+    /// Fond des lignes de liste au repos.
+    static var surfaceRow: Color { Color(nsColor: .textBackgroundColor).opacity(0.62) }
+    /// Fond des lignes de liste au survol.
+    static var surfaceRowHover: Color { Color(nsColor: .textBackgroundColor).opacity(0.9) }
+    /// Fond des champs de saisie / surfaces enfoncées.
+    static var surfaceField: Color { Color(nsColor: .textBackgroundColor).opacity(0.5) }
+    /// Fond de l'inspecteur latéral.
+    static var surfaceInspector: Color { Color(nsColor: .windowBackgroundColor) }
+
+    // MARK: - Bordures sémantiques
+
+    /// Bordure discrète au repos (panneaux, tuiles, lignes).
+    static var borderSubtle: Color { Color.primary.opacity(0.08) }
+    /// Bordure au survol / focus.
+    static var borderHover: Color { Color.primary.opacity(0.14) }
+    /// Séparateur fin.
+    static var borderHairline: Color { Color.primary.opacity(0.06) }
 }

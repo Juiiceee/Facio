@@ -89,9 +89,9 @@ struct TimeHubView: View {
 
     private func header(interval: DateInterval) -> some View {
         SectionPanel(nil) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .center, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: FacioLayout.space16) {
+                HStack(alignment: .center, spacing: FacioLayout.space12) {
+                    VStack(alignment: .leading, spacing: FacioLayout.space2) {
                         Label(L10n.sidebarPlanning(lang), systemImage: "calendar.badge.clock")
                             .font(.largeTitle)
                             .fontWeight(.bold)
@@ -130,7 +130,7 @@ struct TimeHubView: View {
                     .help(L10n.nextPeriod(lang))
                 }
 
-                HStack(spacing: 10) {
+                HStack(spacing: FacioLayout.space10) {
                     Picker(L10n.sidebarClients(lang), selection: $filters.clientId) {
                         Text(L10n.allClients(lang)).tag(Optional<UUID>.none)
                         ForEach(dataStore.clients.sorted { $0.displayName < $1.displayName }) { client in
@@ -168,31 +168,31 @@ struct TimeHubView: View {
     }
 
     private func statsGrid(stats: TimeHubStats) -> some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 230))], spacing: 12) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 230))], spacing: FacioLayout.space12) {
             MetricTile(
                 title: periodMode == .day ? L10n.today(lang) : L10n.trackedTime(lang),
                 value: formatDuration(stats.totalSeconds),
                 systemImage: "clock",
-                color: .blue
+                color: .intentInfo
             )
             MetricTile(
                 title: L10n.billableTime(lang),
                 value: formatDuration(stats.billableSeconds),
                 systemImage: "dollarsign.circle",
-                color: .green
+                color: .intentSuccess
             )
             MetricTile(
                 title: L10n.estimatedAmount(lang),
                 value: currency.formatAccounting(stats.estimatedAmount, lang: numberFormat),
                 systemImage: "banknote",
-                color: .purple
+                color: Color.appPrimary(from: dataStore.companyInfo)
             )
             MetricTile(
                 title: L10n.uninvoicedTime(lang),
                 value: formatDuration(stats.uninvoicedSeconds),
                 subtitle: L10n.entriesCount(lang, count: stats.entriesCount),
                 systemImage: "tray.full",
-                color: .orange
+                color: .intentWarning
             )
             MetricTile(
                 title: L10n.nonBillableTime(lang),
@@ -204,7 +204,7 @@ struct TimeHubView: View {
                 title: L10n.activeTasks(lang),
                 value: "\(stats.activeTasksCount)",
                 systemImage: "play.circle",
-                color: .red
+                color: .intentDanger
             )
         }
     }
@@ -240,7 +240,7 @@ struct TimeHubView: View {
     }
 
     private func overview(contexts: [TimeHubEntryContext], interval: DateInterval, now: Date) -> some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 360, maximum: 620), alignment: .top)], spacing: 16) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 360, maximum: 620), alignment: .top)], spacing: FacioLayout.space16) {
             todayPanel(now: now)
             uninvoicedPanel(contexts: contexts, now: now)
             groupPanel(
@@ -264,7 +264,7 @@ struct TimeHubView: View {
         )
         let stats = TimeHubAggregationService.stats(for: todayContexts, now: now)
         return SectionPanel(L10n.todayTimeline(lang), systemImage: "calendar") {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: FacioLayout.space10) {
                 HStack {
                     Text(formatDuration(stats.totalSeconds))
                         .font(.title2.monospacedDigit())
@@ -282,10 +282,10 @@ struct TimeHubView: View {
                     }
                 }
                 if todayContexts.isEmpty {
-                    ContentUnavailableView(
-                        L10n.noTimeToday(lang),
+                    FacioEmptyState(
+                        title: L10n.noTimeToday(lang),
                         systemImage: "timer",
-                        description: Text(L10n.noTimeTodayHint(lang))
+                        message: L10n.noTimeTodayHint(lang)
                     )
                     .frame(maxWidth: .infinity, minHeight: 130)
                 } else {
@@ -304,7 +304,7 @@ struct TimeHubView: View {
         now: Date
     ) -> some View {
         SectionPanel(title, systemImage: systemImage) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: FacioLayout.space8) {
                 if groups.isEmpty {
                     emptyText(L10n.noTimeEntriesForPeriod(lang))
                 } else {
@@ -322,7 +322,7 @@ struct TimeHubView: View {
 
     private func projectPanel(groups: [TimeHubProjectGroup], now: Date) -> some View {
         SectionPanel(L10n.byProject(lang), systemImage: "folder") {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: FacioLayout.space8) {
                 if groups.isEmpty {
                     emptyText(L10n.noTimeEntriesForPeriod(lang))
                 } else {
@@ -347,17 +347,16 @@ struct TimeHubView: View {
             .sorted { $0.stats.estimatedAmount > $1.stats.estimatedAmount }
 
         return SectionPanel(L10n.toInvoice(lang), systemImage: "doc.text") {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: FacioLayout.space10) {
                 if groups.isEmpty {
-                    ContentUnavailableView(
-                        L10n.noBillableTimePending(lang),
-                        systemImage: "checkmark.circle",
-                        description: Text("")
+                    FacioEmptyState(
+                        title: L10n.noBillableTimePending(lang),
+                        systemImage: "checkmark.circle"
                     )
                     .frame(maxWidth: .infinity, minHeight: 120)
                 } else {
                     ForEach(groups, id: \.timesheet.id) { group in
-                        HStack(spacing: 12) {
+                        HStack(spacing: FacioLayout.space12) {
                             metricGroupRow(
                                 title: group.timesheet.clientDisplayName.isEmpty ? group.timesheet.periodLabel(for: lang) : group.timesheet.clientDisplayName,
                                 subtitle: group.timesheet.periodLabel(for: lang),
@@ -384,7 +383,7 @@ struct TimeHubView: View {
 
     private func recentPanel(contexts: [TimeHubEntryContext], now: Date) -> some View {
         SectionPanel(L10n.recentActivity(lang), systemImage: "clock.arrow.circlepath") {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: FacioLayout.space8) {
                 if contexts.isEmpty {
                     emptyText(L10n.noTimeEntriesForPeriod(lang))
                 } else {
@@ -399,16 +398,16 @@ struct TimeHubView: View {
     private func tasks(contexts: [TimeHubEntryContext], now: Date) -> some View {
         let groups = TimeHubAggregationService.taskGroups(for: contexts, now: now)
         return SectionPanel(L10n.timeHubTasks(lang), systemImage: "checklist") {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: FacioLayout.space12) {
                 if groups.isEmpty {
-                    ContentUnavailableView(
-                        L10n.noTaskYet(lang),
+                    FacioEmptyState(
+                        title: L10n.noTaskYet(lang),
                         systemImage: "checklist",
-                        description: Text(L10n.noTaskYetHint(lang))
+                        message: L10n.noTaskYetHint(lang)
                     )
                     .frame(maxWidth: .infinity, minHeight: 180)
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 260, maximum: 360), alignment: .top)], spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 260, maximum: 360), alignment: .top)], spacing: FacioLayout.space12) {
                         ForEach(groups) { group in
                             taskCard(group, now: now)
                         }
@@ -419,9 +418,9 @@ struct TimeHubView: View {
     }
 
     private func taskCard(_ group: TimeHubTaskGroup, now: Date) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: FacioLayout.space10) {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: FacioLayout.space2) {
                     Text(group.title == "untitled" ? L10n.untitledTask(lang) : group.title)
                         .font(.headline)
                         .lineLimit(2)
@@ -431,13 +430,14 @@ struct TimeHubView: View {
                         .lineLimit(1)
                 }
                 Spacer()
-                Button {
+                FacioIconButton(
+                    systemImage: "play.fill",
+                    tone: .intentSuccess,
+                    help: L10n.startThisTask(lang),
+                    isEnabled: dataStore.runningTimeEntryContext == nil
+                ) {
                     startTask(group)
-                } label: {
-                    Image(systemName: "play.fill")
                 }
-                .help(L10n.startThisTask(lang))
-                .disabled(dataStore.runningTimeEntryContext != nil)
             }
 
             HStack {
@@ -450,21 +450,21 @@ struct TimeHubView: View {
             .font(.caption)
 
             ProgressView(value: progressValue(group))
-                .tint(.green)
+                .tint(Color.intentSuccess)
         }
-        .padding(12)
+        .padding(FacioLayout.space12)
         .frame(maxWidth: .infinity, minHeight: 135, alignment: .topLeading)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.65))
+        .background(Color.surfaceTile)
         .overlay(
-            RoundedRectangle(cornerRadius: FacioLayout.panelRadius)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: FacioLayout.radiusPanel)
+                .strokeBorder(Color.borderSubtle, lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
     }
 
     private func calendar(contexts: [TimeHubEntryContext], interval: DateInterval, now: Date) -> some View {
         SectionPanel(L10n.timeHubCalendar(lang), systemImage: "calendar") {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: FacioLayout.space16) {
                 Picker("", selection: $calendarMode) {
                     ForEach(TimeHubCalendarMode.allCases) { mode in
                         Text(mode.label(for: lang)).tag(mode)
@@ -487,7 +487,7 @@ struct TimeHubView: View {
     private func weekCalendar(contexts: [TimeHubEntryContext], now: Date) -> some View {
         let week = TimeHubPeriodMode.week.interval(containing: anchorDate)
         let days = (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: week.start) }
-        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 7), spacing: 8) {
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: FacioLayout.space8), count: 7), spacing: FacioLayout.space8) {
             ForEach(days, id: \.self) { day in
                 dayColumn(day: day, contexts: contextsForDay(day, in: contexts), now: now)
             }
@@ -499,7 +499,7 @@ struct TimeHubView: View {
         let calendar = Calendar.current
         let dayCount = calendar.range(of: .day, in: .month, for: month.start)?.count ?? 30
         let days = (0..<dayCount).compactMap { calendar.date(byAdding: .day, value: $0, to: month.start) }
-        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 7), spacing: 8) {
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: FacioLayout.space8), count: 7), spacing: FacioLayout.space8) {
             ForEach(days, id: \.self) { day in
                 monthDayCell(day: day, contexts: contextsForDay(day, in: contexts), now: now)
             }
@@ -508,7 +508,7 @@ struct TimeHubView: View {
 
     private func dayColumn(day: Date, contexts: [TimeHubEntryContext], now: Date) -> some View {
         let stats = TimeHubAggregationService.stats(for: contexts, now: now)
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: FacioLayout.space8) {
             Text(day.formatted(.dateTime.weekday(.abbreviated).day()))
                 .font(.caption)
                 .fontWeight(.semibold)
@@ -520,10 +520,10 @@ struct TimeHubView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(8)
+        .padding(FacioLayout.space8)
         .frame(maxWidth: .infinity, minHeight: 230, alignment: .topLeading)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.55))
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+        .background(Color.surfaceRow)
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
         .onTapGesture {
             anchorDate = day
             periodMode = .day
@@ -533,33 +533,33 @@ struct TimeHubView: View {
 
     private func monthDayCell(day: Date, contexts: [TimeHubEntryContext], now: Date) -> some View {
         let stats = TimeHubAggregationService.stats(for: contexts, now: now)
-        return VStack(alignment: .leading, spacing: 5) {
+        return VStack(alignment: .leading, spacing: FacioLayout.space6) {
             Text(day.formatted(.dateTime.day()))
                 .font(.caption)
                 .fontWeight(.semibold)
             if stats.totalSeconds > 0 {
                 Text(formatDuration(stats.totalSeconds))
                     .font(.caption2.monospacedDigit())
-                HStack(spacing: 3) {
+                HStack(spacing: FacioLayout.space2) {
                     ForEach(contexts.prefix(3)) { context in
                         Circle()
-                            .fill(context.entry.isBillable ? Color.green : Color.secondary)
+                            .fill(context.entry.isBillable ? Color.intentSuccess : Color.secondary)
                             .frame(width: 5, height: 5)
                     }
                     if stats.uninvoicedSeconds > 0 {
                         Image(systemName: "tray.full")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color.intentWarning)
                     }
                 }
             } else {
                 Spacer(minLength: 0)
             }
         }
-        .padding(8)
+        .padding(FacioLayout.space8)
         .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.55))
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+        .background(Color.surfaceRow)
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
         .onTapGesture {
             anchorDate = day
             periodMode = .day
@@ -568,7 +568,7 @@ struct TimeHubView: View {
     }
 
     private func calendarBlock(_ context: TimeHubEntryContext, now: Date) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: FacioLayout.space2) {
             Text(context.entry.notes.isEmpty ? TimeHubAggregationService.taskTitle(for: context.entry) : context.entry.notes)
                 .font(.caption2)
                 .fontWeight(.medium)
@@ -577,10 +577,10 @@ struct TimeHubView: View {
                 .font(.caption2.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
-        .padding(6)
+        .padding(FacioLayout.space6)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background((context.entry.isBillable ? Color.green : Color.secondary).opacity(0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .background((context.entry.isBillable ? Color.intentSuccess : Color.secondary).opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusField))
         .onTapGesture {
             editingEntryId = context.entry.id
             selectedSection = .log
@@ -590,17 +590,16 @@ struct TimeHubView: View {
     private func log(contexts: [TimeHubEntryContext], now: Date) -> some View {
         let groups = TimeHubAggregationService.dayGroups(for: contexts, now: now)
         return SectionPanel(L10n.timeHubLog(lang), systemImage: "list.bullet.rectangle") {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: FacioLayout.space16) {
                 if groups.isEmpty {
-                    ContentUnavailableView(
-                        L10n.noTimeEntriesForPeriod(lang),
-                        systemImage: "list.bullet.rectangle",
-                        description: Text("")
+                    FacioEmptyState(
+                        title: L10n.noTimeEntriesForPeriod(lang),
+                        systemImage: "list.bullet.rectangle"
                     )
                     .frame(maxWidth: .infinity, minHeight: 160)
                 } else {
                     ForEach(groups) { group in
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: FacioLayout.space8) {
                             HStack {
                                 Text(group.date.formattedDate(for: lang))
                                     .font(.headline)
@@ -612,11 +611,11 @@ struct TimeHubView: View {
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 if group.stats.uninvoicedSeconds > 0 {
-                                    statusBadge(L10n.notInvoiced(lang), color: .orange)
+                                    statusBadge(L10n.notInvoiced(lang), color: .intentWarning)
                                 }
                             }
                             ForEach(group.contexts) { context in
-                                VStack(spacing: 6) {
+                                VStack(spacing: FacioLayout.space6) {
                                     TimeHubEntryRow(
                                         context: context,
                                         now: now,
@@ -650,7 +649,7 @@ struct TimeHubView: View {
     @ViewBuilder
     private var undoBar: some View {
         if let deletedUndo {
-            HStack(spacing: 10) {
+            HStack(spacing: FacioLayout.space10) {
                 Label(L10n.entryDeleted(lang), systemImage: "trash")
                 Button(L10n.undo(lang)) {
                     dataStore.restoreTimeEntry(deletedUndo.context.entry, in: deletedUndo.context.timesheet)
@@ -659,15 +658,15 @@ struct TimeHubView: View {
                 Spacer()
             }
             .font(.subheadline)
-            .padding(10)
-            .background(Color.orange.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+            .padding(FacioLayout.space10)
+            .background(Color.intentWarning.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
         }
     }
 
     private func compactEntryRow(_ context: TimeHubEntryContext, now: Date) -> some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: FacioLayout.space10) {
+            VStack(alignment: .leading, spacing: FacioLayout.space2) {
                 Text(context.entry.notes.isEmpty ? TimeHubAggregationService.taskTitle(for: context.entry) : context.entry.notes)
                     .font(.subheadline)
                     .fontWeight(.medium)
@@ -680,16 +679,16 @@ struct TimeHubView: View {
             Spacer()
             Text(formatDuration(context.durationSeconds(at: now)))
                 .font(.caption.monospacedDigit())
-            statusBadge(context.entry.isBillable ? L10n.billable(lang) : L10n.nonBillable(lang), color: context.entry.isBillable ? .green : .secondary)
+            statusBadge(context.entry.isBillable ? L10n.billable(lang) : L10n.nonBillable(lang), color: context.entry.isBillable ? .intentSuccess : .secondary)
         }
-        .padding(8)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.55))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .padding(FacioLayout.space8)
+        .background(Color.surfaceRow)
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusRow))
     }
 
     private func metricGroupRow(title: String, subtitle: String, stats: TimeHubStats) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: FacioLayout.space12) {
+            VStack(alignment: .leading, spacing: FacioLayout.space2) {
                 Text(title.isEmpty ? L10n.noClient(lang) : title)
                     .font(.subheadline)
                     .fontWeight(.medium)
@@ -700,7 +699,7 @@ struct TimeHubView: View {
                     .lineLimit(1)
             }
             Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: FacioLayout.space2) {
                 Text(formatDuration(stats.totalSeconds))
                     .font(.subheadline.monospacedDigit())
                     .fontWeight(.semibold)
@@ -709,16 +708,16 @@ struct TimeHubView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(8)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.55))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .padding(FacioLayout.space8)
+        .background(Color.surfaceRow)
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusRow))
     }
 
     private func emptyText(_ value: String) -> some View {
         Text(value)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 10)
+            .padding(.vertical, FacioLayout.space10)
     }
 
     private func contextsForDay(_ day: Date, in contexts: [TimeHubEntryContext]) -> [TimeHubEntryContext] {
@@ -790,11 +789,11 @@ struct TimeHubView: View {
     private func statusBadge(_ text: String, color: Color) -> some View {
         Text(text)
             .font(.caption2)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
+            .padding(.horizontal, FacioLayout.space6)
+            .padding(.vertical, FacioLayout.space4)
             .background(color.opacity(0.12))
             .foregroundStyle(color)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusBadge))
     }
 }
 
@@ -810,28 +809,28 @@ private struct TimeHubEntryRow: View {
     let onInvoice: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: FacioLayout.space12) {
             Image(systemName: context.entry.isRunning ? "timer" : "clock")
-                .foregroundStyle(context.entry.isRunning ? .green : .secondary)
+                .foregroundStyle(context.entry.isRunning ? Color.intentSuccess : .secondary)
                 .frame(width: 22)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: FacioLayout.space4) {
                 Text(title)
                     .font(.subheadline)
                     .fontWeight(.medium)
                 Text([context.clientName, context.entry.displayProject, context.entry.displayTask].filter { !$0.isEmpty }.joined(separator: " / "))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                HStack(spacing: 6) {
-                    badge(context.entry.isBillable ? L10n.billable(lang) : L10n.nonBillable(lang), color: context.entry.isBillable ? .green : .secondary)
-                    badge(context.entry.isInvoiced ? L10n.invoiced(lang) : L10n.notInvoiced(lang), color: context.entry.isInvoiced ? .green : .orange)
+                HStack(spacing: FacioLayout.space6) {
+                    badge(context.entry.isBillable ? L10n.billable(lang) : L10n.nonBillable(lang), color: context.entry.isBillable ? .intentSuccess : .secondary)
+                    badge(context.entry.isInvoiced ? L10n.invoiced(lang) : L10n.notInvoiced(lang), color: context.entry.isInvoiced ? .intentSuccess : .intentWarning)
                     ForEach(context.entry.tags.prefix(3), id: \.self) { tag in
-                        badge(tag, color: .blue)
+                        badge(tag, color: .intentInfo)
                     }
                 }
             }
             Spacer()
-            VStack(alignment: .trailing, spacing: 3) {
-                Text(formatClock(context.durationSeconds(at: now)))
+            VStack(alignment: .trailing, spacing: FacioLayout.space2) {
+                Text(DurationFormatter.clock(context.durationSeconds(at: now)))
                     .font(.subheadline.monospacedDigit())
                     .fontWeight(.semibold)
                 if context.entry.isBillable {
@@ -840,32 +839,36 @@ private struct TimeHubEntryRow: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            HStack(spacing: 4) {
-                Button(action: onContinue) {
-                    Image(systemName: "play.fill").frame(width: 22, height: 22)
-                }
-                .disabled(context.entry.isRunning)
-                .help(L10n.continueTimer(lang))
-                Button(action: onEdit) {
-                    Image(systemName: "pencil").frame(width: 22, height: 22)
-                }
-                .help(L10n.editTimeEntry(lang))
-                Button(action: onInvoice) {
-                    Image(systemName: "doc.badge.plus").frame(width: 22, height: 22)
-                }
-                .disabled(!context.entry.isBillable || context.entry.isInvoiced || context.entry.isRunning)
-                .help(L10n.createInvoice(lang))
-                Button(role: .destructive, action: onDelete) {
-                    Image(systemName: "trash").frame(width: 22, height: 22)
-                }
-                .disabled(context.entry.isInvoiced)
-                .help(L10n.delete(lang))
+            HStack(spacing: FacioLayout.space4) {
+                FacioIconButton(
+                    systemImage: "play.fill",
+                    help: L10n.continueTimer(lang),
+                    isEnabled: !context.entry.isRunning,
+                    action: onContinue
+                )
+                FacioIconButton(
+                    systemImage: "pencil",
+                    help: L10n.editTimeEntry(lang),
+                    action: onEdit
+                )
+                FacioIconButton(
+                    systemImage: "doc.badge.plus",
+                    help: L10n.createInvoice(lang),
+                    isEnabled: context.entry.isBillable && !context.entry.isInvoiced && !context.entry.isRunning,
+                    action: onInvoice
+                )
+                FacioIconButton(
+                    systemImage: "trash",
+                    tone: .intentDanger,
+                    help: L10n.delete(lang),
+                    isEnabled: !context.entry.isInvoiced,
+                    action: onDelete
+                )
             }
-            .buttonStyle(.borderless)
         }
-        .padding(10)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.65))
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+        .padding(FacioLayout.space10)
+        .background(Color.surfaceTile)
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
     }
 
     private var title: String {
@@ -874,21 +877,14 @@ private struct TimeHubEntryRow: View {
         return task == "untitled" ? L10n.untitledTask(lang) : task
     }
 
-    private func formatClock(_ seconds: Int) -> String {
-        let hours = seconds / 3600
-        let minutes = (seconds % 3600) / 60
-        let seconds = seconds % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
-    }
-
     private func badge(_ text: String, color: Color) -> some View {
         Text(text)
             .font(.caption2)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
+            .padding(.horizontal, FacioLayout.space6)
+            .padding(.vertical, FacioLayout.space4)
             .background(color.opacity(0.12))
             .foregroundStyle(color)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusBadge))
     }
 }
 
@@ -921,8 +917,8 @@ private struct TimeHubEntryEditor: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: FacioLayout.space10) {
+            HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.timeEntryDescription(lang), text: $notes)
                     .textFieldStyle(.roundedBorder)
                 TextField(L10n.project(lang), text: $projectName)
@@ -930,7 +926,7 @@ private struct TimeHubEntryEditor: View {
                 TextField(L10n.task(lang), text: $taskName)
                     .textFieldStyle(.roundedBorder)
             }
-            HStack(spacing: 10) {
+            HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.tags(lang), text: $tagsText)
                     .textFieldStyle(.roundedBorder)
                 Toggle(L10n.billable(lang), isOn: $isBillable)
@@ -951,9 +947,9 @@ private struct TimeHubEntryEditor: View {
                     .buttonStyle(.borderedProminent)
             }
         }
-        .padding(10)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.7))
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.panelRadius))
+        .padding(FacioLayout.space10)
+        .background(Color.surfaceField)
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
     }
 
     private func save() {
@@ -1006,7 +1002,7 @@ private struct TimeHubManualEntrySheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: FacioLayout.space16) {
             HStack {
                 Label(L10n.timeHubAddManualEntry(lang), systemImage: "plus")
                     .font(.headline)
@@ -1053,7 +1049,7 @@ private struct TimeHubManualEntrySheet: View {
                     .disabled(selectedTimesheet == nil)
             }
         }
-        .padding(20)
+        .padding(FacioLayout.space20)
         .frame(width: 520)
         .onAppear {
             selectedTimesheetId = selectedTimesheet?.id

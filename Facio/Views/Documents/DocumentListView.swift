@@ -76,16 +76,16 @@ struct DocumentListView: View {
         }
         .overlay {
             if documents.isEmpty {
-                ContentUnavailableView(
-                    searchText.isEmpty
+                FacioEmptyState(
+                    title: searchText.isEmpty
                         ? L10n.noDocuments(lang, type: documentType.label(for: lang).lowercased())
                         : L10n.noSearchResults(lang),
                     systemImage: searchText.isEmpty
                         ? (documentType == .facture ? "doc.text" : "doc.text.magnifyingglass")
                         : "magnifyingglass",
-                    description: Text(searchText.isEmpty
+                    message: searchText.isEmpty
                         ? L10n.clickToCreate(lang, type: documentType.label(for: lang).lowercased())
-                        : L10n.noSearchResultsHint(lang))
+                        : L10n.noSearchResultsHint(lang)
                 )
             }
         }
@@ -113,24 +113,7 @@ struct DocumentListView: View {
     // MARK: - Actions
 
     private func creerDocument() {
-        let company = dataStore.companyInfo
-        let creationDate = Date()
-        let currency = company.deviseParDefaut
-        let number = DocumentNumberService.nextNumber(
-            type: documentType,
-            existingDocuments: allDocuments,
-            language: company.langueParDefaut
-        )
-        let document = Document(
-            type: documentType,
-            number: number,
-            dateCreation: creationDate,
-            dateEcheance: dueDate(from: creationDate),
-            currency: currency,
-            blockchain: defaultBlockchain(for: currency)
-        )
-        document.langue = company.langueParDefaut
-        dataStore.addDocument(document)
+        let document = dataStore.createDocument(type: documentType)
         selectedDocumentId = document.id
     }
 
@@ -163,24 +146,6 @@ struct DocumentListView: View {
         onOpenDocument(facture)
     }
 
-    private func dueDate(from creationDate: Date) -> Date {
-        Calendar.current.date(
-            byAdding: .day,
-            value: dataStore.companyInfo.delaiPaiementJours,
-            to: creationDate
-        ) ?? creationDate
-    }
-
-    private func defaultBlockchain(for currency: CurrencyType) -> Blockchain? {
-        guard currency.requiresBlockchain else { return nil }
-        let compatible = Blockchain.compatibleBlockchains(for: currency)
-        guard !compatible.isEmpty else { return nil }
-        if let defaultBlockchain = dataStore.companyInfo.blockchainParDefaut,
-           compatible.contains(defaultBlockchain) {
-            return defaultBlockchain
-        }
-        return compatible.first
-    }
 }
 
 // MARK: - Document Row
@@ -193,7 +158,7 @@ struct DocumentRowView: View {
     private var dateFormat: AppLanguage { dataStore.companyInfo.formatDate }
     private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
     private var rowTone: Color {
-        document.isOverdue ? .red : Color.statusColor(for: document.status)
+        document.isOverdue ? Color.intentDanger : Color.statusColor(for: document.status)
     }
 
     var body: some View {

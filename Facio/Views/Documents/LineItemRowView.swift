@@ -27,7 +27,7 @@ struct LineItemRowView: View {
 
     var body: some View {
         if let currentLigne = ligne {
-            HStack(spacing: 8) {
+            HStack(spacing: FacioLayout.space8) {
                 // Designation
                 TextField(L10n.designationLabel(lang), text: Binding(
                     get: { document.lignes.first(where: { $0.id == ligneId })?.designation ?? "" },
@@ -49,7 +49,7 @@ struct LineItemRowView: View {
                     )
                 )
                 .format(numberFormat)
-                .frame(width: 80)
+                .frame(width: LineItemColumns.qty)
 
                 // Prix unitaire
                 DecimalField(
@@ -63,7 +63,7 @@ struct LineItemRowView: View {
                     maximumFractionDigits: document.currency.maximumFractionDigits
                 )
                 .format(numberFormat)
-                .frame(width: 110)
+                .frame(width: LineItemColumns.unitPrice)
 
                 // TVA
                 Picker(L10n.vatLabel(lang), selection: Binding(
@@ -77,12 +77,12 @@ struct LineItemRowView: View {
                     }
                 }
                 .labelsHidden()
-                .frame(width: 80)
+                .frame(width: LineItemColumns.vat)
 
                 // Total (lecture seule)
                 Text(document.currency.formatAccounting(currentLigne.totalLigne, lang: numberFormat))
                     .font(.body.monospacedDigit())
-                    .frame(width: 110, alignment: .trailing)
+                    .frame(width: LineItemColumns.totalHT, alignment: .trailing)
 
                 Menu {
                     Button {
@@ -106,16 +106,16 @@ struct LineItemRowView: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
-                        .frame(width: 32, height: 28)
+                        .frame(width: LineItemColumns.actions, height: FacioLayout.iconHitTarget)
                         .contentShape(Rectangle())
                 }
                 .menuStyle(.borderlessButton)
                 .help(L10n.businessActions(lang))
             }
-            .padding(.vertical, 2)
-            .padding(.horizontal, 4)
-            .background(rowNeedsAttention(currentLigne) ? Color.orange.opacity(0.08) : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .padding(.vertical, FacioLayout.space2)
+            .padding(.horizontal, FacioLayout.space4)
+            .background(rowNeedsAttention(currentLigne) ? Color.intentWarning.opacity(0.08) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusField))
         }
     }
 

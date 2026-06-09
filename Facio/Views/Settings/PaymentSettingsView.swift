@@ -10,13 +10,10 @@ struct PaymentSettingsView: View {
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: FacioLayout.space20) {
             // MARK: - Paiement Fiat
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.bankAccounts(lang), systemImage: "building.columns")
-                        .font(.headline)
-
+            SectionPanel(L10n.bankAccounts(lang), systemImage: "building.columns") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     if company.bankAccounts.isEmpty {
                         HStack {
                             Image(systemName: "info.circle")
@@ -24,7 +21,7 @@ struct PaymentSettingsView: View {
                             Text(L10n.noBankAccountConfiguredShort(lang))
                                 .foregroundStyle(.secondary)
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, FacioLayout.space4)
                     }
 
                     ForEach(company.bankAccounts) { account in
@@ -37,15 +34,11 @@ struct PaymentSettingsView: View {
                         Label(L10n.addBankAccount(lang), systemImage: "plus.circle")
                     }
                 }
-                .padding(12)
             }
 
             // MARK: - Wallets Crypto
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.cryptoWallets(lang), systemImage: "wallet.pass")
-                        .font(.headline)
-
+            SectionPanel(L10n.cryptoWallets(lang), systemImage: "wallet.pass") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     if company.wallets.isEmpty {
                         HStack {
                             Image(systemName: "info.circle")
@@ -53,7 +46,7 @@ struct PaymentSettingsView: View {
                             Text(L10n.noWalletConfiguredShort(lang))
                                 .foregroundStyle(.secondary)
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, FacioLayout.space4)
                     }
 
                     ForEach(company.wallets) { wallet in
@@ -66,12 +59,11 @@ struct PaymentSettingsView: View {
                         Label(L10n.addWallet(lang), systemImage: "plus.circle")
                     }
                 }
-                .padding(12)
             }
 
             Spacer()
         }
-        .padding(24)
+        .padding(FacioLayout.screenPadding)
     }
 
     private func addWallet() {
@@ -109,8 +101,8 @@ private struct BankAccountRow: View {
 
     var body: some View {
         if company.bankAccounts.contains(where: { $0.id == accountId }) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: FacioLayout.space10) {
+                HStack(spacing: FacioLayout.space12) {
                     TextField(L10n.bankAccountNamePlaceholder(lang), text: Binding(
                         get: { account?.label ?? "" },
                         set: { setAccountValue(\.label, to: $0) }
@@ -130,7 +122,7 @@ private struct BankAccountRow: View {
                         dataStore.companyUpdated()
                     } label: {
                         Image(systemName: "minus.circle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.intentDanger)
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
                     }
@@ -139,7 +131,7 @@ private struct BankAccountRow: View {
                     .accessibilityLabel(L10n.removeBankAccount(lang))
                 }
 
-                settingsRow(L10n.iban(lang)) {
+                LabeledField(L10n.iban(lang)) {
                     TextField(L10n.ibanPlaceholder(lang), text: Binding(
                         get: { account?.iban ?? "" },
                         set: { setAccountValue(\.iban, to: $0) }
@@ -148,8 +140,8 @@ private struct BankAccountRow: View {
                     .textFieldStyle(.roundedBorder)
                 }
 
-                HStack(spacing: 12) {
-                    settingsRow(L10n.bic(lang)) {
+                HStack(spacing: FacioLayout.space12) {
+                    LabeledField(L10n.bic(lang)) {
                         TextField(L10n.bicPlaceholder(lang), text: Binding(
                             get: { account?.bic ?? "" },
                             set: { setAccountValue(\.bic, to: $0) }
@@ -158,7 +150,7 @@ private struct BankAccountRow: View {
                         .textFieldStyle(.roundedBorder)
                     }
 
-                    settingsRow(L10n.accountHolderLabel(lang)) {
+                    LabeledField(L10n.accountHolderLabel(lang)) {
                         TextField(L10n.accountHolderPlaceholder(lang), text: Binding(
                             get: { account?.accountHolder ?? "" },
                             set: { setAccountValue(\.accountHolder, to: $0) }
@@ -168,18 +160,18 @@ private struct BankAccountRow: View {
                 }
 
                 if iban.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    HStack(spacing: 6) {
+                    HStack(spacing: FacioLayout.space6) {
                         Image(systemName: "exclamationmark.triangle")
                         Text(L10n.bankAccountIbanRequired(lang))
                     }
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.intentWarning)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .padding(10)
+            .padding(FacioLayout.space10)
             .background(.quaternary.opacity(0.3))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
         }
     }
 
@@ -191,14 +183,6 @@ private struct BankAccountRow: View {
         }
     }
 
-    private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            content()
-        }
-    }
 }
 
 /// Ligne wallet avec acces securise par ID (pas par index)
@@ -219,8 +203,8 @@ private struct WalletRow: View {
 
     var body: some View {
         if company.wallets.contains(where: { $0.id == walletId }) {
-            VStack(spacing: 8) {
-                HStack(spacing: 12) {
+            VStack(spacing: FacioLayout.space8) {
+                HStack(spacing: FacioLayout.space12) {
                     Picker(L10n.blockchain(lang), selection: Binding(
                         get: { company.wallets.first(where: { $0.id == walletId })?.blockchain ?? .solana },
                         set: { newVal in
@@ -249,7 +233,7 @@ private struct WalletRow: View {
                         dataStore.companyUpdated()
                     } label: {
                         Image(systemName: "minus.circle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.intentDanger)
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
                     }
@@ -267,18 +251,18 @@ private struct WalletRow: View {
                 .textFieldStyle(.roundedBorder)
 
                 if walletAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    HStack(spacing: 6) {
+                    HStack(spacing: FacioLayout.space6) {
                         Image(systemName: "exclamationmark.triangle")
                         Text(L10n.walletAddressRequired(lang))
                     }
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.intentWarning)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .padding(10)
+            .padding(FacioLayout.space10)
             .background(.quaternary.opacity(0.3))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
         }
     }
 }

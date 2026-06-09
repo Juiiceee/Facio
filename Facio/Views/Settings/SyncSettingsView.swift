@@ -19,13 +19,10 @@ struct SyncSettingsView: View {
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: FacioLayout.space20) {
             // MARK: - Toggle principal
-            GroupBox {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label(L10n.cloudSync(lang), systemImage: "icloud")
-                        .font(.headline)
-
+            SectionPanel(L10n.cloudSync(lang), systemImage: "icloud") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     Toggle(L10n.enableOnlineBackup(lang), isOn: $isEnabled)
                         .onChange(of: isEnabled) {
                             SyncConfig.isEnabled = isEnabled
@@ -37,45 +34,41 @@ struct SyncSettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                .padding(12)
             }
 
             // MARK: - Authentification
             if isEnabled {
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Label(L10n.account(lang), systemImage: "person.crop.circle")
-                            .font(.headline)
-
+                SectionPanel(L10n.account(lang), systemImage: "person.crop.circle") {
+                    VStack(alignment: .leading, spacing: FacioLayout.space16) {
                         if authService.isAuthenticated {
                             // Connected state
-                            HStack(spacing: 8) {
+                            HStack(spacing: FacioLayout.space8) {
                                 Circle()
-                                    .fill(.green)
+                                    .fill(Color.intentSuccess)
                                     .frame(width: 8, height: 8)
                                 Text(L10n.connected(lang, email: authService.userEmail))
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 Button(L10n.signOut(lang)) { authService.signOut() }
-                                    .foregroundStyle(.red)
+                                    .foregroundStyle(Color.intentDanger)
                                     .buttonStyle(.borderless)
                             }
                         } else if authService.awaitingOTP {
                             // Step 2: Enter OTP code
-                            HStack(spacing: 6) {
+                            HStack(spacing: FacioLayout.space6) {
                                 Image(systemName: "envelope.badge")
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(Color.intentInfo)
                                 Text(L10n.otpSent(lang, email: authService.pendingEmail))
                                     .font(.subheadline)
                             }
 
-                            settingsRow(L10n.verificationCode(lang)) {
+                            LabeledField(L10n.verificationCode(lang)) {
                                 TextField(L10n.otpCodePlaceholder(lang), text: $otpCode)
                                     .textFieldStyle(.roundedBorder)
                                     .frame(maxWidth: 200)
                             }
 
-                            HStack(spacing: 12) {
+                            HStack(spacing: FacioLayout.space12) {
                                 Button(L10n.verify(lang)) {
                                     Task {
                                         await authService.verifyOTP(code: otpCode)
@@ -114,7 +107,7 @@ struct SyncSettingsView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
 
-                            settingsRow(L10n.email(lang)) {
+                            LabeledField(L10n.email(lang)) {
                                 TextField(L10n.emailPlaceholder(lang), text: $email)
                                     .textFieldStyle(.roundedBorder)
                             }
@@ -137,17 +130,13 @@ struct SyncSettingsView: View {
                             InlineWarning(text: "\(L10n.authenticationError(lang)): \(error)", tone: .danger)
                         }
                     }
-                    .padding(12)
                 }
             }
 
             // MARK: - Statut sync
             if isEnabled && authService.isAuthenticated {
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Label(L10n.syncStatus(lang), systemImage: "antenna.radiowaves.left.and.right")
-                            .font(.headline)
-
+                SectionPanel(L10n.syncStatus(lang), systemImage: "antenna.radiowaves.left.and.right") {
+                    VStack(alignment: .leading, spacing: FacioLayout.space16) {
                         if syncService.isSyncing {
                             HStack {
                                 ProgressView().scaleEffect(0.7)
@@ -170,7 +159,7 @@ struct SyncSettingsView: View {
                             InlineWarning(text: "\(L10n.synchronizationError(lang)): \(error)", tone: .danger)
                         }
 
-                        HStack(spacing: 12) {
+                        HStack(spacing: FacioLayout.space12) {
                             Button(L10n.synchronize(lang)) {
                                 Task { await syncService.fullSync(dataStore: dataStore) }
                             }
@@ -188,17 +177,13 @@ struct SyncSettingsView: View {
                             .disabled(syncService.isSyncing)
                         }
                     }
-                    .padding(12)
                 }
             }
 
             // MARK: - Mode avance (DB custom)
             if isEnabled {
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Label(L10n.advanced(lang), systemImage: "wrench.and.screwdriver")
-                            .font(.headline)
-
+                SectionPanel(L10n.advanced(lang), systemImage: "wrench.and.screwdriver") {
+                    VStack(alignment: .leading, spacing: FacioLayout.space16) {
                         Toggle(L10n.useOwnSupabase(lang), isOn: $useCustomDB)
                             .onChange(of: useCustomDB) {
                                 SyncConfig.useCustomDB = useCustomDB
@@ -208,13 +193,13 @@ struct SyncSettingsView: View {
                             }
 
                         if useCustomDB {
-                            settingsRow(L10n.supabaseURL(lang)) {
+                            LabeledField(L10n.supabaseURL(lang)) {
                                 TextField(L10n.supabaseURLPlaceholder(lang), text: $customURL)
                                     .textFieldStyle(.roundedBorder)
                                     .onChange(of: customURL) { SyncConfig.customURL = customURL }
                             }
 
-                            settingsRow(L10n.apiKeyAnon(lang)) {
+                            LabeledField(L10n.apiKeyAnon(lang)) {
                                 HStack {
                                     if showApiKey {
                                         TextField(L10n.apiKeyPlaceholder(lang), text: $customAPIKey)
@@ -244,10 +229,10 @@ struct SyncSettingsView: View {
                                 Text(SyncService.sqlSchema)
                                     .font(.system(.caption2, design: .monospaced))
                                     .textSelection(.enabled)
-                                    .padding(8)
+                                    .padding(FacioLayout.space8)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Color.black.opacity(0.05))
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    .background(Color.surfaceField)
+                                    .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusField))
 
                                 Button(L10n.copySQL(lang)) {
                                     NSPasteboard.general.clearContents()
@@ -259,13 +244,12 @@ struct SyncSettingsView: View {
                             .foregroundStyle(.secondary)
                         }
                     }
-                    .padding(12)
                 }
             }
 
             Spacer()
         }
-        .padding(24)
+        .padding(FacioLayout.screenPadding)
         .onAppear(perform: updateServiceLanguages)
         .onChange(of: lang) { _, _ in updateServiceLanguages() }
     }
@@ -275,12 +259,4 @@ struct SyncSettingsView: View {
         syncService.language = lang
     }
 
-    private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            content()
-        }
-    }
 }

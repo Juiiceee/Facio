@@ -155,7 +155,7 @@ struct DocumentEditorView: View {
     }
 
     private var heroHorizontal: some View {
-        HStack(alignment: .center, spacing: 18) {
+        HStack(alignment: .center, spacing: FacioLayout.space16) {
             heroIdentity
 
             Spacer()
@@ -166,10 +166,10 @@ struct DocumentEditorView: View {
     }
 
     private var heroCompact: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: FacioLayout.space12) {
             heroIdentity
 
-            HStack(alignment: .bottom, spacing: 16) {
+            HStack(alignment: .bottom, spacing: FacioLayout.space16) {
                 heroTotal
                 Spacer()
                 heroActions
@@ -178,8 +178,8 @@ struct DocumentEditorView: View {
     }
 
     private var heroIdentity: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: FacioLayout.space8) {
+            HStack(spacing: FacioLayout.space8) {
                 Text(document.type.label(for: lang))
                     .font(.subheadline)
                     .fontWeight(.semibold)
@@ -204,7 +204,7 @@ struct DocumentEditorView: View {
     }
 
     private var heroTotal: some View {
-        VStack(alignment: .trailing, spacing: 4) {
+        VStack(alignment: .trailing, spacing: FacioLayout.space4) {
             Text(L10n.totalTTC(lang))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -218,7 +218,7 @@ struct DocumentEditorView: View {
     }
 
     private var heroActions: some View {
-        VStack(alignment: .trailing, spacing: 8) {
+        VStack(alignment: .trailing, spacing: FacioLayout.space8) {
             Button {
                 showPreview = true
             } label: {
@@ -237,17 +237,17 @@ struct DocumentEditorView: View {
 
     private var documentDetailsSection: some View {
         SectionPanel(L10n.documentDetails(lang), systemImage: "slider.horizontal.3") {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: FacioLayout.space16) {
                 enTeteSection
                 ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .top, spacing: 16) {
+                    HStack(alignment: .top, spacing: FacioLayout.space16) {
                         datesSection
                             .frame(maxWidth: .infinity, alignment: .topLeading)
                         deviseSection
                             .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
 
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: FacioLayout.space16) {
                         datesSection
                         deviseSection
                     }
@@ -273,7 +273,7 @@ struct DocumentEditorView: View {
     private var documentReadinessSection: some View {
         if hasReadinessIssues {
             SectionPanel(L10n.documentReadiness(lang), systemImage: "exclamationmark.triangle") {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: FacioLayout.space10) {
                     if !clientIsReady {
                         ChecklistRow(
                             title: L10n.clientReady(lang),
@@ -380,94 +380,100 @@ struct DocumentEditorView: View {
     // MARK: - En-tete
 
     private var enTeteSection: some View {
-        GroupBox(L10n.headerSection(lang)) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L10n.type(lang))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Text(document.type.label(for: lang))
-                            .font(.headline)
-                            .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
-                    }
+        VStack(alignment: .leading, spacing: FacioLayout.space12) {
+            subsectionHeader(L10n.headerSection(lang))
+            HStack(spacing: FacioLayout.space16) {
+                VStack(alignment: .leading, spacing: FacioLayout.space4) {
+                    Text(L10n.type(lang))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text(document.type.label(for: lang))
+                        .font(.headline)
+                        .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
+                }
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L10n.number(lang))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        TextField(L10n.number(lang), text: Binding(
-                            get: { document.number },
-                            set: { document.number = $0; scheduleSave() }
-                        ))
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 250)
-                    }
+                VStack(alignment: .leading, spacing: FacioLayout.space4) {
+                    Text(L10n.number(lang))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    TextField(L10n.number(lang), text: Binding(
+                        get: { document.number },
+                        set: { document.number = $0; scheduleSave() }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 250)
+                }
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L10n.language(lang))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Picker("", selection: Binding(
-                            get: { document.langue },
-                            set: { newLang in
-                                document.langue = newLang
-                                saveDocument()
+                VStack(alignment: .leading, spacing: FacioLayout.space4) {
+                    Text(L10n.language(lang))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Picker("", selection: Binding(
+                        get: { document.langue },
+                        set: { newLang in
+                            document.langue = newLang
+                            saveDocument()
+                        }
+                    )) {
+                        ForEach(AppLanguage.allCases) { l in
+                            Text(l.label).tag(l)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(maxWidth: 120)
+                }
+
+                Spacer()
+
+                VStack(alignment: .leading, spacing: FacioLayout.space4) {
+                    Text(L10n.status(lang))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Picker(L10n.status(lang), selection: Binding(
+                        get: { document.status },
+                        set: { newStatus in
+                            document.status = newStatus
+                            if newStatus == .envoyee {
+                                _ = document.freezePaymentSnapshot(from: company)
                             }
-                        )) {
-                            ForEach(AppLanguage.allCases) { l in
-                                Text(l.label).tag(l)
+                            prepareAccountingConversionIfNeeded()
+                            saveDocument()
+                            if newStatus == .payee && document.currency.isCrypto
+                                && document.transactionSignatures.isEmpty {
+                                presentAddSignatureSheet()
                             }
                         }
-                        .labelsHidden()
-                        .frame(maxWidth: 120)
-                    }
-
-                    Spacer()
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L10n.status(lang))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Picker(L10n.status(lang), selection: Binding(
-                            get: { document.status },
-                            set: { newStatus in
-                                document.status = newStatus
-                                if newStatus == .envoyee {
-                                    _ = document.freezePaymentSnapshot(from: company)
-                                }
-                                prepareAccountingConversionIfNeeded()
-                                saveDocument()
-                                if newStatus == .payee && document.currency.isCrypto
-                                    && document.transactionSignatures.isEmpty {
-                                    presentAddSignatureSheet()
-                                }
+                    )) {
+                        ForEach(DocumentStatus.allCases) { status in
+                            HStack(spacing: FacioLayout.space6) {
+                                Circle()
+                                    .fill(Color.statusColor(for: status))
+                                    .frame(width: 8, height: 8)
+                                Text(status.label(for: lang))
                             }
-                        )) {
-                            ForEach(DocumentStatus.allCases) { status in
-                                HStack(spacing: 6) {
-                                    Circle()
-                                        .fill(Color.statusColor(for: status))
-                                        .frame(width: 8, height: 8)
-                                    Text(status.label(for: lang))
-                                }
-                                .tag(status)
-                            }
+                            .tag(status)
                         }
-                        .labelsHidden()
-                        .frame(maxWidth: 160)
                     }
+                    .labelsHidden()
+                    .frame(maxWidth: 160)
                 }
             }
-            .padding(8)
         }
+    }
+
+    /// En-tête d'une sous-section à l'intérieur d'un `SectionPanel` aplati.
+    private func subsectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
     }
 
     // MARK: - Dates
 
     private var datesSection: some View {
-        GroupBox(L10n.datesSection(lang)) {
-            HStack(spacing: 24) {
+        VStack(alignment: .leading, spacing: FacioLayout.space12) {
+            subsectionHeader(L10n.datesSection(lang))
+            HStack(spacing: FacioLayout.space24) {
                 DatePicker(L10n.creationDate(lang), selection: Binding(
                     get: { document.dateCreation },
                     set: { document.dateCreation = $0; saveDocument() }
@@ -477,53 +483,50 @@ struct DocumentEditorView: View {
                     set: { document.dateEcheance = $0; saveDocument() }
                 ), displayedComponents: .date)
             }
-            .padding(8)
         }
     }
 
     // MARK: - Devise & Mode de paiement
 
     private var deviseSection: some View {
-        GroupBox(L10n.currencyPayment(lang)) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 24) {
-                    CurrencyPicker(selection: Binding(
-                        get: { document.currency },
-                        set: {
-                            document.currency = $0
-                            prepareAccountingConversionIfNeeded()
-                            saveDocument()
-                        }
-                    ))
-
-                    Picker(L10n.payment(lang), selection: Binding(
-                        get: { document.paymentMode },
-                        set: { document.paymentMode = $0; saveDocument() }
-                    )) {
-                        ForEach(availablePaymentModes) { mode in
-                            Text(mode.label(for: lang)).tag(mode)
-                        }
+        VStack(alignment: .leading, spacing: FacioLayout.space12) {
+            subsectionHeader(L10n.currencyPayment(lang))
+            HStack(spacing: FacioLayout.space24) {
+                CurrencyPicker(selection: Binding(
+                    get: { document.currency },
+                    set: {
+                        document.currency = $0
+                        prepareAccountingConversionIfNeeded()
+                        saveDocument()
                     }
-                    .frame(maxWidth: 150)
+                ))
+
+                Picker(L10n.payment(lang), selection: Binding(
+                    get: { document.paymentMode },
+                    set: { document.paymentMode = $0; saveDocument() }
+                )) {
+                    ForEach(availablePaymentModes) { mode in
+                        Text(mode.label(for: lang)).tag(mode)
+                    }
                 }
+                .frame(maxWidth: 150)
+            }
 
-                if document.paymentMode == .crypto {
-                    HStack(spacing: 16) {
-                        let compatibles = Blockchain.compatibleBlockchains(for: document.currency)
-                        Picker(L10n.blockchain(lang), selection: Binding(
-                            get: { document.blockchain },
-                            set: { document.blockchain = $0; saveDocument() }
-                        )) {
-                            Text(L10n.blockchainNone(lang)).tag(Blockchain?.none)
-                            ForEach(compatibles) { chain in
-                                Text(chain.label).tag(Blockchain?.some(chain))
-                            }
+            if document.paymentMode == .crypto {
+                HStack(spacing: FacioLayout.space16) {
+                    let compatibles = Blockchain.compatibleBlockchains(for: document.currency)
+                    Picker(L10n.blockchain(lang), selection: Binding(
+                        get: { document.blockchain },
+                        set: { document.blockchain = $0; saveDocument() }
+                    )) {
+                        Text(L10n.blockchainNone(lang)).tag(Blockchain?.none)
+                        ForEach(compatibles) { chain in
+                            Text(chain.label).tag(Blockchain?.some(chain))
                         }
-                        .frame(maxWidth: 200)
                     }
+                    .frame(maxWidth: 200)
                 }
             }
-            .padding(8)
         }
     }
 
@@ -531,72 +534,70 @@ struct DocumentEditorView: View {
     private var accountingConversionSection: some View {
         let referenceCurrency = company.deviseComptable
         if document.type == .facture && document.needsAccountingConversion(referenceCurrency: referenceCurrency) {
-            GroupBox(L10n.accountingConversion(lang)) {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 24) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(L10n.accountingCurrency(lang))
-                                .font(.subheadline)
+            VStack(alignment: .leading, spacing: FacioLayout.space12) {
+                subsectionHeader(L10n.accountingConversion(lang))
+                HStack(spacing: FacioLayout.space24) {
+                    VStack(alignment: .leading, spacing: FacioLayout.space4) {
+                        Text(L10n.accountingCurrency(lang))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Text(referenceCurrency.label)
+                            .font(.headline)
+                    }
+
+                    VStack(alignment: .leading, spacing: FacioLayout.space4) {
+                        Text(L10n.exchangeRate(lang))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        HStack(spacing: FacioLayout.space8) {
+                            Text(L10n.exchangeRatePrefix(lang, source: document.currency.label))
                                 .foregroundStyle(.secondary)
+                            DecimalField(
+                                placeholder: L10n.exchangeRateHint(
+                                    lang,
+                                    source: document.currency.label,
+                                    target: referenceCurrency.label
+                                ),
+                                value: Binding(
+                                    get: {
+                                        document.accountingCurrency == referenceCurrency
+                                            ? document.accountingExchangeRate ?? 0
+                                            : 0
+                                    },
+                                    set: { newValue in
+                                        document.setAccountingExchangeRate(
+                                            newValue > 0 ? newValue : nil,
+                                            referenceCurrency: referenceCurrency
+                                        )
+                                        saveDocument()
+                                    }
+                                ),
+                                maximumFractionDigits: 8
+                            )
+                            .frame(maxWidth: 140)
                             Text(referenceCurrency.label)
-                                .font(.headline)
+                                .foregroundStyle(.secondary)
                         }
+                    }
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(L10n.exchangeRate(lang))
+                    if let total = document.accountingTotal(referenceCurrency: referenceCurrency) {
+                        VStack(alignment: .leading, spacing: FacioLayout.space4) {
+                            Text(L10n.accountingTotal(lang))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                            HStack(spacing: 8) {
-                                Text(L10n.exchangeRatePrefix(lang, source: document.currency.label))
-                                    .foregroundStyle(.secondary)
-                                DecimalField(
-                                    placeholder: L10n.exchangeRateHint(
-                                        lang,
-                                        source: document.currency.label,
-                                        target: referenceCurrency.label
-                                    ),
-                                    value: Binding(
-                                        get: {
-                                            document.accountingCurrency == referenceCurrency
-                                                ? document.accountingExchangeRate ?? 0
-                                                : 0
-                                        },
-                                        set: { newValue in
-                                            document.setAccountingExchangeRate(
-                                                newValue > 0 ? newValue : nil,
-                                                referenceCurrency: referenceCurrency
-                                            )
-                                            saveDocument()
-                                        }
-                                    ),
-                                    maximumFractionDigits: 8
-                                )
-                                .frame(maxWidth: 140)
-                                Text(referenceCurrency.label)
-                                    .foregroundStyle(.secondary)
-                            }
+                            Text(referenceCurrency.formatAccounting(total, lang: dataStore.companyInfo.formatNombre))
+                                .font(.headline.monospacedDigit())
                         }
-
-                        if let total = document.accountingTotal(referenceCurrency: referenceCurrency) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(L10n.accountingTotal(lang))
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                Text(referenceCurrency.formatAccounting(total, lang: dataStore.companyInfo.formatNombre))
-                                    .font(.headline.monospacedDigit())
-                            }
-                        }
-
-                        Spacer()
                     }
 
-                    if document.accountingTotal(referenceCurrency: referenceCurrency) == nil {
-                        Text(L10n.exchangeRateRequiredForDashboard(lang))
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
+                    Spacer()
                 }
-                .padding(8)
+
+                if document.accountingTotal(referenceCurrency: referenceCurrency) == nil {
+                    Text(L10n.exchangeRateRequiredForDashboard(lang))
+                        .font(.caption)
+                        .foregroundStyle(Color.intentWarning)
+                }
             }
         }
     }
@@ -604,8 +605,8 @@ struct DocumentEditorView: View {
     // MARK: - Client (Destinataire)
 
     private var clientSection: some View {
-        GroupBox(L10n.recipientSection(lang)) {
-            VStack(alignment: .leading, spacing: 12) {
+        SectionPanel(L10n.recipientSection(lang), systemImage: "person.text.rectangle") {
+            VStack(alignment: .leading, spacing: FacioLayout.space12) {
                 HStack {
                     Text(L10n.clientInfo(lang))
                         .font(.subheadline)
@@ -620,13 +621,12 @@ struct DocumentEditorView: View {
 
                 clientFields
             }
-            .padding(8)
         }
     }
 
     private var clientFields: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: FacioLayout.space12) {
+            VStack(alignment: .leading, spacing: FacioLayout.space4) {
                 Text(L10n.name(lang))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -637,7 +637,7 @@ struct DocumentEditorView: View {
                 .textFieldStyle(.roundedBorder)
             }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: FacioLayout.space4) {
                 Text(L10n.address(lang))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -648,8 +648,8 @@ struct DocumentEditorView: View {
                 .textFieldStyle(.roundedBorder)
             }
 
-            HStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: FacioLayout.space16) {
+                VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(L10n.postalCode(lang))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -661,7 +661,7 @@ struct DocumentEditorView: View {
                     .frame(maxWidth: 120)
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(L10n.city(lang))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -673,8 +673,8 @@ struct DocumentEditorView: View {
                 }
             }
 
-            HStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: FacioLayout.space16) {
+                VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(L10n.siret(lang))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -685,7 +685,7 @@ struct DocumentEditorView: View {
                     .textFieldStyle(.roundedBorder)
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(L10n.vatNumber(lang))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -696,7 +696,7 @@ struct DocumentEditorView: View {
                     .textFieldStyle(.roundedBorder)
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(L10n.apeCode(lang))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -719,14 +719,14 @@ struct DocumentEditorView: View {
     // MARK: - Notes
 
     private var notesSection: some View {
-        GroupBox(L10n.notes(lang)) {
+        SectionPanel(L10n.notes(lang), systemImage: "note.text") {
             TextEditor(text: Binding(
                 get: { document.notes },
                 set: { document.notes = $0; scheduleSave() }
             ))
             .frame(minHeight: 60, maxHeight: 120)
             .font(.body)
-            .padding(4)
+            .padding(FacioLayout.space4)
         }
     }
 
