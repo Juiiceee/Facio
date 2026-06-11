@@ -11,7 +11,7 @@ struct DocumentAttachmentsSection: View {
     @Environment(DataStore.self) private var dataStore
 
     @State private var isDropTargeted = false
-    @State private var importError: String?
+    @State private var failedImportCount = 0
 
     var body: some View {
         SectionPanel(L10n.attachmentsSection(lang), systemImage: "paperclip") {
@@ -40,8 +40,8 @@ struct DocumentAttachmentsSection: View {
 
                 dropZone
 
-                if let importError {
-                    InlineWarning(text: importError, tone: .danger)
+                if failedImportCount > 0 {
+                    InlineWarning(text: L10n.attachmentImportFailedCount(lang, count: failedImportCount), tone: .danger)
                 }
 
                 Button {
@@ -90,14 +90,14 @@ struct DocumentAttachmentsSection: View {
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         guard panel.runModal() == .OK else { return }
-        importError = nil
+        failedImportCount = 0
         for url in panel.urls where dataStore.importAttachment(from: url, to: document) == nil {
-            importError = L10n.attachmentImportFailed(lang)
+            failedImportCount += 1
         }
     }
 
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
-        importError = nil
+        failedImportCount = 0
         var handledAny = false
         for provider in providers where provider.hasItemConformingToTypeIdentifier("public.file-url") {
             handledAny = true
@@ -106,11 +106,11 @@ struct DocumentAttachmentsSection: View {
                       let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
                 DispatchQueue.main.async {
                     guard Self.allowedExtensions.contains(url.pathExtension.lowercased()) else {
-                        importError = L10n.attachmentImportFailed(lang)
+                        failedImportCount += 1
                         return
                     }
                     if dataStore.importAttachment(from: url, to: document) == nil {
-                        importError = L10n.attachmentImportFailed(lang)
+                        failedImportCount += 1
                     }
                 }
             }
@@ -169,7 +169,7 @@ private struct AttachmentRowView: View {
         .padding(.vertical, FacioLayout.space4)
         .onAppear { labelText = attachment.label }
         .onChange(of: attachment.label) { _, newValue in
-            if !labelFocused { labelText = newValue }
+            if !labelFocused && labelText != newValue { labelText = newValue }
         }
     }
 

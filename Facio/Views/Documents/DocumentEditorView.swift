@@ -10,6 +10,8 @@ struct DocumentEditorView: View {
     @State private var showAddSignature = false
     @State private var showPDFGenerationAlert = false
     @State private var showPDFExportAlert = false
+    @State private var attachmentCopyFailures = 0
+    @State private var showAttachmentCopyAlert = false
     @State private var showEmailUnavailableAlert = false
     @State private var signatureCountBeforeSheet = 0
 
@@ -111,6 +113,11 @@ struct DocumentEditorView: View {
             Button(L10n.understood(lang), role: .cancel) {}
         } message: {
             Text(L10n.emailUnavailableMessage(lang))
+        }
+        .alert(L10n.attachmentsCopyFailedTitle(lang), isPresented: $showAttachmentCopyAlert) {
+            Button(L10n.understood(lang), role: .cancel) {}
+        } message: {
+            Text(L10n.attachmentsCopyFailedMessage(lang, count: attachmentCopyFailures))
         }
     }
 
@@ -754,7 +761,7 @@ struct DocumentEditorView: View {
             language: lang
         )
         dataStore.addDocument(copie)
-        dataStore.duplicateAttachments(from: document, to: copie)
+        reportCopyFailures(dataStore.duplicateAttachments(from: document, to: copie))
     }
 
     private func convertirEnFacture() {
@@ -765,7 +772,13 @@ struct DocumentEditorView: View {
             language: lang
         )
         dataStore.addDocument(facture)
-        dataStore.duplicateAttachments(from: document, to: facture)
+        reportCopyFailures(dataStore.duplicateAttachments(from: document, to: facture))
+    }
+
+    private func reportCopyFailures(_ result: (copied: Int, failed: Int)) {
+        guard result.failed > 0 else { return }
+        attachmentCopyFailures = result.failed
+        showAttachmentCopyAlert = true
     }
 
     private func exporterPDF() {
