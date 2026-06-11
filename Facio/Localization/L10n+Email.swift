@@ -13,8 +13,30 @@ extension L10n {
     static func dropAttachmentHere(_ l: AppLanguage) -> String { l == .fr ? "Déposez vos fichiers ici" : "Drop your files here" }
     static func attachmentLabelPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Libellé (ex. Train Nancy⇄Paris)" : "Label (e.g. Train Nancy⇄Paris)" }
     static func openAttachment(_ l: AppLanguage) -> String { l == .fr ? "Ouvrir" : "Open" }
-    static func attachmentImportFailed(_ l: AppLanguage) -> String {
-        l == .fr ? "Impossible d'importer ce fichier." : "Could not import this file."
+    static func attachmentImportFailedCount(_ l: AppLanguage, count: Int) -> String {
+        if l == .fr {
+            return count == 1
+                ? "Impossible d'importer ce fichier."
+                : "Impossible d'importer \(count) fichiers."
+        }
+        return count == 1
+            ? "Could not import this file."
+            : "Could not import \(count) files."
+    }
+
+    // Échec de copie des justificatifs lors d'une duplication / conversion
+    static func attachmentsCopyFailedTitle(_ l: AppLanguage) -> String {
+        l == .fr ? "Justificatifs non copiés" : "Supporting documents not copied"
+    }
+    static func attachmentsCopyFailedMessage(_ l: AppLanguage, count: Int) -> String {
+        if l == .fr {
+            return count == 1
+                ? "1 justificatif n'a pas pu être copié vers le nouveau document (fichier introuvable ou copie impossible)."
+                : "\(count) justificatifs n'ont pas pu être copiés vers le nouveau document (fichiers introuvables ou copie impossible)."
+        }
+        return count == 1
+            ? "1 supporting document could not be copied to the new document (missing file or copy failure)."
+            : "\(count) supporting documents could not be copied to the new document (missing files or copy failure)."
     }
 
     // Envoi par email

@@ -8,6 +8,8 @@ struct DocumentListView: View {
     @Environment(DataStore.self) private var dataStore
     @State private var searchText = ""
     @State private var documentPendingDeletion: Document?
+    @State private var attachmentCopyFailures = 0
+    @State private var showAttachmentCopyAlert = false
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -108,6 +110,11 @@ struct DocumentListView: View {
                 number: documentPendingDeletion?.number ?? ""
             ))
         }
+        .alert(L10n.attachmentsCopyFailedTitle(lang), isPresented: $showAttachmentCopyAlert) {
+            Button(L10n.understood(lang), role: .cancel) {}
+        } message: {
+            Text(L10n.attachmentsCopyFailedMessage(lang, count: attachmentCopyFailures))
+        }
     }
 
     // MARK: - Actions
@@ -132,7 +139,7 @@ struct DocumentListView: View {
             language: lang
         )
         dataStore.addDocument(copie)
-        dataStore.duplicateAttachments(from: document, to: copie)
+        reportCopyFailures(dataStore.duplicateAttachments(from: document, to: copie))
         selectedDocumentId = copie.id
     }
 
@@ -144,8 +151,14 @@ struct DocumentListView: View {
             language: lang
         )
         dataStore.addDocument(facture)
-        dataStore.duplicateAttachments(from: document, to: facture)
+        reportCopyFailures(dataStore.duplicateAttachments(from: document, to: facture))
         onOpenDocument(facture)
+    }
+
+    private func reportCopyFailures(_ result: (copied: Int, failed: Int)) {
+        guard result.failed > 0 else { return }
+        attachmentCopyFailures = result.failed
+        showAttachmentCopyAlert = true
     }
 
 }

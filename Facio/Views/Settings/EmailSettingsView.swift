@@ -5,6 +5,7 @@ import SwiftUI
 struct EmailSettingsView: View {
     @Environment(DataStore.self) private var dataStore
     @State private var templateLang: AppLanguage = .fr
+    @State private var hasInitializedTemplateLang = false
 
     private var company: CompanyInfo { dataStore.companyInfo }
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
@@ -55,7 +56,13 @@ struct EmailSettingsView: View {
             Spacer()
         }
         .padding(FacioLayout.screenPadding)
-        .onAppear { templateLang = dataStore.companyInfo.langueParDefaut }
+        .onAppear {
+            // Seule la première apparition initialise la langue : un onAppear
+            // ultérieur ne doit pas écraser la sélection en cours de l'utilisateur.
+            guard !hasInitializedTemplateLang else { return }
+            hasInitializedTemplateLang = true
+            templateLang = dataStore.companyInfo.langueParDefaut
+        }
     }
 
     // Le champ affiche le modèle par défaut tant qu'il n'est pas personnalisé.

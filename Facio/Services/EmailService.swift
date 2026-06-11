@@ -59,8 +59,10 @@ enum EmailService {
             return .unavailable
         }
 
+        // Re-vérifie l'existence au dernier moment : un justificatif peut avoir
+        // été supprimé entre la construction des URLs et l'ouverture du composer.
         var items: [Any] = [body, pdfURL]
-        items.append(contentsOf: attachmentURLs)
+        items.append(contentsOf: attachmentURLs.filter { FileManager.default.fileExists(atPath: $0.path) })
 
         guard let service = NSSharingService(named: .composeEmail),
               service.canPerform(withItems: items) else {
@@ -76,13 +78,13 @@ enum EmailService {
 
         // Nettoyage différé : le composer lit le fichier de façon asynchrone,
         // on ne peut donc pas le supprimer immédiatement après perform().
-        DispatchQueue.main.asyncAfter(deadline: .now() + 300) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 90) {
             try? FileManager.default.removeItem(at: tempDir)
         }
         return .composed
     }
 
-    private static func safeFilename(_ base: String) -> String {
+    static func safeFilename(_ base: String) -> String {
         let cleaned = base.unicodeScalars.map { scalar -> Character in
             if CharacterSet.alphanumerics.contains(scalar)
                 || CharacterSet(charactersIn: " ._-").contains(scalar) {

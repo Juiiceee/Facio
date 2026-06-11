@@ -511,15 +511,21 @@ final class DataStore: Sendable {
     }
 
     /// Copie les justificatifs d'un document vers un autre (nouveaux ids/fichiers).
-    /// Utilisé lors de la duplication d'un document.
-    func duplicateAttachments(from source: Document, to destination: Document) {
-        guard !source.attachments.isEmpty else { return }
+    /// Utilisé lors de la duplication d'un document. Retourne le nombre de copies
+    /// réussies et échouées (fichier source manquant ou copie impossible) pour
+    /// que l'appelant puisse signaler les pertes.
+    func duplicateAttachments(from source: Document, to destination: Document) -> (copied: Int, failed: Int) {
+        guard !source.attachments.isEmpty else { return (0, 0) }
         let destDir = attachmentsDirectory(for: destination.id)
         try? SecurePersistence.ensureStorageDirectory(at: destDir)
         var copied: [DocumentAttachment] = []
+        var failed = 0
         for attachment in source.attachments {
             let sourceFile = attachmentURL(attachment, in: source)
-            guard fileManager.fileExists(atPath: sourceFile.path) else { continue }
+            guard fileManager.fileExists(atPath: sourceFile.path) else {
+                failed += 1
+                continue
+            }
             var copy = attachment
             copy.id = UUID()
             let destFile = destDir.appendingPathComponent(copy.storedFilename)
@@ -528,11 +534,12 @@ final class DataStore: Sendable {
                 try? SecurePersistence.hardenFile(at: destFile)
                 copied.append(copy)
             } catch {
-                continue
+                failed += 1
             }
         }
         destination.attachments = copied
         saveDocuments()
+        return (copied.count, failed)
     }
 
     // MARK: - Client CRUD
