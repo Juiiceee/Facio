@@ -63,7 +63,7 @@ enum FacioLayout {
     static let contentColumnIdeal: CGFloat = 320
     static let contentColumnMax: CGFloat = 400
 
-    static let detailMin: CGFloat = 560
+    static let detailMin: CGFloat = 460
 
     static let inspectorMin: CGFloat = 260
     static let inspectorIdeal: CGFloat = 300
@@ -75,7 +75,7 @@ enum FacioLayout {
     /// Alias historique de `breakpointWide`.
     static let documentInspectorBreakpoint: CGFloat = breakpointWide
 
-    static let windowMinWidth: CGFloat = 1060
+    static let windowMinWidth: CGFloat = 960
     static let windowMinHeight: CGFloat = 640
     static let windowIdealWidth: CGFloat = 1280
     static let windowIdealHeight: CGFloat = 820
