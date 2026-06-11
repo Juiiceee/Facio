@@ -33,7 +33,9 @@ struct AddSignatureSheet: View {
             form
             actions
         }
-        .frame(minWidth: 500, minHeight: 300)
+        // Garde-fou minimal ; .form laisse la sheet suivre la taille de la fenêtre.
+        .frame(minWidth: FacioLayout.sheetMinWidth, minHeight: 300)
+        .presentationSizing(.form)
         .onAppear {
             selectedBlockchain = document.blockchain ?? compatibleBlockchains.first ?? .solana
             montant = document.totalTTC

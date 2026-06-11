@@ -90,69 +90,35 @@ struct TimeHubView: View {
     private func header(interval: DateInterval) -> some View {
         SectionPanel(nil) {
             VStack(alignment: .leading, spacing: FacioLayout.space16) {
-                HStack(alignment: .center, spacing: FacioLayout.space12) {
-                    VStack(alignment: .leading, spacing: FacioLayout.space2) {
-                        Label(L10n.sidebarPlanning(lang), systemImage: "calendar.badge.clock")
-                            .font(FacioFont.screenTitle)
-                        Text(periodTitle(interval))
-                            .font(FacioFont.screenSubtitle)
-                            .foregroundStyle(.secondary)
+                // Rangée titre + contrôles de période : contenu 100 % intrinsèque,
+                // ViewThatFits bascule sur la variante empilée quand la largeur manque.
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .center, spacing: FacioLayout.space12) {
+                        headerTitle(interval: interval)
+                        Spacer()
+                        periodControls
                     }
 
-                    Spacer()
-
-                    Picker("", selection: $periodMode) {
-                        Text(L10n.periodDay(lang)).tag(TimeHubPeriodMode.day)
-                        Text(L10n.periodWeek(lang)).tag(TimeHubPeriodMode.week)
-                        Text(L10n.periodMonth(lang)).tag(TimeHubPeriodMode.month)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 260)
-
-                    Button {
-                        anchorDate = periodMode.shiftedAnchor(from: anchorDate, value: -1)
-                    } label: {
-                        Image(systemName: "chevron.left")
-                    }
-                    .help(L10n.previousPeriod(lang))
-
-                    Button(L10n.today(lang)) {
-                        anchorDate = Date()
-                    }
-
-                    Button {
-                        anchorDate = periodMode.shiftedAnchor(from: anchorDate, value: 1)
-                    } label: {
-                        Image(systemName: "chevron.right")
-                    }
-                    .help(L10n.nextPeriod(lang))
-                }
-
-                HStack(spacing: FacioLayout.space10) {
-                    Picker(L10n.sidebarClients(lang), selection: $filters.clientId) {
-                        Text(L10n.allClients(lang)).tag(Optional<UUID>.none)
-                        ForEach(dataStore.clients.sorted { $0.displayName < $1.displayName }) { client in
-                            Text(client.displayName.isEmpty ? L10n.noClient(lang) : client.displayName)
-                                .tag(Optional(client.id))
+                    VStack(alignment: .leading, spacing: FacioLayout.space10) {
+                        headerTitle(interval: interval)
+                        HStack(spacing: FacioLayout.space12) {
+                            periodModePicker
+                            Spacer()
+                            periodNavigation
                         }
                     }
-                    .frame(width: 180)
+                }
 
-                    Picker(L10n.billable(lang), selection: $filters.billable) {
-                        Text(L10n.allBillableStates(lang)).tag(Optional<Bool>.none)
-                        Text(L10n.billable(lang)).tag(Optional(true))
-                        Text(L10n.nonBillable(lang)).tag(Optional(false))
-                    }
-                    .frame(width: 170)
+                // Filtres : la grille adaptative fait wrapper les pickers sous 640 pt,
+                // sans branche conditionnelle.
+                FormGrid(minimum: 160, maximum: 260, spacing: FacioLayout.space10) {
+                    clientFilterPicker
+                    billableFilterPicker
+                    invoicedFilterPicker
+                }
 
-                    Picker(L10n.invoiced(lang), selection: $filters.invoiced) {
-                        Text(L10n.allInvoiceStates(lang)).tag(Optional<Bool>.none)
-                        Text(L10n.invoiced(lang)).tag(Optional(true))
-                        Text(L10n.notInvoiced(lang)).tag(Optional(false))
-                    }
-                    .frame(width: 170)
-
+                // Recherche + ajout manuel : pleine largeur sous la grille de filtres.
+                HStack(spacing: FacioLayout.space10) {
                     TextField(L10n.searchTimeHub(lang), text: $filters.searchText)
                         .facioField()
 
@@ -163,6 +129,89 @@ struct TimeHubView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// Bloc titre + sous-titre de période, partagé entre les variantes du header.
+    private func headerTitle(interval: DateInterval) -> some View {
+        VStack(alignment: .leading, spacing: FacioLayout.space2) {
+            Label(L10n.sidebarPlanning(lang), systemImage: "calendar.badge.clock")
+                .font(FacioFont.screenTitle)
+            Text(periodTitle(interval))
+                .font(FacioFont.screenSubtitle)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Contrôles de période sur une seule ligne (variante large du header).
+    private var periodControls: some View {
+        HStack(spacing: FacioLayout.space12) {
+            periodModePicker
+            periodNavigation
+        }
+    }
+
+    /// Sélecteur jour / semaine / mois, partagé entre les variantes du header.
+    private var periodModePicker: some View {
+        Picker("", selection: $periodMode) {
+            Text(L10n.periodDay(lang)).tag(TimeHubPeriodMode.day)
+            Text(L10n.periodWeek(lang)).tag(TimeHubPeriodMode.week)
+            Text(L10n.periodMonth(lang)).tag(TimeHubPeriodMode.month)
+        }
+        .labelsHidden()
+        .pickerStyle(.segmented)
+        .frame(width: 260)
+    }
+
+    /// Navigation temporelle précédent / aujourd'hui / suivant, partagée.
+    private var periodNavigation: some View {
+        HStack(spacing: FacioLayout.space12) {
+            Button {
+                anchorDate = periodMode.shiftedAnchor(from: anchorDate, value: -1)
+            } label: {
+                Image(systemName: "chevron.left")
+            }
+            .help(L10n.previousPeriod(lang))
+
+            Button(L10n.today(lang)) {
+                anchorDate = Date()
+            }
+
+            Button {
+                anchorDate = periodMode.shiftedAnchor(from: anchorDate, value: 1)
+            } label: {
+                Image(systemName: "chevron.right")
+            }
+            .help(L10n.nextPeriod(lang))
+        }
+    }
+
+    /// Filtre par client — la largeur est pilotée par la cellule de la FormGrid.
+    private var clientFilterPicker: some View {
+        Picker(L10n.sidebarClients(lang), selection: $filters.clientId) {
+            Text(L10n.allClients(lang)).tag(Optional<UUID>.none)
+            ForEach(dataStore.clients.sorted { $0.displayName < $1.displayName }) { client in
+                Text(client.displayName.isEmpty ? L10n.noClient(lang) : client.displayName)
+                    .tag(Optional(client.id))
+            }
+        }
+    }
+
+    /// Filtre facturable / non facturable.
+    private var billableFilterPicker: some View {
+        Picker(L10n.billable(lang), selection: $filters.billable) {
+            Text(L10n.allBillableStates(lang)).tag(Optional<Bool>.none)
+            Text(L10n.billable(lang)).tag(Optional(true))
+            Text(L10n.nonBillable(lang)).tag(Optional(false))
+        }
+    }
+
+    /// Filtre facturé / non facturé.
+    private var invoicedFilterPicker: some View {
+        Picker(L10n.invoiced(lang), selection: $filters.invoiced) {
+            Text(L10n.allInvoiceStates(lang)).tag(Optional<Bool>.none)
+            Text(L10n.invoiced(lang)).tag(Optional(true))
+            Text(L10n.notInvoiced(lang)).tag(Optional(false))
         }
     }
 

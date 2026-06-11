@@ -42,7 +42,11 @@ struct ClientPickerSheet: View {
             newClientForm
             clientList
         }
-        .frame(minWidth: 450, minHeight: 400)
+        .frame(
+            minWidth: FacioLayout.sheetMinWidth,
+            minHeight: FacioLayout.sheetMinHeight,
+            idealHeight: FacioLayout.sheetIdealHeight
+        )
     }
 
     private var toolbar: some View {
@@ -70,10 +74,10 @@ struct ClientPickerSheet: View {
                         .facioField()
                     TextField(L10n.address(lang), text: $newAdresse)
                         .facioField()
-                    HStack {
+                    // Wrap automatique en largeur réduite (code postal + ville).
+                    FormGrid(minimum: 120) {
                         TextField(L10n.postalCode(lang), text: $newCodePostal)
                             .facioField()
-                            .frame(maxWidth: 120)
                         TextField(L10n.city(lang), text: $newVille)
                             .facioField()
                     }
