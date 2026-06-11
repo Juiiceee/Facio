@@ -19,7 +19,7 @@ struct CompanySettingsView: View {
                             get: { company.nom },
                             set: { company.nom = $0; dataStore.companyUpdated() }
                         ))
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                     }
 
                     LabeledField(L10n.address(lang)) {
@@ -27,7 +27,7 @@ struct CompanySettingsView: View {
                             get: { company.adresse },
                             set: { company.adresse = $0; dataStore.companyUpdated() }
                         ))
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                     }
 
                     HStack(alignment: .top, spacing: FacioLayout.space12) {
@@ -36,7 +36,7 @@ struct CompanySettingsView: View {
                                 get: { company.codePostal },
                                 set: { company.codePostal = $0; dataStore.companyUpdated() }
                             ))
-                            .textFieldStyle(.roundedBorder)
+                            .facioField()
                             .frame(maxWidth: 120)
                         }
 
@@ -45,7 +45,7 @@ struct CompanySettingsView: View {
                                 get: { company.ville },
                                 set: { company.ville = $0; dataStore.companyUpdated() }
                             ))
-                            .textFieldStyle(.roundedBorder)
+                            .facioField()
                         }
                     }
 
@@ -54,7 +54,7 @@ struct CompanySettingsView: View {
                             get: { company.siret },
                             set: { company.siret = $0; dataStore.companyUpdated() }
                         ))
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                     }
                 }
             }
@@ -67,7 +67,7 @@ struct CompanySettingsView: View {
                             get: { company.telephone },
                             set: { company.telephone = $0; dataStore.companyUpdated() }
                         ))
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                     }
 
                     LabeledField(L10n.email(lang)) {
@@ -75,7 +75,7 @@ struct CompanySettingsView: View {
                             get: { company.email },
                             set: { company.email = $0; dataStore.companyUpdated() }
                         ))
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                     }
                 }
             }

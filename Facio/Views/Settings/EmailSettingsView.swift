@@ -27,12 +27,12 @@ struct EmailSettingsView: View {
 
                     LabeledField(L10n.emailSubjectLabel(lang)) {
                         TextField("", text: subjectBinding)
-                            .textFieldStyle(.roundedBorder)
+                            .facioField()
                     }
 
                     LabeledField(L10n.emailBodyLabel(lang)) {
                         TextEditor(text: bodyBinding)
-                            .font(.body)
+                            .font(FacioFont.body)
                             .frame(minHeight: 160)
                             .padding(FacioLayout.space4)
                             .overlay(
@@ -42,7 +42,7 @@ struct EmailSettingsView: View {
                     }
 
                     Text(L10n.emailPlaceholdersHelp(lang))
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
 

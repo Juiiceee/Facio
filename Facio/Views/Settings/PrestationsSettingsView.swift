@@ -44,7 +44,7 @@ struct PrestationsSettingsView: View {
                                 .frame(width: 75, alignment: .center)
                             Spacer().frame(width: 28)
                         }
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, FacioLayout.space4)
 
@@ -94,7 +94,7 @@ private struct PrestationRow: View {
                         if let i = safeIndex() { company.prestations[i].designation = newVal; dataStore.companyUpdated() }
                     }
                 ))
-                .textFieldStyle(.roundedBorder)
+                .facioField(density: .compact)
                 .frame(maxWidth: .infinity)
 
                 DecimalField(
