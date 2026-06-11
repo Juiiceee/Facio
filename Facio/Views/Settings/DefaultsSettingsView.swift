@@ -89,7 +89,7 @@ struct DefaultsSettingsView: View {
                 VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     HStack {
                         Text(L10n.defaultDelay(lang))
-                            .font(.subheadline)
+                            .font(FacioFont.fieldLabel)
                             .foregroundStyle(.secondary)
                         Spacer()
                         Stepper(

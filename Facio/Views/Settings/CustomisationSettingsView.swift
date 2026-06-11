@@ -70,7 +70,7 @@ struct CustomisationSettingsView: View {
                                     .font(.title2)
                                     .foregroundStyle(.secondary)
                                 Text(L10n.dragImageHere(lang))
-                                    .font(.caption)
+                                    .font(FacioFont.caption)
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -109,7 +109,7 @@ struct CustomisationSettingsView: View {
                     // Apercu
                     VStack(alignment: .leading, spacing: FacioLayout.space6) {
                         Text(L10n.colorPreview(lang))
-                            .font(.subheadline)
+                            .font(FacioFont.fieldLabel)
                             .foregroundStyle(.secondary)
 
                         HStack(spacing: FacioLayout.space12) {
@@ -138,7 +138,7 @@ struct CustomisationSettingsView: View {
                         .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5)
                 )
             Text(label)
-                .font(.caption2)
+                .font(FacioFont.captionSmall)
                 .foregroundStyle(.secondary)
         }
     }

@@ -30,7 +30,7 @@ struct SyncSettingsView: View {
 
                     if isEnabled {
                         Text(L10n.syncDescription(lang))
-                            .font(.caption)
+                            .font(FacioFont.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -64,7 +64,7 @@ struct SyncSettingsView: View {
 
                             LabeledField(L10n.verificationCode(lang)) {
                                 TextField(L10n.otpCodePlaceholder(lang), text: $otpCode)
-                                    .textFieldStyle(.roundedBorder)
+                                    .facioField()
                                     .frame(maxWidth: 200)
                             }
 
@@ -78,6 +78,7 @@ struct SyncSettingsView: View {
                                         }
                                     }
                                 }
+                                .buttonStyle(.facio(.primary))
                                 .disabled(otpCode.count < 6 || authService.isLoading)
 
                                 Button(L10n.resendCode(lang)) {
@@ -104,17 +105,18 @@ struct SyncSettingsView: View {
                         } else {
                             // Step 1: Enter email
                             Text(L10n.emailLoginPrompt(lang))
-                                .font(.caption)
+                                .font(FacioFont.caption)
                                 .foregroundStyle(.secondary)
 
                             LabeledField(L10n.email(lang)) {
                                 TextField(L10n.emailPlaceholder(lang), text: $email)
-                                    .textFieldStyle(.roundedBorder)
+                                    .facioField()
                             }
 
                             Button(L10n.receiveCode(lang)) {
                                 Task { await authService.sendOTP(email: email) }
                             }
+                            .buttonStyle(.facio(.primary))
                             .disabled(email.isEmpty || !email.contains("@") || authService.isLoading)
 
                             if authService.isLoading {
@@ -163,6 +165,7 @@ struct SyncSettingsView: View {
                             Button(L10n.synchronize(lang)) {
                                 Task { await syncService.fullSync(dataStore: dataStore) }
                             }
+                            .buttonStyle(.facio(.primary))
                             .disabled(syncService.isSyncing)
 
                             Button(L10n.pushAll(lang)) {
@@ -174,6 +177,7 @@ struct SyncSettingsView: View {
                                     await syncService.pushAllDirty()
                                 }
                             }
+                            .buttonStyle(.facio(.secondary))
                             .disabled(syncService.isSyncing)
                         }
                     }
@@ -195,7 +199,7 @@ struct SyncSettingsView: View {
                         if useCustomDB {
                             LabeledField(L10n.supabaseURL(lang)) {
                                 TextField(L10n.supabaseURLPlaceholder(lang), text: $customURL)
-                                    .textFieldStyle(.roundedBorder)
+                                    .facioField()
                                     .onChange(of: customURL) { SyncConfig.customURL = customURL }
                             }
 
@@ -203,10 +207,10 @@ struct SyncSettingsView: View {
                                 HStack {
                                     if showApiKey {
                                         TextField(L10n.apiKeyPlaceholder(lang), text: $customAPIKey)
-                                            .textFieldStyle(.roundedBorder)
+                                            .facioField()
                                     } else {
                                         SecureField(L10n.apiKey(lang), text: $customAPIKey)
-                                            .textFieldStyle(.roundedBorder)
+                                            .facioField()
                                     }
                                     Button {
                                         showApiKey.toggle()
@@ -227,7 +231,7 @@ struct SyncSettingsView: View {
                             // SQL helper
                             DisclosureGroup(L10n.sqlSchema(lang), isExpanded: $showSQL) {
                                 Text(SyncService.sqlSchema)
-                                    .font(.system(.caption2, design: .monospaced))
+                                    .font(FacioFont.monoCaption)
                                     .textSelection(.enabled)
                                     .padding(FacioLayout.space8)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -240,7 +244,7 @@ struct SyncSettingsView: View {
                                 }
                                 .buttonStyle(.borderless)
                             }
-                            .font(.caption)
+                            .font(FacioFont.caption)
                             .foregroundStyle(.secondary)
                         }
                     }

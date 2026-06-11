@@ -107,14 +107,14 @@ private struct BankAccountRow: View {
                         get: { account?.label ?? "" },
                         set: { setAccountValue(\.label, to: $0) }
                     ))
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                     .frame(maxWidth: 220)
 
                     TextField(L10n.bankNamePlaceholder(lang), text: Binding(
                         get: { account?.bankName ?? "" },
                         set: { setAccountValue(\.bankName, to: $0) }
                     ))
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
 
                     Button {
                         company.bankAccounts.removeAll { $0.id == accountId }
@@ -136,8 +136,8 @@ private struct BankAccountRow: View {
                         get: { account?.iban ?? "" },
                         set: { setAccountValue(\.iban, to: $0) }
                     ))
-                    .font(.system(.body, design: .monospaced))
-                    .textFieldStyle(.roundedBorder)
+                    .font(FacioFont.mono)
+                    .facioField()
                 }
 
                 HStack(spacing: FacioLayout.space12) {
@@ -146,8 +146,8 @@ private struct BankAccountRow: View {
                             get: { account?.bic ?? "" },
                             set: { setAccountValue(\.bic, to: $0) }
                         ))
-                        .font(.system(.body, design: .monospaced))
-                        .textFieldStyle(.roundedBorder)
+                        .font(FacioFont.mono)
+                        .facioField()
                     }
 
                     LabeledField(L10n.accountHolderLabel(lang)) {
@@ -155,7 +155,7 @@ private struct BankAccountRow: View {
                             get: { account?.accountHolder ?? "" },
                             set: { setAccountValue(\.accountHolder, to: $0) }
                         ))
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                     }
                 }
 
@@ -164,7 +164,7 @@ private struct BankAccountRow: View {
                         Image(systemName: "exclamationmark.triangle")
                         Text(L10n.bankAccountIbanRequired(lang))
                     }
-                    .font(.caption)
+                    .font(FacioFont.caption)
                     .foregroundStyle(Color.intentWarning)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -225,7 +225,7 @@ private struct WalletRow: View {
                             if let i = safeIndex() { company.wallets[i].label = newVal; dataStore.companyUpdated() }
                         }
                     ))
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                     .frame(maxWidth: 200)
 
                     Button {
@@ -248,14 +248,14 @@ private struct WalletRow: View {
                         if let i = safeIndex() { company.wallets[i].address = newVal; dataStore.companyUpdated() }
                     }
                 ))
-                .textFieldStyle(.roundedBorder)
+                .facioField()
 
                 if walletAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     HStack(spacing: FacioLayout.space6) {
                         Image(systemName: "exclamationmark.triangle")
                         Text(L10n.walletAddressRequired(lang))
                     }
-                    .font(.caption)
+                    .font(FacioFont.caption)
                     .foregroundStyle(Color.intentWarning)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }

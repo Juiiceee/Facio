@@ -67,10 +67,9 @@ struct SettingsInlineView: View {
     private var settingsHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
             Label(selectedTabInfo.label, systemImage: selectedTabInfo.icon)
-                .font(.largeTitle)
-                .fontWeight(.bold)
+                .font(FacioFont.screenTitle)
             Text(selectedTabInfo.help)
-                .font(.subheadline)
+                .font(FacioFont.screenSubtitle)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
