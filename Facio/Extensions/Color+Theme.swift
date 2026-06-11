@@ -84,39 +84,45 @@ extension Color {
     // Une seule opacité par rôle (remplace les 8 opacités de panneau divergentes).
     // En sombre : surfaces « surélevées » par un voile blanc (et non enfoncées),
     // sauf les champs de saisie qui restent creusés par un voile noir.
+    //
+    // ATTENTION : uniquement des constantes sRGB dans les branches — appeler
+    // `withAlphaComponent` sur une couleur de catalogue (controlBackgroundColor…)
+    // FIGE sa résolution à l'apparence active au moment de l'appel.
+    // En clair, controlBackgroundColor et textBackgroundColor valent blanc pur :
+    // les branches light reproduisent exactement le rendu d'avant.
 
     /// Fond des panneaux / cartes (SectionPanel).
     static var surfacePanel: Color {
         dynamic(
-            NSColor.controlBackgroundColor.withAlphaComponent(0.78),
+            NSColor.white.withAlphaComponent(0.78),
             NSColor.white.withAlphaComponent(0.055)
         )
     }
     /// Fond des tuiles métriques et tuiles d'action.
     static var surfaceTile: Color {
         dynamic(
-            NSColor.textBackgroundColor.withAlphaComponent(0.68),
+            NSColor.white.withAlphaComponent(0.68),
             NSColor.white.withAlphaComponent(0.075)
         )
     }
     /// Fond des lignes de liste au repos.
     static var surfaceRow: Color {
         dynamic(
-            NSColor.textBackgroundColor.withAlphaComponent(0.62),
+            NSColor.white.withAlphaComponent(0.62),
             NSColor.white.withAlphaComponent(0.06)
         )
     }
     /// Fond des lignes de liste au survol.
     static var surfaceRowHover: Color {
         dynamic(
-            NSColor.textBackgroundColor.withAlphaComponent(0.9),
+            NSColor.white.withAlphaComponent(0.9),
             NSColor.white.withAlphaComponent(0.11)
         )
     }
     /// Fond des champs de saisie / surfaces enfoncées.
     static var surfaceField: Color {
         dynamic(
-            NSColor.textBackgroundColor.withAlphaComponent(0.5),
+            NSColor.white.withAlphaComponent(0.5),
             NSColor.black.withAlphaComponent(0.22)
         )
     }
