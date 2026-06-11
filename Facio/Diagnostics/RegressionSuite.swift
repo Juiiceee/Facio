@@ -109,7 +109,12 @@ enum FacioRegressionSuite {
         RegressionCase(name: "time entry csv report includes billable columns", run: timeEntryCSVReportIncludesBillableColumns),
         RegressionCase(name: "time hub stats exclude deleted entries", run: timeHubStatsExcludeDeletedEntries),
         RegressionCase(name: "time hub groups entries by client and project", run: timeHubGroupsEntriesByClientAndProject),
-        RegressionCase(name: "date and decimal formatting are stable across languages", run: dateAndDecimalFormattingAreStableAcrossLanguages)
+        RegressionCase(name: "date and decimal formatting are stable across languages", run: dateAndDecimalFormattingAreStableAcrossLanguages),
+        RegressionCase(name: "email template resolves placeholders and attachments line", run: emailTemplateResolvesPlaceholdersAndAttachmentsLine),
+        RegressionCase(name: "email safe filename strips unsafe characters", run: emailSafeFilenameStripsUnsafeCharacters),
+        RegressionCase(name: "attachment import copies file and records metadata", run: attachmentImportCopiesFileAndRecordsMetadata),
+        RegressionCase(name: "attachment duplication reports missing source files", run: attachmentDuplicationReportsMissingSourceFiles),
+        RegressionCase(name: "attachment urls expose only existing files", run: attachmentURLsExposeOnlyExistingFiles)
     ]
 
     private static func decimalHourInputKeepsDecimalFractions() throws {
@@ -1826,6 +1831,126 @@ enum FacioRegressionSuite {
         try expectEqual(amount.formatted2Decimals(for: .fr), "1 234,50")
         try expectEqual(amount.formatted2Decimals(for: .en), "1,234.50")
         try expectEqual(decimal("1234.6").formattedNoDecimals(for: .en), "1,235")
+    }
+
+    private static func emailTemplateResolvesPlaceholdersAndAttachmentsLine() throws {
+        let company = try JSONDecoder().decode(CompanyInfo.self, from: Data(#"{"nom":"Facio SAS"}"#.utf8))
+        let document = Document(type: .facture, number: "Facture_2026_07")
+        document.clientNom = "ACME Corp"
+
+        let template = """
+        Bonjour {client},
+
+        Facture {number} de {amount} avant le {due_date}.
+
+        {attachments}
+
+        Cordialement,
+        {company}
+        """
+
+        let withoutAttachments = EmailService.resolveTemplate(template, document: document, company: company)
+        try expect(withoutAttachments.contains("ACME Corp"), "client placeholder should be substituted")
+        try expect(withoutAttachments.contains("Facture_2026_07"), "number placeholder should be substituted")
+        try expect(withoutAttachments.contains("Facio SAS"), "company placeholder should be substituted")
+        try expect(!withoutAttachments.contains("{"), "no placeholder should remain unresolved")
+        try expect(!withoutAttachments.contains("\n\n\n"), "blank lines left by the empty attachments placeholder should collapse")
+
+        document.attachments = [
+            DocumentAttachment(originalFilename: "ticket.pdf", fileExtension: "pdf", label: "", fileSize: 10)
+        ]
+        let withAttachments = EmailService.resolveTemplate(template, document: document, company: company)
+        try expect(
+            withAttachments.contains(L10n.emailAttachmentsLine(document.langue)),
+            "attachments line should be inserted when the document has attachments"
+        )
+    }
+
+    private static func emailSafeFilenameStripsUnsafeCharacters() throws {
+        try expectEqual(EmailService.safeFilename("Facture/2026:03"), "Facture-2026-03")
+        try expectEqual(EmailService.safeFilename("  Devis 2026_04  "), "Devis 2026_04")
+        try expectEqual(EmailService.safeFilename("///"), "document")
+        try expectEqual(EmailService.safeFilename(""), "document")
+        try expectEqual(EmailService.safeFilename(String(repeating: "a", count: 200)).count, 120)
+    }
+
+    private static func attachmentImportCopiesFileAndRecordsMetadata() throws {
+        try withTemporaryDataStore { store in
+            let document = store.createDocument(type: .facture)
+            let source = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+                .appendingPathComponent("facio-attachment-\(UUID().uuidString).pdf")
+            try Data("pdf".utf8).write(to: source)
+            defer { try? FileManager.default.removeItem(at: source) }
+
+            let attachment = try require(
+                store.importAttachment(from: source, to: document, label: "Ticket"),
+                "importing an existing file should succeed"
+            )
+            try expectEqual(document.attachments.count, 1)
+            try expectEqual(attachment.originalFilename, source.lastPathComponent)
+            try expect(
+                FileManager.default.fileExists(atPath: store.attachmentURL(attachment, in: document).path),
+                "imported attachment file should exist in the document directory"
+            )
+
+            let missing = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+                .appendingPathComponent("facio-missing-\(UUID().uuidString).pdf")
+            try expect(store.importAttachment(from: missing, to: document) == nil, "importing a missing file should fail")
+            try expectEqual(document.attachments.count, 1)
+        }
+    }
+
+    private static func attachmentDuplicationReportsMissingSourceFiles() throws {
+        try withTemporaryDataStore { store in
+            let source = store.createDocument(type: .facture)
+            let dir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            let fileA = dir.appendingPathComponent("facio-kept-\(UUID().uuidString).pdf")
+            let fileB = dir.appendingPathComponent("facio-lost-\(UUID().uuidString).pdf")
+            try Data("a".utf8).write(to: fileA)
+            try Data("b".utf8).write(to: fileB)
+            defer {
+                try? FileManager.default.removeItem(at: fileA)
+                try? FileManager.default.removeItem(at: fileB)
+            }
+
+            let kept = try require(store.importAttachment(from: fileA, to: source), "first import should succeed")
+            let lost = try require(store.importAttachment(from: fileB, to: source), "second import should succeed")
+            try FileManager.default.removeItem(at: store.attachmentURL(lost, in: source))
+
+            let destination = source.dupliquer()
+            store.addDocument(destination)
+            let result = store.duplicateAttachments(from: source, to: destination)
+
+            try expectEqual(result.copied, 1)
+            try expectEqual(result.failed, 1)
+            try expectEqual(destination.attachments.count, 1)
+            try expectEqual(destination.attachments.first?.originalFilename, kept.originalFilename)
+            try expect(destination.attachments.first?.id != kept.id, "duplicated attachment should get a new identity")
+        }
+    }
+
+    private static func attachmentURLsExposeOnlyExistingFiles() throws {
+        try withTemporaryDataStore { store in
+            let document = store.createDocument(type: .facture)
+            let dir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            let fileA = dir.appendingPathComponent("facio-a-\(UUID().uuidString).pdf")
+            let fileB = dir.appendingPathComponent("facio-b-\(UUID().uuidString).pdf")
+            try Data("a".utf8).write(to: fileA)
+            try Data("b".utf8).write(to: fileB)
+            defer {
+                try? FileManager.default.removeItem(at: fileA)
+                try? FileManager.default.removeItem(at: fileB)
+            }
+
+            let stays = try require(store.importAttachment(from: fileA, to: document), "first import should succeed")
+            let removed = try require(store.importAttachment(from: fileB, to: document), "second import should succeed")
+            try FileManager.default.removeItem(at: store.attachmentURL(removed, in: document))
+
+            let urls = store.attachmentURLs(for: document)
+            try expectEqual(urls.count, 1)
+            try expectEqual(urls.first, store.attachmentURL(stays, in: document))
+            try expectEqual(document.attachments.count, 2)
+        }
     }
 
     private static func withTemporaryDataStore(_ body: (DataStore) throws -> Void) throws {
