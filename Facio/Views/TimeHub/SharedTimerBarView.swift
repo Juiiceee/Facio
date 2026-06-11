@@ -103,18 +103,18 @@ struct SharedTimerBarView: View {
         if let activeContext {
             TextField(L10n.timeEntryDescription(lang), text: entryStringBinding(activeContext, \.notes))
                 .font(.title3)
-                .textFieldStyle(.roundedBorder)
+                .facioField(density: .compact)
         } else {
             TextField(L10n.timeEntryDescription(lang), text: $notes)
                 .font(.title3)
-                .textFieldStyle(.roundedBorder)
+                .facioField(density: .compact)
         }
     }
 
     private func timerControls(now: Date) -> some View {
         HStack(spacing: FacioLayout.space12) {
             Label(L10n.timeTracker(lang), systemImage: "timer")
-                .font(.headline)
+                .font(FacioFont.sectionTitle)
                 .foregroundStyle(.secondary)
 
             Spacer(minLength: FacioLayout.space8)
@@ -131,8 +131,7 @@ struct SharedTimerBarView: View {
                 } label: {
                     Label(L10n.stopTimer(lang), systemImage: "stop.fill")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.intentDanger)
+                .buttonStyle(.facio(.destructive))
                 .help(L10n.stopTimer(lang))
             } else {
                 Button {
@@ -140,7 +139,7 @@ struct SharedTimerBarView: View {
                 } label: {
                     Label(L10n.startTimer(lang), systemImage: "play.fill")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.facio(.primary))
                 .disabled(selectedTimesheet == nil || liveStartDateRange == nil)
                 .help(L10n.startTimer(lang))
             }
@@ -161,11 +160,11 @@ struct SharedTimerBarView: View {
             periodPicker
                 .frame(minWidth: 220)
             TextField(L10n.project(lang), text: $projectName)
-                .textFieldStyle(.roundedBorder)
+                .facioField(density: .compact)
             TextField(L10n.task(lang), text: $taskName)
-                .textFieldStyle(.roundedBorder)
+                .facioField(density: .compact)
             TextField(L10n.tags(lang), text: $tagsText)
-                .textFieldStyle(.roundedBorder)
+                .facioField(density: .compact)
             Toggle(L10n.billable(lang), isOn: $isBillable)
                 .toggleStyle(.switch)
             startedEarlierControl
@@ -177,11 +176,11 @@ struct SharedTimerBarView: View {
             periodPicker
             HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.project(lang), text: $projectName)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField(density: .compact)
                 TextField(L10n.task(lang), text: $taskName)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField(density: .compact)
                 TextField(L10n.tags(lang), text: $tagsText)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField(density: .compact)
             }
             HStack(spacing: FacioLayout.space10) {
                 Toggle(L10n.billable(lang), isOn: $isBillable)
@@ -240,7 +239,7 @@ struct SharedTimerBarView: View {
 
     private func activePeriodLabel(_ context: RunningTimeEntryContext) -> some View {
         Label(context.timesheet.title(for: lang), systemImage: "calendar.badge.clock")
-            .font(.caption)
+            .font(FacioFont.caption)
             .foregroundStyle(.secondary)
             .lineLimit(1)
             .frame(minWidth: 180, alignment: .leading)
@@ -249,11 +248,11 @@ struct SharedTimerBarView: View {
     private func activeMetadataFields(_ context: RunningTimeEntryContext) -> some View {
         HStack(spacing: FacioLayout.space10) {
             TextField(L10n.project(lang), text: entryStringBinding(context, \.projectName))
-                .textFieldStyle(.roundedBorder)
+                .facioField(density: .compact)
             TextField(L10n.task(lang), text: entryStringBinding(context, \.taskName))
-                .textFieldStyle(.roundedBorder)
+                .facioField(density: .compact)
             TextField(L10n.tags(lang), text: entryStringBinding(context, \.tagsText))
-                .textFieldStyle(.roundedBorder)
+                .facioField(density: .compact)
             Toggle(L10n.billable(lang), isOn: entryBoolBinding(context, \.isBillable))
                 .toggleStyle(.switch)
         }
@@ -262,7 +261,7 @@ struct SharedTimerBarView: View {
     private func activeStartDatePicker(_ context: RunningTimeEntryContext) -> some View {
         HStack(spacing: FacioLayout.space10) {
             Label(L10n.startDate(lang), systemImage: "clock.arrow.circlepath")
-                .font(.caption)
+                .font(FacioFont.caption)
                 .foregroundStyle(.secondary)
             DatePicker(
                 L10n.startDate(lang),

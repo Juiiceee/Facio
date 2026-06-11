@@ -175,7 +175,7 @@ struct TimesheetListView: View {
     private var newPeriodPopover: some View {
         VStack(spacing: FacioLayout.space16) {
             Text(L10n.newPeriod(lang))
-                .font(.headline)
+                .font(FacioFont.sectionTitle)
 
             Picker("", selection: $newPeriodMode) {
                 Text(L10n.monthlyPeriod(lang)).tag(NewTimesheetPeriodMode.month)
@@ -230,7 +230,7 @@ struct TimesheetListView: View {
 
             HStack(spacing: FacioLayout.space12) {
                 Text(L10n.selectClientForPeriod(lang))
-                    .font(.subheadline)
+                    .font(FacioFont.fieldLabel)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Picker(L10n.selectClientForPeriod(lang), selection: $selectedClientId) {
@@ -256,13 +256,13 @@ struct TimesheetListView: View {
                 Button(L10n.cancel(lang)) {
                     showNewPeriod = false
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.facio(.secondary))
 
                 Button(L10n.create(lang)) {
                     creerPeriode(client: selectedClient)
                     showNewPeriod = false
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.facio(.primary))
                 .disabled(selectedClient == nil || selectedRangeOverlaps)
             }
         }
@@ -336,27 +336,27 @@ private struct TimesheetRowView: View {
                     Spacer()
                     if brut > 0 {
                         Text(brut.formatted2Decimals(for: numberFormat))
-                            .font(.subheadline.monospacedDigit())
+                            .font(FacioFont.rowValue)
                             .fontWeight(.medium)
                             .foregroundStyle(.secondary)
                     }
                 }
                 HStack(spacing: FacioLayout.space8) {
                     Text(timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName)
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(timesheet.clientDisplayName.isEmpty ? .tertiary : .secondary)
                         .lineLimit(1)
                     Text("\(heuresMois.formatted2Decimals(for: numberFormat))h")
-                        .font(.caption.monospacedDigit())
+                        .font(FacioFont.metaValue)
                         .foregroundStyle(.secondary)
                     if heuresSup > 0 {
                         Text(L10n.overtimeHoursShort(lang, value: heuresSup.formatted2Decimals(for: numberFormat)))
-                            .font(.caption)
+                            .font(FacioFont.caption)
                             .foregroundStyle(Color.intentWarning)
                     }
                     if timesheet.hasGeneratedInvoice {
                         Text(L10n.invoiced(lang))
-                            .font(.caption)
+                            .font(FacioFont.caption)
                             .foregroundStyle(Color.intentSuccess)
                     }
                 }
