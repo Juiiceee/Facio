@@ -93,10 +93,9 @@ struct TimeHubView: View {
                 HStack(alignment: .center, spacing: FacioLayout.space12) {
                     VStack(alignment: .leading, spacing: FacioLayout.space2) {
                         Label(L10n.sidebarPlanning(lang), systemImage: "calendar.badge.clock")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
+                            .font(FacioFont.screenTitle)
                         Text(periodTitle(interval))
-                            .font(.subheadline)
+                            .font(FacioFont.screenSubtitle)
                             .foregroundStyle(.secondary)
                     }
 
@@ -155,7 +154,7 @@ struct TimeHubView: View {
                     .frame(width: 170)
 
                     TextField(L10n.searchTimeHub(lang), text: $filters.searchText)
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
 
                     Button {
                         showManualEntrySheet = true
@@ -267,8 +266,7 @@ struct TimeHubView: View {
             VStack(alignment: .leading, spacing: FacioLayout.space10) {
                 HStack {
                     Text(formatDuration(stats.totalSeconds))
-                        .font(.title2.monospacedDigit())
-                        .fontWeight(.semibold)
+                        .font(FacioFont.metricValue)
                     Spacer()
                     Button(L10n.openLogToday(lang)) {
                         periodMode = .day
@@ -373,7 +371,7 @@ struct TimeHubView: View {
                             } label: {
                                 Label(L10n.createInvoice(lang), systemImage: "doc.badge.plus")
                             }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(.facio(.primary))
                         }
                     }
                 }
@@ -425,7 +423,7 @@ struct TimeHubView: View {
                         .font(.headline)
                         .lineLimit(2)
                     Text([group.clientName, group.projectName].filter { !$0.isEmpty }.joined(separator: " / "))
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -444,22 +442,17 @@ struct TimeHubView: View {
                 Label(formatDuration(group.stats.totalSeconds), systemImage: "clock")
                 Spacer()
                 Text(currency.formatAccounting(group.stats.estimatedAmount, lang: numberFormat))
-                    .font(.caption.monospacedDigit())
+                    .font(FacioFont.metaValue)
                     .foregroundStyle(.secondary)
             }
-            .font(.caption)
+            .font(FacioFont.caption)
 
             ProgressView(value: progressValue(group))
                 .tint(Color.intentSuccess)
         }
         .padding(FacioLayout.space12)
         .frame(maxWidth: .infinity, minHeight: 135, alignment: .topLeading)
-        .background(Color.surfaceTile)
-        .overlay(
-            RoundedRectangle(cornerRadius: FacioLayout.radiusPanel)
-                .strokeBorder(Color.borderSubtle, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+        .facioCardChrome(surface: .surfaceTile)
     }
 
     private func calendar(contexts: [TimeHubEntryContext], interval: DateInterval, now: Date) -> some View {
@@ -510,10 +503,10 @@ struct TimeHubView: View {
         let stats = TimeHubAggregationService.stats(for: contexts, now: now)
         return VStack(alignment: .leading, spacing: FacioLayout.space8) {
             Text(day.formatted(.dateTime.weekday(.abbreviated).day()))
-                .font(.caption)
+                .font(FacioFont.caption)
                 .fontWeight(.semibold)
             Text(formatDuration(stats.totalSeconds))
-                .font(.caption.monospacedDigit())
+                .font(FacioFont.metaValue)
                 .foregroundStyle(.secondary)
             ForEach(contexts.prefix(4)) { context in
                 calendarBlock(context, now: now)
@@ -535,7 +528,7 @@ struct TimeHubView: View {
         let stats = TimeHubAggregationService.stats(for: contexts, now: now)
         return VStack(alignment: .leading, spacing: FacioLayout.space6) {
             Text(day.formatted(.dateTime.day()))
-                .font(.caption)
+                .font(FacioFont.caption)
                 .fontWeight(.semibold)
             if stats.totalSeconds > 0 {
                 Text(formatDuration(stats.totalSeconds))
@@ -570,7 +563,7 @@ struct TimeHubView: View {
     private func calendarBlock(_ context: TimeHubEntryContext, now: Date) -> some View {
         VStack(alignment: .leading, spacing: FacioLayout.space2) {
             Text(context.entry.notes.isEmpty ? TimeHubAggregationService.taskTitle(for: context.entry) : context.entry.notes)
-                .font(.caption2)
+                .font(FacioFont.captionSmall)
                 .fontWeight(.medium)
                 .lineLimit(2)
             Text("\(timeRange(context.entry)) - \(formatDuration(context.durationSeconds(at: now)))")
@@ -602,12 +595,12 @@ struct TimeHubView: View {
                         VStack(alignment: .leading, spacing: FacioLayout.space8) {
                             HStack {
                                 Text(group.date.formattedDate(for: lang))
-                                    .font(.headline)
+                                    .font(FacioFont.sectionTitle)
                                 Text(formatDuration(group.stats.totalSeconds))
-                                    .font(.subheadline.monospacedDigit())
+                                    .font(FacioFont.rowValue)
                                     .foregroundStyle(.secondary)
                                 Text(currency.formatAccounting(group.stats.estimatedAmount, lang: numberFormat))
-                                    .font(.subheadline.monospacedDigit())
+                                    .font(FacioFont.rowValue)
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 if group.stats.uninvoicedSeconds > 0 {
@@ -668,17 +661,16 @@ struct TimeHubView: View {
         HStack(spacing: FacioLayout.space10) {
             VStack(alignment: .leading, spacing: FacioLayout.space2) {
                 Text(context.entry.notes.isEmpty ? TimeHubAggregationService.taskTitle(for: context.entry) : context.entry.notes)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(FacioFont.rowTitle)
                     .lineLimit(1)
                 Text([context.clientName, context.entry.displayProject, context.entry.displayTask].filter { !$0.isEmpty }.joined(separator: " / "))
-                    .font(.caption)
+                    .font(FacioFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             Spacer()
             Text(formatDuration(context.durationSeconds(at: now)))
-                .font(.caption.monospacedDigit())
+                .font(FacioFont.metaValue)
             statusBadge(context.entry.isBillable ? L10n.billable(lang) : L10n.nonBillable(lang), color: context.entry.isBillable ? .intentSuccess : .secondary)
         }
         .padding(FacioLayout.space8)
@@ -690,21 +682,20 @@ struct TimeHubView: View {
         HStack(spacing: FacioLayout.space12) {
             VStack(alignment: .leading, spacing: FacioLayout.space2) {
                 Text(title.isEmpty ? L10n.noClient(lang) : title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(FacioFont.rowTitle)
                     .lineLimit(1)
                 Text(subtitle)
-                    .font(.caption)
+                    .font(FacioFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: FacioLayout.space2) {
                 Text(formatDuration(stats.totalSeconds))
-                    .font(.subheadline.monospacedDigit())
+                    .font(FacioFont.rowValue)
                     .fontWeight(.semibold)
                 Text(currency.formatAccounting(stats.estimatedAmount, lang: numberFormat))
-                    .font(.caption.monospacedDigit())
+                    .font(FacioFont.metaValue)
                     .foregroundStyle(.secondary)
             }
         }
@@ -788,7 +779,7 @@ struct TimeHubView: View {
 
     private func statusBadge(_ text: String, color: Color) -> some View {
         Text(text)
-            .font(.caption2)
+            .font(FacioFont.captionSmall)
             .padding(.horizontal, FacioLayout.space6)
             .padding(.vertical, FacioLayout.space4)
             .background(color.opacity(0.12))
@@ -815,10 +806,9 @@ private struct TimeHubEntryRow: View {
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: FacioLayout.space4) {
                 Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(FacioFont.rowTitle)
                 Text([context.clientName, context.entry.displayProject, context.entry.displayTask].filter { !$0.isEmpty }.joined(separator: " / "))
-                    .font(.caption)
+                    .font(FacioFont.caption)
                     .foregroundStyle(.secondary)
                 HStack(spacing: FacioLayout.space6) {
                     badge(context.entry.isBillable ? L10n.billable(lang) : L10n.nonBillable(lang), color: context.entry.isBillable ? .intentSuccess : .secondary)
@@ -831,11 +821,11 @@ private struct TimeHubEntryRow: View {
             Spacer()
             VStack(alignment: .trailing, spacing: FacioLayout.space2) {
                 Text(DurationFormatter.clock(context.durationSeconds(at: now)))
-                    .font(.subheadline.monospacedDigit())
+                    .font(FacioFont.rowValue)
                     .fontWeight(.semibold)
                 if context.entry.isBillable {
                     Text((context.entry.currencySnapshot ?? defaultCurrency).formatAccounting(context.estimatedAmount(at: now), lang: numberFormat))
-                        .font(.caption.monospacedDigit())
+                        .font(FacioFont.metaValue)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -867,8 +857,7 @@ private struct TimeHubEntryRow: View {
             }
         }
         .padding(FacioLayout.space10)
-        .background(Color.surfaceTile)
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+        .facioCardChrome(surface: .surfaceTile)
     }
 
     private var title: String {
@@ -879,7 +868,7 @@ private struct TimeHubEntryRow: View {
 
     private func badge(_ text: String, color: Color) -> some View {
         Text(text)
-            .font(.caption2)
+            .font(FacioFont.captionSmall)
             .padding(.horizontal, FacioLayout.space6)
             .padding(.vertical, FacioLayout.space4)
             .background(color.opacity(0.12))
@@ -920,15 +909,15 @@ private struct TimeHubEntryEditor: View {
         VStack(alignment: .leading, spacing: FacioLayout.space10) {
             HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.timeEntryDescription(lang), text: $notes)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 TextField(L10n.project(lang), text: $projectName)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 TextField(L10n.task(lang), text: $taskName)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
             }
             HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.tags(lang), text: $tagsText)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 Toggle(L10n.billable(lang), isOn: $isBillable)
                     .toggleStyle(.switch)
                 DatePicker(L10n.startDate(lang), selection: $startedAt)
@@ -944,12 +933,11 @@ private struct TimeHubEntryEditor: View {
                 Spacer()
                 Button(L10n.cancel(lang), action: onClose)
                 Button(L10n.save(lang), action: save)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.facio(.primary))
             }
         }
         .padding(FacioLayout.space10)
-        .background(Color.surfaceField)
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+        .facioCardChrome(surface: .surfaceField)
     }
 
     private func save() {
@@ -1005,7 +993,7 @@ private struct TimeHubManualEntrySheet: View {
         VStack(alignment: .leading, spacing: FacioLayout.space16) {
             HStack {
                 Label(L10n.timeHubAddManualEntry(lang), systemImage: "plus")
-                    .font(.headline)
+                    .font(FacioFont.sectionTitle)
                 Spacer()
                 Button(L10n.close(lang)) { dismiss() }
             }
@@ -1017,15 +1005,15 @@ private struct TimeHubManualEntrySheet: View {
             }
 
             TextField(L10n.timeEntryDescription(lang), text: $notes)
-                .textFieldStyle(.roundedBorder)
+                .facioField()
             HStack {
                 TextField(L10n.project(lang), text: $projectName)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 TextField(L10n.task(lang), text: $taskName)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
             }
             TextField(L10n.tags(lang), text: $tagsText)
-                .textFieldStyle(.roundedBorder)
+                .facioField()
 
             HStack {
                 DatePicker(L10n.period(lang), selection: $date, displayedComponents: [.date])
@@ -1033,7 +1021,7 @@ private struct TimeHubManualEntrySheet: View {
                 DatePicker(L10n.endDate(lang), selection: $endTime, displayedComponents: [.hourAndMinute])
             }
             TextField(L10n.durationExamples(lang), text: $durationInput)
-                .textFieldStyle(.roundedBorder)
+                .facioField()
             Toggle(L10n.billable(lang), isOn: $isBillable)
                 .toggleStyle(.switch)
 
@@ -1045,7 +1033,7 @@ private struct TimeHubManualEntrySheet: View {
                 Spacer()
                 Button(L10n.cancel(lang)) { dismiss() }
                 Button(L10n.addTimeEntry(lang), action: save)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.facio(.primary))
                     .disabled(selectedTimesheet == nil)
             }
         }
