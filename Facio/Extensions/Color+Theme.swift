@@ -27,14 +27,6 @@ extension Color {
         dynamic(oliveBase, oliveBase.lightened(by: 0.12))
     }
 
-    /// Vert clair pour les lignes alternees du tableau
-    static var appPrimaryLight: Color {
-        dynamic(
-            oliveBase.withAlphaComponent(0.08),
-            oliveBase.lightened(by: 0.12).withAlphaComponent(0.14)
-        )
-    }
-
     /// Couleur principale dynamique (depuis CompanyInfo)
     static func appPrimary(from company: CompanyInfo) -> Color {
         guard let hex = company.couleurAccentHex,
@@ -42,9 +34,6 @@ extension Color {
         // Hex parsé AVANT la closure : elle ne capture que des NSColor immuables.
         return dynamic(ns, ns.lightened(by: 0.12))
     }
-
-    /// Fond de la sidebar
-    static var sidebarBackground: Color { Color(nsColor: .controlBackgroundColor) }
 
     // MARK: - Palette d'intention (source de vérité unique)
     //
