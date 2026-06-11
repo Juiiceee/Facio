@@ -7,6 +7,13 @@ import SwiftUI
 /// d'Apple (Dynamic Type) quand c'est possible, et n'utilisent une taille fixe
 /// que pour les grands nombres (KPI, horloge de timer) où la mise à l'échelle
 /// casserait l'alignement.
+///
+/// Liste blanche — seuls cas où un `.font()` natif reste autorisé dans les vues :
+/// 1. dimensionnement d'un glyphe SF Symbol (`Image(systemName:).font(...)`) ;
+/// 2. tailles décoratives uniques (logo de la page À propos, « F » de repli) ;
+/// 3. le champ « héros » du numéro de document (borderless intentionnel) ;
+/// 4. libellés de boutons à chrome custom (.plain) sans token iso-sémantique.
+/// Tout autre `.font()` natif est une dette : le migrer vers un token.
 enum FacioFont {
     // MARK: - Titres
 
