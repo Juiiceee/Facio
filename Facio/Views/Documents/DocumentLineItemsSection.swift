@@ -8,6 +8,13 @@ enum LineItemColumns {
     static let vat: CGFloat = 80
     static let totalHT: CGFloat = 110
     static let actions: CGFloat = 32
+
+    // Variante compacte (ligne sur deux niveaux, sous
+    // `FacioLayout.lineItemsCompactBreakpoint`) : champs resserrés,
+    // le total prend la place restante en fin de rangée.
+    static let compactQty: CGFloat = 64
+    static let compactUnitPrice: CGFloat = 100
+    static let compactVat: CGFloat = 76
 }
 
 struct DocumentLineItemsSection: View {
@@ -16,11 +23,20 @@ struct DocumentLineItemsSection: View {
     let lang: AppLanguage
     let onSave: () -> Void
 
+    @Environment(\.facioContainerWidth) private var containerWidth
+
+    /// Bascule en disposition compacte (ligne sur deux niveaux) quand la largeur
+    /// ne permet plus les colonnes fixes + une désignation lisible (≈ 620 pt).
+    private var compact: Bool { containerWidth < FacioLayout.lineItemsCompactBreakpoint }
+
     var body: some View {
         SectionPanel(L10n.linesSection(lang), systemImage: "list.bullet.rectangle") {
             VStack(alignment: .leading, spacing: FacioLayout.space8) {
-                header
-                Divider()
+                // En compact, l'en-tête de colonnes n'a plus de colonnes à titrer.
+                if !compact {
+                    header
+                    Divider()
+                }
                 content
                 Divider()
                 addLineButton
@@ -53,6 +69,7 @@ struct DocumentLineItemsSection: View {
                 LineItemRowView(
                     document: document,
                     ligneId: ligne.id,
+                    compact: compact,
                     onDelete: {
                         document.supprimerLigne(ligne)
                         onSave()

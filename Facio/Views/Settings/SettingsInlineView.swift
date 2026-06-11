@@ -29,26 +29,11 @@ struct SettingsInlineView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(L10n.settings(lang))
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 18)
-
-                List(selection: Binding<Int?>(
-                    get: { selectedTab },
-                    set: { selectedTab = $0 ?? selectedTab }
-                )) {
-                    ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
-                        Label(tab.label, systemImage: tab.icon)
-                            .tag(index)
-                    }
-                }
-                .listStyle(.sidebar)
-            }
-            .frame(width: 230)
-            .background(Color(nsColor: .controlBackgroundColor))
+            SettingsSidebarColumn(
+                title: L10n.settings(lang),
+                tabs: tabs,
+                selectedTab: $selectedTab
+            )
 
             Divider()
 
@@ -57,15 +42,19 @@ struct SettingsInlineView: View {
                     settingsHeader
                     selectedSettingsView
                 }
-                .frame(maxWidth: 760, alignment: .topLeading)
+                .frame(maxWidth: FacioLayout.contentMaxWidth, alignment: .topLeading)
                 .frame(maxWidth: .infinity, alignment: .top)
             }
         }
-        .frame(minWidth: 700, maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Seul écran avec sa propre sidebar interne : on re-pose le conteneur
+        // responsive sur le HStack racine (indispensable aussi pour la scène
+        // Réglages native, qui n'hérite pas du conteneur de ContentView).
+        .facioResponsiveContainer()
     }
 
     private var settingsHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: FacioLayout.space6) {
             Label(selectedTabInfo.label, systemImage: selectedTabInfo.icon)
                 .font(FacioFont.screenTitle)
             Text(selectedTabInfo.help)
@@ -73,9 +62,9 @@ struct SettingsInlineView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 24)
-        .padding(.bottom, 4)
+        .padding(.horizontal, FacioLayout.space24)
+        .padding(.top, FacioLayout.space24)
+        .padding(.bottom, FacioLayout.space4)
     }
 
     @ViewBuilder
@@ -91,6 +80,59 @@ struct SettingsInlineView: View {
         case 7: SyncSettingsView(syncService: syncService, authService: authService)
         case 8: AboutSettingsView()
         default: EmptyView()
+        }
+    }
+}
+
+/// Sidebar interne des réglages : repliée en icônes seules sous le breakpoint
+/// compact. Sous-vue séparée pour lire la classe de largeur RE-posée par le
+/// conteneur responsive du HStack racine (un `@Environment` lu directement
+/// dans `SettingsInlineView` verrait celui du parent).
+private struct SettingsSidebarColumn: View {
+    let title: String
+    let tabs: [(label: String, icon: String, help: String)]
+    @Binding var selectedTab: Int
+
+    @Environment(\.facioWidthClass) private var widthClass
+
+    private var isCompact: Bool { widthClass == .compact }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: FacioLayout.space16) {
+            // En compact, le titre de colonne est masqué (la sidebar réduite
+            // aux icônes ne peut pas l'afficher).
+            if !isCompact {
+                Text(title)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .padding(.horizontal, FacioLayout.space16)
+                    .padding(.top, FacioLayout.space16)
+            }
+
+            List(selection: Binding<Int?>(
+                get: { selectedTab },
+                set: { selectedTab = $0 ?? selectedTab }
+            )) {
+                ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
+                    tabLabel(tab)
+                        .tag(index)
+                }
+            }
+            .listStyle(.sidebar)
+        }
+        .frame(width: isCompact ? FacioLayout.settingsSidebarCompactWidth : FacioLayout.settingsSidebarWidth)
+        .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    /// Libellé d'un onglet : icône seule + infobulle (libellé existant) en compact.
+    @ViewBuilder
+    private func tabLabel(_ tab: (label: String, icon: String, help: String)) -> some View {
+        if isCompact {
+            Label(tab.label, systemImage: tab.icon)
+                .labelStyle(.iconOnly)
+                .help(tab.label)
+        } else {
+            Label(tab.label, systemImage: tab.icon)
         }
     }
 }

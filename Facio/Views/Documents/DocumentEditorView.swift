@@ -69,8 +69,12 @@ struct DocumentEditorView: View {
             let usesSideInspector = geometry.size.width >= FacioLayout.documentInspectorBreakpoint
 
             HStack(spacing: 0) {
+                // Re-pose le conteneur responsive : quand l'inspecteur latéral est
+                // visible, la largeur réelle de la colonne de contenu est plus
+                // étroite que la colonne détail mesurée par ContentView.
                 documentMainScroll(showInlineInspector: !usesSideInspector)
                     .frame(maxWidth: .infinity)
+                    .facioResponsiveContainer()
 
                 if usesSideInspector && hasReadinessIssues {
                     Divider()
@@ -401,32 +405,24 @@ struct DocumentEditorView: View {
     private var enTeteSection: some View {
         VStack(alignment: .leading, spacing: FacioLayout.space12) {
             subsectionHeader(L10n.headerSection(lang))
-            HStack(spacing: FacioLayout.space16) {
-                VStack(alignment: .leading, spacing: FacioLayout.space4) {
-                    Text(L10n.type(lang))
-                        .font(FacioFont.fieldLabel)
-                        .foregroundStyle(.secondary)
+            // Grille adaptative : 4 colonnes en large, wrap auto 4→2→1 en se
+            // réduisant. La grille égalise les largeurs, plus de frames figées.
+            FormGrid(minimum: 140, maximum: 250) {
+                LabeledField(L10n.type(lang)) {
                     Text(document.type.label(for: lang))
                         .font(.headline)
                         .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
                 }
 
-                VStack(alignment: .leading, spacing: FacioLayout.space4) {
-                    Text(L10n.number(lang))
-                        .font(FacioFont.fieldLabel)
-                        .foregroundStyle(.secondary)
+                LabeledField(L10n.number(lang)) {
                     TextField(L10n.number(lang), text: Binding(
                         get: { document.number },
                         set: { document.number = $0; scheduleSave() }
                     ))
                     .facioField()
-                    .frame(maxWidth: 250)
                 }
 
-                VStack(alignment: .leading, spacing: FacioLayout.space4) {
-                    Text(L10n.language(lang))
-                        .font(FacioFont.fieldLabel)
-                        .foregroundStyle(.secondary)
+                LabeledField(L10n.language(lang)) {
                     Picker("", selection: Binding(
                         get: { document.langue },
                         set: { newLang in
@@ -439,15 +435,10 @@ struct DocumentEditorView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(maxWidth: 120)
+                    .frame(maxWidth: .infinity)
                 }
 
-                Spacer()
-
-                VStack(alignment: .leading, spacing: FacioLayout.space4) {
-                    Text(L10n.status(lang))
-                        .font(FacioFont.fieldLabel)
-                        .foregroundStyle(.secondary)
+                LabeledField(L10n.status(lang)) {
                     Picker(L10n.status(lang), selection: Binding(
                         get: { document.status },
                         set: { newStatus in
@@ -474,7 +465,7 @@ struct DocumentEditorView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(maxWidth: 160)
+                    .frame(maxWidth: .infinity)
                 }
             }
         }
@@ -555,19 +546,15 @@ struct DocumentEditorView: View {
         if document.type == .facture && document.needsAccountingConversion(referenceCurrency: referenceCurrency) {
             VStack(alignment: .leading, spacing: FacioLayout.space12) {
                 subsectionHeader(L10n.accountingConversion(lang))
-                HStack(spacing: FacioLayout.space24) {
-                    VStack(alignment: .leading, spacing: FacioLayout.space4) {
-                        Text(L10n.accountingCurrency(lang))
-                            .font(FacioFont.fieldLabel)
-                            .foregroundStyle(.secondary)
+                // AdaptiveStack (pas ViewThatFits) : le DecimalField est
+                // compressible à l'infini. Empile verticalement en compact.
+                AdaptiveStack(hSpacing: FacioLayout.space24) {
+                    LabeledField(L10n.accountingCurrency(lang)) {
                         Text(referenceCurrency.label)
                             .font(.headline)
                     }
 
-                    VStack(alignment: .leading, spacing: FacioLayout.space4) {
-                        Text(L10n.exchangeRate(lang))
-                            .font(FacioFont.fieldLabel)
-                            .foregroundStyle(.secondary)
+                    LabeledField(L10n.exchangeRate(lang)) {
                         HStack(spacing: FacioLayout.space8) {
                             Text(L10n.exchangeRatePrefix(lang, source: document.currency.label))
                                 .foregroundStyle(.secondary)
@@ -601,16 +588,11 @@ struct DocumentEditorView: View {
                     }
 
                     if let total = document.accountingTotal(referenceCurrency: referenceCurrency) {
-                        VStack(alignment: .leading, spacing: FacioLayout.space4) {
-                            Text(L10n.accountingTotal(lang))
-                                .font(FacioFont.fieldLabel)
-                                .foregroundStyle(.secondary)
+                        LabeledField(L10n.accountingTotal(lang)) {
                             Text(referenceCurrency.formatAccounting(total, lang: dataStore.companyInfo.formatNombre))
                                 .font(.headline.monospacedDigit())
                         }
                     }
-
-                    Spacer()
                 }
 
                 if document.accountingTotal(referenceCurrency: referenceCurrency) == nil {
@@ -646,10 +628,8 @@ struct DocumentEditorView: View {
 
     private var clientFields: some View {
         VStack(alignment: .leading, spacing: FacioLayout.space12) {
-            VStack(alignment: .leading, spacing: FacioLayout.space4) {
-                Text(L10n.name(lang))
-                    .font(FacioFont.fieldLabel)
-                    .foregroundStyle(.secondary)
+            // Nom et adresse restent pleine largeur, hors grille.
+            LabeledField(L10n.name(lang)) {
                 TextField(L10n.clientName(lang), text: Binding(
                     get: { document.clientNom },
                     set: { document.clientNom = $0; scheduleSave() }
@@ -657,10 +637,7 @@ struct DocumentEditorView: View {
                 .facioField()
             }
 
-            VStack(alignment: .leading, spacing: FacioLayout.space4) {
-                Text(L10n.address(lang))
-                    .font(FacioFont.fieldLabel)
-                    .foregroundStyle(.secondary)
+            LabeledField(L10n.address(lang)) {
                 TextField(L10n.address(lang), text: Binding(
                     get: { document.clientAdresse },
                     set: { document.clientAdresse = $0; scheduleSave() }
@@ -668,36 +645,26 @@ struct DocumentEditorView: View {
                 .facioField()
             }
 
-            HStack(spacing: FacioLayout.space16) {
-                VStack(alignment: .leading, spacing: FacioLayout.space4) {
-                    Text(L10n.postalCode(lang))
-                        .font(FacioFont.fieldLabel)
-                        .foregroundStyle(.secondary)
+            // Les 5 petits champs wrappent en grille : 5→3→2→1 colonnes
+            // selon la largeur disponible.
+            FormGrid(minimum: 150, maximum: 280) {
+                LabeledField(L10n.postalCode(lang)) {
                     TextField(L10n.postalCode(lang), text: Binding(
                         get: { document.clientCodePostal },
                         set: { document.clientCodePostal = $0; scheduleSave() }
                     ))
                     .facioField()
-                    .frame(maxWidth: 120)
                 }
 
-                VStack(alignment: .leading, spacing: FacioLayout.space4) {
-                    Text(L10n.city(lang))
-                        .font(FacioFont.fieldLabel)
-                        .foregroundStyle(.secondary)
+                LabeledField(L10n.city(lang)) {
                     TextField(L10n.city(lang), text: Binding(
                         get: { document.clientVille },
                         set: { document.clientVille = $0; scheduleSave() }
                     ))
                     .facioField()
                 }
-            }
 
-            HStack(spacing: FacioLayout.space16) {
-                VStack(alignment: .leading, spacing: FacioLayout.space4) {
-                    Text(L10n.siret(lang))
-                        .font(FacioFont.fieldLabel)
-                        .foregroundStyle(.secondary)
+                LabeledField(L10n.siret(lang)) {
                     TextField(L10n.siret(lang), text: Binding(
                         get: { document.clientSiret },
                         set: { document.clientSiret = $0; scheduleSave() }
@@ -705,10 +672,7 @@ struct DocumentEditorView: View {
                     .facioField()
                 }
 
-                VStack(alignment: .leading, spacing: FacioLayout.space4) {
-                    Text(L10n.vatNumber(lang))
-                        .font(FacioFont.fieldLabel)
-                        .foregroundStyle(.secondary)
+                LabeledField(L10n.vatNumber(lang)) {
                     TextField(L10n.vatNumber(lang), text: Binding(
                         get: { document.clientTva },
                         set: { document.clientTva = $0; scheduleSave() }
@@ -716,10 +680,7 @@ struct DocumentEditorView: View {
                     .facioField()
                 }
 
-                VStack(alignment: .leading, spacing: FacioLayout.space4) {
-                    Text(L10n.apeCode(lang))
-                        .font(FacioFont.fieldLabel)
-                        .foregroundStyle(.secondary)
+                LabeledField(L10n.apeCode(lang)) {
                     TextField(L10n.apeCode(lang), text: Binding(
                         get: { document.clientApe },
                         set: { document.clientApe = $0; scheduleSave() }

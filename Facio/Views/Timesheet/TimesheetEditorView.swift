@@ -123,54 +123,72 @@ struct TimesheetEditorView: View {
         let brut = timesheet.totalBrutCrossPeriod(adjacentHours: adj)
         let net = timesheet.totalNetCrossPeriod(adjacentHours: adj)
 
-        let invoiceTone: Color = timesheet.hasGeneratedInvoice ? .intentSuccess : .intentWarning
-
+        // Contenu 100% intrinsèque (Texts uniquement) → ViewThatFits autorisé.
         return SectionPanel {
-            HStack(alignment: .center, spacing: FacioLayout.space16) {
-                VStack(alignment: .leading, spacing: FacioLayout.space6) {
-                    Text(timesheet.periodLabel(for: lang))
-                        .font(FacioFont.heroTitle)
-                    Text(timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName)
-                        .font(FacioFont.screenSubtitle)
-                        .foregroundStyle(timesheet.clientDisplayName.isEmpty ? .tertiary : .secondary)
+            ViewThatFits(in: .horizontal) {
+                // Variante large : titre à gauche, stats et badge à droite
+                HStack(alignment: .center, spacing: FacioLayout.space16) {
+                    heroTitleBlock
+                    Spacer()
+                    heroStatsRow(heures: heures, brut: brut, net: net)
+                    heroInvoiceBadge
                 }
 
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: FacioLayout.space4) {
-                    Text(L10n.totalHours(lang))
-                        .font(FacioFont.caption)
-                        .foregroundStyle(.secondary)
-                    Text("\(heures.formatted2Decimals(for: numberFormat))h")
-                        .font(FacioFont.amountEmphasis)
+                // Variante empilée : titre puis rangée stats + badge
+                VStack(alignment: .leading, spacing: FacioLayout.space10) {
+                    heroTitleBlock
+                    HStack(alignment: .center, spacing: FacioLayout.space16) {
+                        heroStatsRow(heures: heures, brut: brut, net: net)
+                        heroInvoiceBadge
+                    }
                 }
-
-                VStack(alignment: .trailing, spacing: FacioLayout.space4) {
-                    Text(L10n.grossTotal(lang))
-                        .font(FacioFont.caption)
-                        .foregroundStyle(.secondary)
-                    Text(brut.formatted2Decimals(for: numberFormat))
-                        .font(FacioFont.amountEmphasis)
-                }
-
-                VStack(alignment: .trailing, spacing: FacioLayout.space4) {
-                    Text(L10n.netTotal(lang))
-                        .font(FacioFont.caption)
-                        .foregroundStyle(.secondary)
-                    Text(net.formatted2Decimals(for: numberFormat))
-                        .font(FacioFont.amountEmphasis)
-                }
-
-                Text(timesheet.hasGeneratedInvoice ? L10n.invoiced(lang) : L10n.notInvoiced(lang))
-                    .font(FacioFont.caption)
-                    .fontWeight(.medium)
-                    .padding(.horizontal, FacioLayout.space8)
-                    .padding(.vertical, FacioLayout.space4)
-                    .background(invoiceTone.opacity(0.14))
-                    .foregroundStyle(invoiceTone)
-                    .clipShape(Capsule())
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+
+    /// Bloc titre du hero (période + client), partagé par les variantes ViewThatFits.
+    private var heroTitleBlock: some View {
+        VStack(alignment: .leading, spacing: FacioLayout.space6) {
+            Text(timesheet.periodLabel(for: lang))
+                .font(FacioFont.heroTitle)
+            Text(timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName)
+                .font(FacioFont.screenSubtitle)
+                .foregroundStyle(timesheet.clientDisplayName.isEmpty ? .tertiary : .secondary)
+        }
+    }
+
+    /// Rangée des trois statistiques du hero, partagée par les variantes ViewThatFits.
+    private func heroStatsRow(heures: Decimal, brut: Decimal, net: Decimal) -> some View {
+        HStack(alignment: .center, spacing: FacioLayout.space16) {
+            heroStat(L10n.totalHours(lang), value: "\(heures.formatted2Decimals(for: numberFormat))h")
+            heroStat(L10n.grossTotal(lang), value: brut.formatted2Decimals(for: numberFormat))
+            heroStat(L10n.netTotal(lang), value: net.formatted2Decimals(for: numberFormat))
+        }
+    }
+
+    /// Une statistique du hero (libellé + valeur).
+    private func heroStat(_ title: String, value: String) -> some View {
+        VStack(alignment: .trailing, spacing: FacioLayout.space4) {
+            Text(title)
+                .font(FacioFont.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(FacioFont.amountEmphasis)
+        }
+    }
+
+    /// Badge facturé / non facturé du hero.
+    private var heroInvoiceBadge: some View {
+        let invoiceTone: Color = timesheet.hasGeneratedInvoice ? .intentSuccess : .intentWarning
+        return Text(timesheet.hasGeneratedInvoice ? L10n.invoiced(lang) : L10n.notInvoiced(lang))
+            .font(FacioFont.caption)
+            .fontWeight(.medium)
+            .padding(.horizontal, FacioLayout.space8)
+            .padding(.vertical, FacioLayout.space4)
+            .background(invoiceTone.opacity(0.14))
+            .foregroundStyle(invoiceTone)
+            .clipShape(Capsule())
     }
 
     private var periodRangeSection: some View {
@@ -380,43 +398,30 @@ struct TimesheetEditorView: View {
 
         return SectionPanel {
             VStack(spacing: FacioLayout.space10) {
-                // En-tete
-                HStack {
-                    VStack(alignment: .leading, spacing: FacioLayout.space2) {
-                        Text(L10n.week(lang, number: week.numero))
-                            .font(FacioFont.sectionTitle)
-                        Text(week.label(for: lang))
-                            .font(FacioFont.caption)
-                            .foregroundStyle(.secondary)
+                // En-tete : contenu 100% intrinsèque (Texts/Labels) → ViewThatFits autorisé.
+                ViewThatFits(in: .horizontal) {
+                    // Variante large : titre à gauche, stats à droite
+                    HStack {
+                        weekTitleBlock(week)
+                        Spacer()
+                        weekStatsRow(heuresMois: heuresMoisSemaine, norm: normSemaine, sup: supSemaine)
                     }
-                    Spacer()
-                    HStack(spacing: FacioLayout.space16) {
-                        Label("\(heuresMoisSemaine.formatted2Decimals(for: numberFormat))h", systemImage: "clock")
-                            .font(FacioFont.rowValue)
-                            .fontWeight(.medium)
-                        Text(L10n.normalHoursShort(lang, value: normSemaine.formatted2Decimals(for: numberFormat)))
-                            .font(FacioFont.metaValue)
-                            .foregroundStyle(Color.intentInfo)
-                        if supSemaine > 0 {
-                            Text(L10n.overtimeHoursShort(lang, value: supSemaine.formatted2Decimals(for: numberFormat)))
-                                .font(FacioFont.metaValue)
-                                .foregroundStyle(Color.intentWarning)
-                                .fontWeight(.medium)
-                        }
-                        Divider().frame(height: 14)
-                        let coutSemaine = normSemaine * timesheet.tauxNormal
-                            + supSemaine * timesheet.tauxSupplementaire
-                        Text(coutSemaine.formatted2Decimals(for: numberFormat))
-                            .font(FacioFont.rowValue)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(Color.intentSuccess)
+
+                    // Variante empilée : titre puis rangée de stats
+                    VStack(alignment: .leading, spacing: FacioLayout.space8) {
+                        weekTitleBlock(week)
+                        weekStatsRow(heuresMois: heuresMoisSemaine, norm: normSemaine, sup: supSemaine)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 Divider()
 
-                // Grille des jours
-                HStack(spacing: 0) {
+                // Grille des jours : wrap automatique en deux rangées quand la largeur se réduit
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 64, maximum: .infinity), spacing: FacioLayout.space4)],
+                    spacing: FacioLayout.space8
+                ) {
                     ForEach(Array(week.jours.enumerated()), id: \.offset) { dayIndex, jour in
                         let estDansMois = timesheet.isBillableDay(jour)
                         let hasTimerEntries = timesheet.hasTimeEntries(on: jour.dateString)
@@ -462,6 +467,41 @@ struct TimesheetEditorView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// Bloc titre d'une semaine (numéro + plage), partagé par les variantes ViewThatFits.
+    private func weekTitleBlock(_ week: TimesheetWeek) -> some View {
+        VStack(alignment: .leading, spacing: FacioLayout.space2) {
+            Text(L10n.week(lang, number: week.numero))
+                .font(FacioFont.sectionTitle)
+            Text(week.label(for: lang))
+                .font(FacioFont.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Rangée de stats d'une semaine (total, normales, sup, coût), partagée par les variantes ViewThatFits.
+    private func weekStatsRow(heuresMois: Decimal, norm: Decimal, sup: Decimal) -> some View {
+        HStack(spacing: FacioLayout.space16) {
+            Label("\(heuresMois.formatted2Decimals(for: numberFormat))h", systemImage: "clock")
+                .font(FacioFont.rowValue)
+                .fontWeight(.medium)
+            Text(L10n.normalHoursShort(lang, value: norm.formatted2Decimals(for: numberFormat)))
+                .font(FacioFont.metaValue)
+                .foregroundStyle(Color.intentInfo)
+            if sup > 0 {
+                Text(L10n.overtimeHoursShort(lang, value: sup.formatted2Decimals(for: numberFormat)))
+                    .font(FacioFont.metaValue)
+                    .foregroundStyle(Color.intentWarning)
+                    .fontWeight(.medium)
+            }
+            Divider().frame(height: 14)
+            let coutSemaine = norm * timesheet.tauxNormal + sup * timesheet.tauxSupplementaire
+            Text(coutSemaine.formatted2Decimals(for: numberFormat))
+                .font(FacioFont.rowValue)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.intentSuccess)
         }
     }
 
