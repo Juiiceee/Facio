@@ -1,41 +1,38 @@
 import SwiftUI
 
-/// Champ de saisie tokenisé avec erreur **visible inline** (et non en tooltip).
-///
-/// Remplace les `TextField().textFieldStyle(.roundedBorder)` répétés et offre
-/// un état focus et un état d'erreur explicites.
-struct FacioTextField: View {
-    let placeholder: String
-    @Binding var text: String
-    var systemImage: String?
+/// Densité du chrome d'un champ : `regular` pour les formulaires,
+/// `compact` pour les lignes de tableau et les barres de saisie denses.
+enum FacioFieldDensity {
+    case regular
+    case compact
+}
+
+/// Chrome tokenisé d'un champ de saisie, appliqué à un `TextField`/`SecureField`
+/// natif via `.facioField(error:density:)` : fond `surfaceField`, bordure avec
+/// états focus/erreur, et message d'erreur inline en densité `regular` (en
+/// `compact`, seule la bordure signale l'erreur pour ne pas casser la hauteur
+/// des lignes). Source unique du style de champ — `FacioTextField` s'appuie dessus.
+struct FacioFieldModifier: ViewModifier {
     var error: String?
-    var alignment: TextAlignment = .leading
+    var density: FacioFieldDensity = .regular
 
     @FocusState private var isFocused: Bool
 
-    var body: some View {
+    func body(content: Content) -> some View {
         VStack(alignment: .leading, spacing: FacioLayout.space4) {
-            HStack(spacing: FacioLayout.space8) {
-                if let systemImage {
-                    Image(systemName: systemImage)
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
-                }
-                TextField(placeholder, text: $text)
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(alignment)
-                    .focused($isFocused)
-            }
-            .padding(.horizontal, FacioLayout.space10)
-            .padding(.vertical, FacioLayout.space8)
-            .background(Color.surfaceField)
-            .overlay(
-                RoundedRectangle(cornerRadius: FacioLayout.radiusField)
-                    .strokeBorder(borderColor, lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusField))
+            content
+                .textFieldStyle(.plain)
+                .focused($isFocused)
+                .padding(.horizontal, density == .regular ? FacioLayout.space10 : FacioLayout.space8)
+                .padding(.vertical, density == .regular ? FacioLayout.space8 : FacioLayout.space4)
+                .background(Color.surfaceField)
+                .overlay(
+                    RoundedRectangle(cornerRadius: FacioLayout.radiusField)
+                        .strokeBorder(borderColor, lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusField))
 
-            if let error, !error.isEmpty {
+            if density == .regular, let error, !error.isEmpty {
                 Text(error)
                     .font(FacioFont.captionSmall)
                     .foregroundStyle(Color.intentDanger)
@@ -47,5 +44,38 @@ struct FacioTextField: View {
     private var borderColor: Color {
         if error?.isEmpty == false { return .intentDanger }
         return isFocused ? .borderHover : .borderSubtle
+    }
+}
+
+extension View {
+    /// Applique le chrome de champ du design system à un champ de saisie natif.
+    /// Remplace les `.textFieldStyle(.roundedBorder)` disséminés dans les vues.
+    func facioField(error: String? = nil, density: FacioFieldDensity = .regular) -> some View {
+        modifier(FacioFieldModifier(error: error, density: density))
+    }
+}
+
+/// Champ de saisie tokenisé avec erreur **visible inline** (et non en tooltip).
+///
+/// Variante « riche » du chrome `.facioField` pour les cas avec icône d'appoint ;
+/// pour un champ nu, appliquer directement `.facioField()` au `TextField` natif.
+struct FacioTextField: View {
+    let placeholder: String
+    @Binding var text: String
+    var systemImage: String?
+    var error: String?
+    var alignment: TextAlignment = .leading
+
+    var body: some View {
+        HStack(spacing: FacioLayout.space8) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+            TextField(placeholder, text: $text)
+                .multilineTextAlignment(alignment)
+        }
+        .facioField(error: error)
     }
 }

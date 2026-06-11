@@ -10,12 +10,30 @@ enum FacioButtonRole {
     case destructive
 }
 
+/// Accent de marque ambiant (couleur d'accent de `CompanyInfo`), injecté à la
+/// racine de chaque scène par `FacioApp`. Permet aux styles de boutons de
+/// suivre la couleur de marque sans dépendre de `DataStore`.
+private struct FacioAccentKey: EnvironmentKey {
+    // `static var` calculée : même précaution que Color+Theme (crash du
+    // compilateur Swift 6.0.x en release sur les `static let` de Color).
+    static var defaultValue: Color { .appPrimary }
+}
+
+extension EnvironmentValues {
+    var facioAccent: Color {
+        get { self[FacioAccentKey.self] }
+        set { self[FacioAccentKey.self] = newValue }
+    }
+}
+
 /// Style de bouton tokenisé. Utilisable via `.buttonStyle(.facio(.primary))`.
+/// Sans `accent` explicite, le style suit l'accent de marque ambiant.
 struct FacioButtonStyle: ButtonStyle {
     var role: FacioButtonRole = .primary
-    var accent: Color = .appPrimary
+    var accent: Color? = nil
 
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.facioAccent) private var ambientAccent
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -37,7 +55,7 @@ struct FacioButtonStyle: ButtonStyle {
 
     private var fill: Color {
         switch role {
-        case .primary: return accent
+        case .primary: return accent ?? ambientAccent
         case .secondary: return .surfaceTile
         case .destructive: return .intentDanger
         }
@@ -68,15 +86,13 @@ struct FacioButtonStyle: ButtonStyle {
 }
 
 extension ButtonStyle where Self == FacioButtonStyle {
-    static func facio(_ role: FacioButtonRole = .primary, accent: Color = .appPrimary) -> FacioButtonStyle {
+    static func facio(_ role: FacioButtonRole = .primary, accent: Color? = nil) -> FacioButtonStyle {
         FacioButtonStyle(role: role, accent: accent)
     }
 }
 
-/// Bouton prêt à l'emploi câblé sur l'accent de marque dynamique (depuis `CompanyInfo`).
+/// Bouton prêt à l'emploi suivant l'accent de marque ambiant.
 struct FacioButton: View {
-    @Environment(DataStore.self) private var dataStore
-
     let title: String
     var systemImage: String?
     var role: FacioButtonRole = .primary
@@ -97,7 +113,7 @@ struct FacioButton: View {
                 Text(title)
             }
         }
-        .buttonStyle(.facio(role, accent: .appPrimary(from: dataStore.companyInfo)))
+        .buttonStyle(.facio(role))
     }
 }
 

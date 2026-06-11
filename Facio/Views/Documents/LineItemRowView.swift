@@ -137,9 +137,9 @@ struct DecimalField: View {
 
     var body: some View {
         TextField(placeholder, text: $text)
-            .textFieldStyle(.roundedBorder)
             .multilineTextAlignment(.trailing)
             .focused($isFocused)
+            .facioField(density: .compact)
             .onAppear {
                 text = value == 0 ? "" : formatDecimal(value)
             }

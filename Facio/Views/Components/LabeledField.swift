@@ -16,7 +16,7 @@ struct LabeledField<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: FacioLayout.space4) {
             Text(label)
-                .font(.subheadline)
+                .font(FacioFont.fieldLabel)
                 .foregroundStyle(.secondary)
             content
         }
