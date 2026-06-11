@@ -1,5 +1,32 @@
 # Changelog
 
+## [2.2.0](https://github.com/Juiiceee/Facio/compare/Facio-v2.1.2...Facio-v2.2.0) (2026-06-11)
+
+
+### Nouvelles fonctionnalites
+
+* **design:** design-system overhaul for a consistent, responsive UI ([#75](https://github.com/Juiiceee/Facio/issues/75)) ([ce39d70](https://github.com/Juiiceee/Facio/commit/ce39d7090b3bec5f67950aaa2f205e89c5fcc029))
+* **documents:** attach expense receipts to invoices and send by email ([#78](https://github.com/Juiiceee/Facio/issues/78)) ([b1f4bda](https://github.com/Juiiceee/Facio/commit/b1f4bdad1de8806aab97f10ebf656ddfede0eef7))
+* **ux:** retours visuels — toasts, confirmations et CTA ([#85](https://github.com/Juiiceee/Facio/issues/85)) ([1c0d546](https://github.com/Juiiceee/Facio/commit/1c0d5467fbfa4e13f86af59b91ec711c19fce54b))
+
+
+### Corrections de bugs
+
+* **documents:** corriger les fragilités email & justificatifs ([#79](https://github.com/Juiiceee/Facio/issues/79)) ([100a151](https://github.com/Juiiceee/Facio/commit/100a15105869cc9ec4a4532fb3d7d7ad6d27d980))
+
+
+### Refactorings
+
+* **design:** adoption complète du design system ([#82](https://github.com/Juiiceee/Facio/issues/82)) ([c681c43](https://github.com/Juiiceee/Facio/commit/c681c43e750aad4df534e462367a7b4e1c1fe331))
+
+
+### Ameliorations
+
+* **pdf:** rafraîchir la mise en page de la facture ([#81](https://github.com/Juiiceee/Facio/issues/81)) ([abdf0b2](https://github.com/Juiiceee/Facio/commit/abdf0b2fd2249c1d4bd809399c1ccb70a556f9de))
+* **theme:** dark mode soigné — variantes sombres des tokens ([#86](https://github.com/Juiiceee/Facio/issues/86)) ([3278c97](https://github.com/Juiiceee/Facio/commit/3278c97305827fdc1ac8b7d8e1459a30e3db06f5))
+* **ui:** FacioMotion tokens and whitelisted micro-interactions ([#84](https://github.com/Juiiceee/Facio/issues/84)) ([e24f829](https://github.com/Juiiceee/Facio/commit/e24f8292e228e51b734ab29b221107672ddd44bb))
+* **ui:** responsivité — layouts adaptatifs et fenêtre minimale 960 pt ([#83](https://github.com/Juiiceee/Facio/issues/83)) ([6075c02](https://github.com/Juiiceee/Facio/commit/6075c0248c810c6ffff6a0aec22952e0363380fa))
+
 ## [2.1.2](https://github.com/Juiiceee/Facio/compare/Facio-v2.1.1...Facio-v2.1.2) (2026-05-30)
 
 
