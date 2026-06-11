@@ -1,6 +1,7 @@
 #if FACIO_REGRESSION_TESTS
 import Darwin
 import Foundation
+import PDFKit
 
 @MainActor
 enum FacioRegressionSuite {
@@ -114,8 +115,28 @@ enum FacioRegressionSuite {
         RegressionCase(name: "email safe filename strips unsafe characters", run: emailSafeFilenameStripsUnsafeCharacters),
         RegressionCase(name: "attachment import copies file and records metadata", run: attachmentImportCopiesFileAndRecordsMetadata),
         RegressionCase(name: "attachment duplication reports missing source files", run: attachmentDuplicationReportsMissingSourceFiles),
-        RegressionCase(name: "attachment urls expose only existing files", run: attachmentURLsExposeOnlyExistingFiles)
+        RegressionCase(name: "attachment urls expose only existing files", run: attachmentURLsExposeOnlyExistingFiles),
+        RegressionCase(name: "pdf generation paginates long invoices", run: pdfGenerationPaginatesLongInvoices)
     ]
+
+    private static func pdfGenerationPaginatesLongInvoices() throws {
+        let company = try JSONDecoder().decode(CompanyInfo.self, from: Data(#"{"nom":"Facio SAS"}"#.utf8))
+
+        let short = Document(type: .facture, number: "Facture_2026_01")
+        short.ajouterLigne(LineItem(designation: "Dev", quantite: 1, prixUnitaire: 100, tauxTVA: 20))
+        let shortData = PDFGenerator(document: short, company: company).generate()
+        try expect(!shortData.isEmpty, "short invoice should produce PDF data")
+        let shortDoc = try require(PDFDocument(data: shortData), "short invoice PDF should parse")
+        try expectEqual(shortDoc.pageCount, 1)
+
+        let long = Document(type: .facture, number: "Facture_2026_02")
+        for i in 1...60 {
+            long.ajouterLigne(LineItem(designation: "Prestation \(i)", quantite: 1, prixUnitaire: 100, tauxTVA: 20))
+        }
+        let longData = PDFGenerator(document: long, company: company).generate()
+        let longDoc = try require(PDFDocument(data: longData), "long invoice PDF should parse")
+        try expect(longDoc.pageCount >= 2, "a 60-line invoice should span at least 2 pages, got \(longDoc.pageCount)")
+    }
 
     private static func decimalHourInputKeepsDecimalFractions() throws {
         try expectDecimal(TimesheetHourInputParser.parse("6,5", mode: .decimal), equals: "6.5")
