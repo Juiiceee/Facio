@@ -3,6 +3,7 @@ import SwiftUI
 struct TotalsView: View {
     let document: Document
     @Environment(DataStore.self) private var dataStore
+    @Environment(\.facioWidthClass) private var widthClass
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
     private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
@@ -52,7 +53,8 @@ struct TotalsView: View {
                     }
                 }
             }
-            .frame(maxWidth: 350)
+            // Pleine largeur en compact, sinon panneau aligné à droite.
+            .frame(maxWidth: widthClass == .compact ? .infinity : FacioLayout.totalsMaxWidth)
         }
     }
 

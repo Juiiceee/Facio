@@ -267,7 +267,8 @@ struct TimesheetListView: View {
             }
         }
         .padding(FacioLayout.space20)
-        .frame(width: 400)
+        // Largeur souple : le popover se resserre sur les petites fenêtres.
+        .frame(minWidth: 360, idealWidth: 400, maxWidth: 440)
     }
 
     private func creerPeriode(client: ClientInfo?) {

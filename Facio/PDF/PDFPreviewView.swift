@@ -69,7 +69,10 @@ struct PDFPreviewSheet: View {
                 PDFPreviewView(data: pdfData)
             }
         }
-        .frame(minWidth: 650, minHeight: 850)
+        // Garde-fou minimal ; .page dimensionne la sheet proportionnellement
+        // à la fenêtre (idéal pour un aperçu A4) sans jamais la clipper.
+        .frame(minWidth: FacioLayout.sheetMinWidth, minHeight: 420)
+        .presentationSizing(.page)
         .alert(L10n.pdfGenerationError(lang), isPresented: $showPDFGenerationAlert) {
             Button(L10n.understood(lang), role: .cancel) {}
         } message: {

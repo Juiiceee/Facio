@@ -5,6 +5,7 @@ struct ClientListView: View {
     var onSelectDocument: (Document) -> Void = { _ in }
 
     @Environment(DataStore.self) private var dataStore
+    @Environment(\.facioWidthClass) private var widthClass
     @State private var searchText = ""
     @State private var clientPendingDeletion: ClientInfo?
 
@@ -32,44 +33,11 @@ struct ClientListView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            List(filteredClients, selection: $selectedClientId) { client in
-                ClientRow(client: client)
-                    .tag(client.id)
-                    .contextMenu {
-                        Button(L10n.delete(lang), role: .destructive) {
-                            clientPendingDeletion = client
-                        }
-                    }
-            }
-            .searchable(text: $searchText, prompt: L10n.searchClientPrompt(lang))
-            .overlay {
-                if filteredClients.isEmpty {
-                    FacioEmptyState(
-                        title: searchText.isEmpty ? L10n.noClientsYet(lang) : L10n.noSearchResults(lang),
-                        systemImage: searchText.isEmpty ? "person.2" : "magnifyingglass",
-                        message: searchText.isEmpty ? L10n.selectOrCreateClient(lang) : L10n.noSearchResultsHint(lang)
-                    )
-                }
-            }
-            .frame(minWidth: 280, idealWidth: 360, maxWidth: 520, maxHeight: .infinity)
-
-            Divider()
-
-            if let client = selectedClient {
-                ClientDetailView(
-                    client: client,
-                    onSelectDocument: onSelectDocument,
-                    onCreateDocument: createDocument
-                )
-                    .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
+        Group {
+            if widthClass == .compact {
+                compactLayout
             } else {
-                FacioEmptyState(
-                    title: L10n.noClientSelected(lang),
-                    systemImage: "person.crop.circle",
-                    message: L10n.selectOrCreateClient(lang)
-                )
-                .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
+                splitLayout
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -105,6 +73,92 @@ struct ClientListView: View {
                 self.selectedClientId = nil
             }
         }
+    }
+
+    // MARK: - Layouts
+
+    /// Split 2 colonnes maison pour les largeurs regular/wide.
+    private var splitLayout: some View {
+        HStack(spacing: 0) {
+            clientList
+                .frame(minWidth: 260, idealWidth: 340, maxWidth: 480, maxHeight: .infinity)
+
+            Divider()
+
+            detailPane
+                .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    /// Navigation empilée en largeur compacte : le détail pleine largeur
+    /// (précédé d'un bouton retour) quand un client est sélectionné, sinon la liste.
+    @ViewBuilder
+    private var compactLayout: some View {
+        if let client = selectedClient {
+            VStack(alignment: .leading, spacing: 0) {
+                Button {
+                    selectedClientId = nil
+                } label: {
+                    Label(L10n.back(lang), systemImage: "chevron.left")
+                }
+                .buttonStyle(.borderless)
+                .padding(.horizontal, FacioLayout.screenPadding)
+                .padding(.vertical, FacioLayout.space8)
+
+                Divider()
+
+                detailView(for: client)
+            }
+        } else {
+            clientList
+        }
+    }
+
+    /// Liste des clients, partagée entre les variantes split et empilée.
+    private var clientList: some View {
+        List(filteredClients, selection: $selectedClientId) { client in
+            ClientRow(client: client)
+                .tag(client.id)
+                .contextMenu {
+                    Button(L10n.delete(lang), role: .destructive) {
+                        clientPendingDeletion = client
+                    }
+                }
+        }
+        .searchable(text: $searchText, prompt: L10n.searchClientPrompt(lang))
+        .overlay {
+            if filteredClients.isEmpty {
+                FacioEmptyState(
+                    title: searchText.isEmpty ? L10n.noClientsYet(lang) : L10n.noSearchResults(lang),
+                    systemImage: searchText.isEmpty ? "person.2" : "magnifyingglass",
+                    message: searchText.isEmpty ? L10n.selectOrCreateClient(lang) : L10n.noSearchResultsHint(lang)
+                )
+            }
+        }
+    }
+
+    /// Colonne détail du split : détail du client sélectionné ou état vide.
+    @ViewBuilder
+    private var detailPane: some View {
+        if let client = selectedClient {
+            detailView(for: client)
+        } else {
+            FacioEmptyState(
+                title: L10n.noClientSelected(lang),
+                systemImage: "person.crop.circle",
+                message: L10n.selectOrCreateClient(lang)
+            )
+        }
+    }
+
+    /// Détail d'un client, partagé entre les variantes split et empilée.
+    private func detailView(for client: ClientInfo) -> some View {
+        ClientDetailView(
+            client: client,
+            onSelectDocument: onSelectDocument,
+            onCreateDocument: createDocument
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func createClient() {

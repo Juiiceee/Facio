@@ -116,8 +116,42 @@ enum FacioRegressionSuite {
         RegressionCase(name: "attachment import copies file and records metadata", run: attachmentImportCopiesFileAndRecordsMetadata),
         RegressionCase(name: "attachment duplication reports missing source files", run: attachmentDuplicationReportsMissingSourceFiles),
         RegressionCase(name: "attachment urls expose only existing files", run: attachmentURLsExposeOnlyExistingFiles),
-        RegressionCase(name: "pdf generation paginates long invoices", run: pdfGenerationPaginatesLongInvoices)
+        RegressionCase(name: "pdf generation paginates long invoices", run: pdfGenerationPaginatesLongInvoices),
+        RegressionCase(name: "responsive width class maps breakpoints", run: responsiveWidthClassMapsBreakpoints),
+        RegressionCase(name: "window minimum fits split view columns", run: windowMinimumFitsSplitViewColumns),
+        RegressionCase(name: "sheet minimums fit inside minimum window", run: sheetMinimumsFitInsideMinimumWindow)
     ]
+
+    private static func responsiveWidthClassMapsBreakpoints() throws {
+        try expectEqual(FacioWidthClass(width: FacioLayout.breakpointCompact - 1), .compact)
+        try expectEqual(FacioWidthClass(width: FacioLayout.breakpointCompact), .regular)
+        try expectEqual(FacioWidthClass(width: FacioLayout.breakpointWide - 1), .regular)
+        try expectEqual(FacioWidthClass(width: FacioLayout.breakpointWide), .wide)
+    }
+
+    private static func windowMinimumFitsSplitViewColumns() throws {
+        try expect(
+            FacioLayout.sidebarMin + FacioLayout.contentColumnMin + FacioLayout.detailMin <= FacioLayout.windowMinWidth,
+            "sidebar + content + detail minimums must fit in the minimum window width"
+        )
+    }
+
+    private static func sheetMinimumsFitInsideMinimumWindow() throws {
+        try expect(
+            FacioLayout.sheetMinWidth <= FacioLayout.windowMinWidth - 80,
+            "sheet minimum width must fit inside the minimum window"
+        )
+        try expect(
+            FacioLayout.sheetMinHeight <= FacioLayout.windowMinHeight - 80,
+            "sheet minimum height must fit inside the minimum window"
+        )
+        let fixedColumns = LineItemColumns.qty + LineItemColumns.unitPrice + LineItemColumns.vat
+            + LineItemColumns.totalHT + LineItemColumns.actions
+        try expect(
+            FacioLayout.lineItemsCompactBreakpoint > fixedColumns + FacioLayout.fieldMinWidth,
+            "compact breakpoint must trigger before the fixed line columns overflow"
+        )
+    }
 
     private static func pdfGenerationPaginatesLongInvoices() throws {
         let company = try JSONDecoder().decode(CompanyInfo.self, from: Data(#"{"nom":"Facio SAS"}"#.utf8))

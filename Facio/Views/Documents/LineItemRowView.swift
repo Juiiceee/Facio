@@ -3,6 +3,9 @@ import SwiftUI
 struct LineItemRowView: View {
     var document: Document
     let ligneId: UUID
+    /// Disposition compacte sur deux niveaux (désignation + actions, puis
+    /// qty/prix/TVA/total) — pilotée par `DocumentLineItemsSection`.
+    var compact: Bool = false
     var onDelete: () -> Void
     var onDuplicate: () -> Void
     var onInsertBelow: () -> Void
@@ -27,96 +30,155 @@ struct LineItemRowView: View {
 
     var body: some View {
         if let currentLigne = ligne {
-            HStack(spacing: FacioLayout.space8) {
-                // Designation
-                TextField(L10n.designationLabel(lang), text: Binding(
-                    get: { document.lignes.first(where: { $0.id == ligneId })?.designation ?? "" },
-                    set: { newVal in
-                        if let i = safeIndex() { document.lignes[i].designation = newVal; onUpdate() }
-                    }
-                ))
-                .facioField(density: .compact)
-                .frame(maxWidth: .infinity)
-
-                // Quantite
-                DecimalField(
-                    placeholder: L10n.qtyShort(lang),
-                    value: Binding(
-                        get: { document.lignes.first(where: { $0.id == ligneId })?.quantite ?? 0 },
-                        set: { newVal in
-                            if let i = safeIndex() { document.lignes[i].quantite = newVal; onUpdate() }
-                        }
-                    )
-                )
-                .format(numberFormat)
-                .frame(width: LineItemColumns.qty)
-
-                // Prix unitaire
-                DecimalField(
-                    placeholder: L10n.priceLabel(lang),
-                    value: Binding(
-                        get: { document.lignes.first(where: { $0.id == ligneId })?.prixUnitaire ?? 0 },
-                        set: { newVal in
-                            if let i = safeIndex() { document.lignes[i].prixUnitaire = newVal; onUpdate() }
-                        }
-                    ),
-                    maximumFractionDigits: document.currency.maximumFractionDigits
-                )
-                .format(numberFormat)
-                .frame(width: LineItemColumns.unitPrice)
-
-                // TVA
-                Picker(L10n.vatLabel(lang), selection: Binding(
-                    get: { document.lignes.first(where: { $0.id == ligneId })?.tauxTVA ?? 0 },
-                    set: { newVal in
-                        if let i = safeIndex() { document.lignes[i].tauxTVA = newVal; onUpdate() }
-                    }
-                )) {
-                    ForEach(Self.tvaRates, id: \.self) { rate in
-                        Text(L10n.vatRateLabel(numberFormat, rate: rate)).tag(rate)
-                    }
+            // Le if/else ne duplique que la STRUCTURE : les champs eux-mêmes
+            // sont des sous-vues privées partagées entre les deux variantes.
+            Group {
+                if compact {
+                    compactRow(for: currentLigne)
+                } else {
+                    regularRow(for: currentLigne)
                 }
-                .labelsHidden()
-                .frame(width: LineItemColumns.vat)
-
-                // Total (lecture seule)
-                Text(document.currency.formatAccounting(currentLigne.totalLigne, lang: numberFormat))
-                    .font(FacioFont.amount)
-                    .frame(width: LineItemColumns.totalHT, alignment: .trailing)
-
-                Menu {
-                    Button {
-                        onInsertBelow()
-                    } label: {
-                        Label(L10n.insertLineBelow(lang), systemImage: "plus")
-                    }
-
-                    Button {
-                        onDuplicate()
-                    } label: {
-                        Label(L10n.duplicateLine(lang), systemImage: "doc.on.doc")
-                    }
-
-                    Divider()
-
-                    Button(role: .destructive) {
-                        onDelete()
-                    } label: {
-                        Label(L10n.deleteLine(lang), systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .frame(width: LineItemColumns.actions, height: FacioLayout.iconHitTarget)
-                        .contentShape(Rectangle())
-                }
-                .menuStyle(.borderlessButton)
-                .help(L10n.businessActions(lang))
             }
             .padding(.vertical, FacioLayout.space2)
             .padding(.horizontal, FacioLayout.space4)
             .background(rowNeedsAttention(currentLigne) ? Color.intentWarning.opacity(0.08) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusField))
         }
+    }
+
+    // MARK: - Variantes de disposition
+
+    /// Variante régulière : une seule rangée, colonnes fixes alignées sur
+    /// l'en-tête de `DocumentLineItemsSection`.
+    private func regularRow(for currentLigne: LineItem) -> some View {
+        HStack(spacing: FacioLayout.space8) {
+            designationField
+            qtyField
+                .frame(width: LineItemColumns.qty)
+            priceField
+                .frame(width: LineItemColumns.unitPrice)
+            vatPicker
+                .frame(width: LineItemColumns.vat)
+            totalText(for: currentLigne)
+                .frame(width: LineItemColumns.totalHT, alignment: .trailing)
+            actionsMenu
+        }
+    }
+
+    /// Variante compacte : deux niveaux — désignation + actions, puis
+    /// quantité / prix / TVA et total calé à droite.
+    private func compactRow(for currentLigne: LineItem) -> some View {
+        VStack(alignment: .leading, spacing: FacioLayout.space4) {
+            HStack(spacing: FacioLayout.space8) {
+                designationField
+                actionsMenu
+            }
+            HStack(spacing: FacioLayout.space8) {
+                qtyField
+                    .frame(width: LineItemColumns.compactQty)
+                priceField
+                    .frame(width: LineItemColumns.compactUnitPrice)
+                vatPicker
+                    .frame(width: LineItemColumns.compactVat)
+                Spacer()
+                totalText(for: currentLigne)
+            }
+        }
+    }
+
+    // MARK: - Champs partagés entre les deux variantes
+
+    /// Designation
+    private var designationField: some View {
+        TextField(L10n.designationLabel(lang), text: Binding(
+            get: { document.lignes.first(where: { $0.id == ligneId })?.designation ?? "" },
+            set: { newVal in
+                if let i = safeIndex() { document.lignes[i].designation = newVal; onUpdate() }
+            }
+        ))
+        .facioField(density: .compact)
+        .frame(maxWidth: .infinity)
+    }
+
+    /// Quantite
+    private var qtyField: some View {
+        DecimalField(
+            placeholder: L10n.qtyShort(lang),
+            value: Binding(
+                get: { document.lignes.first(where: { $0.id == ligneId })?.quantite ?? 0 },
+                set: { newVal in
+                    if let i = safeIndex() { document.lignes[i].quantite = newVal; onUpdate() }
+                }
+            )
+        )
+        .format(numberFormat)
+    }
+
+    /// Prix unitaire
+    private var priceField: some View {
+        DecimalField(
+            placeholder: L10n.priceLabel(lang),
+            value: Binding(
+                get: { document.lignes.first(where: { $0.id == ligneId })?.prixUnitaire ?? 0 },
+                set: { newVal in
+                    if let i = safeIndex() { document.lignes[i].prixUnitaire = newVal; onUpdate() }
+                }
+            ),
+            maximumFractionDigits: document.currency.maximumFractionDigits
+        )
+        .format(numberFormat)
+    }
+
+    /// TVA
+    private var vatPicker: some View {
+        Picker(L10n.vatLabel(lang), selection: Binding(
+            get: { document.lignes.first(where: { $0.id == ligneId })?.tauxTVA ?? 0 },
+            set: { newVal in
+                if let i = safeIndex() { document.lignes[i].tauxTVA = newVal; onUpdate() }
+            }
+        )) {
+            ForEach(Self.tvaRates, id: \.self) { rate in
+                Text(L10n.vatRateLabel(numberFormat, rate: rate)).tag(rate)
+            }
+        }
+        .labelsHidden()
+    }
+
+    /// Total (lecture seule)
+    private func totalText(for line: LineItem) -> some View {
+        Text(document.currency.formatAccounting(line.totalLigne, lang: numberFormat))
+            .font(FacioFont.amount)
+    }
+
+    /// Menu d'actions de la ligne (insérer / dupliquer / supprimer)
+    private var actionsMenu: some View {
+        Menu {
+            Button {
+                onInsertBelow()
+            } label: {
+                Label(L10n.insertLineBelow(lang), systemImage: "plus")
+            }
+
+            Button {
+                onDuplicate()
+            } label: {
+                Label(L10n.duplicateLine(lang), systemImage: "doc.on.doc")
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                onDelete()
+            } label: {
+                Label(L10n.deleteLine(lang), systemImage: "trash")
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .frame(width: LineItemColumns.actions, height: FacioLayout.iconHitTarget)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .help(L10n.businessActions(lang))
     }
 
     private func rowNeedsAttention(_ line: LineItem) -> Bool {
@@ -145,6 +207,17 @@ struct DecimalField: View {
             .facioField(density: density)
             .onAppear {
                 text = value == 0 ? "" : formatDecimal(value)
+            }
+            // Commit à chaque frappe (sans reformater) : si la vue est détruite
+            // pendant la saisie (bascule compact/large au franchissement du
+            // breakpoint), aucune saisie n'est perdue.
+            .onChange(of: text) {
+                let cleaned = text.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)
+                if let parsed = Decimal(string: cleaned) {
+                    value = parsed
+                } else if cleaned.isEmpty {
+                    value = 0
+                }
             }
             .onChange(of: isFocused) {
                 if !isFocused {

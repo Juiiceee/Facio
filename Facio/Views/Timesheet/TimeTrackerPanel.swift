@@ -232,7 +232,8 @@ struct TimeTrackerPanel: View {
 
     private var inputFields: some View {
         VStack(alignment: .leading, spacing: FacioLayout.space10) {
-            HStack(spacing: FacioLayout.space10) {
+            // Les champs wrappent 3→2→1 colonnes selon la largeur disponible
+            FormGrid(minimum: 160, spacing: FacioLayout.space10) {
                 TextField(L10n.timeEntryDescription(lang), text: $notes)
                     .facioField()
                 TextField(L10n.project(lang), text: $projectName)
@@ -240,19 +241,19 @@ struct TimeTrackerPanel: View {
                 TextField(L10n.task(lang), text: $taskName)
                     .facioField()
             }
-            HStack(spacing: FacioLayout.space10) {
+            FormGrid(minimum: 160, spacing: FacioLayout.space10) {
                 TextField(L10n.tags(lang), text: $tagsText)
                     .facioField()
                 Toggle(L10n.billable(lang), isOn: $isBillable)
                     .toggleStyle(.switch)
-                Spacer()
             }
         }
     }
 
     private func entryFields(for entry: TimeEntry) -> some View {
         VStack(alignment: .leading, spacing: FacioLayout.space10) {
-            HStack(spacing: FacioLayout.space10) {
+            // Les champs wrappent 3→2→1 colonnes selon la largeur disponible
+            FormGrid(minimum: 160, spacing: FacioLayout.space10) {
                 TextField(L10n.timeEntryDescription(lang), text: entryStringBinding(entry, \.notes))
                     .facioField()
                 TextField(L10n.project(lang), text: entryStringBinding(entry, \.projectName))
@@ -260,12 +261,11 @@ struct TimeTrackerPanel: View {
                 TextField(L10n.task(lang), text: entryStringBinding(entry, \.taskName))
                     .facioField()
             }
-            HStack(spacing: FacioLayout.space10) {
+            FormGrid(minimum: 160, spacing: FacioLayout.space10) {
                 TextField(L10n.tags(lang), text: entryStringBinding(entry, \.tagsText))
                     .facioField()
                 Toggle(L10n.billable(lang), isOn: entryBoolBinding(entry, \.isBillable))
                     .toggleStyle(.switch)
-                Spacer()
             }
         }
     }
@@ -273,28 +273,35 @@ struct TimeTrackerPanel: View {
     private var manualControls: some View {
         VStack(alignment: .leading, spacing: FacioLayout.space12) {
             inputFields
-            HStack(spacing: FacioLayout.space10) {
-                DatePicker(
-                    L10n.period(lang),
-                    selection: $manualDate,
-                    in: timesheet.activeStartDate...timesheet.activeEndDate,
-                    displayedComponents: [.date]
-                )
-                .labelsHidden()
-                DatePicker(L10n.startDate(lang), selection: $manualStartTime, displayedComponents: [.hourAndMinute])
+            // Deux groupes : une seule ligne en regular, deux lignes en compact
+            AdaptiveStack(hSpacing: FacioLayout.space10, vSpacing: FacioLayout.space10) {
+                // Groupe A : les 3 DatePickers (intrinsèques) restent en ligne même en compact
+                HStack(spacing: FacioLayout.space10) {
+                    DatePicker(
+                        L10n.period(lang),
+                        selection: $manualDate,
+                        in: timesheet.activeStartDate...timesheet.activeEndDate,
+                        displayedComponents: [.date]
+                    )
                     .labelsHidden()
-                DatePicker(L10n.endDate(lang), selection: $manualEndTime, displayedComponents: [.hourAndMinute])
-                    .labelsHidden()
-                TextField(L10n.duration(lang), text: $manualDurationInput)
-                    .facioField()
-                    .frame(width: 110)
-                Button {
-                    addManualEntry()
-                } label: {
-                    Label(L10n.addTimeEntry(lang), systemImage: "plus")
+                    DatePicker(L10n.startDate(lang), selection: $manualStartTime, displayedComponents: [.hourAndMinute])
+                        .labelsHidden()
+                    DatePicker(L10n.endDate(lang), selection: $manualEndTime, displayedComponents: [.hourAndMinute])
+                        .labelsHidden()
                 }
-                .buttonStyle(.facio(.primary))
-                Spacer()
+                // Groupe B : durée + bouton d'ajout
+                HStack(spacing: FacioLayout.space10) {
+                    TextField(L10n.duration(lang), text: $manualDurationInput)
+                        .facioField()
+                        .frame(width: 110)
+                    Button {
+                        addManualEntry()
+                    } label: {
+                        Label(L10n.addTimeEntry(lang), systemImage: "plus")
+                    }
+                    .buttonStyle(.facio(.primary))
+                    Spacer()
+                }
             }
             Text(L10n.durationExamples(lang))
                 .font(FacioFont.caption)
@@ -303,47 +310,54 @@ struct TimeTrackerPanel: View {
     }
 
     private var filterBar: some View {
-        HStack(spacing: FacioLayout.space12) {
-            Picker("", selection: $range) {
-                ForEach(TimeEntryRange.allCases) { range in
-                    Text(range.label(for: lang)).tag(range)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.segmented)
-            .frame(width: 260)
-
-            TextField(L10n.searchTimeEntries(lang), text: $searchText)
-                .facioField()
-
-            Button {
-                inputMode = .manual
-            } label: {
-                Label(L10n.newTimeEntry(lang), systemImage: "plus")
-            }
-
-            Button {
-                exportCSV()
-            } label: {
-                Label(L10n.exportCSV(lang), systemImage: "square.and.arrow.down")
-            }
-            .disabled(filteredEntries.isEmpty)
-
-            if let invoice = dataStore.existingBillableHoursInvoice(for: timesheet) {
-                Button {
-                    onOpenInvoice(invoice)
-                } label: {
-                    Label(L10n.openInvoice(lang), systemImage: "doc.text.magnifyingglass")
-                }
-            } else {
-                Button {
-                    if let invoice = dataStore.generateInvoiceFromUnbilledTimeEntries(from: timesheet, grouping: .detailed) {
-                        onOpenInvoice(invoice)
+        // Deux groupes : une seule ligne en regular, deux lignes en compact
+        AdaptiveStack(hSpacing: FacioLayout.space12, vSpacing: FacioLayout.space10) {
+            // Groupe A : filtre de plage + recherche
+            HStack(spacing: FacioLayout.space12) {
+                Picker("", selection: $range) {
+                    ForEach(TimeEntryRange.allCases) { range in
+                        Text(range.label(for: lang)).tag(range)
                     }
-                } label: {
-                    Label(L10n.invoiceTimeEntries(lang), systemImage: "doc.text")
                 }
-                .disabled(!dataStore.canGenerateInvoiceFromTimeEntries(for: timesheet))
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .frame(width: 260)
+
+                TextField(L10n.searchTimeEntries(lang), text: $searchText)
+                    .facioField()
+            }
+
+            // Groupe B : boutons d'action
+            HStack(spacing: FacioLayout.space12) {
+                Button {
+                    inputMode = .manual
+                } label: {
+                    Label(L10n.newTimeEntry(lang), systemImage: "plus")
+                }
+
+                Button {
+                    exportCSV()
+                } label: {
+                    Label(L10n.exportCSV(lang), systemImage: "square.and.arrow.down")
+                }
+                .disabled(filteredEntries.isEmpty)
+
+                if let invoice = dataStore.existingBillableHoursInvoice(for: timesheet) {
+                    Button {
+                        onOpenInvoice(invoice)
+                    } label: {
+                        Label(L10n.openInvoice(lang), systemImage: "doc.text.magnifyingglass")
+                    }
+                } else {
+                    Button {
+                        if let invoice = dataStore.generateInvoiceFromUnbilledTimeEntries(from: timesheet, grouping: .detailed) {
+                            onOpenInvoice(invoice)
+                        }
+                    } label: {
+                        Label(L10n.invoiceTimeEntries(lang), systemImage: "doc.text")
+                    }
+                    .disabled(!dataStore.canGenerateInvoiceFromTimeEntries(for: timesheet))
+                }
             }
         }
     }
