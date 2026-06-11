@@ -48,7 +48,7 @@ struct ClientPickerSheet: View {
     private var toolbar: some View {
         HStack {
             Text(L10n.selectClient(lang))
-                .font(.headline)
+                .font(FacioFont.sectionTitle)
             Spacer()
             Button {
                 showNewClient.toggle()
@@ -67,24 +67,24 @@ struct ClientPickerSheet: View {
             SectionPanel(L10n.newClient(lang), systemImage: "person.crop.circle.badge.plus") {
                 VStack(spacing: FacioLayout.space8) {
                     TextField(L10n.name(lang), text: $newNom)
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                     TextField(L10n.address(lang), text: $newAdresse)
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                     HStack {
                         TextField(L10n.postalCode(lang), text: $newCodePostal)
-                            .textFieldStyle(.roundedBorder)
+                            .facioField()
                             .frame(maxWidth: 120)
                         TextField(L10n.city(lang), text: $newVille)
-                            .textFieldStyle(.roundedBorder)
+                            .facioField()
                     }
                     TextField(L10n.email(lang), text: $newEmail)
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                     TextField(L10n.siret(lang), text: $newSiret)
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                     TextField(L10n.vatNumber(lang), text: $newTva)
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                     TextField(L10n.apeCode(lang), text: $newApe)
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                     HStack {
                         Spacer()
                         Button(L10n.createAndSelect(lang)) {
@@ -117,10 +117,10 @@ struct ClientPickerSheet: View {
             } label: {
                 VStack(alignment: .leading, spacing: FacioLayout.space2) {
                     Text(client.nom)
-                        .font(.body)
+                        .font(FacioFont.body)
                     if !client.ville.isEmpty {
                         Text("\(client.adresse.isEmpty ? "" : "\(client.adresse), ")\(client.codePostal) \(client.ville)")
-                            .font(.caption)
+                            .font(FacioFont.caption)
                             .foregroundStyle(.secondary)
                     }
                     let identifiers = [
@@ -130,7 +130,7 @@ struct ClientPickerSheet: View {
                     ].compactMap { $0 }
                     if !identifiers.isEmpty {
                         Text(identifiers.joined(separator: " - "))
-                            .font(.caption2)
+                            .font(FacioFont.captionSmall)
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
                     }

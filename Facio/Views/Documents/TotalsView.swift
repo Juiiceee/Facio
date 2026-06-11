@@ -45,11 +45,10 @@ struct TotalsView: View {
 
                     HStack {
                         Text(L10n.totalTTC(lang))
-                            .font(.headline)
+                            .font(FacioFont.sectionTitle)
                         Spacer()
                         Text(document.currency.formatAccounting(document.totalTTC, lang: numberFormat))
-                            .font(.title3.monospacedDigit())
-                            .fontWeight(.bold)
+                            .font(FacioFont.amountEmphasis)
                     }
                 }
             }
@@ -60,11 +59,11 @@ struct TotalsView: View {
     private func totalRow(label: String, value: String, isDetail: Bool) -> some View {
         HStack {
             Text(label)
-                .font(isDetail ? Font.caption : Font.body)
+                .font(isDetail ? FacioFont.caption : FacioFont.body)
                 .foregroundStyle(isDetail ? .secondary : .primary)
             Spacer()
             Text(value)
-                .font(isDetail ? Font.caption.monospacedDigit() : Font.body.monospacedDigit())
+                .font(isDetail ? FacioFont.metaValue : FacioFont.amount)
                 .foregroundStyle(isDetail ? .secondary : .primary)
         }
     }

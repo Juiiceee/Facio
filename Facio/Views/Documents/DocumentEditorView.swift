@@ -196,8 +196,7 @@ struct DocumentEditorView: View {
         VStack(alignment: .leading, spacing: FacioLayout.space8) {
             HStack(spacing: FacioLayout.space8) {
                 Text(document.type.label(for: lang))
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(FacioFont.subsectionTitle)
                     .foregroundStyle(Color.appPrimary(from: company))
                 StatusBadge(status: document.status, isOverdue: document.isOverdue)
             }
@@ -211,7 +210,7 @@ struct DocumentEditorView: View {
             .lineLimit(1)
 
             Text(document.clientNom.isEmpty ? L10n.noClient(lang) : document.clientNom)
-                .font(.subheadline)
+                .font(FacioFont.screenSubtitle)
                 .foregroundStyle(document.clientNom.isEmpty ? .tertiary : .secondary)
                 .lineLimit(1)
         }
@@ -221,11 +220,10 @@ struct DocumentEditorView: View {
     private var heroTotal: some View {
         VStack(alignment: .trailing, spacing: FacioLayout.space4) {
             Text(L10n.totalTTC(lang))
-                .font(.caption)
+                .font(FacioFont.caption)
                 .foregroundStyle(.secondary)
             Text(document.currency.formatAccounting(document.totalTTC, lang: dataStore.companyInfo.formatNombre))
-                .font(.title.monospacedDigit())
-                .fontWeight(.bold)
+                .font(FacioFont.metricValue)
                 .lineLimit(1)
                 .minimumScaleFactor(0.65)
         }
@@ -239,14 +237,14 @@ struct DocumentEditorView: View {
             } label: {
                 Label(L10n.preview(lang), systemImage: "eye")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.facio(.secondary))
 
             Button {
                 exporterPDF()
             } label: {
                 Label(L10n.exportPDF(lang), systemImage: "square.and.arrow.up")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.facio(.primary))
         }
     }
 
@@ -406,7 +404,7 @@ struct DocumentEditorView: View {
             HStack(spacing: FacioLayout.space16) {
                 VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(L10n.type(lang))
-                        .font(.subheadline)
+                        .font(FacioFont.fieldLabel)
                         .foregroundStyle(.secondary)
                     Text(document.type.label(for: lang))
                         .font(.headline)
@@ -415,19 +413,19 @@ struct DocumentEditorView: View {
 
                 VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(L10n.number(lang))
-                        .font(.subheadline)
+                        .font(FacioFont.fieldLabel)
                         .foregroundStyle(.secondary)
                     TextField(L10n.number(lang), text: Binding(
                         get: { document.number },
                         set: { document.number = $0; scheduleSave() }
                     ))
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                     .frame(maxWidth: 250)
                 }
 
                 VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(L10n.language(lang))
-                        .font(.subheadline)
+                        .font(FacioFont.fieldLabel)
                         .foregroundStyle(.secondary)
                     Picker("", selection: Binding(
                         get: { document.langue },
@@ -448,7 +446,7 @@ struct DocumentEditorView: View {
 
                 VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(L10n.status(lang))
-                        .font(.subheadline)
+                        .font(FacioFont.fieldLabel)
                         .foregroundStyle(.secondary)
                     Picker(L10n.status(lang), selection: Binding(
                         get: { document.status },
@@ -485,7 +483,7 @@ struct DocumentEditorView: View {
     /// En-tête d'une sous-section à l'intérieur d'un `SectionPanel` aplati.
     private func subsectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.subheadline.weight(.semibold))
+            .font(FacioFont.subsectionTitle)
             .foregroundStyle(.secondary)
     }
 
@@ -560,7 +558,7 @@ struct DocumentEditorView: View {
                 HStack(spacing: FacioLayout.space24) {
                     VStack(alignment: .leading, spacing: FacioLayout.space4) {
                         Text(L10n.accountingCurrency(lang))
-                            .font(.subheadline)
+                            .font(FacioFont.fieldLabel)
                             .foregroundStyle(.secondary)
                         Text(referenceCurrency.label)
                             .font(.headline)
@@ -568,7 +566,7 @@ struct DocumentEditorView: View {
 
                     VStack(alignment: .leading, spacing: FacioLayout.space4) {
                         Text(L10n.exchangeRate(lang))
-                            .font(.subheadline)
+                            .font(FacioFont.fieldLabel)
                             .foregroundStyle(.secondary)
                         HStack(spacing: FacioLayout.space8) {
                             Text(L10n.exchangeRatePrefix(lang, source: document.currency.label))
@@ -604,7 +602,7 @@ struct DocumentEditorView: View {
                     if let total = document.accountingTotal(referenceCurrency: referenceCurrency) {
                         VStack(alignment: .leading, spacing: FacioLayout.space4) {
                             Text(L10n.accountingTotal(lang))
-                                .font(.subheadline)
+                                .font(FacioFont.fieldLabel)
                                 .foregroundStyle(.secondary)
                             Text(referenceCurrency.formatAccounting(total, lang: dataStore.companyInfo.formatNombre))
                                 .font(.headline.monospacedDigit())
@@ -616,7 +614,7 @@ struct DocumentEditorView: View {
 
                 if document.accountingTotal(referenceCurrency: referenceCurrency) == nil {
                     Text(L10n.exchangeRateRequiredForDashboard(lang))
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(Color.intentWarning)
                 }
             }
@@ -630,7 +628,7 @@ struct DocumentEditorView: View {
             VStack(alignment: .leading, spacing: FacioLayout.space12) {
                 HStack {
                     Text(L10n.clientInfo(lang))
-                        .font(.subheadline)
+                        .font(FacioFont.fieldLabel)
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button {
@@ -649,83 +647,83 @@ struct DocumentEditorView: View {
         VStack(alignment: .leading, spacing: FacioLayout.space12) {
             VStack(alignment: .leading, spacing: FacioLayout.space4) {
                 Text(L10n.name(lang))
-                    .font(.subheadline)
+                    .font(FacioFont.fieldLabel)
                     .foregroundStyle(.secondary)
                 TextField(L10n.clientName(lang), text: Binding(
                     get: { document.clientNom },
                     set: { document.clientNom = $0; scheduleSave() }
                 ))
-                .textFieldStyle(.roundedBorder)
+                .facioField()
             }
 
             VStack(alignment: .leading, spacing: FacioLayout.space4) {
                 Text(L10n.address(lang))
-                    .font(.subheadline)
+                    .font(FacioFont.fieldLabel)
                     .foregroundStyle(.secondary)
                 TextField(L10n.address(lang), text: Binding(
                     get: { document.clientAdresse },
                     set: { document.clientAdresse = $0; scheduleSave() }
                 ))
-                .textFieldStyle(.roundedBorder)
+                .facioField()
             }
 
             HStack(spacing: FacioLayout.space16) {
                 VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(L10n.postalCode(lang))
-                        .font(.subheadline)
+                        .font(FacioFont.fieldLabel)
                         .foregroundStyle(.secondary)
                     TextField(L10n.postalCode(lang), text: Binding(
                         get: { document.clientCodePostal },
                         set: { document.clientCodePostal = $0; scheduleSave() }
                     ))
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                     .frame(maxWidth: 120)
                 }
 
                 VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(L10n.city(lang))
-                        .font(.subheadline)
+                        .font(FacioFont.fieldLabel)
                         .foregroundStyle(.secondary)
                     TextField(L10n.city(lang), text: Binding(
                         get: { document.clientVille },
                         set: { document.clientVille = $0; scheduleSave() }
                     ))
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 }
             }
 
             HStack(spacing: FacioLayout.space16) {
                 VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(L10n.siret(lang))
-                        .font(.subheadline)
+                        .font(FacioFont.fieldLabel)
                         .foregroundStyle(.secondary)
                     TextField(L10n.siret(lang), text: Binding(
                         get: { document.clientSiret },
                         set: { document.clientSiret = $0; scheduleSave() }
                     ))
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 }
 
                 VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(L10n.vatNumber(lang))
-                        .font(.subheadline)
+                        .font(FacioFont.fieldLabel)
                         .foregroundStyle(.secondary)
                     TextField(L10n.vatNumber(lang), text: Binding(
                         get: { document.clientTva },
                         set: { document.clientTva = $0; scheduleSave() }
                     ))
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 }
 
                 VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(L10n.apeCode(lang))
-                        .font(.subheadline)
+                        .font(FacioFont.fieldLabel)
                         .foregroundStyle(.secondary)
                     TextField(L10n.apeCode(lang), text: Binding(
                         get: { document.clientApe },
                         set: { document.clientApe = $0; scheduleSave() }
                     ))
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 }
             }
         }
@@ -746,7 +744,7 @@ struct DocumentEditorView: View {
                 set: { document.notes = $0; scheduleSave() }
             ))
             .frame(minHeight: 60, maxHeight: 120)
-            .font(.body)
+            .font(FacioFont.body)
             .padding(FacioLayout.space4)
         }
     }

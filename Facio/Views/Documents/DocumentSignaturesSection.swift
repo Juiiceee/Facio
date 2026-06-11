@@ -62,16 +62,16 @@ private struct SignatureRowView: View {
                     .truncationMode(.middle)
                 HStack(spacing: FacioLayout.space8) {
                     Text(signature.blockchain.label)
-                        .font(.caption2)
+                        .font(FacioFont.captionSmall)
                         .padding(.horizontal, FacioLayout.space6)
                         .padding(.vertical, FacioLayout.space2)
                         .background(Color.appPrimary.opacity(0.1))
                         .clipShape(Capsule())
                     Text(signature.date.formattedDate(for: dateFormat))
-                        .font(.caption2)
+                        .font(FacioFont.captionSmall)
                         .foregroundStyle(.secondary)
                     Text(document.currency.formatAccounting(signature.montant, lang: numberFormat))
-                        .font(.caption2)
+                        .font(FacioFont.captionSmall)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -79,7 +79,7 @@ private struct SignatureRowView: View {
             if let url = signature.explorerURL {
                 Link(destination: url) {
                     Label(L10n.viewOn(lang, explorer: signature.explorerName), systemImage: "arrow.up.right.square")
-                        .font(.caption)
+                        .font(FacioFont.caption)
                 }
             }
             FacioIconButton(

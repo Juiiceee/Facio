@@ -35,7 +35,7 @@ struct LineItemRowView: View {
                         if let i = safeIndex() { document.lignes[i].designation = newVal; onUpdate() }
                     }
                 ))
-                .textFieldStyle(.roundedBorder)
+                .facioField(density: .compact)
                 .frame(maxWidth: .infinity)
 
                 // Quantite
@@ -81,7 +81,7 @@ struct LineItemRowView: View {
 
                 // Total (lecture seule)
                 Text(document.currency.formatAccounting(currentLigne.totalLigne, lang: numberFormat))
-                    .font(.body.monospacedDigit())
+                    .font(FacioFont.amount)
                     .frame(width: LineItemColumns.totalHT, alignment: .trailing)
 
                 Menu {
