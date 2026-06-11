@@ -111,6 +111,29 @@ enum InlineTone {
 
 // MARK: - Panels & cards
 
+/// Chrome partagé des panneaux et tuiles : fond, bordure discrète, coins arrondis.
+/// Remplace les blocs `background + overlay + clipShape` dupliqués dans les vues.
+struct FacioCardChrome: ViewModifier {
+    var surface: Color = .surfacePanel
+    var radius: CGFloat = FacioLayout.radiusPanel
+
+    func body(content: Content) -> some View {
+        content
+            .background(surface)
+            .overlay(
+                RoundedRectangle(cornerRadius: radius)
+                    .strokeBorder(Color.borderSubtle, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: radius))
+    }
+}
+
+extension View {
+    func facioCardChrome(surface: Color = .surfacePanel, radius: CGFloat = FacioLayout.radiusPanel) -> some View {
+        modifier(FacioCardChrome(surface: surface, radius: radius))
+    }
+}
+
 struct SectionPanel<Content: View>: View {
     let title: String?
     let systemImage: String?
@@ -134,12 +157,7 @@ struct SectionPanel<Content: View>: View {
         }
         .padding(FacioLayout.panelPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.surfacePanel)
-        .overlay(
-            RoundedRectangle(cornerRadius: FacioLayout.radiusPanel)
-                .strokeBorder(Color.borderSubtle, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+        .facioCardChrome()
     }
 }
 
@@ -198,12 +216,7 @@ struct MetricTile: View {
         }
         .padding(FacioLayout.tilePadding)
         .frame(maxWidth: .infinity, minHeight: 128, maxHeight: 148, alignment: .topLeading)
-        .background(Color.surfaceTile)
-        .overlay(
-            RoundedRectangle(cornerRadius: FacioLayout.radiusPanel)
-                .strokeBorder(Color.borderSubtle, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+        .facioCardChrome(surface: .surfaceTile)
     }
 }
 

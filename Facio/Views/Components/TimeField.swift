@@ -28,19 +28,13 @@ struct TimeField: View {
 
     var body: some View {
         TextField(placeholder, text: $text)
-            .textFieldStyle(.roundedBorder)
             .multilineTextAlignment(.trailing)
             .focused($isFocused)
-            .frame(maxWidth: .infinity, minHeight: 28)
+            .frame(maxWidth: .infinity, minHeight: 20)
+            .facioField(error: validationError, density: .compact)
             .contentShape(Rectangle())
             .onTapGesture {
                 isFocused = true
-            }
-            .overlay {
-                if validationError != nil {
-                    RoundedRectangle(cornerRadius: FacioLayout.radiusField)
-                        .stroke(Color.intentDanger, lineWidth: 1)
-                }
             }
             .help(validationError ?? L10n.hourInputHelp(lang, mode: mode))
             .onAppear {

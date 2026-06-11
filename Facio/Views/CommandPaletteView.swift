@@ -236,9 +236,9 @@ struct CommandPaletteView: View {
                 }
 
                 TextField(L10n.commandPalettePlaceholder(lang), text: $searchText)
-                    .textFieldStyle(.roundedBorder)
                     .focused($searchFocused)
                     .onSubmit { runSelected() }
+                    .facioField()
             }
             .padding(18)
 

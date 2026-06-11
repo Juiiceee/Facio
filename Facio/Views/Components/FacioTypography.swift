@@ -18,12 +18,24 @@ enum FacioFont {
     /// Titre de section / de panneau (SectionPanel).
     static let sectionTitle: Font = .headline
 
+    /// Titre d'une sous-section à l'intérieur d'un panneau.
+    static let subsectionTitle: Font = .subheadline.weight(.semibold)
+
+    // MARK: - Formulaires
+
+    /// Libellé d'un champ de formulaire (LabeledField).
+    static let fieldLabel: Font = .subheadline
+
     // MARK: - Lignes & listes
 
     /// Titre d'une ligne de liste.
     static let rowTitle: Font = .subheadline.weight(.medium)
     /// Sous-titre / métadonnée d'une ligne.
     static let rowSubtitle: Font = .caption
+    /// Valeur numérique d'une ligne de liste.
+    static let rowValue: Font = .subheadline.monospacedDigit()
+    /// Métadonnée numérique discrète (compteurs, totaux secondaires).
+    static let metaValue: Font = .caption.monospacedDigit()
 
     // MARK: - Corps & légendes
 
