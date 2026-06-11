@@ -620,8 +620,13 @@ struct TimeTrackerPanel: View {
                 defaultFilename: "\(L10n.defaultCSVName(lang))-\(timesheet.activeStartDateString)-\(timesheet.activeEndDateString)",
                 language: lang
             )
-            if result == .success {
+            switch result {
+            case .success:
                 toastCenter.show(L10n.toastCSVExported(lang), icon: "tablecells")
+            case .failed:
+                toastCenter.show(L10n.toastCSVExportFailed(lang), tone: .danger)
+            case .cancelled:
+                break
             }
         }
     }

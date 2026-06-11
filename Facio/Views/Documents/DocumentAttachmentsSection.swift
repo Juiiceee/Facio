@@ -13,6 +13,7 @@ struct DocumentAttachmentsSection: View {
     @State private var isDropTargeted = false
     @State private var failedImportCount = 0
     @State private var dropAddedCount = 0
+    @State private var dropToastTask: Task<Void, Never>?
     @State private var attachmentPendingDeletion: DocumentAttachment?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(ToastCenter.self) private var toastCenter
@@ -162,11 +163,12 @@ struct DocumentAttachmentsSection: View {
     }
 
     /// Les imports d'un glisser-déposer arrivent dans des callbacks asynchrones :
-    /// on agrège brièvement avant d'afficher un seul toast pour tout le lot.
+    /// on agrège (debounce 300 ms) avant d'afficher un seul toast pour le lot.
     private func scheduleDropToast() {
-        Task { @MainActor in
+        dropToastTask?.cancel()
+        dropToastTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 300_000_000)
-            guard dropAddedCount > 0 else { return }
+            guard !Task.isCancelled, dropAddedCount > 0 else { return }
             toastCenter.show(L10n.toastAttachmentsAdded(lang, count: dropAddedCount), icon: "paperclip")
             dropAddedCount = 0
         }

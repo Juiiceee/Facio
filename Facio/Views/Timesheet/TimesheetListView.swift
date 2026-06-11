@@ -122,16 +122,7 @@ struct TimesheetListView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    // Reset au mois courant a chaque ouverture
-                    let cal = Calendar.current
-                    let now = Date()
-                    newPeriodMode = .month
-                    selectedMois = cal.component(.month, from: now)
-                    selectedAnnee = cal.component(.year, from: now)
-                    selectedStartDate = now
-                    selectedEndDate = now
-                    selectedClientId = nil
-                    showNewPeriod = true
+                    presentNewPeriod()
                 } label: {
                     Label(L10n.newPeriod(lang), systemImage: "plus")
                 }
@@ -190,11 +181,25 @@ struct TimesheetListView: View {
                     message: L10n.clickToCreatePeriod(lang)
                 ) {
                     FacioButton(L10n.newPeriod(lang), systemImage: "plus") {
-                        showNewPeriod = true
+                        presentNewPeriod()
                     }
                 }
             }
         }
+    }
+
+    /// Réinitialise le brouillon de période (mois courant) puis ouvre le popover.
+    /// Partagé entre le bouton de toolbar et le CTA de l'état vide.
+    private func presentNewPeriod() {
+        let cal = Calendar.current
+        let now = Date()
+        newPeriodMode = .month
+        selectedMois = cal.component(.month, from: now)
+        selectedAnnee = cal.component(.year, from: now)
+        selectedStartDate = now
+        selectedEndDate = now
+        selectedClientId = nil
+        showNewPeriod = true
     }
 
     // MARK: - Popover nouvelle periode

@@ -97,6 +97,7 @@ struct FacioApp: App {
                 .environment(dataStore)
                 .environment(syncService)
                 .environment(authService)
+                .environment(toastCenter)
                 .environment(\.facioAccent, Color.appPrimary(from: dataStore.companyInfo))
                 .tint(Color.appPrimary(from: dataStore.companyInfo))
         }

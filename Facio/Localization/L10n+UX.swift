@@ -65,6 +65,9 @@ extension L10n {
         l == .fr ? "Email préparé dans votre messagerie" : "Email drafted in your mail app"
     }
     static func toastCSVExported(_ l: AppLanguage) -> String { l == .fr ? "CSV exporté" : "CSV exported" }
+    static func toastCSVExportFailed(_ l: AppLanguage) -> String {
+        l == .fr ? "Export CSV impossible" : "CSV export failed"
+    }
     static func toastAttachmentsAdded(_ l: AppLanguage, count: Int) -> String {
         if l == .fr {
             return count == 1 ? "1 justificatif ajouté" : "\(count) justificatifs ajoutés"

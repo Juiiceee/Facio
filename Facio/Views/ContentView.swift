@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(DataStore.self) private var dataStore
-    @Environment(ToastCenter.self) private var toastCenter
     @State private var selectedSection: SidebarSection? = .dashboard
     @State private var selectedDocumentId: UUID?
     @State private var selectedTimesheetId: UUID?
@@ -60,11 +59,19 @@ struct ContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .facioToastHost()
-        // Les erreurs de persistance étaient remplies par DataStore mais
-        // jamais affichées : on les fait remonter en toast non bloquant.
-        .onChange(of: dataStore.persistenceErrors) { _, errors in
-            if let message = errors.values.first {
-                toastCenter.show(message, tone: .danger)
+        // Les erreurs de persistance (risque de perte de données, chemin de
+        // backup à noter) sont persistantes : bannière pilotée par l'état —
+        // visible dès le lancement et tant que l'erreur n'est pas résolue —
+        // et non un toast éphémère (hiérarchie documentée dans FacioToast).
+        .overlay(alignment: .top) {
+            if !dataStore.persistenceErrors.isEmpty {
+                VStack(alignment: .leading, spacing: FacioLayout.space4) {
+                    ForEach(dataStore.persistenceErrors.sorted(by: { $0.key < $1.key }), id: \.key) { _, message in
+                        InlineWarning(text: message, tone: .danger)
+                    }
+                }
+                .frame(maxWidth: 560)
+                .padding(.top, FacioLayout.space8)
             }
         }
         .sheet(isPresented: $showCommandPalette) {

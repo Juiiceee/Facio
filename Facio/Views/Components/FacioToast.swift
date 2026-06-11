@@ -29,6 +29,8 @@ final class ToastCenter {
         withAnimation(FacioMotion.emphasis) {
             current = toast
         }
+        // Message transitoire et non focusable : annoncé à VoiceOver.
+        AccessibilityNotification.Announcement(message).post()
         dismissTask?.cancel()
         dismissTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 3_000_000_000)
