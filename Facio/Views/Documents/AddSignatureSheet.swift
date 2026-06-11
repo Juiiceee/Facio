@@ -63,7 +63,6 @@ struct AddSignatureSheet: View {
                 .font(FacioFont.mono)
 
             TextField(L10n.amount(lang), value: $montant, format: .number)
-                .facioField()
 
             DatePicker(L10n.date(lang), selection: $date, displayedComponents: .date)
         }

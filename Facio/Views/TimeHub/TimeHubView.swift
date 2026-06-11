@@ -420,7 +420,7 @@ struct TimeHubView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: FacioLayout.space2) {
                     Text(group.title == "untitled" ? L10n.untitledTask(lang) : group.title)
-                        .font(.headline)
+                        .font(FacioFont.sectionTitle)
                         .lineLimit(2)
                     Text([group.clientName, group.projectName].filter { !$0.isEmpty }.joined(separator: " / "))
                         .font(FacioFont.caption)

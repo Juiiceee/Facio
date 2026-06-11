@@ -254,7 +254,6 @@ struct AboutSettingsView: View {
             Image(systemName: icon)
                 .foregroundStyle(color)
             Text(text)
-                .font(.subheadline)
                 .foregroundStyle(color)
         }
         .font(.subheadline)
