@@ -58,4 +58,38 @@ extension L10n {
     static func noSearchResultsHint(_ l: AppLanguage) -> String {
         l == .fr ? "Essayez un autre mot-clé ou vérifiez les filtres." : "Try another keyword or check the filters."
     }
+
+    // Toasts (retours non bloquants)
+    static func toastPDFExported(_ l: AppLanguage) -> String { l == .fr ? "PDF exporté" : "PDF exported" }
+    static func toastEmailComposed(_ l: AppLanguage) -> String {
+        l == .fr ? "Email préparé dans votre messagerie" : "Email drafted in your mail app"
+    }
+    static func toastCSVExported(_ l: AppLanguage) -> String { l == .fr ? "CSV exporté" : "CSV exported" }
+    static func toastCSVExportFailed(_ l: AppLanguage) -> String {
+        l == .fr ? "Export CSV impossible" : "CSV export failed"
+    }
+    static func toastAttachmentsAdded(_ l: AppLanguage, count: Int) -> String {
+        if l == .fr {
+            return count == 1 ? "1 justificatif ajouté" : "\(count) justificatifs ajoutés"
+        }
+        return count == 1 ? "1 supporting document added" : "\(count) supporting documents added"
+    }
+
+    // Confirmations destructives
+    static func deletePeriodConfirmTitle(_ l: AppLanguage) -> String {
+        l == .fr ? "Supprimer cette période ?" : "Delete this period?"
+    }
+    static func deletePeriodConfirmMessage(_ l: AppLanguage, label: String) -> String {
+        l == .fr
+            ? "La période \(label) et toutes ses heures saisies seront supprimées définitivement."
+            : "Period \(label) and all its recorded hours will be permanently deleted."
+    }
+    static func deleteAttachmentConfirmTitle(_ l: AppLanguage) -> String {
+        l == .fr ? "Supprimer ce justificatif ?" : "Delete this supporting document?"
+    }
+    static func deleteAttachmentConfirmMessage(_ l: AppLanguage, name: String) -> String {
+        l == .fr
+            ? "Le fichier « \(name) » sera supprimé définitivement du disque."
+            : "The file “\(name)” will be permanently deleted from disk."
+    }
 }

@@ -88,7 +88,16 @@ struct DocumentListView: View {
                     message: searchText.isEmpty
                         ? L10n.clickToCreate(lang, type: documentType.label(for: lang).lowercased())
                         : L10n.noSearchResultsHint(lang)
-                )
+                ) {
+                    if searchText.isEmpty {
+                        FacioButton(
+                            documentType == .devis ? L10n.quickCreateQuote(lang) : L10n.quickCreateInvoice(lang),
+                            systemImage: "plus"
+                        ) {
+                            creerDocument()
+                        }
+                    }
+                }
             }
         }
         .alert(L10n.deleteDocumentConfirmTitle(lang), isPresented: Binding(

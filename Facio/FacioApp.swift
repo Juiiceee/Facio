@@ -8,6 +8,7 @@ struct FacioApp: App {
     @State private var authService: AuthService
     @State private var networkMonitor: NetworkMonitor
     @State private var updateService: UpdateService
+    @State private var toastCenter = ToastCenter()
     @State private var showFirstLaunch = false
 
     init() {
@@ -33,6 +34,7 @@ struct FacioApp: App {
                 .environment(syncService)
                 .environment(authService)
                 .environment(networkMonitor)
+                .environment(toastCenter)
                 .environment(\.facioAccent, Color.appPrimary(from: dataStore.companyInfo))
                 .tint(Color.appPrimary(from: dataStore.companyInfo))
                 .frame(minWidth: FacioLayout.windowMinWidth, minHeight: FacioLayout.windowMinHeight)
@@ -95,6 +97,7 @@ struct FacioApp: App {
                 .environment(dataStore)
                 .environment(syncService)
                 .environment(authService)
+                .environment(toastCenter)
                 .environment(\.facioAccent, Color.appPrimary(from: dataStore.companyInfo))
                 .tint(Color.appPrimary(from: dataStore.companyInfo))
         }

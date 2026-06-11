@@ -58,6 +58,7 @@ struct TimeTrackerPanel: View {
     @State private var validationMessage: String?
     @State private var deletedUndo: DeletedTimeEntryUndo?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(ToastCenter.self) private var toastCenter
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
     private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
@@ -614,11 +615,19 @@ struct TimeTrackerPanel: View {
         )
         guard let data = csv.data(using: .utf8) else { return }
         Task {
-            _ = await ExportService.exportCSV(
+            let result = await ExportService.exportCSV(
                 data: data,
                 defaultFilename: "\(L10n.defaultCSVName(lang))-\(timesheet.activeStartDateString)-\(timesheet.activeEndDateString)",
                 language: lang
             )
+            switch result {
+            case .success:
+                toastCenter.show(L10n.toastCSVExported(lang), icon: "tablecells")
+            case .failed:
+                toastCenter.show(L10n.toastCSVExportFailed(lang), tone: .danger)
+            case .cancelled:
+                break
+            }
         }
     }
 

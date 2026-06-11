@@ -58,6 +58,22 @@ struct ContentView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .facioToastHost()
+        // Les erreurs de persistance (risque de perte de données, chemin de
+        // backup à noter) sont persistantes : bannière pilotée par l'état —
+        // visible dès le lancement et tant que l'erreur n'est pas résolue —
+        // et non un toast éphémère (hiérarchie documentée dans FacioToast).
+        .overlay(alignment: .top) {
+            if !dataStore.persistenceErrors.isEmpty {
+                VStack(alignment: .leading, spacing: FacioLayout.space4) {
+                    ForEach(dataStore.persistenceErrors.sorted(by: { $0.key < $1.key }), id: \.key) { _, message in
+                        InlineWarning(text: message, tone: .danger)
+                    }
+                }
+                .frame(maxWidth: 560)
+                .padding(.top, FacioLayout.space8)
+            }
+        }
         .sheet(isPresented: $showCommandPalette) {
             CommandPaletteView(
                 selectedSection: $selectedSection,
@@ -175,7 +191,14 @@ struct ContentView: View {
                     title: L10n.noDocumentSelected(lang),
                     systemImage: "doc.text",
                     message: L10n.selectDocumentHint(lang)
-                )
+                ) {
+                    FacioButton(
+                        selectedSection == .devis ? L10n.quickCreateQuote(lang) : L10n.quickCreateInvoice(lang),
+                        systemImage: "plus"
+                    ) {
+                        newDocument(selectedSection == .devis ? .devis : .facture)
+                    }
+                }
             }
         case .heures:
             if let ts = selectedTimesheet {
