@@ -13,6 +13,7 @@ struct DocumentEditorView: View {
     @State private var attachmentCopyFailures = 0
     @State private var showAttachmentCopyAlert = false
     @State private var showEmailUnavailableAlert = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var signatureCountBeforeSheet = 0
 
     // Debounce timer for auto-save
@@ -81,6 +82,8 @@ struct DocumentEditorView: View {
                     documentInspector
                 }
             }
+            // Apparition/masquage de l'inspecteur au franchissement du breakpoint.
+            .animation(FacioMotion.respecting(FacioMotion.state, reduceMotion: reduceMotion), value: usesSideInspector)
         }
         .navigationTitle(document.number.isEmpty ? L10n.newDocument(lang) : document.number)
         .toolbar {

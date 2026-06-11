@@ -278,6 +278,7 @@ struct ActionTile: View {
     let action: () -> Void
 
     @State private var isHovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: action) {
@@ -314,6 +315,7 @@ struct ActionTile: View {
                 .strokeBorder(isHovering ? Color.borderHover : Color.borderSubtle, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+        .animation(FacioMotion.respecting(FacioMotion.hover, reduceMotion: reduceMotion), value: isHovering)
         .onHover { isHovering = $0 }
     }
 }
@@ -323,6 +325,7 @@ struct FacioListRow<Content: View>: View {
     let content: Content
 
     @State private var isHovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(tone: Color = .primary, @ViewBuilder content: () -> Content) {
         self.tone = tone
@@ -345,6 +348,7 @@ struct FacioListRow<Content: View>: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusRow))
         .contentShape(RoundedRectangle(cornerRadius: FacioLayout.radiusRow))
+        .animation(FacioMotion.respecting(FacioMotion.hover, reduceMotion: reduceMotion), value: isHovering)
         .onHover { isHovering = $0 }
     }
 }

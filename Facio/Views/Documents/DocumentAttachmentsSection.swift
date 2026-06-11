@@ -12,6 +12,7 @@ struct DocumentAttachmentsSection: View {
 
     @State private var isDropTargeted = false
     @State private var failedImportCount = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         SectionPanel(L10n.attachmentsSection(lang), systemImage: "paperclip") {
@@ -57,9 +58,10 @@ struct DocumentAttachmentsSection: View {
     private var dropZone: some View {
         ZStack {
             RoundedRectangle(cornerRadius: FacioLayout.radiusPanel)
+                .fill(isDropTargeted ? Color.appPrimary(from: dataStore.companyInfo).opacity(0.06) : .clear)
+            RoundedRectangle(cornerRadius: FacioLayout.radiusPanel)
                 .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6]))
                 .foregroundStyle(isDropTargeted ? Color.intentInfo : .secondary.opacity(0.4))
-                .frame(height: 60)
 
             VStack(spacing: FacioLayout.space4) {
                 Image(systemName: "paperclip.badge.ellipsis")
@@ -70,6 +72,9 @@ struct DocumentAttachmentsSection: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .frame(height: 60)
+        .scaleEffect(isDropTargeted ? 1.01 : 1.0)
+        .animation(FacioMotion.respecting(FacioMotion.state, reduceMotion: reduceMotion), value: isDropTargeted)
         .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
             handleDrop(providers)
         }
