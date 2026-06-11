@@ -45,6 +45,7 @@ struct ContentView: View {
                 } detail: {
                     detailForSection
                         .frame(minWidth: FacioLayout.detailMin)
+                        .facioResponsiveContainer()
                 }
             } else {
                 NavigationSplitView {
@@ -52,6 +53,7 @@ struct ContentView: View {
                 } detail: {
                     detailForSection
                         .frame(minWidth: FacioLayout.detailMin)
+                        .facioResponsiveContainer()
                 }
             }
         }
@@ -65,8 +67,8 @@ struct ContentView: View {
                 selectedSettingsTab: $selectedSettingsTab
             )
             .frame(
-                minWidth: 520, idealWidth: 600, maxWidth: 760,
-                minHeight: 440, idealHeight: 560, maxHeight: 720
+                minWidth: FacioLayout.sheetMinWidth, idealWidth: FacioLayout.sheetIdealWidth, maxWidth: 760,
+                minHeight: FacioLayout.sheetMinHeight, idealHeight: FacioLayout.sheetIdealHeight, maxHeight: 720
             )
         }
         .toolbar {

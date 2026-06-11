@@ -72,12 +72,35 @@ enum FacioLayout {
     static let inspectorWidth: CGFloat = 280
 
     /// Largeur en deçà de laquelle l'inspecteur du document est masqué.
-    static let documentInspectorBreakpoint: CGFloat = 1120
+    /// Alias historique de `breakpointWide`.
+    static let documentInspectorBreakpoint: CGFloat = breakpointWide
 
     static let windowMinWidth: CGFloat = 1060
     static let windowMinHeight: CGFloat = 640
     static let windowIdealWidth: CGFloat = 1280
     static let windowIdealHeight: CGFloat = 820
+
+    // MARK: Breakpoints responsive (FacioWidthClass)
+    /// En deçà : layouts compacts (piles verticales, sidebars repliées).
+    static let breakpointCompact: CGFloat = 640
+    /// Au-delà : layouts larges (inspecteur latéral visible).
+    static let breakpointWide: CGFloat = 1120
+    /// Largeur minimale d'un champ dans une `FormGrid`.
+    static let fieldMinWidth: CGFloat = 150
+    /// Largeur de conteneur sous laquelle le tableau de lignes passe en mode compact.
+    static let lineItemsCompactBreakpoint: CGFloat = 700
+    /// Cap de largeur du panneau de totaux (pleine largeur en compact).
+    static let totalsMaxWidth: CGFloat = 350
+
+    // MARK: Sheets (invariant : min ≤ fenêtre min − 80 par dimension)
+    static let sheetMinWidth: CGFloat = 480
+    static let sheetIdealWidth: CGFloat = 600
+    static let sheetMinHeight: CGFloat = 360
+    static let sheetIdealHeight: CGFloat = 520
+
+    // MARK: Sidebar des réglages
+    static let settingsSidebarWidth: CGFloat = 230
+    static let settingsSidebarCompactWidth: CGFloat = 64
 }
 
 // MARK: - Intent / tone
