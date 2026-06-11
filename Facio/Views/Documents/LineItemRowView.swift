@@ -73,7 +73,7 @@ struct LineItemRowView: View {
                     }
                 )) {
                     ForEach(Self.tvaRates, id: \.self) { rate in
-                        Text("\(NSDecimalNumber(decimal: rate))%").tag(rate)
+                        Text(L10n.vatRateLabel(numberFormat, rate: rate)).tag(rate)
                     }
                 }
                 .labelsHidden()

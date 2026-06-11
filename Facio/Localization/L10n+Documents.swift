@@ -42,6 +42,11 @@ extension L10n {
     static func quantityLabel(_ l: AppLanguage) -> String { l == .fr ? "Quantité" : "Quantity" }
     static func unitPrice(_ l: AppLanguage) -> String { l == .fr ? "Prix unitaire" : "Unit price" }
     static func vatLabel(_ l: AppLanguage) -> String { l == .fr ? "TVA" : "VAT" }
+    /// Taux de TVA formaté selon le format de nombre (« 5,5 % » / « 5.5% »).
+    static func vatRateLabel(_ l: AppLanguage, rate: Decimal) -> String {
+        let value = rate.formattedDecimal(maxFractionDigits: 2, for: l)
+        return l == .fr ? "\(value) %" : "\(value)%"
+    }
     static func totalHTLabel(_ l: AppLanguage) -> String { l == .fr ? "Total HT" : "Subtotal" }
     static func priceLabel(_ l: AppLanguage) -> String { l == .fr ? "Prix" : "Price" }
     static func qtyShort(_ l: AppLanguage) -> String { l == .fr ? "Qte" : "Qty" }
