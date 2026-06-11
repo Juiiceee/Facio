@@ -31,4 +31,14 @@ extension NSColor {
                        blue: c.blueComponent * f,
                        alpha: c.alphaComponent)
     }
+
+    /// Lighter variant — moves RGB towards white by `factor` (miroir de `darkened(by:)`).
+    /// Utilisé pour l'accent de marque en mode sombre (lisibilité du texte/icônes).
+    func lightened(by factor: CGFloat = 0.15) -> NSColor {
+        guard let c = usingColorSpace(.sRGB) else { return self }
+        return NSColor(srgbRed: c.redComponent + (1.0 - c.redComponent) * factor,
+                       green: c.greenComponent + (1.0 - c.greenComponent) * factor,
+                       blue: c.blueComponent + (1.0 - c.blueComponent) * factor,
+                       alpha: c.alphaComponent)
+    }
 }

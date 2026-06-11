@@ -2,6 +2,7 @@
 import Darwin
 import Foundation
 import PDFKit
+import SwiftUI
 
 @MainActor
 enum FacioRegressionSuite {
@@ -119,8 +120,37 @@ enum FacioRegressionSuite {
         RegressionCase(name: "pdf generation paginates long invoices", run: pdfGenerationPaginatesLongInvoices),
         RegressionCase(name: "responsive width class maps breakpoints", run: responsiveWidthClassMapsBreakpoints),
         RegressionCase(name: "window minimum fits split view columns", run: windowMinimumFitsSplitViewColumns),
-        RegressionCase(name: "sheet minimums fit inside minimum window", run: sheetMinimumsFitInsideMinimumWindow)
+        RegressionCase(name: "sheet minimums fit inside minimum window", run: sheetMinimumsFitInsideMinimumWindow),
+        RegressionCase(name: "color tokens resolve differently in dark mode", run: colorTokensResolveDifferentlyInDarkMode)
     ]
+
+    /// Garde-fou dark mode : les tokens doivent se résoudre différemment selon
+    /// le colorScheme via le chemin de rendu SwiftUI (Color.resolve(in:)) —
+    /// attrape les couleurs figées par une résolution prématurée.
+    private static func colorTokensResolveDifferentlyInDarkMode() throws {
+        var lightEnv = EnvironmentValues()
+        lightEnv.colorScheme = .light
+        var darkEnv = EnvironmentValues()
+        darkEnv.colorScheme = .dark
+
+        func components(_ color: Color, _ env: EnvironmentValues) -> String {
+            let r = color.resolve(in: env)
+            return "\(r.red) \(r.green) \(r.blue) \(r.opacity)"
+        }
+
+        let tokens: [(String, Color)] = [
+            ("surfacePanel", .surfacePanel),
+            ("surfaceField", .surfaceField),
+            ("borderSubtle", .borderSubtle),
+            ("appPrimary", .appPrimary)
+        ]
+        for (name, token) in tokens {
+            try expect(
+                components(token, lightEnv) != components(token, darkEnv),
+                "\(name) should resolve to different colors in light and dark mode"
+            )
+        }
+    }
 
     private static func responsiveWidthClassMapsBreakpoints() throws {
         try expectEqual(FacioWidthClass(width: FacioLayout.breakpointCompact - 1), .compact)
