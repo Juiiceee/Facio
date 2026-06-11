@@ -62,14 +62,14 @@ struct SidebarView: View {
                         Image(systemName: "building.2")
                             .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
                         Text(companyName)
-                            .font(.headline)
+                            .font(FacioFont.sectionTitle)
                             .lineLimit(1)
                             .help(companyName)
                     }
 
                     if let running = dataStore.runningTimeEntryContext {
                         Label(running.timesheet.clientDisplayName.isEmpty ? L10n.timerRunning(lang) : running.timesheet.clientDisplayName, systemImage: "timer")
-                            .font(.caption)
+                            .font(FacioFont.caption)
                             .foregroundStyle(Color.intentSuccess)
                             .lineLimit(1)
                     }
