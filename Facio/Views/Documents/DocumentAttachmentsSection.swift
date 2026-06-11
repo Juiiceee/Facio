@@ -18,7 +18,7 @@ struct DocumentAttachmentsSection: View {
             VStack(alignment: .leading, spacing: FacioLayout.space12) {
                 if document.attachments.isEmpty {
                     Text(L10n.noAttachmentsHint(lang))
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.tertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
@@ -66,7 +66,7 @@ struct DocumentAttachmentsSection: View {
                     .font(.title3)
                     .foregroundStyle(.secondary)
                 Text(L10n.dropAttachmentHere(lang))
-                    .font(.caption)
+                    .font(FacioFont.caption)
                     .foregroundStyle(.secondary)
             }
         }
@@ -153,7 +153,7 @@ private struct AttachmentRowView: View {
                     Text("•")
                     Text(attachment.formattedSize)
                 }
-                .font(.caption2)
+                .font(FacioFont.captionSmall)
                 .foregroundStyle(.secondary)
             }
 

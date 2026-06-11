@@ -195,7 +195,7 @@ struct DocumentRowView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Text(dateSummary)
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -205,8 +205,7 @@ struct DocumentRowView: View {
             Spacer(minLength: 8)
 
             Text(document.currency.formatAccounting(document.totalTTC, lang: numberFormat))
-                .font(.body.monospacedDigit())
-                .fontWeight(.medium)
+                .font(FacioFont.amount)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .frame(minWidth: 86, maxWidth: 120, alignment: .trailing)

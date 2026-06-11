@@ -43,7 +43,7 @@ struct AddSignatureSheet: View {
     private var toolbar: some View {
         HStack {
             Text(L10n.addPaymentProof(lang))
-                .font(.headline)
+                .font(FacioFont.sectionTitle)
             Spacer()
             Button(L10n.cancel(lang)) { dismiss() }
                 .keyboardShortcut(.cancelAction)
@@ -63,6 +63,7 @@ struct AddSignatureSheet: View {
                 .font(FacioFont.mono)
 
             TextField(L10n.amount(lang), value: $montant, format: .number)
+                .facioField()
 
             DatePicker(L10n.date(lang), selection: $date, displayedComponents: .date)
         }
