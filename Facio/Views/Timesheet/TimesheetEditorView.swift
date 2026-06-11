@@ -129,10 +129,9 @@ struct TimesheetEditorView: View {
             HStack(alignment: .center, spacing: FacioLayout.space16) {
                 VStack(alignment: .leading, spacing: FacioLayout.space6) {
                     Text(timesheet.periodLabel(for: lang))
-                        .font(.title2)
-                        .fontWeight(.semibold)
+                        .font(FacioFont.heroTitle)
                     Text(timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName)
-                        .font(.subheadline)
+                        .font(FacioFont.screenSubtitle)
                         .foregroundStyle(timesheet.clientDisplayName.isEmpty ? .tertiary : .secondary)
                 }
 
@@ -140,33 +139,30 @@ struct TimesheetEditorView: View {
 
                 VStack(alignment: .trailing, spacing: FacioLayout.space4) {
                     Text(L10n.totalHours(lang))
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.secondary)
                     Text("\(heures.formatted2Decimals(for: numberFormat))h")
-                        .font(.title3.monospacedDigit())
-                        .fontWeight(.bold)
+                        .font(FacioFont.amountEmphasis)
                 }
 
                 VStack(alignment: .trailing, spacing: FacioLayout.space4) {
                     Text(L10n.grossTotal(lang))
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.secondary)
                     Text(brut.formatted2Decimals(for: numberFormat))
-                        .font(.title3.monospacedDigit())
-                        .fontWeight(.bold)
+                        .font(FacioFont.amountEmphasis)
                 }
 
                 VStack(alignment: .trailing, spacing: FacioLayout.space4) {
                     Text(L10n.netTotal(lang))
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.secondary)
                     Text(net.formatted2Decimals(for: numberFormat))
-                        .font(.title3.monospacedDigit())
-                        .fontWeight(.bold)
+                        .font(FacioFont.amountEmphasis)
                 }
 
                 Text(timesheet.hasGeneratedInvoice ? L10n.invoiced(lang) : L10n.notInvoiced(lang))
-                    .font(.caption)
+                    .font(FacioFont.caption)
                     .fontWeight(.medium)
                     .padding(.horizontal, FacioLayout.space8)
                     .padding(.vertical, FacioLayout.space4)
@@ -202,7 +198,7 @@ struct TimesheetEditorView: View {
                     } label: {
                         Label(L10n.updatePeriodDates(lang), systemImage: "calendar.badge.clock")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.facio(.primary))
                     .disabled(!rangeDraftHasChanges || rangeDraftOverlaps)
                 }
 
@@ -356,7 +352,7 @@ struct TimesheetEditorView: View {
     private var hourInputModeControl: some View {
         HStack(spacing: FacioLayout.space12) {
             Label(L10n.hourInputMode(lang), systemImage: "clock.badge")
-                .font(.subheadline)
+                .font(FacioFont.fieldLabel)
                 .foregroundStyle(.secondary)
 
             Picker("", selection: $hourInputMode) {
@@ -388,22 +384,22 @@ struct TimesheetEditorView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: FacioLayout.space2) {
                         Text(L10n.week(lang, number: week.numero))
-                            .font(.headline)
+                            .font(FacioFont.sectionTitle)
                         Text(week.label(for: lang))
-                            .font(.caption)
+                            .font(FacioFont.caption)
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
                     HStack(spacing: FacioLayout.space16) {
                         Label("\(heuresMoisSemaine.formatted2Decimals(for: numberFormat))h", systemImage: "clock")
-                            .font(.subheadline.monospacedDigit())
+                            .font(FacioFont.rowValue)
                             .fontWeight(.medium)
                         Text(L10n.normalHoursShort(lang, value: normSemaine.formatted2Decimals(for: numberFormat)))
-                            .font(.caption.monospacedDigit())
+                            .font(FacioFont.metaValue)
                             .foregroundStyle(Color.intentInfo)
                         if supSemaine > 0 {
                             Text(L10n.overtimeHoursShort(lang, value: supSemaine.formatted2Decimals(for: numberFormat)))
-                                .font(.caption.monospacedDigit())
+                                .font(FacioFont.metaValue)
                                 .foregroundStyle(Color.intentWarning)
                                 .fontWeight(.medium)
                         }
@@ -411,7 +407,7 @@ struct TimesheetEditorView: View {
                         let coutSemaine = normSemaine * timesheet.tauxNormal
                             + supSemaine * timesheet.tauxSupplementaire
                         Text(coutSemaine.formatted2Decimals(for: numberFormat))
-                            .font(.subheadline.monospacedDigit())
+                            .font(FacioFont.rowValue)
                             .fontWeight(.semibold)
                             .foregroundStyle(Color.intentSuccess)
                     }
@@ -426,10 +422,10 @@ struct TimesheetEditorView: View {
                         let hasTimerEntries = timesheet.hasTimeEntries(on: jour.dateString)
                         VStack(spacing: FacioLayout.space4) {
                             Text(jour.jourSemaine.shortLabel(for: lang))
-                                .font(.caption2)
+                                .font(FacioFont.captionSmall)
                                 .foregroundStyle(.secondary)
                             Text("\(jour.jourDuMois)")
-                                .font(.system(.caption, design: .monospaced))
+                                .font(FacioFont.monoCaption)
                                 .foregroundStyle(estDansMois ? .primary : .tertiary)
                             TimeField(
                                 placeholder: L10n.hourInputPlaceholder(lang, mode: hourInputMode),
@@ -499,9 +495,10 @@ struct TimesheetEditorView: View {
     private func settingsField(_ label: String, placeholder: String, value: Binding<Decimal>) -> some View {
         VStack(alignment: .leading, spacing: FacioLayout.space4) {
             Text(label)
-                .font(.subheadline)
+                .font(FacioFont.fieldLabel)
                 .foregroundStyle(.secondary)
             DecimalField(placeholder: placeholder, value: value)
+                .density(.regular)
         }
     }
 

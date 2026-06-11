@@ -144,10 +144,9 @@ struct DashboardView: View {
         HStack(alignment: .top, spacing: FacioLayout.space16) {
             VStack(alignment: .leading, spacing: FacioLayout.space4) {
                 Text(L10n.dashboard(lang))
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+                    .font(FacioFont.screenTitle)
                 Text(L10n.dashboardSubtitle(lang))
-                    .font(.subheadline)
+                    .font(FacioFont.screenSubtitle)
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -211,8 +210,7 @@ struct DashboardView: View {
         if !documents.isEmpty {
             VStack(alignment: .leading, spacing: FacioLayout.space8) {
                 Label(title, systemImage: icon)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(FacioFont.subsectionTitle)
                     .foregroundStyle(tone.color)
                 ForEach(documents.prefix(4)) { doc in
                     Button {
@@ -235,8 +233,7 @@ struct DashboardView: View {
         if !timesheets.isEmpty {
             VStack(alignment: .leading, spacing: FacioLayout.space8) {
                 Label(title, systemImage: icon)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(FacioFont.subsectionTitle)
                     .foregroundStyle(tone.color)
                 ForEach(timesheets.prefix(4)) { timesheet in
                     Button {
@@ -257,7 +254,7 @@ struct DashboardView: View {
     private func recentDocumentList(title: String, empty: String, documents: [Document]) -> some View {
         VStack(alignment: .leading, spacing: FacioLayout.space10) {
             Text(title)
-                .font(.headline)
+                .font(FacioFont.sectionTitle)
             if documents.isEmpty {
                 FacioEmptyState(title: empty, systemImage: "tray")
                     .frame(maxWidth: .infinity, minHeight: 120)
@@ -282,11 +279,11 @@ struct DashboardView: View {
                     .fontWeight(.medium)
                     .lineLimit(1)
                 Text(doc.clientNom)
-                    .font(.caption)
+                    .font(FacioFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 Text(documentRowDetail(doc))
-                    .font(.caption2)
+                    .font(FacioFont.captionSmall)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
             }
@@ -295,8 +292,7 @@ struct DashboardView: View {
             Spacer(minLength: FacioLayout.space10)
 
             Text(doc.currency.formatAccounting(doc.totalTTC, lang: numberFormat))
-                .font(.body.monospacedDigit())
-                .fontWeight(.medium)
+                .font(FacioFont.amount)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
                 .frame(minWidth: 92, maxWidth: 130, alignment: .trailing)
@@ -316,7 +312,7 @@ struct DashboardView: View {
                     .fontWeight(.medium)
                     .lineLimit(1)
                 Text(timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName)
-                    .font(.caption)
+                    .font(FacioFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -325,8 +321,7 @@ struct DashboardView: View {
             Spacer(minLength: FacioLayout.space10)
 
             Text("\(hours)h")
-                .font(.body.monospacedDigit())
-                .fontWeight(.medium)
+                .font(FacioFont.amount)
                 .lineLimit(1)
             Image(systemName: "chevron.right")
                 .font(.caption)
@@ -337,7 +332,7 @@ struct DashboardView: View {
 
     private func overflowRow(count: Int) -> some View {
         Text(L10n.moreItems(lang, count: count))
-            .font(.caption)
+            .font(FacioFont.caption)
             .foregroundStyle(.secondary)
             .padding(.horizontal, FacioLayout.space10)
             .padding(.vertical, FacioLayout.space4)

@@ -43,7 +43,7 @@ struct AddSignatureSheet: View {
     private var toolbar: some View {
         HStack {
             Text(L10n.addPaymentProof(lang))
-                .font(.headline)
+                .font(FacioFont.sectionTitle)
             Spacer()
             Button(L10n.cancel(lang)) { dismiss() }
                 .keyboardShortcut(.cancelAction)

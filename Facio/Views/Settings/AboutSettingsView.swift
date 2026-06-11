@@ -30,6 +30,7 @@ struct AboutSettingsView: View {
                                 .frame(width: 64, height: 64)
                                 .overlay {
                                     Text("F")
+                                        // Taille décorative unique (logo de repli) : hors échelle FacioFont, volontairement.
                                         .font(.system(size: 32, weight: .bold, design: .rounded))
                                         .foregroundStyle(.white)
                                 }
@@ -38,15 +39,14 @@ struct AboutSettingsView: View {
 
                     VStack(alignment: .leading, spacing: FacioLayout.space4) {
                         Text("Facio")
-                            .font(.title)
-                            .fontWeight(.bold)
+                            .font(FacioFont.screenTitle)
 
                         Text(L10n.version(lang, value: appVersion))
-                            .font(.subheadline)
+                            .font(FacioFont.screenSubtitle)
                             .foregroundStyle(.secondary)
 
                         Text(L10n.professionalInvoices(lang))
-                            .font(.caption)
+                            .font(FacioFont.caption)
                             .foregroundStyle(.tertiary)
                     }
 
@@ -90,9 +90,8 @@ struct AboutSettingsView: View {
                             .font(.subheadline)
                             .padding(.horizontal, FacioLayout.space12)
                             .padding(.vertical, FacioLayout.space8)
-                            .background(.quaternary)
                             .contentShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
-                            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+                            .facioCardChrome(surface: .surfaceTile)
                         }
                         .buttonStyle(.plain)
                         .disabled(updateService.isChecking)
@@ -129,10 +128,10 @@ struct AboutSettingsView: View {
                             .font(.subheadline)
                             .padding(.horizontal, FacioLayout.space12)
                             .padding(.vertical, FacioLayout.space8)
-                            .background(Color.intentDanger.opacity(0.1))
                             .foregroundStyle(Color.intentDanger)
                             .contentShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
-                            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+                            // Surface teintée danger conservée (affordance destructive), chrome standardisé.
+                            .facioCardChrome(surface: Color.intentDanger.opacity(0.1))
                         }
                         .buttonStyle(.plain)
                         .help(L10n.resetHelp(lang))
@@ -147,10 +146,10 @@ struct AboutSettingsView: View {
                             .font(.subheadline)
                             .padding(.horizontal, FacioLayout.space12)
                             .padding(.vertical, FacioLayout.space8)
-                            .background(Color.intentDanger.opacity(0.1))
                             .foregroundStyle(Color.intentDanger)
                             .contentShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
-                            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+                            // Surface teintée danger conservée (affordance destructive), chrome standardisé.
+                            .facioCardChrome(surface: Color.intentDanger.opacity(0.1))
                         }
                         .buttonStyle(.plain)
                         .help(L10n.uninstallHelp(lang))
@@ -161,13 +160,13 @@ struct AboutSettingsView: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(Color.intentSuccess)
                             Text(L10n.resetDone(lang))
-                                .font(.caption)
+                                .font(FacioFont.caption)
                                 .foregroundStyle(Color.intentSuccess)
                         }
                     }
 
                     Text(L10n.irreversibleWarning(lang))
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.tertiary)
                 }
             }
@@ -201,9 +200,8 @@ struct AboutSettingsView: View {
             }
             .padding(.horizontal, FacioLayout.space12)
             .padding(.vertical, FacioLayout.space8)
-            .background(.quaternary)
             .contentShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
-            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+            .facioCardChrome(surface: .surfaceTile)
         }
         .buttonStyle(.plain)
     }
@@ -256,7 +254,6 @@ struct AboutSettingsView: View {
             Image(systemName: icon)
                 .foregroundStyle(color)
             Text(text)
-                .font(.subheadline)
                 .foregroundStyle(color)
         }
         .font(.subheadline)

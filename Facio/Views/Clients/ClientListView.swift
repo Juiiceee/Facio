@@ -177,7 +177,7 @@ struct ClientRow: View {
                     .joined(separator: " ")
                 if !address.isEmpty {
                     Text(address)
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -188,7 +188,7 @@ struct ClientRow: View {
                 ].compactMap { $0 }
                 if !identifiers.isEmpty {
                     Text(identifiers.joined(separator: " - "))
-                        .font(.caption2)
+                        .font(FacioFont.captionSmall)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }
@@ -261,11 +261,10 @@ struct ClientDetailView: View {
         HStack {
             VStack(alignment: .leading, spacing: FacioLayout.space4) {
                 Text(client.displayName.isEmpty ? L10n.noClient(lang) : client.displayName)
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+                    .font(FacioFont.screenTitle)
                 if !client.email.isEmpty {
                     Text(client.email)
-                        .font(.subheadline)
+                        .font(FacioFont.screenSubtitle)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
@@ -307,14 +306,14 @@ struct ClientDetailView: View {
                 } label: {
                     Label(L10n.createInvoiceForClient(lang), systemImage: "doc.text")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.facio(.primary))
 
                 Button {
                     onCreateDocument(.devis, client)
                 } label: {
                     Label(L10n.createQuoteForClient(lang), systemImage: "doc.text.magnifyingglass")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.facio(.secondary))
 
                 Spacer()
             }
@@ -326,40 +325,40 @@ struct ClientDetailView: View {
             VStack(alignment: .leading, spacing: FacioLayout.space12) {
                 LabeledField(L10n.name(lang)) {
                     TextField(L10n.name(lang), text: Bindable(client).nom)
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                 }
                 LabeledField(L10n.address(lang)) {
                     TextField(L10n.address(lang), text: Bindable(client).adresse)
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                 }
                 HStack(spacing: FacioLayout.space12) {
                     LabeledField(L10n.postalCode(lang)) {
                         TextField(L10n.postalCode(lang), text: Bindable(client).codePostal)
-                            .textFieldStyle(.roundedBorder)
+                            .facioField()
                     }
                     .frame(maxWidth: 140)
 
                     LabeledField(L10n.city(lang)) {
                         TextField(L10n.city(lang), text: Bindable(client).ville)
-                            .textFieldStyle(.roundedBorder)
+                            .facioField()
                     }
                 }
                 LabeledField(L10n.email(lang)) {
                     TextField(L10n.email(lang), text: Bindable(client).email)
-                        .textFieldStyle(.roundedBorder)
+                        .facioField()
                 }
                 HStack(spacing: FacioLayout.space12) {
                     LabeledField(L10n.siret(lang)) {
                         TextField(L10n.clientSiretPlaceholder(lang), text: Bindable(client).siret)
-                            .textFieldStyle(.roundedBorder)
+                            .facioField()
                     }
                     LabeledField(L10n.vatNumber(lang)) {
                         TextField(L10n.clientTvaPlaceholder(lang), text: Bindable(client).tva)
-                            .textFieldStyle(.roundedBorder)
+                            .facioField()
                     }
                     LabeledField(L10n.apeCode(lang)) {
                         TextField(L10n.apeCode(lang), text: Bindable(client).ape)
-                            .textFieldStyle(.roundedBorder)
+                            .facioField()
                     }
                 }
             }
@@ -397,13 +396,12 @@ struct ClientDetailView: View {
                     Text(document.number)
                         .fontWeight(.medium)
                     Text(document.dateCreation.formattedDate(for: dataStore.companyInfo.formatDate))
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Text(document.currency.formatAccounting(document.totalTTC, lang: numberFormat))
-                    .font(.body.monospacedDigit())
-                    .fontWeight(.medium)
+                    .font(FacioFont.amount)
                 StatusBadge(status: document.status, isOverdue: document.isOverdue)
                 Image(systemName: "chevron.right")
                     .font(.caption)

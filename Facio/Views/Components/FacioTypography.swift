@@ -7,6 +7,14 @@ import SwiftUI
 /// d'Apple (Dynamic Type) quand c'est possible, et n'utilisent une taille fixe
 /// que pour les grands nombres (KPI, horloge de timer) où la mise à l'échelle
 /// casserait l'alignement.
+///
+/// Liste blanche — seuls cas où un `.font()` natif reste autorisé dans les vues :
+/// 1. dimensionnement d'un glyphe SF Symbol (`Image(systemName:).font(...)`) ;
+/// 2. tailles décoratives uniques (logo de la page À propos, « F » de repli) ;
+/// 3. le style `.plain` du champ « héros » du numéro de document et la taille
+///    `.title3` des champs de description du timer (mises en avant volontaires) ;
+/// 4. libellés de boutons à chrome custom (.plain) sans token iso-sémantique.
+/// Tout autre `.font()` natif est une dette : le migrer vers un token.
 enum FacioFont {
     // MARK: - Titres
 
@@ -18,12 +26,29 @@ enum FacioFont {
     /// Titre de section / de panneau (SectionPanel).
     static let sectionTitle: Font = .headline
 
+    /// Titre d'une sous-section à l'intérieur d'un panneau.
+    static let subsectionTitle: Font = .subheadline.weight(.semibold)
+
+    /// Titre « héros » d'un éditeur (numéro de document, période de timesheet).
+    static let heroTitle: Font = .title2.weight(.semibold)
+    /// Total TTC héros de l'éditeur de document.
+    static let heroTotal: Font = .title.monospacedDigit().weight(.bold)
+
+    // MARK: - Formulaires
+
+    /// Libellé d'un champ de formulaire (LabeledField).
+    static let fieldLabel: Font = .subheadline
+
     // MARK: - Lignes & listes
 
     /// Titre d'une ligne de liste.
     static let rowTitle: Font = .subheadline.weight(.medium)
     /// Sous-titre / métadonnée d'une ligne.
     static let rowSubtitle: Font = .caption
+    /// Valeur numérique d'une ligne de liste.
+    static let rowValue: Font = .subheadline.monospacedDigit()
+    /// Métadonnée numérique discrète (compteurs, totaux secondaires).
+    static let metaValue: Font = .caption.monospacedDigit()
 
     // MARK: - Corps & légendes
 

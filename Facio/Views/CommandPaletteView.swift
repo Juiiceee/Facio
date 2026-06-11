@@ -229,16 +229,16 @@ struct CommandPaletteView: View {
             VStack(alignment: .leading, spacing: FacioLayout.space12) {
                 HStack {
                     Label(L10n.commandPaletteTitle(lang), systemImage: "command")
-                        .font(.headline)
+                        .font(FacioFont.sectionTitle)
                     Spacer()
                     Button(L10n.close(lang)) { dismiss() }
                         .keyboardShortcut(.cancelAction)
                 }
 
                 TextField(L10n.commandPalettePlaceholder(lang), text: $searchText)
-                    .textFieldStyle(.roundedBorder)
                     .focused($searchFocused)
                     .onSubmit { runSelected() }
+                    .facioField()
             }
             .padding(18)
 
@@ -317,7 +317,7 @@ struct CommandPaletteView: View {
     private func paletteSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: FacioLayout.space8) {
             Text(title)
-                .font(.caption)
+                .font(FacioFont.caption)
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
@@ -338,7 +338,7 @@ struct CommandPaletteView: View {
                     .lineLimit(1)
                 if !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }

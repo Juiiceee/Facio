@@ -146,8 +146,7 @@ struct TimeTrackerPanel: View {
                     } label: {
                         Label(L10n.stopTimer(lang), systemImage: "stop.fill")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color.intentDanger)
+                    .buttonStyle(.facio(.destructive))
                 } else {
                     Text("00:00:00")
                         .font(FacioFont.clock)
@@ -181,7 +180,7 @@ struct TimeTrackerPanel: View {
                 if let liveStartDateRange {
                     HStack(spacing: FacioLayout.space12) {
                         Label(L10n.startDate(lang), systemImage: "clock.arrow.circlepath")
-                            .font(.subheadline)
+                            .font(FacioFont.fieldLabel)
                             .foregroundStyle(.secondary)
                         DatePicker(
                             L10n.startDate(lang),
@@ -192,7 +191,7 @@ struct TimeTrackerPanel: View {
                         .labelsHidden()
                         .frame(maxWidth: 280)
                         Text(L10n.startedEarlierHint(lang))
-                            .font(.caption)
+                            .font(FacioFont.caption)
                             .foregroundStyle(.secondary)
                         Spacer()
                     }
@@ -205,7 +204,7 @@ struct TimeTrackerPanel: View {
                     } label: {
                         Label(L10n.startTimer(lang), systemImage: "play.fill")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.facio(.primary))
                     .disabled(!canStartLiveTimer)
 
                     Toggle(L10n.startedEarlier(lang), isOn: $usesCustomStartDate)
@@ -235,15 +234,15 @@ struct TimeTrackerPanel: View {
         VStack(alignment: .leading, spacing: FacioLayout.space10) {
             HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.timeEntryDescription(lang), text: $notes)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 TextField(L10n.project(lang), text: $projectName)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 TextField(L10n.task(lang), text: $taskName)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
             }
             HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.tags(lang), text: $tagsText)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 Toggle(L10n.billable(lang), isOn: $isBillable)
                     .toggleStyle(.switch)
                 Spacer()
@@ -255,15 +254,15 @@ struct TimeTrackerPanel: View {
         VStack(alignment: .leading, spacing: FacioLayout.space10) {
             HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.timeEntryDescription(lang), text: entryStringBinding(entry, \.notes))
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 TextField(L10n.project(lang), text: entryStringBinding(entry, \.projectName))
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 TextField(L10n.task(lang), text: entryStringBinding(entry, \.taskName))
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
             }
             HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.tags(lang), text: entryStringBinding(entry, \.tagsText))
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 Toggle(L10n.billable(lang), isOn: entryBoolBinding(entry, \.isBillable))
                     .toggleStyle(.switch)
                 Spacer()
@@ -287,18 +286,18 @@ struct TimeTrackerPanel: View {
                 DatePicker(L10n.endDate(lang), selection: $manualEndTime, displayedComponents: [.hourAndMinute])
                     .labelsHidden()
                 TextField(L10n.duration(lang), text: $manualDurationInput)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                     .frame(width: 110)
                 Button {
                     addManualEntry()
                 } label: {
                     Label(L10n.addTimeEntry(lang), systemImage: "plus")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.facio(.primary))
                 Spacer()
             }
             Text(L10n.durationExamples(lang))
-                .font(.caption)
+                .font(FacioFont.caption)
                 .foregroundStyle(.secondary)
         }
     }
@@ -315,7 +314,7 @@ struct TimeTrackerPanel: View {
             .frame(width: 260)
 
             TextField(L10n.searchTimeEntries(lang), text: $searchText)
-                .textFieldStyle(.roundedBorder)
+                .facioField()
 
             Button {
                 inputMode = .manual
@@ -411,12 +410,12 @@ struct TimeTrackerPanel: View {
                     VStack(alignment: .leading, spacing: FacioLayout.space6) {
                         HStack {
                             Text(dateLabel(dateString))
-                                .font(.caption)
+                                .font(FacioFont.caption)
                                 .fontWeight(.semibold)
                                 .foregroundStyle(.secondary)
                                 .textCase(.uppercase)
                             Text(DurationFormatter.clock(totalDuration(for: entries(for: dateString), now: now)))
-                                .font(.caption.monospacedDigit())
+                                .font(FacioFont.metaValue)
                                 .foregroundStyle(.secondary)
                         }
 
@@ -698,8 +697,7 @@ private struct TimeEntryRow: View {
 
             VStack(alignment: .leading, spacing: FacioLayout.space4) {
                 Text(primaryTitle)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(FacioFont.rowTitle)
                     .lineLimit(1)
                 HStack(spacing: FacioLayout.space8) {
                     if !clientName.isEmpty {
@@ -713,7 +711,7 @@ private struct TimeEntryRow: View {
                     }
                     Text(timeRange)
                 }
-                .font(.caption)
+                .font(FacioFont.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 HStack(spacing: FacioLayout.space6) {
@@ -733,11 +731,11 @@ private struct TimeEntryRow: View {
 
             VStack(alignment: .trailing, spacing: FacioLayout.space2) {
                 Text(DurationFormatter.clock(entry.duration(at: now)))
-                    .font(.subheadline.monospacedDigit())
+                    .font(FacioFont.rowValue)
                     .fontWeight(.semibold)
                 if entry.isBillable {
                     Text(estimatedAmount)
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -768,8 +766,7 @@ private struct TimeEntryRow: View {
             }
         }
         .padding(FacioLayout.space10)
-        .background(Color.surfaceTile)
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+        .facioCardChrome(surface: .surfaceTile)
     }
 
     private var primaryTitle: String {
@@ -799,7 +796,7 @@ private struct TimeEntryRow: View {
 
     private func statusBadge(_ text: String, color: Color) -> some View {
         Text(text)
-            .font(.caption2)
+            .font(FacioFont.captionSmall)
             .padding(.horizontal, FacioLayout.space6)
             .padding(.vertical, FacioLayout.space4)
             .background(color.opacity(0.12))
@@ -850,15 +847,15 @@ private struct TimeEntryInlineEditor: View {
         VStack(alignment: .leading, spacing: FacioLayout.space10) {
             HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.timeEntryDescription(lang), text: $notes)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 TextField(L10n.project(lang), text: $projectName)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 TextField(L10n.task(lang), text: $taskName)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
             }
             HStack(spacing: FacioLayout.space10) {
                 TextField(L10n.tags(lang), text: $tagsText)
-                    .textFieldStyle(.roundedBorder)
+                    .facioField()
                 Toggle(L10n.billable(lang), isOn: $isBillable)
                     .toggleStyle(.switch)
                 DatePicker(L10n.startDate(lang), selection: $startedAt, in: editableDateRange)
@@ -870,7 +867,7 @@ private struct TimeEntryInlineEditor: View {
             HStack {
                 if let statusText {
                     Text(statusText)
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -878,12 +875,11 @@ private struct TimeEntryInlineEditor: View {
                 Button(L10n.save(lang)) {
                     save()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.facio(.primary))
             }
         }
         .padding(FacioLayout.space10)
-        .background(Color.surfaceField)
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+        .facioCardChrome(surface: .surfaceField)
         .onChange(of: startedAt) { _, newStart in
             if endedAt < newStart {
                 endedAt = newStart

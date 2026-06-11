@@ -35,7 +35,7 @@ struct LineItemRowView: View {
                         if let i = safeIndex() { document.lignes[i].designation = newVal; onUpdate() }
                     }
                 ))
-                .textFieldStyle(.roundedBorder)
+                .facioField(density: .compact)
                 .frame(maxWidth: .infinity)
 
                 // Quantite
@@ -73,7 +73,7 @@ struct LineItemRowView: View {
                     }
                 )) {
                     ForEach(Self.tvaRates, id: \.self) { rate in
-                        Text("\(NSDecimalNumber(decimal: rate))%").tag(rate)
+                        Text(L10n.vatRateLabel(numberFormat, rate: rate)).tag(rate)
                     }
                 }
                 .labelsHidden()
@@ -81,7 +81,7 @@ struct LineItemRowView: View {
 
                 // Total (lecture seule)
                 Text(document.currency.formatAccounting(currentLigne.totalLigne, lang: numberFormat))
-                    .font(.body.monospacedDigit())
+                    .font(FacioFont.amount)
                     .frame(width: LineItemColumns.totalHT, alignment: .trailing)
 
                 Menu {
@@ -132,14 +132,17 @@ struct DecimalField: View {
     @Binding var value: Decimal
     var maximumFractionDigits: Int = 2
     var format: AppLanguage = .fr
+    /// `.compact` par défaut (lignes de tableau) ; passer en `.regular` via
+    /// `.density(.regular)` dans les formulaires.
+    var density: FacioFieldDensity = .compact
     @State private var text: String = ""
     @FocusState private var isFocused: Bool
 
     var body: some View {
         TextField(placeholder, text: $text)
-            .textFieldStyle(.roundedBorder)
             .multilineTextAlignment(.trailing)
             .focused($isFocused)
+            .facioField(density: density)
             .onAppear {
                 text = value == 0 ? "" : formatDecimal(value)
             }
@@ -166,6 +169,12 @@ struct DecimalField: View {
     func format(_ format: AppLanguage) -> Self {
         var copy = self
         copy.format = format
+        return copy
+    }
+
+    func density(_ density: FacioFieldDensity) -> Self {
+        var copy = self
+        copy.density = density
         return copy
     }
 

@@ -33,6 +33,8 @@ struct FacioApp: App {
                 .environment(syncService)
                 .environment(authService)
                 .environment(networkMonitor)
+                .environment(\.facioAccent, Color.appPrimary(from: dataStore.companyInfo))
+                .tint(Color.appPrimary(from: dataStore.companyInfo))
                 .frame(minWidth: FacioLayout.windowMinWidth, minHeight: FacioLayout.windowMinHeight)
                 .alert(L10n.firstLaunchTitle(lang), isPresented: $showFirstLaunch) {
                     Button(L10n.understood(lang)) {
@@ -93,6 +95,8 @@ struct FacioApp: App {
                 .environment(dataStore)
                 .environment(syncService)
                 .environment(authService)
+                .environment(\.facioAccent, Color.appPrimary(from: dataStore.companyInfo))
+                .tint(Color.appPrimary(from: dataStore.companyInfo))
         }
     }
 }

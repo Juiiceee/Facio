@@ -28,7 +28,7 @@ struct LanguageSettingsView: View {
                     }
 
                     Text(L10n.defaultLanguageHint(lang))
-                        .font(.caption)
+                        .font(FacioFont.caption)
                         .foregroundStyle(.secondary)
                 }
             }
