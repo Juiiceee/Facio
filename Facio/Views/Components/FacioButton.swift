@@ -34,6 +34,7 @@ struct FacioButtonStyle: ButtonStyle {
 
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.facioAccent) private var ambientAccent
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -51,6 +52,7 @@ struct FacioButtonStyle: ButtonStyle {
             .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusField))
             .contentShape(RoundedRectangle(cornerRadius: FacioLayout.radiusField))
             .opacity(isEnabled ? 1 : 0.45)
+            .animation(FacioMotion.respecting(FacioMotion.hover, reduceMotion: reduceMotion), value: configuration.isPressed)
     }
 
     private var fill: Color {
@@ -127,6 +129,7 @@ struct FacioIconButton: View {
     let action: () -> Void
 
     @State private var isHovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: action) {
@@ -140,6 +143,7 @@ struct FacioIconButton: View {
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
+        .animation(FacioMotion.respecting(FacioMotion.hover, reduceMotion: reduceMotion), value: isHovering)
         .onHover { isHovering = $0 }
         .help(help ?? "")
     }

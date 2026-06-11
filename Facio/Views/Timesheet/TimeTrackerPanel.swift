@@ -57,6 +57,7 @@ struct TimeTrackerPanel: View {
     @State private var editingEntryId: UUID?
     @State private var validationMessage: String?
     @State private var deletedUndo: DeletedTimeEntryUndo?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
     private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
@@ -370,13 +371,16 @@ struct TimeTrackerPanel: View {
                     .font(.subheadline)
                 Button(L10n.undo(lang)) {
                     dataStore.restoreTimeEntry(deletedUndo.entry, in: timesheet)
-                    self.deletedUndo = nil
+                    withAnimation(FacioMotion.respecting(FacioMotion.emphasis, reduceMotion: reduceMotion)) {
+                        self.deletedUndo = nil
+                    }
                 }
                 Spacer()
             }
             .padding(FacioLayout.space10)
             .background(Color.intentWarning.opacity(0.12))
             .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
+            .transition(FacioMotion.slideIn)
         }
     }
 
@@ -620,13 +624,17 @@ struct TimeTrackerPanel: View {
 
     private func deleteWithUndo(_ entry: TimeEntry) {
         dataStore.deleteTimeEntry(entry, from: timesheet)
-        deletedUndo = DeletedTimeEntryUndo(id: entry.id, entry: entry)
+        withAnimation(FacioMotion.respecting(FacioMotion.emphasis, reduceMotion: reduceMotion)) {
+            deletedUndo = DeletedTimeEntryUndo(id: entry.id, entry: entry)
+        }
         let deletedId = entry.id
         Task {
             try? await Task.sleep(nanoseconds: 20_000_000_000)
             await MainActor.run {
                 if deletedUndo?.id == deletedId {
-                    deletedUndo = nil
+                    withAnimation(FacioMotion.respecting(FacioMotion.emphasis, reduceMotion: reduceMotion)) {
+                        deletedUndo = nil
+                    }
                 }
             }
         }
