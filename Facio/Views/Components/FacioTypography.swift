@@ -11,7 +11,8 @@ import SwiftUI
 /// Liste blanche — seuls cas où un `.font()` natif reste autorisé dans les vues :
 /// 1. dimensionnement d'un glyphe SF Symbol (`Image(systemName:).font(...)`) ;
 /// 2. tailles décoratives uniques (logo de la page À propos, « F » de repli) ;
-/// 3. le champ « héros » du numéro de document (borderless intentionnel) ;
+/// 3. le style `.plain` du champ « héros » du numéro de document et la taille
+///    `.title3` des champs de description du timer (mises en avant volontaires) ;
 /// 4. libellés de boutons à chrome custom (.plain) sans token iso-sémantique.
 /// Tout autre `.font()` natif est une dette : le migrer vers un token.
 enum FacioFont {
@@ -27,6 +28,11 @@ enum FacioFont {
 
     /// Titre d'une sous-section à l'intérieur d'un panneau.
     static let subsectionTitle: Font = .subheadline.weight(.semibold)
+
+    /// Titre « héros » d'un éditeur (numéro de document, période de timesheet).
+    static let heroTitle: Font = .title2.weight(.semibold)
+    /// Total TTC héros de l'éditeur de document.
+    static let heroTotal: Font = .title.monospacedDigit().weight(.bold)
 
     // MARK: - Formulaires
 

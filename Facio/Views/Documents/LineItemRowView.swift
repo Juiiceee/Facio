@@ -132,6 +132,9 @@ struct DecimalField: View {
     @Binding var value: Decimal
     var maximumFractionDigits: Int = 2
     var format: AppLanguage = .fr
+    /// `.compact` par défaut (lignes de tableau) ; passer en `.regular` via
+    /// `.density(.regular)` dans les formulaires.
+    var density: FacioFieldDensity = .compact
     @State private var text: String = ""
     @FocusState private var isFocused: Bool
 
@@ -139,7 +142,7 @@ struct DecimalField: View {
         TextField(placeholder, text: $text)
             .multilineTextAlignment(.trailing)
             .focused($isFocused)
-            .facioField(density: .compact)
+            .facioField(density: density)
             .onAppear {
                 text = value == 0 ? "" : formatDecimal(value)
             }
@@ -166,6 +169,12 @@ struct DecimalField: View {
     func format(_ format: AppLanguage) -> Self {
         var copy = self
         copy.format = format
+        return copy
+    }
+
+    func density(_ density: FacioFieldDensity) -> Self {
+        var copy = self
+        copy.density = density
         return copy
     }
 

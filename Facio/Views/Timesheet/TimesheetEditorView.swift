@@ -129,10 +129,9 @@ struct TimesheetEditorView: View {
             HStack(alignment: .center, spacing: FacioLayout.space16) {
                 VStack(alignment: .leading, spacing: FacioLayout.space6) {
                     Text(timesheet.periodLabel(for: lang))
-                        .font(.title2)
-                        .fontWeight(.semibold)
+                        .font(FacioFont.heroTitle)
                     Text(timesheet.clientDisplayName.isEmpty ? L10n.noClient(lang) : timesheet.clientDisplayName)
-                        .font(.subheadline)
+                        .font(FacioFont.screenSubtitle)
                         .foregroundStyle(timesheet.clientDisplayName.isEmpty ? .tertiary : .secondary)
                 }
 
@@ -499,6 +498,7 @@ struct TimesheetEditorView: View {
                 .font(FacioFont.fieldLabel)
                 .foregroundStyle(.secondary)
             DecimalField(placeholder: placeholder, value: value)
+                .density(.regular)
         }
     }
 

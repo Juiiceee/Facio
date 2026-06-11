@@ -205,7 +205,7 @@ struct DocumentEditorView: View {
                 get: { document.number },
                 set: { document.number = $0; scheduleSave() }
             ))
-            .font(.title2.weight(.semibold))
+            .font(FacioFont.heroTitle)
             .textFieldStyle(.plain)
             .lineLimit(1)
 
@@ -223,7 +223,7 @@ struct DocumentEditorView: View {
                 .font(FacioFont.caption)
                 .foregroundStyle(.secondary)
             Text(document.currency.formatAccounting(document.totalTTC, lang: dataStore.companyInfo.formatNombre))
-                .font(FacioFont.metricValue)
+                .font(FacioFont.heroTotal)
                 .lineLimit(1)
                 .minimumScaleFactor(0.65)
         }
@@ -593,6 +593,7 @@ struct DocumentEditorView: View {
                                 ),
                                 maximumFractionDigits: 8
                             )
+                            .density(.regular)
                             .frame(maxWidth: 140)
                             Text(referenceCurrency.label)
                                 .foregroundStyle(.secondary)
