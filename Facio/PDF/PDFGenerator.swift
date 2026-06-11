@@ -20,6 +20,7 @@ struct PDFGenerator {
     // Couleurs dynamiques (depuis CompanyInfo)
     private var themePrimary: NSColor { PDFLayout.themePrimary(from: company) }
     private var themeDark: NSColor { PDFLayout.themeDark(from: company) }
+    private var themeLight: NSColor { PDFLayout.themeLight(from: company) }
     private let maximumTextLength = 8_000
     private let maximumLineLength = 1_000
     private let maximumLogoBytes = 2_000_000
@@ -51,7 +52,7 @@ struct PDFGenerator {
         y += 15
 
         // 4. Totaux
-        y = ensurePageSpace(context, y: y, needed: 85)
+        y = ensurePageSpace(context, y: y, needed: 95)
         y = drawTotals(context, y: y)
         y += 25
 
@@ -359,9 +360,13 @@ struct PDFGenerator {
         let logoY = cy + 15
         drawAbstractLogo(context, centerX: logoX, centerY: logoY)
 
+        // Type de document en petites capitales au-dessus du numero
+        let typeLabel = document.type.label(for: lang).uppercased()
+        drawTextCenter(typeLabel, y: cy, font: PDFLayout.fontLabel, color: PDFLayout.textGray, context: context)
+
         // Titre centre — utilise le numero du document directement
         let title = document.number
-        drawTextCenter(title, y: cy + 15, font: PDFLayout.fontTitle, color: PDFLayout.textBlack, context: context)
+        drawTextCenter(title, y: cy + 13, font: PDFLayout.fontTitle, color: PDFLayout.textBlack, context: context)
 
         cy += 55
         return cy
@@ -396,13 +401,17 @@ struct PDFGenerator {
     private func drawDatesAndClient(_ context: CGContext, y: CGFloat) -> CGFloat {
         var cy = y
 
-        // Gauche : dates
+        // Gauche : dates — libellé gris discret, valeur en gras (hiérarchie lisible)
         let dateLabel = document.type == .facture ? L10n.invoiceDate(lang) : L10n.quoteDate(lang)
-        drawText("\(dateLabel)\(formatDate(document.dateCreation))",
-                 x: mL, y: cy, font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
+        drawText(dateLabel, x: mL, y: cy, font: PDFLayout.fontBody, color: PDFLayout.textGray, context: context)
+        drawText(formatDate(document.dateCreation),
+                 x: mL + textWidth(dateLabel, font: PDFLayout.fontBody), y: cy,
+                 font: PDFLayout.fontBodyBold, color: PDFLayout.textBlack, context: context)
         cy += 15
-        drawText("\(L10n.dueDate(lang))\(formatDate(document.dateEcheance))",
-                 x: mL, y: cy, font: PDFLayout.fontBodyBold, color: PDFLayout.textBlack, context: context)
+        drawText(L10n.dueDate(lang), x: mL, y: cy, font: PDFLayout.fontBody, color: PDFLayout.textGray, context: context)
+        drawText(formatDate(document.dateEcheance),
+                 x: mL + textWidth(L10n.dueDate(lang), font: PDFLayout.fontBody), y: cy,
+                 font: PDFLayout.fontBodyBold, color: PDFLayout.textBlack, context: context)
 
         // Droite : destinataire
         let blockRight = pW - mR
@@ -459,7 +468,7 @@ struct PDFGenerator {
         var tableStartY = y
 
         // Lignes
-        for (_, ligne) in document.lignesTriees.enumerated() {
+        for (index, ligne) in document.lignesTriees.enumerated() {
             if cy > pH - PDFLayout.marginBottom - 80 {
                 // Bordure du tableau avant nouvelle page
                 strokeRect(context, x: x, y: tableStartY, w: w, h: cy - tableStartY, color: themePrimary, lineWidth: 0.8)
@@ -469,13 +478,19 @@ struct PDFGenerator {
                 cy = drawTableHeader(context, headers: headers, colW: colW, x: x, w: w, y: cy)
             }
 
+            // Zebrage : une ligne sur deux sur fond theme tres leger (parite
+            // sur l'index global pour rester continu en multi-pages)
+            if index % 2 == 1 {
+                fillRect(context, x: x, y: cy, w: w, h: PDFLayout.tableRowHeight, color: themeLight)
+            }
+
             // Dessiner les separateurs verticaux verts legers
             var sepX = x
             for i in 0..<colW.count {
                 sepX += colW[i]
                 if i < colW.count - 1 {
                     strokeLine(context, x1: sepX, y1: cy, x2: sepX, y2: cy + PDFLayout.tableRowHeight,
-                               color: themePrimary.withAlphaComponent(0.3), width: 0.3)
+                               color: themePrimary.withAlphaComponent(0.2), width: 0.3)
                 }
             }
 
@@ -492,11 +507,11 @@ struct PDFGenerator {
             for (i, val) in vals.enumerated() {
                 if i == 0 {
                     // Designation alignee a gauche
-                    drawText(val, x: colX + 6, y: cy + 7,
+                    drawText(val, x: colX + 6, y: cy + 8,
                              font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context, maxWidth: colW[i] - 12)
                 } else {
                     // Nombres alignes a droite
-                    drawTextRight(val, rightX: colX + colW[i] - 6, y: cy + 7,
+                    drawTextRight(val, rightX: colX + colW[i] - 6, y: cy + 8,
                                   font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context, maxWidth: colW[i] - 12)
                 }
                 colX += colW[i]
@@ -521,10 +536,10 @@ struct PDFGenerator {
         var colX = x
         for (i, h) in headers.enumerated() {
             if i == 0 {
-                drawText(h, x: colX + 6, y: y + 9,
+                drawText(h, x: colX + 6, y: y + 10,
                          font: PDFLayout.fontTableHeader, color: PDFLayout.textWhite, context: context, maxWidth: colW[i] - 12)
             } else {
-                drawTextRight(h, rightX: colX + colW[i] - 6, y: y + 9,
+                drawTextRight(h, rightX: colX + colW[i] - 6, y: y + 10,
                               font: PDFLayout.fontTableHeader, color: PDFLayout.textWhite, context: context, maxWidth: colW[i] - 12)
             }
             colX += colW[i]
@@ -557,15 +572,18 @@ struct PDFGenerator {
                       font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
         cy += 18
 
-        // Ligne de separation
-        strokeLine(context, x1: labelRight - 30, y1: cy - 2, x2: valueRight, y2: cy - 2,
-                   color: themePrimary.withAlphaComponent(0.3), width: 0.5)
+        // Bandeau TTC : fond theme tres leger + filet superieur olive
+        let bandLeft = labelRight - 30
+        let bandHeight: CGFloat = 22
+        fillRect(context, x: bandLeft, y: cy - 4, w: valueRight - bandLeft + 4, h: bandHeight, color: themeLight)
+        strokeLine(context, x1: bandLeft, y1: cy - 4, x2: valueRight + 4, y2: cy - 4,
+                   color: themePrimary, width: 0.8)
 
-        drawTextRight(L10n.totalTTC(lang), rightX: labelRight, y: cy,
+        drawTextRight(L10n.totalTTC(lang), rightX: labelRight, y: cy + 1,
                       font: PDFLayout.fontTotalTTC, color: PDFLayout.textBlack, context: context)
-        drawTextRight("\(formatSpaced(document.totalTTC)) \(cur)", rightX: valueRight, y: cy,
+        drawTextRight("\(formatSpaced(document.totalTTC)) \(cur)", rightX: valueRight, y: cy + 1,
                       font: PDFLayout.fontTotalTTC, color: PDFLayout.textBlack, context: context)
-        cy += 16
+        cy += 20
 
         return cy
     }

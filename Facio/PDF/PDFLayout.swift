@@ -17,8 +17,8 @@ struct PDFLayout {
     static let contentWidth: CGFloat = pageWidth - marginLeft - marginRight
 
     // MARK: - Tableau
-    static let tableHeaderHeight: CGFloat = 28
-    static let tableRowHeight: CGFloat = 24
+    static let tableHeaderHeight: CGFloat = 30
+    static let tableRowHeight: CGFloat = 26
 
     // Colonnes du tableau (proportions)
     static let colDesignation: CGFloat = 0.40
@@ -31,7 +31,9 @@ struct PDFLayout {
     static let qrCodeSize: CGFloat = 120
 
     // MARK: - Polices (Helvetica / sans-serif)
-    static let fontTitle = NSFont(name: "Helvetica-Bold", size: 18) ?? NSFont.systemFont(ofSize: 18, weight: .bold)
+    static let fontTitle = NSFont(name: "Helvetica-Bold", size: 20) ?? NSFont.systemFont(ofSize: 20, weight: .bold)
+    /// Libellé discret (type de document, libellés de dates) — gris, petites capitales via .uppercased()
+    static let fontLabel = NSFont(name: "Helvetica", size: 8.5) ?? NSFont.systemFont(ofSize: 8.5)
     static let fontBody = NSFont(name: "Helvetica", size: 10) ?? NSFont.systemFont(ofSize: 10)
     static let fontBodyBold = NSFont(name: "Helvetica-Bold", size: 10) ?? NSFont.systemFont(ofSize: 10, weight: .bold)
     static let fontBodyItalic = NSFont(name: "Helvetica-Oblique", size: 10) ?? NSFont.systemFont(ofSize: 10)
@@ -39,7 +41,7 @@ struct PDFLayout {
     static let fontSmall = NSFont(name: "Helvetica", size: 9) ?? NSFont.systemFont(ofSize: 9)
     static let fontSmallBold = NSFont(name: "Helvetica-Bold", size: 9) ?? NSFont.systemFont(ofSize: 9, weight: .bold)
     static let fontTableHeader = NSFont(name: "Helvetica-Bold", size: 9) ?? NSFont.systemFont(ofSize: 9, weight: .bold)
-    static let fontTotalTTC = NSFont(name: "Helvetica-BoldOblique", size: 12) ?? NSFont.systemFont(ofSize: 12, weight: .bold)
+    static let fontTotalTTC = NSFont(name: "Helvetica-Bold", size: 13) ?? NSFont.systemFont(ofSize: 13, weight: .bold)
     static let fontSection = NSFont(name: "Helvetica-Bold", size: 10) ?? NSFont.systemFont(ofSize: 10, weight: .semibold)
     static let fontClient = NSFont(name: "Helvetica-Bold", size: 11) ?? NSFont.systemFont(ofSize: 11, weight: .bold)
 
