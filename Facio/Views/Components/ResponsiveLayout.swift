@@ -73,6 +73,9 @@ extension View {
 struct AdaptiveStack<Content: View>: View {
     var hSpacing: CGFloat = FacioLayout.space12
     var vSpacing: CGFloat = FacioLayout.space10
+    /// Alignement vertical en mode rangée — `.center` comme les HStack natifs
+    /// que ce conteneur remplace.
+    var hAlignment: VerticalAlignment = .center
     @ViewBuilder let content: Content
 
     @Environment(\.facioWidthClass) private var widthClass
@@ -80,7 +83,7 @@ struct AdaptiveStack<Content: View>: View {
     var body: some View {
         let layout = widthClass == .compact
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: vSpacing))
-            : AnyLayout(HStackLayout(alignment: .top, spacing: hSpacing))
+            : AnyLayout(HStackLayout(alignment: hAlignment, spacing: hSpacing))
         layout { content }
     }
 }

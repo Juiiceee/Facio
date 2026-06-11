@@ -5,6 +5,7 @@ struct TimesheetEditorView: View {
     var onOpenInvoice: (Document) -> Void = { _ in }
 
     @Environment(DataStore.self) private var dataStore
+    @Environment(\.facioContainerWidth) private var containerWidth
     @State private var hourInputMode: TimesheetHourInputMode = .decimal
     @State private var showClientPicker = false
     @State private var showInvoiceDetailOptions = false
@@ -16,6 +17,16 @@ struct TimesheetEditorView: View {
     @State private var hourFieldFocusNonce = 0
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
+    /// Colonnes de la grille des jours : 7 colonnes égales si la largeur le
+    /// permet (7 × 64 + paddings ≈ 552 pt de conteneur), sinon 4 (rangées 4+3).
+    private var dayGridColumns: [GridItem] {
+        let count = containerWidth < 560 ? 4 : 7
+        return Array(
+            repeating: GridItem(.flexible(minimum: 64), spacing: FacioLayout.space4),
+            count: count
+        )
+    }
     private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
 
     /// Heures des jours hors-mois depuis les périodes adjacentes
@@ -417,9 +428,12 @@ struct TimesheetEditorView: View {
 
                 Divider()
 
-                // Grille des jours : wrap automatique en deux rangées quand la largeur se réduit
+                // Grille des jours : 7 colonnes égales remplissant la largeur en
+                // confortable, 4 colonnes (rangées 4+3) en étroit. Compte fixe
+                // plutôt que .adaptive : l'adaptatif crée des colonnes vides à
+                // droite dès que la largeur dépasse 8 × minimum.
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 64, maximum: .infinity), spacing: FacioLayout.space4)],
+                    columns: dayGridColumns,
                     spacing: FacioLayout.space8
                 ) {
                     ForEach(Array(week.jours.enumerated()), id: \.offset) { dayIndex, jour in

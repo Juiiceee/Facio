@@ -208,6 +208,17 @@ struct DecimalField: View {
             .onAppear {
                 text = value == 0 ? "" : formatDecimal(value)
             }
+            // Commit à chaque frappe (sans reformater) : si la vue est détruite
+            // pendant la saisie (bascule compact/large au franchissement du
+            // breakpoint), aucune saisie n'est perdue.
+            .onChange(of: text) {
+                let cleaned = text.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)
+                if let parsed = Decimal(string: cleaned) {
+                    value = parsed
+                } else if cleaned.isEmpty {
+                    value = 0
+                }
+            }
             .onChange(of: isFocused) {
                 if !isFocused {
                     let cleaned = text.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)

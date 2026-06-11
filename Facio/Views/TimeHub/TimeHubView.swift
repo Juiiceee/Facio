@@ -1087,7 +1087,7 @@ private struct TimeHubManualEntrySheet: View {
             }
         }
         .padding(FacioLayout.space20)
-        .frame(width: 520)
+        .frame(minWidth: FacioLayout.sheetMinWidth, idealWidth: 520, maxWidth: 560)
         .onAppear {
             selectedTimesheetId = selectedTimesheet?.id
         }
