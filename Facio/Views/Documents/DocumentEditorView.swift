@@ -14,6 +14,7 @@ struct DocumentEditorView: View {
     @State private var showAttachmentCopyAlert = false
     @State private var showEmailUnavailableAlert = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(ToastCenter.self) private var toastCenter
     @State private var signatureCountBeforeSheet = 0
 
     // Debounce timer for auto-save
@@ -382,24 +383,28 @@ struct DocumentEditorView: View {
             } label: {
                 Label(L10n.duplicate(lang), systemImage: "doc.on.doc")
             }
+            .help(L10n.duplicate(lang))
 
             Button {
                 showPreview = true
             } label: {
                 Label(L10n.preview(lang), systemImage: "eye")
             }
+            .help(L10n.preview(lang))
 
             Button {
                 exporterPDF()
             } label: {
                 Label(L10n.exportPDF(lang), systemImage: "square.and.arrow.up")
             }
+            .help(L10n.exportPDF(lang))
 
             Button {
                 envoyerParEmail()
             } label: {
                 Label(L10n.sendByEmail(lang), systemImage: "paperplane")
             }
+            .help(L10n.sendByEmail(lang))
         }
     }
 
@@ -759,8 +764,13 @@ struct DocumentEditorView: View {
 
         Task {
             let result = await ExportService.exportPDF(data: pdfData, defaultFilename: document.number, language: lang)
-            if result == .failed {
+            switch result {
+            case .success:
+                toastCenter.show(L10n.toastPDFExported(lang), icon: "square.and.arrow.up")
+            case .failed:
                 showPDFExportAlert = true
+            case .cancelled:
+                break
             }
         }
     }
@@ -785,7 +795,10 @@ struct DocumentEditorView: View {
             pdfData: pdfData,
             attachmentURLs: attachmentURLs
         )
-        if result == .unavailable {
+        switch result {
+        case .composed:
+            toastCenter.show(L10n.toastEmailComposed(lang), icon: "paperplane")
+        case .unavailable:
             showEmailUnavailableAlert = true
         }
     }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(DataStore.self) private var dataStore
+    @Environment(ToastCenter.self) private var toastCenter
     @State private var selectedSection: SidebarSection? = .dashboard
     @State private var selectedDocumentId: UUID?
     @State private var selectedTimesheetId: UUID?
@@ -58,6 +59,14 @@ struct ContentView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .facioToastHost()
+        // Les erreurs de persistance étaient remplies par DataStore mais
+        // jamais affichées : on les fait remonter en toast non bloquant.
+        .onChange(of: dataStore.persistenceErrors) { _, errors in
+            if let message = errors.values.first {
+                toastCenter.show(message, tone: .danger)
+            }
+        }
         .sheet(isPresented: $showCommandPalette) {
             CommandPaletteView(
                 selectedSection: $selectedSection,
@@ -175,7 +184,14 @@ struct ContentView: View {
                     title: L10n.noDocumentSelected(lang),
                     systemImage: "doc.text",
                     message: L10n.selectDocumentHint(lang)
-                )
+                ) {
+                    FacioButton(
+                        selectedSection == .devis ? L10n.quickCreateQuote(lang) : L10n.quickCreateInvoice(lang),
+                        systemImage: "plus"
+                    ) {
+                        newDocument(selectedSection == .devis ? .devis : .facture)
+                    }
+                }
             }
         case .heures:
             if let ts = selectedTimesheet {

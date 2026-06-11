@@ -12,7 +12,10 @@ struct DocumentAttachmentsSection: View {
 
     @State private var isDropTargeted = false
     @State private var failedImportCount = 0
+    @State private var dropAddedCount = 0
+    @State private var attachmentPendingDeletion: DocumentAttachment?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(ToastCenter.self) private var toastCenter
 
     var body: some View {
         SectionPanel(L10n.attachmentsSection(lang), systemImage: "paperclip") {
@@ -30,7 +33,7 @@ struct DocumentAttachmentsSection: View {
                                 attachment: attachment,
                                 lang: lang,
                                 onOpen: { open(attachment) },
-                                onDelete: { dataStore.deleteAttachment(attachment, from: document) }
+                                onDelete: { attachmentPendingDeletion = attachment }
                             )
                             if attachment.id != document.attachments.last?.id {
                                 Divider()
@@ -52,6 +55,30 @@ struct DocumentAttachmentsSection: View {
                 }
                 .buttonStyle(.borderless)
             }
+        }
+        // Suppression définitive (le fichier disque part avec) : confirmation
+        // obligatoire — contrairement aux entrées de temps, pas d'undo possible.
+        .alert(
+            L10n.deleteAttachmentConfirmTitle(lang),
+            isPresented: Binding(
+                get: { attachmentPendingDeletion != nil },
+                set: { if !$0 { attachmentPendingDeletion = nil } }
+            )
+        ) {
+            Button(L10n.cancel(lang), role: .cancel) {
+                attachmentPendingDeletion = nil
+            }
+            Button(L10n.delete(lang), role: .destructive) {
+                if let attachment = attachmentPendingDeletion {
+                    dataStore.deleteAttachment(attachment, from: document)
+                }
+                attachmentPendingDeletion = nil
+            }
+        } message: {
+            Text(L10n.deleteAttachmentConfirmMessage(
+                lang,
+                name: attachmentPendingDeletion?.originalFilename ?? ""
+            ))
         }
     }
 
@@ -96,8 +123,16 @@ struct DocumentAttachmentsSection: View {
         panel.canChooseDirectories = false
         guard panel.runModal() == .OK else { return }
         failedImportCount = 0
-        for url in panel.urls where dataStore.importAttachment(from: url, to: document) == nil {
-            failedImportCount += 1
+        var added = 0
+        for url in panel.urls {
+            if dataStore.importAttachment(from: url, to: document) == nil {
+                failedImportCount += 1
+            } else {
+                added += 1
+            }
+        }
+        if added > 0 {
+            toastCenter.show(L10n.toastAttachmentsAdded(lang, count: added), icon: "paperclip")
         }
     }
 
@@ -116,11 +151,25 @@ struct DocumentAttachmentsSection: View {
                     }
                     if dataStore.importAttachment(from: url, to: document) == nil {
                         failedImportCount += 1
+                    } else {
+                        dropAddedCount += 1
+                        scheduleDropToast()
                     }
                 }
             }
         }
         return handledAny
+    }
+
+    /// Les imports d'un glisser-déposer arrivent dans des callbacks asynchrones :
+    /// on agrège brièvement avant d'afficher un seul toast pour tout le lot.
+    private func scheduleDropToast() {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard dropAddedCount > 0 else { return }
+            toastCenter.show(L10n.toastAttachmentsAdded(lang, count: dropAddedCount), icon: "paperclip")
+            dropAddedCount = 0
+        }
     }
 }
 

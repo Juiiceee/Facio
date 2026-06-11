@@ -13,6 +13,7 @@ struct TimesheetListView: View {
 
     @Environment(DataStore.self) private var dataStore
     @State private var showNewPeriod = false
+    @State private var timesheetPendingDeletion: TimesheetPeriod?
     @State private var showInvoiceDetailOptions = false
     @State private var newPeriodMode: NewTimesheetPeriodMode = .month
     @State private var selectedMois: Int = Calendar.current.component(.month, from: Date())
@@ -109,8 +110,7 @@ struct TimesheetListView: View {
                         }
                         Divider()
                         Button(role: .destructive) {
-                            if selectedTimesheetId == ts.id { selectedTimesheetId = nil }
-                            dataStore.deleteTimesheet(ts)
+                            timesheetPendingDeletion = ts
                         } label: {
                             Label(L10n.delete(lang), systemImage: "trash")
                         }
@@ -159,13 +159,40 @@ struct TimesheetListView: View {
         } message: { _ in
             Text(L10n.chooseInvoiceDetail(lang))
         }
+        .alert(
+            L10n.deletePeriodConfirmTitle(lang),
+            isPresented: Binding(
+                get: { timesheetPendingDeletion != nil },
+                set: { if !$0 { timesheetPendingDeletion = nil } }
+            )
+        ) {
+            Button(L10n.cancel(lang), role: .cancel) {
+                timesheetPendingDeletion = nil
+            }
+            Button(L10n.delete(lang), role: .destructive) {
+                if let ts = timesheetPendingDeletion {
+                    if selectedTimesheetId == ts.id { selectedTimesheetId = nil }
+                    dataStore.deleteTimesheet(ts)
+                }
+                timesheetPendingDeletion = nil
+            }
+        } message: {
+            Text(L10n.deletePeriodConfirmMessage(
+                lang,
+                label: timesheetPendingDeletion?.periodLabel(for: lang) ?? ""
+            ))
+        }
         .overlay {
             if timesheets.isEmpty {
                 FacioEmptyState(
                     title: L10n.noPeriod(lang),
                     systemImage: "clock",
                     message: L10n.clickToCreatePeriod(lang)
-                )
+                ) {
+                    FacioButton(L10n.newPeriod(lang), systemImage: "plus") {
+                        showNewPeriod = true
+                    }
+                }
             }
         }
     }
