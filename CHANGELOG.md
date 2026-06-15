@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/Juiiceee/Facio/compare/Facio-v2.2.0...Facio-v2.3.0) (2026-06-15)
+
+
+### Nouvelles fonctionnalites
+
+* **justificatifs:** aperçu intégré, report en ligne, TVA par ligne ([#88](https://github.com/Juiiceee/Facio/issues/88)) ([4b0ff5d](https://github.com/Juiiceee/Facio/commit/4b0ff5da50bfe3bffef3a1b385e937f0a8494dfe))
+
 ## [2.2.0](https://github.com/Juiiceee/Facio/compare/Facio-v2.1.2...Facio-v2.2.0) (2026-06-11)
 
 
