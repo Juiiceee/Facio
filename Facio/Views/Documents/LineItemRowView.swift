@@ -61,6 +61,8 @@ struct LineItemRowView: View {
                 .frame(width: LineItemColumns.vat)
             totalText(for: currentLigne)
                 .frame(width: LineItemColumns.totalHT, alignment: .trailing)
+            totalTTCText(for: currentLigne)
+                .frame(width: LineItemColumns.totalTTC, alignment: .trailing)
             actionsMenu
         }
     }
@@ -81,7 +83,12 @@ struct LineItemRowView: View {
                 vatPicker
                     .frame(width: LineItemColumns.compactVat)
                 Spacer()
-                totalText(for: currentLigne)
+                VStack(alignment: .trailing, spacing: FacioLayout.space2) {
+                    Text(document.currency.formatAccounting(currentLigne.totalLigne, lang: numberFormat))
+                        .font(FacioFont.caption)
+                        .foregroundStyle(.secondary)
+                    totalTTCText(for: currentLigne)
+                }
             }
         }
     }
@@ -144,9 +151,15 @@ struct LineItemRowView: View {
         .labelsHidden()
     }
 
-    /// Total (lecture seule)
+    /// Total HT (lecture seule)
     private func totalText(for line: LineItem) -> some View {
         Text(document.currency.formatAccounting(line.totalLigne, lang: numberFormat))
+            .font(FacioFont.amount)
+    }
+
+    /// Total TTC de la ligne (HT + TVA), lecture seule.
+    private func totalTTCText(for line: LineItem) -> some View {
+        Text(document.currency.formatAccounting(line.totalTTC, lang: numberFormat))
             .font(FacioFont.amount)
     }
 

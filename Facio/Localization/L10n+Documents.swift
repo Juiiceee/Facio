@@ -48,6 +48,7 @@ extension L10n {
         return l == .fr ? "\(value) %" : "\(value)%"
     }
     static func totalHTLabel(_ l: AppLanguage) -> String { l == .fr ? "Total HT" : "Subtotal" }
+    static func totalTTCLabel(_ l: AppLanguage) -> String { l == .fr ? "Total TTC" : "Total" }
     static func priceLabel(_ l: AppLanguage) -> String { l == .fr ? "Prix" : "Price" }
     static func qtyShort(_ l: AppLanguage) -> String { l == .fr ? "Qte" : "Qty" }
     static func noLines(_ l: AppLanguage) -> String { l == .fr ? "Aucune ligne. Ajoutez-en une ci-dessous." : "No line items. Add one below." }

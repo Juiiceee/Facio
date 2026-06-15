@@ -88,7 +88,8 @@ enum FacioLayout {
     /// Largeur minimale d'un champ dans une `FormGrid`.
     static let fieldMinWidth: CGFloat = 150
     /// Largeur de conteneur sous laquelle le tableau de lignes passe en mode compact.
-    static let lineItemsCompactBreakpoint: CGFloat = 700
+    /// (Relevé pour absorber la colonne « Total TTC » sans rogner la désignation.)
+    static let lineItemsCompactBreakpoint: CGFloat = 820
     /// Cap de largeur du panneau de totaux (pleine largeur en compact).
     static let totalsMaxWidth: CGFloat = 350
 
