@@ -15,6 +15,7 @@ struct DocumentAttachmentsSection: View {
     @State private var dropAddedCount = 0
     @State private var dropToastTask: Task<Void, Never>?
     @State private var attachmentPendingDeletion: DocumentAttachment?
+    @State private var attachmentToPreview: DocumentAttachment?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(ToastCenter.self) private var toastCenter
 
@@ -33,7 +34,7 @@ struct DocumentAttachmentsSection: View {
                                 document: document,
                                 attachment: attachment,
                                 lang: lang,
-                                onOpen: { open(attachment) },
+                                onOpen: { attachmentToPreview = attachment },
                                 onDelete: { attachmentPendingDeletion = attachment }
                             )
                             if attachment.id != document.attachments.last?.id {
@@ -81,6 +82,13 @@ struct DocumentAttachmentsSection: View {
                 name: attachmentPendingDeletion?.originalFilename ?? ""
             ))
         }
+        .sheet(item: $attachmentToPreview) { attachment in
+            AttachmentPreviewSheet(
+                url: dataStore.attachmentURL(attachment, in: document),
+                attachment: attachment,
+                lang: lang
+            )
+        }
     }
 
     private var dropZone: some View {
@@ -106,10 +114,6 @@ struct DocumentAttachmentsSection: View {
         .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
             handleDrop(providers)
         }
-    }
-
-    private func open(_ attachment: DocumentAttachment) {
-        NSWorkspace.shared.open(dataStore.attachmentURL(attachment, in: document))
     }
 
     /// Types acceptés (cohérents entre sélecteur de fichiers et glisser-déposer).
@@ -183,16 +187,24 @@ private struct AttachmentRowView: View {
     let onDelete: () -> Void
 
     @Environment(DataStore.self) private var dataStore
+    @Environment(ToastCenter.self) private var toastCenter
     @State private var labelText: String = ""
     @FocusState private var labelFocused: Bool
 
-    var body: some View {
-        HStack(spacing: FacioLayout.space10) {
-            Image(systemName: attachment.iconName)
-                .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
-                .frame(width: 24)
+    private static let tvaRates: [Decimal] = [0, 5.5, 10, 20]
 
-            VStack(alignment: .leading, spacing: FacioLayout.space2) {
+    private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
+    /// Décalage pour aligner les rangées sous le libellé (icône + espacement).
+    private var contentInset: CGFloat { 24 + FacioLayout.space10 }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: FacioLayout.space6) {
+            // Niveau 1 : icône + libellé (= nom) + ouvrir / supprimer.
+            HStack(spacing: FacioLayout.space10) {
+                Image(systemName: attachment.iconName)
+                    .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
+                    .frame(width: 24)
+
                 TextField(L10n.attachmentLabelPlaceholder(lang), text: $labelText)
                     .textFieldStyle(.plain)
                     .font(FacioFont.rowTitle)
@@ -202,25 +214,74 @@ private struct AttachmentRowView: View {
                         if !focused { commitLabel() }
                     }
 
-                HStack(spacing: FacioLayout.space6) {
-                    Text(attachment.originalFilename)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Text("•")
-                    Text(attachment.formattedSize)
+                Spacer()
+
+                FacioIconButton(systemImage: "arrow.up.right.square", help: L10n.openAttachment(lang)) {
+                    onOpen()
                 }
-                .font(FacioFont.captionSmall)
-                .foregroundStyle(.secondary)
+                FacioIconButton(systemImage: "trash", tone: .intentDanger, help: L10n.delete(lang)) {
+                    onDelete()
+                }
             }
 
-            Spacer()
+            // Niveau 2 : montant (HT/TTC) + TVA + report en ligne de facture.
+            HStack(spacing: FacioLayout.space8) {
+                DecimalField(
+                    placeholder: L10n.attachmentAmount(lang),
+                    value: Binding(
+                        get: { attachment.montant },
+                        set: { newVal in update { $0.montant = newVal } }
+                    ),
+                    maximumFractionDigits: document.currency.maximumFractionDigits
+                )
+                .format(numberFormat)
+                .frame(width: 110)
 
-            FacioIconButton(systemImage: "arrow.up.right.square", help: L10n.openAttachment(lang)) {
-                onOpen()
+                Picker("", selection: Binding(
+                    get: { attachment.montantEstTTC },
+                    set: { newVal in update { $0.montantEstTTC = newVal } }
+                )) {
+                    Text(L10n.attachmentAmountHT(lang)).tag(false)
+                    Text(L10n.attachmentAmountTTC(lang)).tag(true)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 120)
+
+                Picker(L10n.vatLabel(lang), selection: Binding(
+                    get: { attachment.tauxTVA },
+                    set: { newVal in update { $0.tauxTVA = newVal } }
+                )) {
+                    ForEach(Self.tvaRates, id: \.self) { rate in
+                        Text(L10n.vatRateLabel(numberFormat, rate: rate)).tag(rate)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 90)
+
+                Button {
+                    report()
+                } label: {
+                    Label(L10n.reportToInvoice(lang), systemImage: "arrow.right.doc.on.clipboard")
+                }
+                .buttonStyle(.borderless)
+                .disabled(attachment.montant <= 0)
+
+                Spacer()
             }
-            FacioIconButton(systemImage: "trash", tone: .intentDanger, help: L10n.delete(lang)) {
-                onDelete()
+            .padding(.leading, contentInset)
+
+            // Méta : nom de fichier d'origine + taille.
+            HStack(spacing: FacioLayout.space6) {
+                Text(attachment.originalFilename)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text("•")
+                Text(attachment.formattedSize)
             }
+            .font(FacioFont.captionSmall)
+            .foregroundStyle(.secondary)
+            .padding(.leading, contentInset)
         }
         .padding(.vertical, FacioLayout.space4)
         .onAppear { labelText = attachment.label }
@@ -232,5 +293,26 @@ private struct AttachmentRowView: View {
     private func commitLabel() {
         guard labelText != attachment.label else { return }
         dataStore.updateAttachmentLabel(attachment, label: labelText, in: document)
+    }
+
+    /// Applique une mutation sur une copie du justificatif et la persiste.
+    private func update(_ mutate: (inout DocumentAttachment) -> Void) {
+        var copy = attachment
+        mutate(&copy)
+        dataStore.updateAttachment(copy, in: document)
+    }
+
+    /// Crée une ligne de facture à partir du justificatif (montant ramené en HT).
+    private func report() {
+        let ligne = LineItem(
+            designation: attachment.displayName,
+            quantite: 1,
+            prixUnitaire: attachment.montantHT,
+            tauxTVA: attachment.tauxTVA,
+            ordre: document.lignes.count
+        )
+        document.ajouterLigne(ligne)
+        dataStore.documentUpdated(document)
+        toastCenter.show(L10n.toastLineReported(lang), icon: "list.bullet.rectangle")
     }
 }

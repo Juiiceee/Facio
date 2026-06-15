@@ -16,6 +16,13 @@ struct DocumentAttachment: Identifiable, Codable, Hashable {
     /// Taille en octets (pour affichage).
     var fileSize: Int = 0
     var addedAt: Date = Date()
+    /// Montant du justificatif, reportable en ligne de facture. `0` = non renseigné.
+    var montant: Decimal = 0
+    /// Taux de TVA (%) appliqué au report.
+    var tauxTVA: Decimal = 0
+    /// `true` si `montant` est saisi TTC (on calcule le HT à rebours au report),
+    /// `false` s'il est saisi HT (utilisé tel quel comme prix unitaire).
+    var montantEstTTC: Bool = false
 
     init(
         id: UUID = UUID(),
@@ -23,7 +30,10 @@ struct DocumentAttachment: Identifiable, Codable, Hashable {
         fileExtension: String = "",
         label: String = "",
         fileSize: Int = 0,
-        addedAt: Date = Date()
+        addedAt: Date = Date(),
+        montant: Decimal = 0,
+        tauxTVA: Decimal = 0,
+        montantEstTTC: Bool = false
     ) {
         self.id = id
         self.originalFilename = originalFilename
@@ -31,6 +41,9 @@ struct DocumentAttachment: Identifiable, Codable, Hashable {
         self.label = label
         self.fileSize = fileSize
         self.addedAt = addedAt
+        self.montant = montant
+        self.tauxTVA = tauxTVA
+        self.montantEstTTC = montantEstTTC
     }
 
     init(from decoder: Decoder) throws {
@@ -41,10 +54,20 @@ struct DocumentAttachment: Identifiable, Codable, Hashable {
         label = try container.decodeOrDefault(String.self, forKey: .label, default: "")
         fileSize = try container.decodeOrDefault(Int.self, forKey: .fileSize, default: 0)
         addedAt = try container.decodeOrDefault(Date.self, forKey: .addedAt, default: Date())
+        montant = try container.decodeOrDefault(Decimal.self, forKey: .montant, default: 0)
+        tauxTVA = try container.decodeOrDefault(Decimal.self, forKey: .tauxTVA, default: 0)
+        montantEstTTC = try container.decodeOrDefault(Bool.self, forKey: .montantEstTTC, default: false)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, originalFilename, fileExtension, label, fileSize, addedAt
+        case id, originalFilename, fileExtension, label, fileSize, addedAt, montant, tauxTVA, montantEstTTC
+    }
+
+    /// Montant HT effectif pour un report en ligne de facture.
+    var montantHT: Decimal {
+        guard montantEstTTC else { return montant }
+        let diviseur = 1 + tauxTVA / 100
+        return diviseur == 0 ? montant : montant / diviseur
     }
 
     /// Nom du fichier tel que stocké sur disque.

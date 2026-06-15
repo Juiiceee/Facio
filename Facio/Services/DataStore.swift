@@ -497,6 +497,14 @@ final class DataStore: Sendable {
         saveDocuments()
     }
 
+    /// Remplace les métadonnées d'un justificatif (montant, TVA, mode HT/TTC…) et sauvegarde.
+    func updateAttachment(_ attachment: DocumentAttachment, in document: Document) {
+        guard let index = document.attachments.firstIndex(where: { $0.id == attachment.id }) else { return }
+        document.attachments[index] = attachment
+        document.updatedAt = Date()
+        saveDocuments()
+    }
+
     /// Supprime un justificatif (fichier + métadonnée) et sauvegarde.
     func deleteAttachment(_ attachment: DocumentAttachment, from document: Document) {
         try? fileManager.removeItem(at: attachmentURL(attachment, in: document))
