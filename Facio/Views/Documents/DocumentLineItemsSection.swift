@@ -7,6 +7,7 @@ enum LineItemColumns {
     static let unitPrice: CGFloat = 110
     static let vat: CGFloat = 80
     static let totalHT: CGFloat = 110
+    static let totalTTC: CGFloat = 110
     static let actions: CGFloat = 32
 
     // Variante compacte (ligne sur deux niveaux, sous
@@ -56,6 +57,8 @@ struct DocumentLineItemsSection: View {
                 .frame(width: LineItemColumns.vat, alignment: .center)
             Text(L10n.totalHTLabel(lang))
                 .frame(width: LineItemColumns.totalHT, alignment: .trailing)
+            Text(L10n.totalTTCLabel(lang))
+                .frame(width: LineItemColumns.totalTTC, alignment: .trailing)
             Spacer().frame(width: LineItemColumns.actions)
         }
         .font(.caption)

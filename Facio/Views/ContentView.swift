@@ -89,27 +89,32 @@ struct ContentView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Menu {
-                    Button {
-                        newDocument(.facture)
+                // Masqué sur « Heures & facturation » : sur cette page on fait un
+                // relevé d'heures (« Nouvelle période »), pas une facture — le menu
+                // « Nouveau » global y prêtait à confusion.
+                if selectedSection != .heures {
+                    Menu {
+                        Button {
+                            newDocument(.facture)
+                        } label: {
+                            Label(L10n.quickCreateInvoice(lang), systemImage: SidebarSection.factures.icon)
+                        }
+                        Button {
+                            newDocument(.devis)
+                        } label: {
+                            Label(L10n.quickCreateQuote(lang), systemImage: SidebarSection.devis.icon)
+                        }
+                        Divider()
+                        Button {
+                            newClient()
+                        } label: {
+                            Label(L10n.quickCreateClient(lang), systemImage: "person.crop.circle.badge.plus")
+                        }
                     } label: {
-                        Label(L10n.quickCreateInvoice(lang), systemImage: SidebarSection.factures.icon)
+                        Label(L10n.new(lang), systemImage: "plus")
                     }
-                    Button {
-                        newDocument(.devis)
-                    } label: {
-                        Label(L10n.quickCreateQuote(lang), systemImage: SidebarSection.devis.icon)
-                    }
-                    Divider()
-                    Button {
-                        newClient()
-                    } label: {
-                        Label(L10n.quickCreateClient(lang), systemImage: "person.crop.circle.badge.plus")
-                    }
-                } label: {
-                    Label(L10n.new(lang), systemImage: "plus")
+                    .help(L10n.new(lang))
                 }
-                .help(L10n.new(lang))
 
                 Button {
                     showCommandPalette = true

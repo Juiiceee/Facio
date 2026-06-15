@@ -13,6 +13,19 @@ extension L10n {
     static func dropAttachmentHere(_ l: AppLanguage) -> String { l == .fr ? "Déposez vos fichiers ici" : "Drop your files here" }
     static func attachmentLabelPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Libellé (ex. Train Nancy⇄Paris)" : "Label (e.g. Train Nancy⇄Paris)" }
     static func openAttachment(_ l: AppLanguage) -> String { l == .fr ? "Ouvrir" : "Open" }
+    static func openAttachmentExternally(_ l: AppLanguage) -> String { l == .fr ? "Ouvrir dans l'app externe" : "Open in external app" }
+    static func attachmentPreviewUnavailable(_ l: AppLanguage) -> String { l == .fr ? "Aperçu indisponible" : "Preview unavailable" }
+    static func attachmentPreviewUnavailableHint(_ l: AppLanguage) -> String {
+        l == .fr ? "Ce fichier ne peut pas être affiché ici. Ouvrez-le dans l'app externe."
+        : "This file cannot be displayed here. Open it in the external app."
+    }
+
+    // Montant reportable d'un justificatif
+    static func attachmentAmount(_ l: AppLanguage) -> String { l == .fr ? "Montant" : "Amount" }
+    static func attachmentAmountHT(_ l: AppLanguage) -> String { l == .fr ? "HT" : "Excl. tax" }
+    static func attachmentAmountTTC(_ l: AppLanguage) -> String { l == .fr ? "TTC" : "Incl. tax" }
+    static func reportToInvoice(_ l: AppLanguage) -> String { l == .fr ? "Reporter sur la facture" : "Add to invoice" }
+    static func toastLineReported(_ l: AppLanguage) -> String { l == .fr ? "Ligne ajoutée à la facture" : "Line added to invoice" }
     static func attachmentImportFailedCount(_ l: AppLanguage, count: Int) -> String {
         if l == .fr {
             return count == 1
