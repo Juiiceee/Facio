@@ -1,4 +1,5 @@
 #if FACIO_REGRESSION_TESTS
+import CoreGraphics
 import Darwin
 import Foundation
 import PDFKit
@@ -53,6 +54,10 @@ enum FacioRegressionSuite {
         RegressionCase(name: "document totals include VAT and line ordering", run: documentTotalsIncludeVATAndLineOrdering),
         RegressionCase(name: "document decodes old payloads without accounting conversion", run: documentDecodesOldPayloadsWithoutAccountingConversion),
         RegressionCase(name: "company decodes old payloads without intracom vat", run: companyDecodesOldPayloadsWithoutIntracomVAT),
+        RegressionCase(name: "facturx applicability gates non invoices", run: facturXApplicabilityGatesNonInvoices),
+        RegressionCase(name: "facturx xml maps invoice fields and totals", run: facturXXMLMapsInvoiceFieldsAndTotals),
+        RegressionCase(name: "facturx xml franchise en base uses category E", run: facturXXMLFranchiseEnBaseUsesCategoryE),
+        RegressionCase(name: "facturx embeds retrievable xml in pdf", run: facturXEmbedsRetrievableXMLInPDF),
         RegressionCase(name: "sent invoices become overdue after due date", run: sentInvoicesBecomeOverdueAfterDueDate),
         RegressionCase(name: "client empty record detection trims all fields", run: clientEmptyRecordDetectionTrimsAllFields),
         RegressionCase(name: "data store keeps clients while editing empty fields", run: dataStoreKeepsClientsWhileEditingEmptyFields),
@@ -2051,6 +2056,168 @@ enum FacioRegressionSuite {
         let reencoded = try JSONEncoder().encode(legacy)
         let decoded = try JSONDecoder().decode(CompanyInfo.self, from: reencoded)
         try expectEqual(decoded.tvaIntracom, "FR12345678900")
+    }
+
+    private static func facturXApplicabilityGatesNonInvoices() throws {
+        let devis = Document(type: .devis, number: "Devis_2026_01", currency: .eur)
+        try expectEqual(FacturXXMLBuilder.applicability(for: devis), .notAnInvoice)
+
+        let crypto = Document(type: .facture, number: "F1", currency: .usdc)
+        try expectEqual(FacturXXMLBuilder.applicability(for: crypto), .unsupportedCurrency("USDC"))
+
+        let eur = Document(type: .facture, number: "F2", currency: .eur)
+        try expectEqual(FacturXXMLBuilder.applicability(for: eur), .applicable)
+    }
+
+    private static func facturXXMLMapsInvoiceFieldsAndTotals() throws {
+        let company = CompanyInfo()
+        company.nom = "Facio SAS"
+        company.siret = "12345678900012"
+        company.tvaIntracom = "FR12345678900"
+        company.adresse = "1 rue Test"
+        company.codePostal = "54000"
+        company.ville = "Nancy"
+
+        let doc = Document(type: .facture, number: "Facture_2026_03", currency: .eur)
+        doc.clientNom = "Client SARL"
+        doc.clientSiret = "98765432100019"
+        doc.clientTva = "FR98765432100"
+        doc.clientAdresse = "2 av Client"
+        doc.clientCodePostal = "75001"
+        doc.clientVille = "Paris"
+        doc.ajouterLigne(LineItem(designation: "Dev", quantite: 2, prixUnitaire: 100, tauxTVA: 20)) // net 200, TVA 40
+        doc.ajouterLigne(LineItem(designation: "Conseil", quantite: 1, prixUnitaire: 100, tauxTVA: 10)) // net 100, TVA 10
+
+        let xml = FacturXXMLBuilder.buildXML(document: doc, company: company)
+
+        // Profil, type, date
+        try expect(xml.contains("<ram:ID>urn:cen.eu:en16931:2017</ram:ID>"), "profile URN present")
+        try expect(xml.contains("<ram:TypeCode>380</ram:TypeCode>"), "invoice type code 380")
+        let expectedIssue = FacturXXMLBuilder.date102(doc.dateCreation)
+        try expect(xml.contains("<udt:DateTimeString format=\"102\">\(expectedIssue)</udt:DateTimeString>"), "issue date in 102 format")
+
+        // Parties
+        try expect(xml.contains("<ram:ID schemeID=\"0002\">12345678900012</ram:ID>"), "seller SIRET")
+        try expect(xml.contains("<ram:ID schemeID=\"VA\">FR12345678900</ram:ID>"), "seller intracom VAT")
+        try expect(xml.contains("<ram:Name>Client SARL</ram:Name>"), "buyer name")
+
+        // Ventilation TVA multi-taux
+        try expect(xml.contains("<ram:CategoryCode>S</ram:CategoryCode>"), "standard category S")
+        try expect(xml.contains("<ram:BasisAmount>200.00</ram:BasisAmount>"), "20% group basis")
+        try expect(xml.contains("<ram:CalculatedAmount>40.00</ram:CalculatedAmount>"), "20% group VAT")
+        try expect(xml.contains("<ram:BasisAmount>100.00</ram:BasisAmount>"), "10% group basis")
+        try expect(xml.contains("<ram:CalculatedAmount>10.00</ram:CalculatedAmount>"), "10% group VAT")
+        try expect(xml.contains("<ram:RateApplicablePercent>20.00</ram:RateApplicablePercent>"), "20% rate")
+
+        // Sommation monétaire (arithmétique BR-CO)
+        try expect(xml.contains("<ram:LineTotalAmount>300.00</ram:LineTotalAmount>"), "sum of line nets")
+        try expect(xml.contains("<ram:TaxBasisTotalAmount>300.00</ram:TaxBasisTotalAmount>"), "tax basis total")
+        try expect(xml.contains("<ram:TaxTotalAmount currencyID=\"EUR\">50.00</ram:TaxTotalAmount>"), "tax total")
+        try expect(xml.contains("<ram:GrandTotalAmount>350.00</ram:GrandTotalAmount>"), "grand total")
+        try expect(xml.contains("<ram:DuePayableAmount>350.00</ram:DuePayableAmount>"), "due payable")
+
+        // Format décimal indépendant de la locale (jamais de virgule)
+        try expect(!xml.contains(",00"), "amounts use dot decimal separator")
+
+        // Bonne formation XML (valide aussi l'échappement)
+        try expect(XMLParser(data: Data(xml.utf8)).parse(), "generated XML must be well-formed")
+    }
+
+    private static func facturXXMLFranchiseEnBaseUsesCategoryE() throws {
+        let company = CompanyInfo()
+        company.nom = "Micro EI"
+        company.siret = "11122233300014" // pas de tvaIntracom → franchise en base
+        let doc = Document(type: .facture, number: "Facture_2026_05", currency: .eur)
+        doc.clientNom = "Client"
+        doc.ajouterLigne(LineItem(designation: "Prestation", quantite: 1, prixUnitaire: 500, tauxTVA: 0))
+
+        let xml = FacturXXMLBuilder.buildXML(document: doc, company: company)
+
+        try expect(xml.contains("<ram:CategoryCode>E</ram:CategoryCode>"), "exempt category E for 0% rate")
+        try expect(
+            xml.contains("<ram:ExemptionReason>TVA non applicable, art. 293 B du CGI</ram:ExemptionReason>"),
+            "franchise exemption reason"
+        )
+        try expect(!xml.contains("schemeID=\"VA\""), "no VAT registration block when franchise (no intracom VAT)")
+        try expect(xml.contains("<ram:TaxTotalAmount currencyID=\"EUR\">0.00</ram:TaxTotalAmount>"), "no VAT amount")
+        try expect(xml.contains("<ram:GrandTotalAmount>500.00</ram:GrandTotalAmount>"), "grand total equals net")
+        try expect(XMLParser(data: Data(xml.utf8)).parse(), "franchise XML must be well-formed")
+    }
+
+    private static func facturXEmbedsRetrievableXMLInPDF() throws {
+        let company = CompanyInfo()
+        company.nom = "Facio SAS"
+        company.siret = "12345678900012"
+        company.tvaIntracom = "FR12345678900"
+        let doc = Document(type: .facture, number: "Facture_2026_07", currency: .eur)
+        doc.clientNom = "Client SARL"
+        doc.ajouterLigne(LineItem(designation: "Dev", quantite: 1, prixUnitaire: 1000, tauxTVA: 20))
+
+        let xml = FacturXXMLBuilder.buildXML(document: doc, company: company)
+        let basePDF = PDFGenerator(document: doc, company: company).generate()
+        try expect(!basePDF.isEmpty, "base PDF should be generated")
+
+        let embedded = try require(
+            FacturXPDFWriter.embed(xml: xml, into: basePDF, invoiceNumber: doc.number, modDate: doc.dateCreation),
+            "embedding should succeed"
+        )
+
+        // 1. Le PDF reste lisible après la mise à jour incrémentale.
+        let pdfDoc = try require(PDFDocument(data: embedded), "embedded PDF should parse")
+        try expect(pdfDoc.pageCount >= 1, "embedded PDF should have at least one page")
+
+        // 2. Le XML embarqué est atteignable et byte-identique (valide la chirurgie xref).
+        let extracted = try require(firstEmbeddedFile(in: embedded), "factur-x.xml should be retrievable")
+        try expectEqual(extracted, Data(xml.utf8))
+
+        // 3. Le catalogue expose /AF, /Metadata et /OutputIntents.
+        try expect(facturXContainerKeysPresent(in: embedded), "catalog must expose AF + Metadata + OutputIntents")
+    }
+
+    /// Extrait les octets du premier fichier embarqué via l'API CGPDF (round-trip).
+    private static func firstEmbeddedFile(in pdf: Data) -> Data? {
+        guard let provider = CGDataProvider(data: pdf as CFData),
+              let doc = CGPDFDocument(provider),
+              let catalog = doc.catalog else { return nil }
+        var names: CGPDFDictionaryRef?
+        guard CGPDFDictionaryGetDictionary(catalog, "Names", &names), let names else { return nil }
+        var embeddedFiles: CGPDFDictionaryRef?
+        guard CGPDFDictionaryGetDictionary(names, "EmbeddedFiles", &embeddedFiles), let embeddedFiles else { return nil }
+        var array: CGPDFArrayRef?
+        guard CGPDFDictionaryGetArray(embeddedFiles, "Names", &array), let array else { return nil }
+
+        let count = CGPDFArrayGetCount(array)
+        var i = 0
+        while i + 1 < count {
+            var filespec: CGPDFDictionaryRef?
+            if CGPDFArrayGetDictionary(array, i + 1, &filespec), let filespec {
+                var ef: CGPDFDictionaryRef?
+                if CGPDFDictionaryGetDictionary(filespec, "EF", &ef), let ef {
+                    var stream: CGPDFStreamRef?
+                    if CGPDFDictionaryGetStream(ef, "F", &stream), let stream {
+                        var format = CGPDFDataFormat.raw
+                        if let data = CGPDFStreamCopyData(stream, &format) {
+                            return data as Data
+                        }
+                    }
+                }
+            }
+            i += 2
+        }
+        return nil
+    }
+
+    private static func facturXContainerKeysPresent(in pdf: Data) -> Bool {
+        guard let provider = CGDataProvider(data: pdf as CFData),
+              let doc = CGPDFDocument(provider),
+              let catalog = doc.catalog else { return false }
+        var af: CGPDFArrayRef?
+        var metadata: CGPDFStreamRef?
+        var outputIntents: CGPDFArrayRef?
+        let hasAF = CGPDFDictionaryGetArray(catalog, "AF", &af)
+        let hasMetadata = CGPDFDictionaryGetStream(catalog, "Metadata", &metadata)
+        let hasOutputIntents = CGPDFDictionaryGetArray(catalog, "OutputIntents", &outputIntents)
+        return hasAF && hasMetadata && hasOutputIntents
     }
 
     private static func emailAttachmentFilenamesUseLabelsAndDedupe() throws {

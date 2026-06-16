@@ -49,6 +49,11 @@ extension L10n {
     // Preview / Export
     static func preview(_ l: AppLanguage) -> String { l == .fr ? "Aperçu" : "Preview" }
     static func exportPDF(_ l: AppLanguage) -> String { l == .fr ? "Exporter PDF" : "Export PDF" }
+    static func exportFacturX(_ l: AppLanguage) -> String { l == .fr ? "Facture électronique" : "Electronic invoice" }
+    static func exportFacturXHelp(_ l: AppLanguage) -> String { l == .fr ? "Exporter en Factur-X (PDF/A-3, XML embarqué)" : "Export as Factur-X (PDF/A-3, embedded XML)" }
+    static func facturXOnlyInvoices(_ l: AppLanguage) -> String { l == .fr ? "La facture électronique Factur-X n'est disponible que pour les factures (pas les devis)." : "Factur-X e-invoicing is only available for invoices (not quotes)." }
+    static func facturXOnlyEUR(_ l: AppLanguage, currency: String) -> String { l == .fr ? "Factur-X requiert une devise ISO 4217 : indisponible en \(currency). Passez la facture en EUR." : "Factur-X requires an ISO 4217 currency: unavailable in \(currency). Switch the invoice to EUR." }
+    static func facturXTitle(_ l: AppLanguage) -> String { l == .fr ? "Facture électronique" : "Electronic invoice" }
     static func exportDocument(_ l: AppLanguage) -> String { l == .fr ? "Exporter le document" : "Export document" }
     static func chooseSaveLocation(_ l: AppLanguage) -> String { l == .fr ? "Choisissez où sauvegarder le fichier PDF" : "Choose where to save the PDF file" }
     static func chooseCSVSaveLocation(_ l: AppLanguage) -> String { l == .fr ? "Choisissez où sauvegarder le fichier CSV" : "Choose where to save the CSV file" }

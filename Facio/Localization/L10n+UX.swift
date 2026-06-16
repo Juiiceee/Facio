@@ -61,6 +61,7 @@ extension L10n {
 
     // Toasts (retours non bloquants)
     static func toastPDFExported(_ l: AppLanguage) -> String { l == .fr ? "PDF exporté" : "PDF exported" }
+    static func toastFacturXExported(_ l: AppLanguage) -> String { l == .fr ? "Facture électronique exportée" : "Electronic invoice exported" }
     static func toastEmailComposed(_ l: AppLanguage) -> String {
         l == .fr ? "Email préparé dans votre messagerie" : "Email drafted in your mail app"
     }

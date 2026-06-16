@@ -13,6 +13,8 @@ struct DocumentEditorView: View {
     @State private var attachmentCopyFailures = 0
     @State private var showAttachmentCopyAlert = false
     @State private var showEmailUnavailableAlert = false
+    @State private var showFacturXAlert = false
+    @State private var facturXAlertMessage = ""
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(ToastCenter.self) private var toastCenter
     @State private var signatureCountBeforeSheet = 0
@@ -121,6 +123,11 @@ struct DocumentEditorView: View {
             Button(L10n.understood(lang), role: .cancel) {}
         } message: {
             Text(L10n.emailUnavailableMessage(lang))
+        }
+        .alert(L10n.facturXTitle(lang), isPresented: $showFacturXAlert) {
+            Button(L10n.understood(lang), role: .cancel) {}
+        } message: {
+            Text(facturXAlertMessage)
         }
         .alert(L10n.attachmentsCopyFailedTitle(lang), isPresented: $showAttachmentCopyAlert) {
             Button(L10n.understood(lang), role: .cancel) {}
@@ -398,6 +405,15 @@ struct DocumentEditorView: View {
                 Label(L10n.exportPDF(lang), systemImage: "square.and.arrow.up")
             }
             .help(L10n.exportPDF(lang))
+
+            if document.type == .facture {
+                Button {
+                    exporterFacturX()
+                } label: {
+                    Label(L10n.exportFacturX(lang), systemImage: "checkmark.seal")
+                }
+                .help(L10n.exportFacturXHelp(lang))
+            }
 
             Button {
                 envoyerParEmail()
@@ -771,6 +787,39 @@ struct DocumentEditorView: View {
                 showPDFExportAlert = true
             case .cancelled:
                 break
+            }
+        }
+    }
+
+    private func exporterFacturX() {
+        if document.trustedPaymentSnapshot == nil {
+            if document.freezePaymentSnapshot(from: company) {
+                saveDocument()
+            }
+        }
+
+        switch FacturXService.generate(document: document, company: company) {
+        case .notApplicable(.notAnInvoice):
+            facturXAlertMessage = L10n.facturXOnlyInvoices(lang)
+            showFacturXAlert = true
+        case let .notApplicable(.unsupportedCurrency(currency)):
+            facturXAlertMessage = L10n.facturXOnlyEUR(lang, currency: currency)
+            showFacturXAlert = true
+        case .notApplicable(.applicable):
+            break // inatteignable
+        case .failed:
+            showPDFGenerationAlert = true
+        case let .success(data):
+            Task {
+                let result = await ExportService.exportPDF(data: data, defaultFilename: document.number, language: lang)
+                switch result {
+                case .success:
+                    toastCenter.show(L10n.toastFacturXExported(lang), icon: "checkmark.seal")
+                case .failed:
+                    showPDFExportAlert = true
+                case .cancelled:
+                    break
+                }
             }
         }
     }
