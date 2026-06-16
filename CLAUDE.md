@@ -80,14 +80,14 @@ The app supports **French** (default) and **English**. All user-facing strings a
 
 **IMPORTANT : Whenever you add or modify any UI element that displays text (labels, placeholders, buttons, alerts, section titles, PDF text, etc.), you MUST add the translation in `L10n.swift` for both FR and EN, and use `L10n.xxx(lang)` instead of a hardcoded string.**
 
-## Workflow Git
+## Git Workflow
 
-**On ne commit jamais directement sur `main`** — sauf pour une modification vraiment minime (ex. éditer ce `CLAUDE.md`, corriger une coquille dans la doc). Pour ces petits cas, un commit direct sur `main` est toléré.
+**Never commit directly to `main`** — except for truly minor changes (e.g. editing this `CLAUDE.md`, fixing a typo in the docs). For those small cases, a direct commit to `main` is fine.
 
-Pour toute vraie modification (code, fonctionnalité, correction de bug) :
-1. Créer une **issue GitHub en anglais** décrivant le besoin/problème.
-2. Créer une **branche** dédiée.
-3. Ouvrir une **PR** (qui référence l'issue) une fois le travail prêt.
+For any real change (code, feature, bug fix):
+1. Create a **GitHub issue in English** describing the need/problem.
+2. Create a dedicated **branch**.
+3. Open a **PR** (referencing the issue) once the work is ready.
 
 ## Conventional Commits
 
