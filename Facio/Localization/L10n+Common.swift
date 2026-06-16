@@ -57,7 +57,8 @@ extension L10n {
     static func facturXIncompleteNoLines(_ l: AppLanguage) -> String { l == .fr ? "Ajoutez au moins une ligne avant de générer la facture électronique." : "Add at least one line before generating the e-invoice." }
     static func facturXIncompleteNumber(_ l: AppLanguage) -> String { l == .fr ? "Cette facture n'a pas de numéro." : "This invoice has no number." }
     static func facturXIncompleteClient(_ l: AppLanguage) -> String { l == .fr ? "Renseignez le nom du client de la facture." : "Add the invoice client's name." }
-    static func facturXMissingSellerVAT(_ l: AppLanguage) -> String { l == .fr ? "Renseignez votre numéro de TVA intracommunautaire (Réglages › Société) : il est obligatoire pour une facture avec TVA." : "Add your intracommunity VAT number (Settings › Company): it is required for an invoice that charges VAT." }
+    static func facturXMissingSellerVAT(_ l: AppLanguage) -> String { l == .fr ? "Renseignez votre numéro de TVA intracommunautaire (Paramètres › Entreprise) : il est obligatoire pour une facture avec TVA." : "Add your intracommunity VAT number (Settings › Company): it is required for an invoice that charges VAT." }
+    static func facturXGenerationFailed(_ l: AppLanguage) -> String { l == .fr ? "Impossible de générer la facture électronique (échec de l'intégration du XML)." : "Could not generate the e-invoice (XML embedding failed)." }
     static func exportDocument(_ l: AppLanguage) -> String { l == .fr ? "Exporter le document" : "Export document" }
     static func chooseSaveLocation(_ l: AppLanguage) -> String { l == .fr ? "Choisissez où sauvegarder le fichier PDF" : "Choose where to save the PDF file" }
     static func chooseCSVSaveLocation(_ l: AppLanguage) -> String { l == .fr ? "Choisissez où sauvegarder le fichier CSV" : "Choose where to save the CSV file" }

@@ -820,7 +820,8 @@ struct DocumentEditorView: View {
         case .notApplicable(.applicable):
             break // inatteignable
         case .failed:
-            showPDFGenerationAlert = true
+            facturXAlertMessage = L10n.facturXGenerationFailed(lang)
+            showFacturXAlert = true
         case let .success(data):
             Task {
                 let result = await ExportService.exportPDF(data: data, defaultFilename: document.number, language: lang)

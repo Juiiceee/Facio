@@ -107,8 +107,7 @@ enum FacturXXMLBuilder {
         // Lignes (BG-25)
         for (index, line) in lines.enumerated() {
             let category = vatCategory(for: line.tauxTVA)
-            // BT-146 (prix unitaire net) en pleine précision (jusqu'à 4 décimales) :
-            // ne pas arrondir à 2 dp, sinon BT-131 ≠ BT-146 × quantité pour qté > 1.
+            // BT-131 (total ligne) arrondi par ligne à 2 décimales.
             let lineNet = InvoiceTotals.rounded2(line.totalLigne)
             xml += """
                 <ram:IncludedSupplyChainTradeLineItem>
@@ -120,11 +119,13 @@ enum FacturXXMLBuilder {
                   </ram:SpecifiedTradeProduct>
                   <ram:SpecifiedLineTradeAgreement>
                     <ram:NetPriceProductTradePrice>
+                      <!-- BT-146 : prix unitaire net en pleine précision (jusqu'à 4 dp),
+                           non arrondi, pour que BT-131 ≈ BT-146 × BT-129 reste vérifiable. -->
                       <ram:ChargeAmount>\(unitPrice(line.prixUnitaire))</ram:ChargeAmount>
                     </ram:NetPriceProductTradePrice>
                   </ram:SpecifiedLineTradeAgreement>
                   <ram:SpecifiedLineTradeDelivery>
-                    <ram:BilledQuantity unitCode="C62">\(amount(line.quantite))</ram:BilledQuantity>
+                    <ram:BilledQuantity unitCode="C62">\(quantity(line.quantite))</ram:BilledQuantity>
                   </ram:SpecifiedLineTradeDelivery>
                   <ram:SpecifiedLineTradeSettlement>
                     <ram:ApplicableTradeTax>
@@ -217,16 +218,13 @@ enum FacturXXMLBuilder {
         // exonération dérivées du taux (S si > 0, sinon E franchise en base).
         for group in totals.groups {
             let category = vatCategory(for: group.rate)
+            let exemptionLine = category == "E"
+                ? "\n      <ram:ExemptionReason>\(esc(FacturXProfile.franchiseExemptionReason))</ram:ExemptionReason>"
+                : ""
             xml += """
                 <ram:ApplicableTradeTax>
                   <ram:CalculatedAmount>\(amount(group.calculated))</ram:CalculatedAmount>
-                  <ram:TypeCode>VAT</ram:TypeCode>
-
-            """
-            if category == "E" {
-                xml += "          <ram:ExemptionReason>\(esc(FacturXProfile.franchiseExemptionReason))</ram:ExemptionReason>\n"
-            }
-            xml += """
+                  <ram:TypeCode>VAT</ram:TypeCode>\(exemptionLine)
                   <ram:BasisAmount>\(amount(group.basis))</ram:BasisAmount>
                   <ram:CategoryCode>\(category)</ram:CategoryCode>
                   <ram:RateApplicablePercent>\(amount(group.rate))</ram:RateApplicablePercent>
@@ -271,11 +269,14 @@ enum FacturXXMLBuilder {
     static func countryCode(forVAT vat: String, fallback: String = "FR") -> String {
         let trimmed = vat.trimmingCharacters(in: .whitespacesAndNewlines)
         let prefix = trimmed.prefix(2)
-        if prefix.count == 2, prefix.allSatisfy({ $0.isLetter }) {
-            return prefix.uppercased()
-        }
-        return fallback
+        guard prefix.count == 2, prefix.allSatisfy({ $0.isLetter }) else { return fallback }
+        let code = prefix.uppercased()
+        // Préfixes TVA divergents du code pays ISO 3166-1 alpha-2.
+        return vatPrefixToISO[code] ?? code
     }
+
+    /// Préfixes de n° de TVA qui ne sont pas le code pays ISO (Grèce : EL ≠ GR).
+    private static let vatPrefixToISO: [String: String] = ["EL": "GR"]
 
     // MARK: - Formatage
 
@@ -289,6 +290,12 @@ enum FacturXXMLBuilder {
     /// que BT-131 (total ligne) reste reproductible par PU × quantité.
     static func unitPrice(_ value: Decimal) -> String {
         unitPriceFormatter.string(from: value as NSDecimalNumber) ?? "0.00"
+    }
+
+    /// Quantité (BT-129) : jusqu'à 4 décimales, sans arrondi monétaire — sinon une
+    /// quantité fractionnaire (heures, ex. 6,333 h) casserait BT-131 ≈ BT-146 × BT-129.
+    static func quantity(_ value: Decimal) -> String {
+        quantityFormatter.string(from: value as NSDecimalNumber) ?? "0"
     }
 
     private static let amountFormatter: NumberFormatter = {
@@ -307,6 +314,17 @@ enum FacturXXMLBuilder {
         f.locale = Locale(identifier: "en_US_POSIX")
         f.numberStyle = .decimal
         f.minimumFractionDigits = 2
+        f.maximumFractionDigits = 4
+        f.usesGroupingSeparator = false
+        f.decimalSeparator = "."
+        return f
+    }()
+
+    private static let quantityFormatter: NumberFormatter = {
+        let f = NumberFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.numberStyle = .decimal
+        f.minimumFractionDigits = 0
         f.maximumFractionDigits = 4
         f.usesGroupingSeparator = false
         f.decimalSeparator = "."

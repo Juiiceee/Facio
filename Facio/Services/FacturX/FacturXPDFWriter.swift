@@ -17,8 +17,10 @@ import Foundation
 enum FacturXPDFWriter {
     static let attachmentFilename = "factur-x.xml"
 
-    /// Embarque le XML dans le PDF. Retourne `nil` si le PDF d'origine n'a pas
-    /// la structure attendue (l'appelant retombe alors sur le PDF simple).
+    /// Embarque le XML dans le PDF. Retourne `nil` (échec total, pas de Factur-X)
+    /// si le PDF d'origine n'a pas la structure attendue : l'appelant doit alors
+    /// signaler un échec de génération de la facture électronique, pas exporter un
+    /// PDF simple (qui ne serait pas une facture électronique valide).
     static func embed(xml: String, into pdf: Data, invoiceNumber: String, modDate: Date) -> Data? {
         guard !pdf.isEmpty,
               let meta = parseTrailer(in: pdf) else { return nil }

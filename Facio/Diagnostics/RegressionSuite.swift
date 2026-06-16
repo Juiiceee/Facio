@@ -62,6 +62,9 @@ enum FacioRegressionSuite {
         RegressionCase(name: "facturx derives buyer country from vat prefix", run: facturXDerivesBuyerCountryFromVATPrefix),
         RegressionCase(name: "facturx escapes xml illegal control chars", run: facturXEscapesIllegalControlChars),
         RegressionCase(name: "facturx unit price keeps precision", run: facturXUnitPriceKeepsPrecision),
+        RegressionCase(name: "facturx billed quantity keeps precision", run: facturXBilledQuantityKeepsPrecision),
+        RegressionCase(name: "facturx maps greek vat prefix to iso country", run: facturXMapsGreekVATPrefixToISOCountry),
+        RegressionCase(name: "facturx xml element ordering is schema compliant", run: facturXXMLElementOrderingIsSchemaCompliant),
         RegressionCase(name: "sent invoices become overdue after due date", run: sentInvoicesBecomeOverdueAfterDueDate),
         RegressionCase(name: "client empty record detection trims all fields", run: clientEmptyRecordDetectionTrimsAllFields),
         RegressionCase(name: "data store keeps clients while editing empty fields", run: dataStoreKeepsClientsWhileEditingEmptyFields),
@@ -2285,6 +2288,78 @@ enum FacioRegressionSuite {
         let xml = FacturXXMLBuilder.buildXML(document: doc, company: company)
         try expect(xml.contains("<ram:ChargeAmount>1.336</ram:ChargeAmount>"), "unit price keeps 3-decimal precision")
         try expect(xml.contains("<ram:LineTotalAmount>13.36</ram:LineTotalAmount>"), "line total rounded to 2dp")
+    }
+
+    private static func facturXBilledQuantityKeepsPrecision() throws {
+        // Quantité fractionnaire à 3 décimales (ex. 1h20 = 1,333 h) : BT-129 doit
+        // garder sa précision pour que BT-131 = PU × quantité reste vérifiable.
+        let company = CompanyInfo()
+        company.nom = "Facio SAS"
+        company.tvaIntracom = "FR12345678900"
+        let doc = Document(type: .facture, number: "Facture_2026_17", currency: .eur)
+        doc.clientNom = "Client"
+        doc.ajouterLigne(LineItem(designation: "Heures", quantite: Decimal(string: "1.333")!, prixUnitaire: 100, tauxTVA: 20))
+
+        let xml = FacturXXMLBuilder.buildXML(document: doc, company: company)
+        try expect(xml.contains("<ram:BilledQuantity unitCode=\"C62\">1.333</ram:BilledQuantity>"), "quantity keeps 3-decimal precision")
+        try expect(xml.contains("<ram:LineTotalAmount>133.30</ram:LineTotalAmount>"), "line total rounded to 2dp")
+        // Reproductibilité BT-131 ≈ BT-146 × BT-129 : 100 × 1.333 = 133.30.
+        try expectEqual(InvoiceTotals.rounded2(Decimal(string: "1.333")! * 100), Decimal(string: "133.30")!)
+    }
+
+    private static func facturXMapsGreekVATPrefixToISOCountry() throws {
+        // Préfixe TVA grec « EL » → code pays ISO « GR » (divergence connue).
+        try expectEqual(FacturXXMLBuilder.countryCode(forVAT: "EL123456789"), "GR")
+        try expectEqual(FacturXXMLBuilder.countryCode(forVAT: "DE123456789"), "DE")
+        try expectEqual(FacturXXMLBuilder.countryCode(forVAT: ""), "FR")
+    }
+
+    private static func facturXXMLElementOrderingIsSchemaCompliant() throws {
+        // CII est sensible à l'ordre : on verrouille l'ordre des séquences clés
+        // (qu'un simple test de sous-chaîne ne capte pas). Facture franchise (E)
+        // à une ligne → un seul groupe de TVA avec ExemptionReason.
+        let company = CompanyInfo()
+        company.nom = "Micro EI"
+        company.siret = "11122233300014"
+        let doc = Document(type: .facture, number: "Facture_2026_19", currency: .eur)
+        doc.clientNom = "Client"
+        doc.ajouterLigne(LineItem(designation: "Prestation", quantite: 1, prixUnitaire: 500, tauxTVA: 0))
+
+        let xml = FacturXXMLBuilder.buildXML(document: doc, company: company)
+
+        // Structure de haut niveau.
+        try assertOrder([
+            "<rsm:ExchangedDocumentContext>",
+            "<rsm:ExchangedDocument>",
+            "<rsm:SupplyChainTradeTransaction>",
+            "<ram:ApplicableHeaderTradeAgreement>",
+            "<ram:SellerTradeParty>",
+            "<ram:BuyerTradeParty>",
+            "<ram:ApplicableHeaderTradeDelivery/>",
+            "<ram:ApplicableHeaderTradeSettlement>",
+        ], in: xml, "top-level structure order")
+
+        // Ordre imposé par le schéma dans le bloc Settlement (groupe TVA + sommation).
+        let settlement = String(xml[(xml.range(of: "<ram:ApplicableHeaderTradeSettlement>")?.lowerBound ?? xml.startIndex)...])
+        try assertOrder([
+            "<ram:CalculatedAmount>", "<ram:TypeCode>", "<ram:ExemptionReason>",
+            "<ram:BasisAmount>", "<ram:CategoryCode>", "<ram:RateApplicablePercent>",
+            "<ram:LineTotalAmount>", "<ram:ChargeTotalAmount>", "<ram:AllowanceTotalAmount>",
+            "<ram:TaxBasisTotalAmount>", "<ram:TaxTotalAmount", "<ram:GrandTotalAmount>",
+            "<ram:TotalPrepaidAmount>", "<ram:DuePayableAmount>",
+        ], in: settlement, "settlement element order")
+    }
+
+    /// Vérifie que chaque jeton apparaît, dans l'ordre donné (occurrences croissantes).
+    private static func assertOrder(_ tokens: [String], in text: String, _ label: String) throws {
+        var cursor = text.startIndex
+        for token in tokens {
+            guard let range = text.range(of: token, range: cursor..<text.endIndex) else {
+                try expect(false, "\(label): jeton manquant ou hors d'ordre « \(token) »")
+                return
+            }
+            cursor = range.upperBound
+        }
     }
 
     /// Extrait les octets du premier fichier embarqué via l'API CGPDF (round-trip).
