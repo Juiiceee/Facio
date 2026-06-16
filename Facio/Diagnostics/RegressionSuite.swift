@@ -52,6 +52,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "accounting currency format keeps document totals readable", run: accountingCurrencyFormatKeepsDocumentTotalsReadable),
         RegressionCase(name: "document totals include VAT and line ordering", run: documentTotalsIncludeVATAndLineOrdering),
         RegressionCase(name: "document decodes old payloads without accounting conversion", run: documentDecodesOldPayloadsWithoutAccountingConversion),
+        RegressionCase(name: "company decodes old payloads without intracom vat", run: companyDecodesOldPayloadsWithoutIntracomVAT),
         RegressionCase(name: "sent invoices become overdue after due date", run: sentInvoicesBecomeOverdueAfterDueDate),
         RegressionCase(name: "client empty record detection trims all fields", run: clientEmptyRecordDetectionTrimsAllFields),
         RegressionCase(name: "data store keeps clients while editing empty fields", run: dataStoreKeepsClientsWhileEditingEmptyFields),
@@ -2037,6 +2038,19 @@ enum FacioRegressionSuite {
             try expectEqual(urls.first, store.attachmentURL(stays, in: document))
             try expectEqual(document.attachments.count, 2)
         }
+    }
+
+    private static func companyDecodesOldPayloadsWithoutIntracomVAT() throws {
+        // Ancien payload (avant l'ajout de tvaIntracom pour la facture électronique) :
+        // le champ doit retomber sur "" et survivre à un aller-retour Codable.
+        let legacy = try JSONDecoder().decode(CompanyInfo.self, from: Data(#"{"nom":"Facio SAS","siret":"12345678900012"}"#.utf8))
+        try expectEqual(legacy.tvaIntracom, "")
+        try expectEqual(legacy.siret, "12345678900012")
+
+        legacy.tvaIntracom = "FR12345678900"
+        let reencoded = try JSONEncoder().encode(legacy)
+        let decoded = try JSONDecoder().decode(CompanyInfo.self, from: reencoded)
+        try expectEqual(decoded.tvaIntracom, "FR12345678900")
     }
 
     private static func emailAttachmentFilenamesUseLabelsAndDedupe() throws {
