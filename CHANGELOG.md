@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.3.1](https://github.com/Juiiceee/Facio/compare/Facio-v2.3.0...Facio-v2.3.1) (2026-06-16)
+
+
+### Corrections de bugs
+
+* **email:** nommer les pièces jointes d'après leur libellé ([#90](https://github.com/Juiiceee/Facio/issues/90)) ([455756f](https://github.com/Juiiceee/Facio/commit/455756f3461e517494d1443fce27edfb4aac9c4c))
+
+
+### Documentation
+
+* translate git workflow section to English ([c2bcde1](https://github.com/Juiiceee/Facio/commit/c2bcde15ab1cb816feb42ed65665694329646afc))
+* workflow git (issue + branche + PR, jamais de commit direct sur main) ([0869e5a](https://github.com/Juiiceee/Facio/commit/0869e5aead5e0023380b5a28d4b181b62ebdcac6))
+
 ## [2.3.0](https://github.com/Juiiceee/Facio/compare/Facio-v2.2.0...Facio-v2.3.0) (2026-06-15)
 
 
