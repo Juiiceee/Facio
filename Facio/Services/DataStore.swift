@@ -460,6 +460,20 @@ final class DataStore: Sendable {
             .filter { fileManager.fileExists(atPath: $0.path) }
     }
 
+    /// Justificatifs existants d'un document, prêts pour l'email : URL source +
+    /// nom lisible (libellé sinon nom d'origine) pour renommer la pièce jointe.
+    func emailAttachments(for document: Document) -> [EmailService.EmailAttachment] {
+        document.attachments.compactMap { attachment in
+            let url = attachmentURL(attachment, in: document)
+            guard fileManager.fileExists(atPath: url.path) else { return nil }
+            return EmailService.EmailAttachment(
+                sourceURL: url,
+                displayName: attachment.displayName,
+                fileExtension: attachment.fileExtension
+            )
+        }
+    }
+
     /// Importe un fichier comme justificatif : copie sur disque, ajoute la
     /// métadonnée au document et sauvegarde. Retourne nil en cas d'échec.
     @discardableResult

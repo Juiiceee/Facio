@@ -117,6 +117,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "attachment import copies file and records metadata", run: attachmentImportCopiesFileAndRecordsMetadata),
         RegressionCase(name: "attachment duplication reports missing source files", run: attachmentDuplicationReportsMissingSourceFiles),
         RegressionCase(name: "attachment urls expose only existing files", run: attachmentURLsExposeOnlyExistingFiles),
+        RegressionCase(name: "email attachment filenames use labels and dedupe", run: emailAttachmentFilenamesUseLabelsAndDedupe),
         RegressionCase(name: "pdf generation paginates long invoices", run: pdfGenerationPaginatesLongInvoices),
         RegressionCase(name: "responsive width class maps breakpoints", run: responsiveWidthClassMapsBreakpoints),
         RegressionCase(name: "window minimum fits split view columns", run: windowMinimumFitsSplitViewColumns),
@@ -2036,6 +2037,20 @@ enum FacioRegressionSuite {
             try expectEqual(urls.first, store.attachmentURL(stays, in: document))
             try expectEqual(document.attachments.count, 2)
         }
+    }
+
+    private static func emailAttachmentFilenamesUseLabelsAndDedupe() throws {
+        let url = URL(fileURLWithPath: "/tmp/x")
+        let attachments = [
+            // Libellé renseigné → nom = libellé + extension.
+            EmailService.EmailAttachment(sourceURL: url, displayName: "Train Nancy-Paris", fileExtension: "pdf"),
+            // Sans libellé : displayName retombe sur le nom d'origine.
+            EmailService.EmailAttachment(sourceURL: url, displayName: "recu.jpg", fileExtension: "jpg"),
+            // Même libellé qu'un précédent → dédoublonné en `-2`.
+            EmailService.EmailAttachment(sourceURL: url, displayName: "Train Nancy-Paris", fileExtension: "pdf"),
+        ]
+        let names = EmailService.uniqueFilenames(for: attachments)
+        try expectEqual(names, ["Train Nancy-Paris.pdf", "recu.jpg", "Train Nancy-Paris-2.pdf"])
     }
 
     private static func withTemporaryDataStore(_ body: (DataStore) throws -> Void) throws {

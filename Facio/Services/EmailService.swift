@@ -9,6 +9,14 @@ enum EmailService {
         case unavailable
     }
 
+    /// Un justificatif à joindre : fichier source sur disque + nom lisible désiré
+    /// (libellé ou nom d'origine), l'extension étant conservée à la copie.
+    struct EmailAttachment {
+        let sourceURL: URL
+        let displayName: String
+        let fileExtension: String
+    }
+
     /// Substitue les variables d'un modèle d'email avec les données du document.
     static func resolveTemplate(_ template: String, document: Document, company: CompanyInfo) -> String {
         let amount = document.currency.formatAccounting(document.totalTTC, lang: company.formatNombre)
@@ -41,7 +49,7 @@ enum EmailService {
         document: Document,
         company: CompanyInfo,
         pdfData: Data,
-        attachmentURLs: [URL]
+        attachments: [EmailAttachment]
     ) -> SendResult {
         let lang = document.langue
         let subject = resolveTemplate(company.emailSubjectTemplate(for: lang), document: document, company: company)
@@ -62,7 +70,15 @@ enum EmailService {
         // Re-vérifie l'existence au dernier moment : un justificatif peut avoir
         // été supprimé entre la construction des URLs et l'ouverture du composer.
         var items: [Any] = [body, pdfURL]
-        items.append(contentsOf: attachmentURLs.filter { FileManager.default.fileExists(atPath: $0.path) })
+        let existing = attachments.filter { FileManager.default.fileExists(atPath: $0.sourceURL.path) }
+        // Copie chaque justificatif dans le dossier temp sous un nom lisible
+        // (libellé) plutôt que le nom de stockage en UUID.
+        for (attachment, name) in zip(existing, uniqueFilenames(for: existing)) {
+            let dest = tempDir.appendingPathComponent(name)
+            if (try? FileManager.default.copyItem(at: attachment.sourceURL, to: dest)) != nil {
+                items.append(dest)
+            }
+        }
 
         guard let service = NSSharingService(named: .composeEmail),
               service.canPerform(withItems: items) else {
@@ -82,6 +98,30 @@ enum EmailService {
             try? FileManager.default.removeItem(at: tempDir)
         }
         return .composed
+    }
+
+    /// Noms de fichiers lisibles pour une liste de justificatifs, index-alignés.
+    /// Nettoie chaque libellé via `safeFilename`, conserve l'extension, et
+    /// dédoublonne les collisions (insensibles à la casse) en suffixant `-2`, `-3`…
+    static func uniqueFilenames(for attachments: [EmailAttachment]) -> [String] {
+        var used = Set<String>()
+        return attachments.map { attachment in
+            let cleaned = safeFilename(attachment.displayName)
+            let ext = attachment.fileExtension.lowercased()
+            // Le libellé n'a pas d'extension, mais `originalFilename` (fallback)
+            // l'inclut déjà : on évite ainsi un `recu.jpg.jpg`.
+            let hasExt = !ext.isEmpty && cleaned.lowercased().hasSuffix(".\(ext)")
+            let base = hasExt ? String(cleaned.dropLast(ext.count + 1)) : cleaned
+            let suffix = ext.isEmpty ? "" : ".\(ext)"
+            var candidate = base + suffix
+            var counter = 2
+            while used.contains(candidate.lowercased()) {
+                candidate = "\(base)-\(counter)\(suffix)"
+                counter += 1
+            }
+            used.insert(candidate.lowercased())
+            return candidate
+        }
     }
 
     static func safeFilename(_ base: String) -> String {

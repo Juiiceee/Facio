@@ -788,12 +788,12 @@ struct DocumentEditorView: View {
             return
         }
 
-        let attachmentURLs = dataStore.attachmentURLs(for: document)
+        let attachments = dataStore.emailAttachments(for: document)
         let result = EmailService.composeInvoiceEmail(
             document: document,
             company: company,
             pdfData: pdfData,
-            attachmentURLs: attachmentURLs
+            attachments: attachments
         )
         switch result {
         case .composed:
