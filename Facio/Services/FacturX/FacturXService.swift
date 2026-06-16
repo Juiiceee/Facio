@@ -15,7 +15,7 @@ enum FacturXService {
     }
 
     static func generate(document: Document, company: CompanyInfo) -> Outcome {
-        let applicability = FacturXXMLBuilder.applicability(for: document)
+        let applicability = FacturXXMLBuilder.applicability(for: document, company: company)
         guard applicability == .applicable else { return .notApplicable(applicability) }
 
         let pdf = PDFGenerator(document: document, company: company).generate()

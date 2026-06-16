@@ -20,14 +20,40 @@ enum FacturXApplicability: Equatable {
     case notAnInvoice
     /// Factur-X exige une devise ISO 4217 ; v1 limité à l'EUR (les cryptos sont exclues).
     case unsupportedCurrency(String)
+    /// La facture est éligible mais incomplète : on refuse plutôt que d'émettre
+    /// un XML invalide qui serait rejeté par une PDP / le destinataire.
+    case incomplete(FacturXIncompleteReason)
+}
+
+/// Données manquantes empêchant un XML EN 16931 valide.
+enum FacturXIncompleteReason: Equatable {
+    case noLines
+    case missingNumber
+    case missingClient
+    /// Au moins une ligne avec TVA (catégorie S) mais aucun n° de TVA vendeur
+    /// (BT-31), pourtant requis par la règle EN 16931 BR-S-02.
+    case missingSellerVAT
 }
 
 // MARK: - Générateur XML CII (Cross Industry Invoice, EN 16931)
 
 enum FacturXXMLBuilder {
-    static func applicability(for document: Document) -> FacturXApplicability {
+    static func applicability(for document: Document, company: CompanyInfo) -> FacturXApplicability {
         guard document.type == .facture else { return .notAnInvoice }
         guard document.currency == .eur else { return .unsupportedCurrency(document.currency.rawValue) }
+
+        guard !document.lignesTriees.isEmpty else { return .incomplete(.noLines) }
+        guard !document.number.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return .incomplete(.missingNumber)
+        }
+        guard !document.clientNom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return .incomplete(.missingClient)
+        }
+        // Catégorie S (TVA > 0) ⇒ n° TVA vendeur obligatoire (BR-S-02).
+        let chargesVAT = document.lignesTriees.contains { $0.tauxTVA > 0 }
+        if chargesVAT, company.tvaIntracom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return .incomplete(.missingSellerVAT)
+        }
         return .applicable
     }
 
@@ -36,12 +62,14 @@ enum FacturXXMLBuilder {
     static func buildXML(document: Document, company: CompanyInfo) -> String {
         let currency = "EUR"
         let lines = document.lignesTriees
-        let groups = vatGroups(for: lines)
+        let totals = InvoiceTotals.canonical(for: lines)
+        let sellerCountry = countryCode(forVAT: company.tvaIntracom)
+        let buyerCountry = countryCode(forVAT: document.clientTva)
 
-        // Totaux (valeurs arrondies à 2 décimales, cohérentes entre elles).
-        let lineTotal = lines.reduce(Decimal.zero) { $0 + rounded2($1.totalLigne) }
-        let taxTotal = groups.reduce(Decimal.zero) { $0 + $1.calculated }
-        let grandTotal = lineTotal + taxTotal
+        // Totaux identiques à ceux du PDF (source unique : InvoiceTotals).
+        let lineTotal = totals.totalHT
+        let taxTotal = totals.totalTVA
+        let grandTotal = totals.totalTTC
 
         var xml = """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -79,8 +107,9 @@ enum FacturXXMLBuilder {
         // Lignes (BG-25)
         for (index, line) in lines.enumerated() {
             let category = vatCategory(for: line.tauxTVA)
-            let unitNet = rounded2(line.prixUnitaire)
-            let lineNet = rounded2(line.totalLigne)
+            // BT-146 (prix unitaire net) en pleine précision (jusqu'à 4 décimales) :
+            // ne pas arrondir à 2 dp, sinon BT-131 ≠ BT-146 × quantité pour qté > 1.
+            let lineNet = InvoiceTotals.rounded2(line.totalLigne)
             xml += """
                 <ram:IncludedSupplyChainTradeLineItem>
                   <ram:AssociatedDocumentLineDocument>
@@ -91,7 +120,7 @@ enum FacturXXMLBuilder {
                   </ram:SpecifiedTradeProduct>
                   <ram:SpecifiedLineTradeAgreement>
                     <ram:NetPriceProductTradePrice>
-                      <ram:ChargeAmount>\(amount(unitNet))</ram:ChargeAmount>
+                      <ram:ChargeAmount>\(unitPrice(line.prixUnitaire))</ram:ChargeAmount>
                     </ram:NetPriceProductTradePrice>
                   </ram:SpecifiedLineTradeAgreement>
                   <ram:SpecifiedLineTradeDelivery>
@@ -132,7 +161,7 @@ enum FacturXXMLBuilder {
                   <ram:PostcodeCode>\(esc(company.codePostal))</ram:PostcodeCode>
                   <ram:LineOne>\(esc(company.adresse))</ram:LineOne>
                   <ram:CityName>\(esc(company.ville))</ram:CityName>
-                  <ram:CountryID>FR</ram:CountryID>
+                  <ram:CountryID>\(sellerCountry)</ram:CountryID>
                 </ram:PostalTradeAddress>
 
         """
@@ -163,7 +192,7 @@ enum FacturXXMLBuilder {
                   <ram:PostcodeCode>\(esc(document.clientCodePostal))</ram:PostcodeCode>
                   <ram:LineOne>\(esc(document.clientAdresse))</ram:LineOne>
                   <ram:CityName>\(esc(document.clientVille))</ram:CityName>
-                  <ram:CountryID>FR</ram:CountryID>
+                  <ram:CountryID>\(buyerCountry)</ram:CountryID>
                 </ram:PostalTradeAddress>
 
         """
@@ -184,20 +213,22 @@ enum FacturXXMLBuilder {
 
         """
 
-        // Ventilation TVA (BG-23), un bloc par groupe (catégorie + taux)
-        for group in groups {
+        // Ventilation TVA (BG-23), un bloc par groupe (taux). Catégorie et
+        // exonération dérivées du taux (S si > 0, sinon E franchise en base).
+        for group in totals.groups {
+            let category = vatCategory(for: group.rate)
             xml += """
                 <ram:ApplicableTradeTax>
                   <ram:CalculatedAmount>\(amount(group.calculated))</ram:CalculatedAmount>
                   <ram:TypeCode>VAT</ram:TypeCode>
 
             """
-            if let reason = group.exemptionReason {
-                xml += "          <ram:ExemptionReason>\(esc(reason))</ram:ExemptionReason>\n"
+            if category == "E" {
+                xml += "          <ram:ExemptionReason>\(esc(FacturXProfile.franchiseExemptionReason))</ram:ExemptionReason>\n"
             }
             xml += """
                   <ram:BasisAmount>\(amount(group.basis))</ram:BasisAmount>
-                  <ram:CategoryCode>\(group.category)</ram:CategoryCode>
+                  <ram:CategoryCode>\(category)</ram:CategoryCode>
                   <ram:RateApplicablePercent>\(amount(group.rate))</ram:RateApplicablePercent>
                 </ram:ApplicableTradeTax>
 
@@ -227,59 +258,37 @@ enum FacturXXMLBuilder {
         return xml
     }
 
-    // MARK: - Ventilation TVA
-
-    /// Un groupe de ventilation TVA (BG-23) : une catégorie + un taux.
-    struct VATGroup {
-        let category: String
-        let rate: Decimal
-        let basis: Decimal
-        let calculated: Decimal
-        let exemptionReason: String?
-    }
-
-    /// Regroupe les lignes par (catégorie, taux) et calcule base + TVA par groupe.
-    static func vatGroups(for lines: [LineItem]) -> [VATGroup] {
-        // Clé stable : taux (la catégorie en découle). Préserve l'ordre d'apparition.
-        var order: [Decimal] = []
-        var basisByRate: [Decimal: Decimal] = [:]
-        for line in lines {
-            let rate = line.tauxTVA
-            if basisByRate[rate] == nil { order.append(rate) }
-            basisByRate[rate, default: 0] += rounded2(line.totalLigne)
-        }
-        return order.map { rate in
-            let basis = basisByRate[rate] ?? 0
-            let category = vatCategory(for: rate)
-            return VATGroup(
-                category: category,
-                rate: rate,
-                basis: basis,
-                calculated: rounded2(basis * rate / 100),
-                exemptionReason: category == "E" ? FacturXProfile.franchiseExemptionReason : nil
-            )
-        }
-    }
+    // MARK: - TVA
 
     /// Code catégorie UNCL5305 : `S` si taux > 0, sinon `E` (franchise en base).
     static func vatCategory(for rate: Decimal) -> String {
         rate > 0 ? "S" : "E"
     }
 
-    // MARK: - Formatage
-
-    /// Arrondi commercial à 2 décimales (jamais via Double).
-    static func rounded2(_ value: Decimal) -> Decimal {
-        var input = value
-        var result = Decimal()
-        NSDecimalRound(&result, &input, 2, .plain)
-        return result
+    /// Pays (ISO 3166-1 alpha-2) déduit du préfixe d'un n° de TVA intracom
+    /// (ex. « DE… » → « DE »). Repli sur « FR » si absent/non préfixé — l'app
+    /// reste centrée sur le B2B domestique français.
+    static func countryCode(forVAT vat: String, fallback: String = "FR") -> String {
+        let trimmed = vat.trimmingCharacters(in: .whitespacesAndNewlines)
+        let prefix = trimmed.prefix(2)
+        if prefix.count == 2, prefix.allSatisfy({ $0.isLetter }) {
+            return prefix.uppercased()
+        }
+        return fallback
     }
+
+    // MARK: - Formatage
 
     /// Montant EN 16931 : séparateur `.`, 2 décimales, sans séparateur de milliers,
     /// indépendant de la locale de l'app.
     static func amount(_ value: Decimal) -> String {
-        amountFormatter.string(from: rounded2(value) as NSDecimalNumber) ?? "0.00"
+        amountFormatter.string(from: InvoiceTotals.rounded2(value) as NSDecimalNumber) ?? "0.00"
+    }
+
+    /// Prix unitaire net (BT-146) : 2 à 4 décimales, sans arrondi destructif, pour
+    /// que BT-131 (total ligne) reste reproductible par PU × quantité.
+    static func unitPrice(_ value: Decimal) -> String {
+        unitPriceFormatter.string(from: value as NSDecimalNumber) ?? "0.00"
     }
 
     private static let amountFormatter: NumberFormatter = {
@@ -288,6 +297,17 @@ enum FacturXXMLBuilder {
         f.numberStyle = .decimal
         f.minimumFractionDigits = 2
         f.maximumFractionDigits = 2
+        f.usesGroupingSeparator = false
+        f.decimalSeparator = "."
+        return f
+    }()
+
+    private static let unitPriceFormatter: NumberFormatter = {
+        let f = NumberFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.numberStyle = .decimal
+        f.minimumFractionDigits = 2
+        f.maximumFractionDigits = 4
         f.usesGroupingSeparator = false
         f.decimalSeparator = "."
         return f
@@ -305,9 +325,14 @@ enum FacturXXMLBuilder {
         return f
     }()
 
-    /// Échappement XML des textes utilisateur.
+    /// Échappement XML des textes utilisateur. Filtre d'abord les caractères de
+    /// contrôle interdits par XML 1.0 (sauf tab/LF/CR), qui rendraient sinon le
+    /// `factur-x.xml` non valide, puis échappe les entités.
     static func esc(_ text: String) -> String {
-        text
+        let cleaned = String(String.UnicodeScalarView(text.unicodeScalars.filter { scalar in
+            scalar.value == 0x09 || scalar.value == 0x0A || scalar.value == 0x0D || scalar.value >= 0x20
+        }))
+        return cleaned
             .replacingOccurrences(of: "&", with: "&amp;")
             .replacingOccurrences(of: "<", with: "&lt;")
             .replacingOccurrences(of: ">", with: "&gt;")

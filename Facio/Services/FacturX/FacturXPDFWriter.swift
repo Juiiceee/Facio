@@ -84,7 +84,12 @@ enum FacturXPDFWriter {
         if icc != nil {
             catalogExtras += " /OutputIntents [ \(outputIntentObj) 0 R ]"
         }
-        appendObject(meta.catalogObj, Data("<< \(meta.catalogInner)\(catalogExtras) >>".utf8))
+        // `catalogInner` provient d'un décodage Latin-1 ; on ré-encode le
+        // catalogue en Latin-1 (et non UTF-8) pour restituer ses octets à
+        // l'identique même s'il contient des caractères non-ASCII. Les ajouts
+        // ci-dessus sont purement ASCII.
+        let catalogBody = "<< \(meta.catalogInner)\(catalogExtras) >>"
+        appendObject(meta.catalogObj, catalogBody.data(using: .isoLatin1) ?? Data(catalogBody.utf8))
 
         // 6. Nouvelle section xref + trailer (/Prev vers l'ancienne)
         let xrefOffset = out.count + 1 // +1 : le \n séparateur ajouté juste avant "xref"

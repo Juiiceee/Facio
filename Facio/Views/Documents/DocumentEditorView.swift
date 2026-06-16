@@ -805,6 +805,18 @@ struct DocumentEditorView: View {
         case let .notApplicable(.unsupportedCurrency(currency)):
             facturXAlertMessage = L10n.facturXOnlyEUR(lang, currency: currency)
             showFacturXAlert = true
+        case .notApplicable(.incomplete(.noLines)):
+            facturXAlertMessage = L10n.facturXIncompleteNoLines(lang)
+            showFacturXAlert = true
+        case .notApplicable(.incomplete(.missingNumber)):
+            facturXAlertMessage = L10n.facturXIncompleteNumber(lang)
+            showFacturXAlert = true
+        case .notApplicable(.incomplete(.missingClient)):
+            facturXAlertMessage = L10n.facturXIncompleteClient(lang)
+            showFacturXAlert = true
+        case .notApplicable(.incomplete(.missingSellerVAT)):
+            facturXAlertMessage = L10n.facturXMissingSellerVAT(lang)
+            showFacturXAlert = true
         case .notApplicable(.applicable):
             break // inatteignable
         case .failed:
