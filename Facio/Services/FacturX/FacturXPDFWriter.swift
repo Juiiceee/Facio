@@ -11,12 +11,13 @@ import Foundation
 /// xref classique (vérifié sur macOS 15), ce qui rend cette approche fiable.
 ///
 /// Conformité (validée, voir issue #92) : la sortie est un PDF/A-3B valide
-/// embarquant un XML Factur-X conforme au profil EN 16931. Vérifié sur macOS 15 :
-/// veraPDF 1.30.2 valide le PDF/A-3B (146 règles, 0 échec) et le Schematron
-/// officiel CEN (en16931-cii 1.3.16) valide la sémantique EN 16931 (0 échec).
-/// CoreGraphics embarque bien les sous-ensembles de polices ; la mise à jour
-/// incrémentale ci-dessous préserve cette validité. Pour reproduire la
-/// validation : `swift run Facio --emit-facturx-sample <out.pdf>` puis
+/// embarquant un XML Factur-X conforme au profil EN 16931. Vérifié sur macOS 15
+/// pour les deux chemins légaux — catégorie S (TVA) et catégorie E (franchise
+/// art. 293 B) : veraPDF 1.30.2 valide le PDF/A-3B (146 règles, 0 échec) et le
+/// Schematron officiel CEN (en16931-cii 1.3.16) valide la sémantique EN 16931
+/// (0 échec). CoreGraphics embarque bien les sous-ensembles de polices ; la mise
+/// à jour incrémentale ci-dessous préserve cette validité. Pour reproduire :
+/// `swift run Facio --emit-facturx-sample <out.pdf> [vat|franchise]` puis
 /// `verapdf -f 3b <out.pdf>` (PDF/A) et le Schematron EN 16931 sur le XML extrait.
 enum FacturXPDFWriter {
     static let attachmentFilename = "factur-x.xml"

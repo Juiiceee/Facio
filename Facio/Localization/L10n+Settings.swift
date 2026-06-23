@@ -62,7 +62,9 @@ extension L10n {
     static func postalAddress(_ l: AppLanguage) -> String { l == .fr ? "Adresse postale" : "Postal address" }
     static func postalCodePlaceholder(_ l: AppLanguage) -> String { l == .fr ? "54000" : "10001" }
     static func siretPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "000 000 000 00000" : "Company registration number" }
-    static func vatNumberPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "FR00 000000000" : "FR00 000000000" }
+    // Exemple de n° de TVA intracommunautaire français — identique quelle que
+    // soit la langue de l'UI (le format ne dépend pas de la langue).
+    static func vatNumberPlaceholder(_ l: AppLanguage) -> String { "FR00 000000000" }
     static func phonePlaceholder(_ l: AppLanguage) -> String { l == .fr ? "06 00 00 00 00" : "(555) 010-0000" }
     static func contactEmailPlaceholder(_ l: AppLanguage) -> String { l == .fr ? "contact@entreprise.fr" : "contact@company.com" }
     static func chooseAnotherFile(_ l: AppLanguage) -> String { l == .fr ? "Choisir un autre fichier..." : "Choose another file..." }

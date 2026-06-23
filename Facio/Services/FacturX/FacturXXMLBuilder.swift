@@ -23,6 +23,12 @@ enum FacturXApplicability: Equatable {
     /// La facture est éligible mais incomplète : on refuse plutôt que d'émettre
     /// un XML invalide qui serait rejeté par une PDP / le destinataire.
     case incomplete(FacturXIncompleteReason)
+    /// Vendeur assujetti (n° TVA présent) avec une ligne à 0 %. La franchise en
+    /// base (art. 293 B) ne vaut que pour un vendeur *sans* n° TVA ; pour un
+    /// assujetti, une ligne à 0 % est une exonération qu'on ne sait pas qualifier
+    /// (réf. EN 16931 BT-118/BT-120). On refuse plutôt que d'apposer une fausse
+    /// mention légale de franchise.
+    case unsupportedExemptLine
 }
 
 /// Données manquantes empêchant un XML EN 16931 valide.
@@ -33,6 +39,10 @@ enum FacturXIncompleteReason: Equatable {
     /// Au moins une ligne avec TVA (catégorie S) mais aucun n° de TVA vendeur
     /// (BT-31), pourtant requis par la règle EN 16931 BR-S-02.
     case missingSellerVAT
+    /// Franchise en base (catégorie E, vendeur sans n° TVA) mais aucun SIRET :
+    /// EN 16931 BR-E-02 exige un identifiant fiscal vendeur (BT-31/BT-32/BT-63).
+    /// Sans n° TVA, le SIRET (BT-32) est le seul identifiant disponible.
+    case missingSellerTaxRegistration
 }
 
 // MARK: - Générateur XML CII (Cross Industry Invoice, EN 16931)
@@ -51,8 +61,21 @@ enum FacturXXMLBuilder {
         }
         // Catégorie S (TVA > 0) ⇒ n° TVA vendeur obligatoire (BR-S-02).
         let chargesVAT = document.lignesTriees.contains { $0.tauxTVA > 0 }
-        if chargesVAT, company.tvaIntracom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        let sellerHasVAT = sellerHasIntracomVAT(company)
+        if chargesVAT, !sellerHasVAT {
             return .incomplete(.missingSellerVAT)
+        }
+        // Vendeur assujetti + ligne à 0 % : exonération non qualifiable. La
+        // franchise (catégorie E, art. 293 B) ne concerne qu'un vendeur sans n°
+        // TVA — donc une ligne à 0 % ici ne peut pas être étiquetée franchise.
+        if sellerHasVAT, document.lignesTriees.contains(where: { $0.tauxTVA == 0 }) {
+            return .unsupportedExemptLine
+        }
+        // Franchise (vendeur sans n° TVA ⇒ lignes en catégorie E) : BR-E-02 exige
+        // un identifiant fiscal vendeur. À défaut de n° TVA, le SIRET (BT-32) est
+        // requis pour produire un XML EN 16931 valide.
+        if !sellerHasVAT, company.siret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return .incomplete(.missingSellerTaxRegistration)
         }
         return .applicable
     }
@@ -166,10 +189,23 @@ enum FacturXXMLBuilder {
                 </ram:PostalTradeAddress>
 
         """
-        if !company.tvaIntracom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        let sellerVAT = company.tvaIntracom.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sellerSIRET = company.siret.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !sellerVAT.isEmpty {
+            // BT-31 : n° TVA intracom vendeur (catégorie S).
             xml += """
                     <ram:SpecifiedTaxRegistration>
                       <ram:ID schemeID="VA">\(esc(company.tvaIntracom))</ram:ID>
+                    </ram:SpecifiedTaxRegistration>
+
+            """
+        } else if !sellerSIRET.isEmpty {
+            // Franchise en base (pas de n° TVA) : BT-32 = identifiant fiscal
+            // vendeur (SIRET, schemeID « FC »), requis par EN 16931 BR-E-02 dès
+            // qu'une ligne est en catégorie E (exonérée).
+            xml += """
+                    <ram:SpecifiedTaxRegistration>
+                      <ram:ID schemeID="FC">\(esc(company.siret))</ram:ID>
                     </ram:SpecifiedTaxRegistration>
 
             """
@@ -216,9 +252,13 @@ enum FacturXXMLBuilder {
 
         // Ventilation TVA (BG-23), un bloc par groupe (taux). Catégorie et
         // exonération dérivées du taux (S si > 0, sinon E franchise en base).
+        // La mention art. 293 B n'est apposée que si le vendeur est sans n° TVA
+        // (vraie franchise) ; l'applicabilité garantit déjà qu'un assujetti n'a
+        // aucune ligne à 0 %, ce test est une défense en profondeur.
+        let isFranchise = !sellerHasIntracomVAT(company)
         for group in totals.groups {
             let category = vatCategory(for: group.rate)
-            let exemptionLine = category == "E"
+            let exemptionLine = (category == "E" && isFranchise)
                 ? "\n      <ram:ExemptionReason>\(esc(FacturXProfile.franchiseExemptionReason))</ram:ExemptionReason>"
                 : ""
             xml += """
@@ -261,6 +301,12 @@ enum FacturXXMLBuilder {
     /// Code catégorie UNCL5305 : `S` si taux > 0, sinon `E` (franchise en base).
     static func vatCategory(for rate: Decimal) -> String {
         rate > 0 ? "S" : "E"
+    }
+
+    /// Le vendeur est-il assujetti (n° TVA intracom renseigné) ? Sert à
+    /// distinguer une vraie franchise en base d'un assujetti.
+    static func sellerHasIntracomVAT(_ company: CompanyInfo) -> Bool {
+        !company.tvaIntracom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     /// Pays (ISO 3166-1 alpha-2) déduit du préfixe d'un n° de TVA intracom

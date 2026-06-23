@@ -817,6 +817,12 @@ struct DocumentEditorView: View {
         case .notApplicable(.incomplete(.missingSellerVAT)):
             facturXAlertMessage = L10n.facturXMissingSellerVAT(lang)
             showFacturXAlert = true
+        case .notApplicable(.incomplete(.missingSellerTaxRegistration)):
+            facturXAlertMessage = L10n.facturXMissingSellerTaxRegistration(lang)
+            showFacturXAlert = true
+        case .notApplicable(.unsupportedExemptLine):
+            facturXAlertMessage = L10n.facturXUnsupportedExemptLine(lang)
+            showFacturXAlert = true
         case .notApplicable(.applicable):
             break // inatteignable
         case .failed:
