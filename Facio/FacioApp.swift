@@ -13,6 +13,7 @@ struct FacioApp: App {
 
     init() {
         #if FACIO_REGRESSION_TESTS
+        FacioRegressionSuite.emitFacturXSampleIfRequested()
         FacioRegressionSuite.runIfRequested()
         #endif
 

@@ -9,6 +9,55 @@ import SwiftUI
 enum FacioRegressionSuite {
     private static let trigger = "--run-regressions"
 
+    /// Émet sur disque un vrai PDF Factur-X (PDF visuel + XML EN 16931 embarqué)
+    /// pour validation externe (veraPDF) de la conformité PDF/A-3B. Debug-only.
+    /// Usage : `swift run Facio --emit-facturx-sample /chemin/sortie.pdf`
+    static func emitFacturXSampleIfRequested() {
+        let flag = "--emit-facturx-sample"
+        guard let idx = CommandLine.arguments.firstIndex(of: flag) else { return }
+        guard idx + 1 < CommandLine.arguments.count else {
+            print("FAIL: \(flag) requires an output path")
+            Darwin.exit(EXIT_FAILURE)
+        }
+        let path = CommandLine.arguments[idx + 1]
+
+        // Facture représentative : TVA > 0 (catégorie S, exige BT-31), noms et
+        // désignations accentués pour stresser l'embarquage des polices, totaux
+        // fractionnaires.
+        let company = CompanyInfo()
+        company.nom = "Façio Conseil SàRL"
+        company.siret = "12345678900012"
+        company.tvaIntracom = "FR12345678900"
+        company.adresse = "10 rue de l'Évêché"
+        company.codePostal = "75004"
+        company.ville = "Paris"
+
+        let doc = Document(type: .facture, number: "Facture_2026_07", currency: .eur)
+        doc.clientNom = "Müller & Associés SARL"
+        doc.clientAdresse = "5 Königstraße"
+        doc.clientTva = "FR98765432100"
+        doc.ajouterLigne(LineItem(designation: "Développement logiciel — prestation €", quantite: Decimal(string: "6.5")!, prixUnitaire: Decimal(string: "85.50")!, tauxTVA: 20))
+        doc.ajouterLigne(LineItem(designation: "Conseil & accompagnement", quantite: Decimal(string: "2.25")!, prixUnitaire: 120, tauxTVA: 20))
+
+        switch FacturXService.generate(document: doc, company: company) {
+        case .success(let data):
+            do {
+                try data.write(to: URL(fileURLWithPath: path))
+                print("OK: wrote Factur-X sample (\(data.count) bytes) to \(path)")
+                Darwin.exit(EXIT_SUCCESS)
+            } catch {
+                print("FAIL: could not write \(path): \(error)")
+                Darwin.exit(EXIT_FAILURE)
+            }
+        case .notApplicable(let reason):
+            print("FAIL: sample not applicable: \(reason)")
+            Darwin.exit(EXIT_FAILURE)
+        case .failed:
+            print("FAIL: Factur-X generation failed")
+            Darwin.exit(EXIT_FAILURE)
+        }
+    }
+
     static func runIfRequested() {
         guard CommandLine.arguments.contains(trigger) else { return }
 
