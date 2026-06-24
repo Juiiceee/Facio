@@ -27,6 +27,11 @@ final class DataStore: Sendable {
     var persistenceErrors: [String: String] = [:]
     var corruptBackupURLs: [String: URL] = [:]
 
+    /// Signal transitoire (non persisté) : id du dernier document créé. Permet à
+    /// la liste de révéler/scroller proprement le nouveau row inséré en tête,
+    /// quel que soit le point d'entrée de création.
+    var lastCreatedDocumentId: UUID?
+
     /// Reference au SyncService (injectee depuis l'app)
     var syncService: SyncService?
 
@@ -377,6 +382,7 @@ final class DataStore: Sendable {
         )
         document.langue = company.langueParDefaut
         addDocument(document)
+        lastCreatedDocumentId = document.id
         return document
     }
 

@@ -56,6 +56,14 @@ struct CompanySettingsView: View {
                         ))
                         .facioField()
                     }
+
+                    LabeledField(L10n.vatNumber(lang)) {
+                        TextField(L10n.vatNumberPlaceholder(lang), text: Binding(
+                            get: { company.tvaIntracom },
+                            set: { company.tvaIntracom = $0; dataStore.companyUpdated() }
+                        ))
+                        .facioField()
+                    }
                 }
             }
 

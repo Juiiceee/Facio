@@ -65,6 +65,10 @@ struct DocumentListView: View {
                     }
                 }
         }
+        // Recrée le cœur de la liste à chaque création de document : reproduit
+        // le contournement « changer de page » qui fait disparaître le clipping
+        // transitoire du nouveau row inséré en tête (glitch List + .searchable).
+        .id(dataStore.lastCreatedDocumentId)
         .navigationTitle(documentType == .devis ? L10n.sidebarQuotes(lang) : L10n.sidebarInvoices(lang))
         .searchable(text: $searchText, prompt: L10n.searchByNumberOrClient(lang))
         .toolbar {
