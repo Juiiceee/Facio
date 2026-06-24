@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.0](https://github.com/Juiiceee/Facio/compare/Facio-v2.3.1...Facio-v2.4.0) (2026-06-24)
+
+
+### Nouvelles fonctionnalites
+
+* **facturx:** EN 16931 Factur-X e-invoice generation (Phase 1) ([#93](https://github.com/Juiiceee/Facio/issues/93)) ([d04301d](https://github.com/Juiiceee/Facio/commit/d04301d3c23c3524ff3e6246b51d5a9aac194611))
+
 ## [2.3.1](https://github.com/Juiiceee/Facio/compare/Facio-v2.3.0...Facio-v2.3.1) (2026-06-16)
 
 
