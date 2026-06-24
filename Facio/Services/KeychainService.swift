@@ -9,7 +9,15 @@ enum KeychainService {
 
     private static let service = "com.facio.auth"
 
+    #if DEBUG
+    // En dev, on évite le trousseau (pop-ups répétées en build non signé).
+    private static func devKey(_ account: String) -> String { "auth.\(account)" }
+    #endif
+
     static func string(for account: String) throws -> String? {
+        #if DEBUG
+        return DevSecretStore.data(for: devKey(account)).flatMap { String(data: $0, encoding: .utf8) }
+        #else
         var query = baseQuery(account: account)
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         query[kSecReturnData as String] = true
@@ -28,9 +36,14 @@ enum KeychainService {
             throw KeychainError.unexpectedData
         }
         return value
+        #endif
     }
 
     static func set(_ value: String, for account: String) throws {
+        #if DEBUG
+        DevSecretStore.set(Data(value.utf8), for: devKey(account))
+        return
+        #else
         let data = Data(value.utf8)
         var query = baseQuery(account: account)
         let attributes: [String: Any] = [
@@ -52,20 +65,29 @@ enum KeychainService {
         guard addStatus == errSecSuccess else {
             throw KeychainError.unhandledStatus(addStatus)
         }
+        #endif
     }
 
     static func delete(account: String) throws {
+        #if DEBUG
+        DevSecretStore.delete(devKey(account))
+        #else
         let status = SecItemDelete(baseQuery(account: account) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainError.unhandledStatus(status)
         }
+        #endif
     }
 
     static func deleteAll() throws {
+        #if DEBUG
+        DevSecretStore.deleteAll(withPrefix: "auth.")
+        #else
         let status = SecItemDelete(serviceQuery() as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainError.unhandledStatus(status)
         }
+        #endif
     }
 
     private static func baseQuery(account: String) -> [String: Any] {

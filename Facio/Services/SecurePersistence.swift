@@ -169,17 +169,50 @@ enum SecurePersistence {
         return try AES.GCM.open(sealedBox, using: localKey())
     }
 
+    // Cache mémoire de la clé : sans lui, chaque chiffrement/déchiffrement (donc
+    // chaque load/save de chaque fichier) relit le trousseau, ce qui déclenche
+    // une demande d'autorisation macOS à chaque accès en build non signé (dev).
+    // Avec le cache, le trousseau n'est touché qu'une fois par lancement.
+    // Verrou : `localKey()` est appelé depuis DataStore (@MainActor) ET
+    // SyncService, potentiellement hors du main thread.
+    private static let keyLock = NSLock()
+    nonisolated(unsafe) private static var cachedKey: SymmetricKey?
+
     private static func localKey() throws -> SymmetricKey {
+        keyLock.lock()
+        defer { keyLock.unlock() }
+        if let cachedKey { return cachedKey }
+
+        #if DEBUG
+        // Dev : la clé est mise en cache dans un fichier local pour ne pas
+        // redéclencher la demande trousseau à chaque lancement (binaire non signé).
+        let devKeyName = "persistence.\(Constants.keychainAccount)"
+        if let data = DevSecretStore.data(for: devKeyName), data.count == Constants.keyByteCount {
+            let key = SymmetricKey(data: data)
+            cachedKey = key
+            return key
+        }
+        #endif
+
+        let key: SymmetricKey
         if let data = try keychainData() {
             guard data.count == Constants.keyByteCount else {
                 throw SecurePersistenceError.invalidKeychainData
             }
-            return SymmetricKey(data: data)
+            key = SymmetricKey(data: data)
+        } else {
+            let newKey = SymmetricKey(size: .bits256)
+            let data = newKey.withUnsafeBytes { Data($0) }
+            try setKeychainData(data)
+            key = newKey
         }
-
-        let key = SymmetricKey(size: .bits256)
-        let data = key.withUnsafeBytes { Data($0) }
-        try setKeychainData(data)
+        #if DEBUG
+        // Migre la clé (lue du trousseau ou neuve) vers le fichier dev : 1 seule
+        // demande trousseau au tout premier lancement dev, puis plus aucune. La
+        // clé reste identique, donc les données déjà chiffrées restent lisibles.
+        DevSecretStore.set(key.withUnsafeBytes { Data($0) }, for: devKeyName)
+        #endif
+        cachedKey = key
         return key
     }
 
