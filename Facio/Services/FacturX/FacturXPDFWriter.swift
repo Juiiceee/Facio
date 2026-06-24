@@ -172,23 +172,30 @@ enum FacturXPDFWriter {
     private static func catalogDictInner(objNumber: Int, in text: String) -> String? {
         guard let objRange = text.range(of: "\(objNumber) 0 obj"),
               let open = text.range(of: "<<", range: objRange.upperBound..<text.endIndex) else { return nil }
-        let chars = Array(text[open.lowerBound...])
+        // Scan par index plutôt que `Array(text[open...])` : le catalogue est petit
+        // et le `>>` apparié arrive juste après, alors que `text` court jusqu'à
+        // l'EOF binaire (logo, QR, polices). On évite ainsi de matérialiser et
+        // segmenter en graphèmes des centaines de Ko à chaque export.
+        let sub = text[open.lowerBound...]
         var depth = 0
-        var captureStart = 0
-        var i = 0
-        while i < chars.count - 1 {
-            if chars[i] == "<" && chars[i + 1] == "<" {
+        var captureStart = sub.startIndex
+        var i = sub.startIndex
+        while i < sub.endIndex {
+            let next = sub.index(after: i)
+            guard next < sub.endIndex else { break }
+            let two = sub.index(i, offsetBy: 2, limitedBy: sub.endIndex) ?? sub.endIndex
+            if sub[i] == "<" && sub[next] == "<" {
                 depth += 1
-                if depth == 1 { captureStart = i + 2 }
-                i += 2
-            } else if chars[i] == ">" && chars[i + 1] == ">" {
+                if depth == 1 { captureStart = two }
+                i = two
+            } else if sub[i] == ">" && sub[next] == ">" {
                 depth -= 1
                 if depth == 0 {
-                    return String(chars[captureStart..<i]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    return String(sub[captureStart..<i]).trimmingCharacters(in: .whitespacesAndNewlines)
                 }
-                i += 2
+                i = two
             } else {
-                i += 1
+                i = next
             }
         }
         return nil

@@ -2196,6 +2196,7 @@ enum FacioRegressionSuite {
         doc.clientVille = "Paris"
         doc.ajouterLigne(LineItem(designation: "Dev", quantite: 2, prixUnitaire: 100, tauxTVA: 20)) // net 200, TVA 40
         doc.ajouterLigne(LineItem(designation: "Conseil", quantite: 1, prixUnitaire: 100, tauxTVA: 10)) // net 100, TVA 10
+        doc.notes = "Paiement à 30 jours — merci"
 
         let xml = FacturXXMLBuilder.buildXML(document: doc, company: company)
 
@@ -2207,8 +2208,13 @@ enum FacioRegressionSuite {
 
         // Parties
         try expect(xml.contains("<ram:ID schemeID=\"0002\">12345678900012</ram:ID>"), "seller SIRET")
+        try expect(xml.contains("<ram:ID schemeID=\"0002\">98765432100019</ram:ID>"), "buyer SIRET (BT-47)")
         try expect(xml.contains("<ram:ID schemeID=\"VA\">FR12345678900</ram:ID>"), "seller intracom VAT")
         try expect(xml.contains("<ram:Name>Client SARL</ram:Name>"), "buyer name")
+
+        // Note de bas de facture (BT-22) → IncludedNote/Content
+        try expect(xml.contains("<ram:IncludedNote>"), "document note emits IncludedNote block")
+        try expect(xml.contains("<ram:Content>Paiement à 30 jours — merci</ram:Content>"), "note content mapped")
 
         // Ventilation TVA multi-taux
         try expect(xml.contains("<ram:CategoryCode>S</ram:CategoryCode>"), "standard category S")

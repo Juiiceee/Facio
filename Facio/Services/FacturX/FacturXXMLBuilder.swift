@@ -52,7 +52,8 @@ enum FacturXXMLBuilder {
         guard document.type == .facture else { return .notAnInvoice }
         guard document.currency == .eur else { return .unsupportedCurrency(document.currency.rawValue) }
 
-        guard !document.lignesTriees.isEmpty else { return .incomplete(.noLines) }
+        let lines = document.lignesTriees
+        guard !lines.isEmpty else { return .incomplete(.noLines) }
         guard !document.number.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return .incomplete(.missingNumber)
         }
@@ -60,7 +61,7 @@ enum FacturXXMLBuilder {
             return .incomplete(.missingClient)
         }
         // Catégorie S (TVA > 0) ⇒ n° TVA vendeur obligatoire (BR-S-02).
-        let chargesVAT = document.lignesTriees.contains { $0.tauxTVA > 0 }
+        let chargesVAT = lines.contains { $0.tauxTVA > 0 }
         let sellerHasVAT = sellerHasIntracomVAT(company)
         if chargesVAT, !sellerHasVAT {
             return .incomplete(.missingSellerVAT)
@@ -68,7 +69,7 @@ enum FacturXXMLBuilder {
         // Vendeur assujetti + ligne à 0 % : exonération non qualifiable. La
         // franchise (catégorie E, art. 293 B) ne concerne qu'un vendeur sans n°
         // TVA — donc une ligne à 0 % ici ne peut pas être étiquetée franchise.
-        if sellerHasVAT, document.lignesTriees.contains(where: { $0.tauxTVA == 0 }) {
+        if sellerHasVAT, lines.contains(where: { $0.tauxTVA == 0 }) {
             return .unsupportedExemptLine
         }
         // Franchise (vendeur sans n° TVA ⇒ lignes en catégorie E) : BR-E-02 exige
