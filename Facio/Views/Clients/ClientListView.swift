@@ -8,23 +8,93 @@ struct ClientListView: View {
     @Environment(\.facioWidthClass) private var widthClass
     @State private var searchText = ""
     @State private var clientPendingDeletion: ClientInfo?
+    @State private var sortKey = "name"
+    @State private var sortAscending = true
+    @State private var activeFilters: Set<String> = []
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
-    private var clients: [ClientInfo] {
-        dataStore.clients.sorted { $0.displayName < $1.displayName }
+    private var sortOptions: [FacioSortOption] {
+        [
+            FacioSortOption(id: "name", label: L10n.sortName(lang)),
+            FacioSortOption(id: "invoiced", label: L10n.sortTotalInvoiced(lang)),
+            FacioSortOption(id: "paid", label: L10n.sortTotalPaid(lang)),
+            FacioSortOption(id: "recent", label: L10n.sortDateAdded(lang)),
+        ]
+    }
+
+    private var filterChips: [FacioFilterChip] {
+        [FacioFilterChip(id: "unpaid", label: L10n.filterWithUnpaid(lang), tone: .intentWarning)]
+    }
+
+    /// Factures rattachées à un client (par nom, ou par SIRET / TVA / APE).
+    private func invoices(for client: ClientInfo) -> [Document] {
+        dataStore.documents.filter { $0.type == .facture && clientMatches(client, $0) }
+    }
+
+    private func clientMatches(_ client: ClientInfo, _ doc: Document) -> Bool {
+        let cn = client.nom.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let dn = doc.clientNom.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if !cn.isEmpty, cn == dn { return true }
+        for (c, d) in [(client.siret, doc.clientSiret), (client.tva, doc.clientTva), (client.ape, doc.clientApe)] {
+            let lhs = c.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let rhs = d.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !lhs.isEmpty, lhs == rhs { return true }
+        }
+        return false
     }
 
     private var filteredClients: [ClientInfo] {
-        if searchText.isEmpty { return clients }
-        return clients.filter {
-            $0.nom.localizedCaseInsensitiveContains(searchText) ||
-            $0.ville.localizedCaseInsensitiveContains(searchText) ||
-            $0.email.localizedCaseInsensitiveContains(searchText) ||
-            $0.siret.localizedCaseInsensitiveContains(searchText) ||
-            $0.tva.localizedCaseInsensitiveContains(searchText) ||
-            $0.ape.localizedCaseInsensitiveContains(searchText)
+        var result = dataStore.clients
+
+        if !searchText.isEmpty {
+            result = result.filter {
+                $0.nom.localizedCaseInsensitiveContains(searchText) ||
+                $0.ville.localizedCaseInsensitiveContains(searchText) ||
+                $0.email.localizedCaseInsensitiveContains(searchText) ||
+                $0.siret.localizedCaseInsensitiveContains(searchText) ||
+                $0.tva.localizedCaseInsensitiveContains(searchText) ||
+                $0.ape.localizedCaseInsensitiveContains(searchText)
+            }
         }
+
+        if activeFilters.contains("unpaid") {
+            result = result.filter { client in
+                invoices(for: client).contains { $0.status != .payee && $0.status != .annulee }
+            }
+        }
+
+        // Totaux convertis précalculés une fois (évite des recalculs pendant le tri).
+        let ref = dataStore.companyInfo.deviseComptable
+        let totals: [UUID: (invoiced: Decimal, paid: Decimal)] = Dictionary(
+            uniqueKeysWithValues: result.map { client in
+                let inv = invoices(for: client)
+                let invoiced = AccountingRevenueService.summary(for: inv, referenceCurrency: ref).total
+                let paid = AccountingRevenueService.summary(for: inv.filter { $0.status == .payee }, referenceCurrency: ref).total
+                return (client.id, (invoiced, paid))
+            }
+        )
+
+        result.sort { a, b in
+            let asc = sortAscending
+            switch sortKey {
+            case "invoiced":
+                let av = totals[a.id]?.invoiced ?? 0, bv = totals[b.id]?.invoiced ?? 0
+                if av != bv { return asc ? av < bv : av > bv }
+            case "paid":
+                let av = totals[a.id]?.paid ?? 0, bv = totals[b.id]?.paid ?? 0
+                if av != bv { return asc ? av < bv : av > bv }
+            case "recent":
+                if a.createdAt != b.createdAt { return asc ? a.createdAt < b.createdAt : a.createdAt > b.createdAt }
+            case "name":
+                let r = a.displayName.localizedCaseInsensitiveCompare(b.displayName)
+                if r != .orderedSame { return asc ? r == .orderedAscending : r == .orderedDescending }
+            default:
+                break
+            }
+            return a.displayName.localizedCaseInsensitiveCompare(b.displayName) == .orderedAscending
+        }
+        return result
     }
 
     private var selectedClient: ClientInfo? {
@@ -126,6 +196,17 @@ struct ClientListView: View {
                 }
         }
         .searchable(text: $searchText, prompt: L10n.searchClientPrompt(lang))
+        .safeAreaInset(edge: .top, spacing: 0) {
+            FacioListControls(
+                lang: lang,
+                accent: Color.appPrimary(from: dataStore.companyInfo),
+                sortOptions: sortOptions,
+                sortKey: $sortKey,
+                sortAscending: $sortAscending,
+                filterChips: filterChips,
+                activeFilters: $activeFilters
+            )
+        }
         .overlay {
             if filteredClients.isEmpty {
                 FacioEmptyState(
