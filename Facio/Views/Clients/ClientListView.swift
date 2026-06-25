@@ -345,6 +345,7 @@ struct ClientDetailView: View {
     var onCreateDocument: (DocumentType, ClientInfo) -> Void
 
     @Environment(DataStore.self) private var dataStore
+    @Environment(PrivacyMode.self) private var privacy
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
     private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
@@ -418,13 +419,13 @@ struct ClientDetailView: View {
         ], spacing: FacioLayout.space12) {
             MetricTile(
                 title: L10n.clientRevenue(lang),
-                value: dataStore.companyInfo.deviseComptable.formatAccounting(totalInvoiced, lang: numberFormat),
+                value: privacy.format(totalInvoiced, dataStore.companyInfo.deviseComptable, lang: numberFormat),
                 systemImage: "doc.text",
                 color: .appRevenue
             )
             MetricTile(
                 title: L10n.clientPaid(lang),
-                value: dataStore.companyInfo.deviseComptable.formatAccounting(totalPaid, lang: numberFormat),
+                value: privacy.format(totalPaid, dataStore.companyInfo.deviseComptable, lang: numberFormat),
                 systemImage: "checkmark.circle",
                 color: .intentSuccess
             )
@@ -539,7 +540,7 @@ struct ClientDetailView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text(document.currency.formatAccounting(document.totalTTC, lang: numberFormat))
+                MoneyText(amount: document.totalTTC, currency: document.currency, lang: numberFormat)
                     .font(FacioFont.amount)
                 StatusBadge(status: document.status, isOverdue: document.isOverdue)
                 Image(systemName: "chevron.right")

@@ -40,6 +40,7 @@ struct TimeTrackerPanel: View {
     var onOpenInvoice: (Document) -> Void = { _ in }
 
     @Environment(DataStore.self) private var dataStore
+    @Environment(PrivacyMode.self) private var privacy
     @State private var inputMode: TimeEntryInputMode = .timer
     @State private var projectName = ""
     @State private var taskName = ""
@@ -407,7 +408,7 @@ struct TimeTrackerPanel: View {
             )
             MetricTile(
                 title: L10n.estimatedAmount(lang),
-                value: dataStore.companyInfo.deviseParDefaut.formatAccounting(estimatedBillableAmount(now: now), lang: numberFormat),
+                value: privacy.format(estimatedBillableAmount(now: now), dataStore.companyInfo.deviseParDefaut, lang: numberFormat),
                 systemImage: "banknote",
                 color: Color.appPrimary(from: dataStore.companyInfo)
             )
@@ -720,6 +721,8 @@ private struct TimeEntryRow: View {
     let onContinue: () -> Void
     let onDelete: () -> Void
 
+    @Environment(PrivacyMode.self) private var privacy
+
     var body: some View {
         HStack(alignment: .center, spacing: FacioLayout.space12) {
             Image(systemName: entry.isRunning ? "timer" : "clock")
@@ -822,7 +825,7 @@ private struct TimeEntryRow: View {
     private var estimatedAmount: String {
         let hours = Decimal(entry.duration(at: now) / 3600)
         let amount = hours * (entry.rateSnapshot ?? defaultRate)
-        return currency.formatAccounting(amount, lang: numberFormat)
+        return privacy.format(amount, currency, lang: numberFormat)
     }
 
     private func statusBadge(_ text: String, color: Color) -> some View {

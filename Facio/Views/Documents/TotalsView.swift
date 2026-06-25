@@ -3,6 +3,7 @@ import SwiftUI
 struct TotalsView: View {
     let document: Document
     @Environment(DataStore.self) private var dataStore
+    @Environment(PrivacyMode.self) private var privacy
     @Environment(\.facioWidthClass) private var widthClass
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
@@ -27,20 +28,20 @@ struct TotalsView: View {
 
             SectionPanel {
                 VStack(alignment: .trailing, spacing: FacioLayout.space8) {
-                    totalRow(label: L10n.totalHT(lang), value: document.currency.formatAccounting(document.totalHT, lang: numberFormat), isDetail: false)
+                    totalRow(label: L10n.totalHT(lang), value: privacy.format(document.totalHT, document.currency, lang: numberFormat), isDetail: false)
 
                     // Ventilation TVA
                     if tvaBreakdown.count > 1 {
                         ForEach(tvaBreakdown, id: \.rate) { entry in
                             totalRow(
                                 label: L10n.vatRate(lang, rate: "\(entry.rate as NSDecimalNumber)"),
-                                value: document.currency.formatAccounting(entry.amount, lang: numberFormat),
+                                value: privacy.format(entry.amount, document.currency, lang: numberFormat),
                                 isDetail: true
                             )
                         }
                     }
 
-                    totalRow(label: L10n.totalTVA(lang), value: document.currency.formatAccounting(document.totalTVA, lang: numberFormat), isDetail: false)
+                    totalRow(label: L10n.totalTVA(lang), value: privacy.format(document.totalTVA, document.currency, lang: numberFormat), isDetail: false)
 
                     Divider()
 
@@ -48,7 +49,7 @@ struct TotalsView: View {
                         Text(L10n.totalTTC(lang))
                             .font(FacioFont.sectionTitle)
                         Spacer()
-                        Text(document.currency.formatAccounting(document.totalTTC, lang: numberFormat))
+                        MoneyText(amount: document.totalTTC, currency: document.currency, lang: numberFormat)
                             .font(FacioFont.amountEmphasis)
                     }
                 }

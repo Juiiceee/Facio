@@ -355,6 +355,8 @@ private struct TimesheetRowView: View {
     let numberFormat: AppLanguage
     let adjacentHours: [String: Decimal]
 
+    @Environment(PrivacyMode.self) private var privacy
+
     var body: some View {
         let heuresMois = timesheet.totalHeuresDuMois()
         let heuresSup = timesheet.totalHeuresSupCrossPeriod(adjacentHours: adjacentHours)
@@ -368,7 +370,7 @@ private struct TimesheetRowView: View {
                         .lineLimit(1)
                     Spacer()
                     if brut > 0 {
-                        Text(brut.formatted2Decimals(for: numberFormat))
+                        Text(privacy.formatNumber(brut, lang: numberFormat))
                             .font(FacioFont.rowValue)
                             .fontWeight(.medium)
                             .foregroundStyle(.secondary)

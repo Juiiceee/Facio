@@ -84,7 +84,7 @@ struct LineItemRowView: View {
                     .frame(width: LineItemColumns.compactVat)
                 Spacer()
                 VStack(alignment: .trailing, spacing: FacioLayout.space2) {
-                    Text(document.currency.formatAccounting(currentLigne.totalLigne, lang: numberFormat))
+                    MoneyText(amount: currentLigne.totalLigne, currency: document.currency, lang: numberFormat)
                         .font(FacioFont.caption)
                         .foregroundStyle(.secondary)
                     totalTTCText(for: currentLigne)
@@ -153,13 +153,13 @@ struct LineItemRowView: View {
 
     /// Total HT (lecture seule)
     private func totalText(for line: LineItem) -> some View {
-        Text(document.currency.formatAccounting(line.totalLigne, lang: numberFormat))
+        MoneyText(amount: line.totalLigne, currency: document.currency, lang: numberFormat)
             .font(FacioFont.amount)
     }
 
     /// Total TTC de la ligne (HT + TVA), lecture seule.
     private func totalTTCText(for line: LineItem) -> some View {
-        Text(document.currency.formatAccounting(line.totalTTC, lang: numberFormat))
+        MoneyText(amount: line.totalTTC, currency: document.currency, lang: numberFormat)
             .font(FacioFont.amount)
     }
 

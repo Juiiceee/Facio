@@ -70,7 +70,7 @@ private struct SignatureRowView: View {
                     Text(signature.date.formattedDate(for: dateFormat))
                         .font(FacioFont.captionSmall)
                         .foregroundStyle(.secondary)
-                    Text(document.currency.formatAccounting(signature.montant, lang: numberFormat))
+                    MoneyText(amount: signature.montant, currency: document.currency, lang: numberFormat)
                         .font(FacioFont.captionSmall)
                         .foregroundStyle(.secondary)
                 }
