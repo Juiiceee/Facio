@@ -6,12 +6,49 @@ enum DateFilterPreset: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// Catégories de statut **mutuellement exclusives** pour le filtre : une facture
+/// en retard (envoyée + échéance dépassée) est « En retard » et non « Envoyée ».
+/// Chaque document tombe dans exactement une catégorie.
+enum DocumentStatusFilter: String, CaseIterable, Identifiable {
+    case brouillon, envoyee, overdue, payee, annulee
+    var id: String { rawValue }
+
+    static func category(of doc: Document) -> DocumentStatusFilter {
+        if doc.isOverdue { return .overdue }
+        switch doc.status {
+        case .brouillon: return .brouillon
+        case .envoyee: return .envoyee
+        case .payee: return .payee
+        case .annulee: return .annulee
+        }
+    }
+
+    func label(for l: AppLanguage) -> String {
+        switch self {
+        case .brouillon: return DocumentStatus.brouillon.label(for: l)
+        case .envoyee: return DocumentStatus.envoyee.label(for: l)
+        case .overdue: return L10n.filterOverdue(l)
+        case .payee: return DocumentStatus.payee.label(for: l)
+        case .annulee: return DocumentStatus.annulee.label(for: l)
+        }
+    }
+
+    var tone: Color {
+        switch self {
+        case .overdue: return .intentDanger
+        case .brouillon: return Color.statusColor(for: .brouillon)
+        case .envoyee: return Color.statusColor(for: .envoyee)
+        case .payee: return Color.statusColor(for: .payee)
+        case .annulee: return Color.statusColor(for: .annulee)
+        }
+    }
+}
+
 /// État de filtre d'une liste de documents (factures / devis). Conditions
 /// combinées en **ET** (style Notion). `matches(_:)` est pur (montant + date
 /// fournis) pour rester testable.
 struct DocumentFilter: Equatable {
-    var statuses: Set<DocumentStatus> = []
-    var overdueOnly = false
+    var statusCategories: Set<DocumentStatusFilter> = []
     var amountMin: Decimal = 0
     var amountMax: Decimal = 0
     var datePreset: DateFilterPreset = .all
@@ -22,7 +59,7 @@ struct DocumentFilter: Equatable {
 
     var activeCount: Int {
         var n = 0
-        if !statuses.isEmpty || overdueOnly { n += 1 }
+        if !statusCategories.isEmpty { n += 1 }
         if amountMin > 0 || amountMax > 0 { n += 1 }
         if datePreset != .all { n += 1 }
         if !clientName.isEmpty { n += 1 }
@@ -31,8 +68,7 @@ struct DocumentFilter: Equatable {
     }
 
     func matches(_ doc: Document, amount: Decimal, calendar: Calendar, now: Date) -> Bool {
-        if !statuses.isEmpty && !statuses.contains(doc.status) { return false }
-        if overdueOnly && !doc.isOverdue { return false }
+        if !statusCategories.isEmpty && !statusCategories.contains(DocumentStatusFilter.category(of: doc)) { return false }
         if amountMin > 0 && amount < amountMin { return false }
         if amountMax > 0 && amount > amountMax { return false }
         switch datePreset {
@@ -108,18 +144,15 @@ struct DocumentFilterPanel: View {
 
     private var statusGrid: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: FacioLayout.space6)], alignment: .leading, spacing: FacioLayout.space6) {
-            ForEach(DocumentStatus.allCases) { status in
+            ForEach(DocumentStatusFilter.allCases) { category in
                 togglePill(
-                    label: status.label(for: lang),
-                    tone: Color.statusColor(for: status),
-                    isOn: filter.statuses.contains(status)
+                    label: category.label(for: lang),
+                    tone: category.tone,
+                    isOn: filter.statusCategories.contains(category)
                 ) {
-                    if filter.statuses.contains(status) { filter.statuses.remove(status) }
-                    else { filter.statuses.insert(status) }
+                    if filter.statusCategories.contains(category) { filter.statusCategories.remove(category) }
+                    else { filter.statusCategories.insert(category) }
                 }
-            }
-            togglePill(label: L10n.filterOverdue(lang), tone: .intentDanger, isOn: filter.overdueOnly) {
-                filter.overdueOnly.toggle()
             }
         }
     }
