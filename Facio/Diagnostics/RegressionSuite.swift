@@ -197,8 +197,43 @@ enum FacioRegressionSuite {
         RegressionCase(name: "window minimum fits split view columns", run: windowMinimumFitsSplitViewColumns),
         RegressionCase(name: "sheet minimums fit inside minimum window", run: sheetMinimumsFitInsideMinimumWindow),
         RegressionCase(name: "color tokens resolve differently in dark mode", run: colorTokensResolveDifferentlyInDarkMode),
+        RegressionCase(name: "payment date stamps on paid and feeds revenue month", run: paymentDateStampsOnPaidAndFeedsRevenueMonth),
         RegressionCase(name: "document filter status categories are mutually exclusive", run: documentFilterStatusCategoriesAreMutuallyExclusive)
     ]
+
+    /// Encaissement : passer en « Payée » horodate `datePaiement` (revenueDate),
+    /// quitter ce statut l'efface, et un ancien payload (sans le champ) retombe
+    /// sur la date de création — pour rattacher le CA au bon mois.
+    private static func paymentDateStampsOnPaidAndFeedsRevenueMonth() throws {
+        let doc = Document(type: .facture, number: "F1")
+        try expectEqual(doc.datePaiement, nil)
+        try expectEqual(doc.revenueDate, doc.dateCreation)
+
+        doc.status = .payee
+        let stamped = try require(doc.datePaiement, "marking paid must stamp datePaiement")
+        try expectEqual(doc.revenueDate, stamped)
+
+        doc.status = .envoyee
+        try expectEqual(doc.datePaiement, nil)
+        try expectEqual(doc.revenueDate, doc.dateCreation)
+
+        // Une date d'encaissement explicite rattache le CA à son mois.
+        let lastMonth = Calendar.current.date(byAdding: .month, value: -1, to: Date())!
+        doc.status = .payee
+        doc.datePaiement = lastMonth
+        try expectEqual(doc.revenueDate, lastMonth)
+
+        // Rétro-compatibilité : un payload sans datePaiement décode en nil.
+        let encoder = JSONEncoder()
+        let paid = Document(type: .facture, number: "F2")
+        paid.status = .payee
+        var object = try JSONSerialization.jsonObject(with: encoder.encode(paid)) as! [String: Any]
+        object.removeValue(forKey: "datePaiement")
+        let oldData = try JSONSerialization.data(withJSONObject: object)
+        let decoded = try JSONDecoder().decode(Document.self, from: oldData)
+        try expectEqual(decoded.datePaiement, nil)
+        try expectEqual(decoded.revenueDate, decoded.dateCreation)
+    }
 
     /// Le filtre de liste traite « En retard » comme une catégorie distincte
     /// d'« Envoyée » : une facture envoyée dont l'échéance est dépassée ne doit
