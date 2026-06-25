@@ -137,6 +137,9 @@ final class CompanyInfo: Identifiable, Codable {
     var codePostal: String = ""
     var ville: String = ""
     var siret: String = ""
+    /// Numéro de TVA intracommunautaire (BT-31, requis pour la facturation
+    /// électronique EN 16931 si l'entreprise est assujettie à la TVA).
+    var tvaIntracom: String = ""
     var telephone: String = ""
     var email: String = ""
     var logoData: Data?
@@ -295,7 +298,7 @@ final class CompanyInfo: Identifiable, Codable {
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case id, nom, adresse, codePostal, ville, siret, telephone, email, logoData
+        case id, nom, adresse, codePostal, ville, siret, tvaIntracom, telephone, email, logoData
         case nomBanque, iban, bic, titulaireCompte, bankAccounts, wallets, prestations
         case emailSubjectTemplateFR, emailBodyTemplateFR, emailSubjectTemplateEN, emailBodyTemplateEN
         case tauxTVAParDefaut, delaiPaiementJours, deviseParDefautRawValue, deviseComptableRawValue, blockchainParDefautRawValue
@@ -312,6 +315,7 @@ final class CompanyInfo: Identifiable, Codable {
         codePostal = try container.decodeOrDefault(String.self, forKey: .codePostal, default: "")
         ville = try container.decodeOrDefault(String.self, forKey: .ville, default: "")
         siret = try container.decodeOrDefault(String.self, forKey: .siret, default: "")
+        tvaIntracom = try container.decodeOrDefault(String.self, forKey: .tvaIntracom, default: "")
         telephone = try container.decodeOrDefault(String.self, forKey: .telephone, default: "")
         email = try container.decodeOrDefault(String.self, forKey: .email, default: "")
         logoData = try container.decodeIfPresent(Data.self, forKey: .logoData)
@@ -350,6 +354,7 @@ final class CompanyInfo: Identifiable, Codable {
         try container.encode(codePostal, forKey: .codePostal)
         try container.encode(ville, forKey: .ville)
         try container.encode(siret, forKey: .siret)
+        try container.encode(tvaIntracom, forKey: .tvaIntracom)
         try container.encode(telephone, forKey: .telephone)
         try container.encode(email, forKey: .email)
         try container.encodeIfPresent(logoData, forKey: .logoData)
