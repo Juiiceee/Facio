@@ -10,7 +10,7 @@ struct ClientListView: View {
     @State private var clientPendingDeletion: ClientInfo?
     @State private var sortKey = "name"
     @State private var sortAscending = true
-    @State private var activeFilters: Set<String> = []
+    @State private var filter = ClientFilter()
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -21,10 +21,6 @@ struct ClientListView: View {
             FacioSortOption(id: "paid", label: L10n.sortTotalPaid(lang)),
             FacioSortOption(id: "recent", label: L10n.sortDateAdded(lang)),
         ]
-    }
-
-    private var filterChips: [FacioFilterChip] {
-        [FacioFilterChip(id: "unpaid", label: L10n.filterWithUnpaid(lang), tone: .intentWarning)]
     }
 
     /// Factures rattachées à un client (par nom, ou par SIRET / TVA / APE).
@@ -58,31 +54,32 @@ struct ClientListView: View {
             }
         }
 
-        if activeFilters.contains("unpaid") {
-            result = result.filter { client in
-                invoices(for: client).contains { $0.status != .payee && $0.status != .annulee }
-            }
+        // Métriques par client précalculées une fois (filtre + tri).
+        let ref = dataStore.companyInfo.deviseComptable
+        var metrics: [UUID: (invoiced: Decimal, paid: Decimal, hasUnpaid: Bool)] = [:]
+        for client in result {
+            let inv = invoices(for: client)
+            let invoiced = AccountingRevenueService.summary(for: inv, referenceCurrency: ref).total
+            let paid = AccountingRevenueService.summary(for: inv.filter { $0.status == .payee }, referenceCurrency: ref).total
+            let hasUnpaid = inv.contains { $0.status != .payee && $0.status != .annulee }
+            metrics[client.id] = (invoiced, paid, hasUnpaid)
         }
 
-        // Totaux convertis précalculés une fois (évite des recalculs pendant le tri).
-        let ref = dataStore.companyInfo.deviseComptable
-        let totals: [UUID: (invoiced: Decimal, paid: Decimal)] = Dictionary(
-            uniqueKeysWithValues: result.map { client in
-                let inv = invoices(for: client)
-                let invoiced = AccountingRevenueService.summary(for: inv, referenceCurrency: ref).total
-                let paid = AccountingRevenueService.summary(for: inv.filter { $0.status == .payee }, referenceCurrency: ref).total
-                return (client.id, (invoiced, paid))
+        if filter.activeCount > 0 {
+            result = result.filter { client in
+                let m = metrics[client.id] ?? (0, 0, false)
+                return filter.matches(hasUnpaid: m.hasUnpaid, totalInvoiced: m.invoiced)
             }
-        )
+        }
 
         result.sort { a, b in
             let asc = sortAscending
             switch sortKey {
             case "invoiced":
-                let av = totals[a.id]?.invoiced ?? 0, bv = totals[b.id]?.invoiced ?? 0
+                let av = metrics[a.id]?.invoiced ?? 0, bv = metrics[b.id]?.invoiced ?? 0
                 if av != bv { return asc ? av < bv : av > bv }
             case "paid":
-                let av = totals[a.id]?.paid ?? 0, bv = totals[b.id]?.paid ?? 0
+                let av = metrics[a.id]?.paid ?? 0, bv = metrics[b.id]?.paid ?? 0
                 if av != bv { return asc ? av < bv : av > bv }
             case "recent":
                 if a.createdAt != b.createdAt { return asc ? a.createdAt < b.createdAt : a.createdAt > b.createdAt }
@@ -203,9 +200,16 @@ struct ClientListView: View {
                 sortOptions: sortOptions,
                 sortKey: $sortKey,
                 sortAscending: $sortAscending,
-                filterChips: filterChips,
-                activeFilters: $activeFilters
-            )
+                filterActiveCount: filter.activeCount
+            ) {
+                ClientFilterPanel(
+                    filter: $filter,
+                    lang: lang,
+                    numberFormat: dataStore.companyInfo.formatNombre,
+                    accent: Color.appPrimary(from: dataStore.companyInfo),
+                    onReset: { filter = ClientFilter() }
+                )
+            }
         }
         .overlay {
             if filteredClients.isEmpty {

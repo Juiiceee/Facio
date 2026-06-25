@@ -12,7 +12,7 @@ struct DocumentListView: View {
     @State private var showAttachmentCopyAlert = false
     @State private var sortKey = "date"
     @State private var sortAscending = false
-    @State private var activeFilters: Set<String> = []
+    @State private var filter = DocumentFilter()
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -26,14 +26,18 @@ struct DocumentListView: View {
         ]
     }
 
-    private var filterChips: [FacioFilterChip] {
-        [
-            FacioFilterChip(id: "payee", label: L10n.filterPaid(lang), tone: .intentSuccess),
-            FacioFilterChip(id: "impaye", label: L10n.filterUnpaid(lang), tone: .intentWarning),
-            FacioFilterChip(id: "envoyee", label: L10n.filterSent(lang), tone: .intentInfo),
-            FacioFilterChip(id: "overdue", label: L10n.filterOverdue(lang), tone: .intentDanger),
-            FacioFilterChip(id: "brouillon", label: L10n.filterDraft(lang), tone: .intentNeutral),
-        ]
+    /// Noms de clients distincts présents dans les documents de ce type.
+    private var distinctClients: [String] {
+        let names = dataStore.documents
+            .filter { $0.type == documentType && !$0.clientNom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .map(\.clientNom)
+        return Array(Set(names)).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    /// Devises présentes dans les documents de ce type (pour le filtre devise).
+    private var availableCurrencies: [CurrencyType] {
+        let raws = Set(dataStore.documents.filter { $0.type == documentType }.map { $0.currency.rawValue })
+        return CurrencyType.allCases.filter { raws.contains($0.rawValue) }
     }
 
     private var documents: [Document] {
@@ -50,23 +54,14 @@ struct DocumentListView: View {
             }
         }
 
-        if !activeFilters.isEmpty {
-            result = result.filter { doc in activeFilters.contains { matchesFilter($0, doc) } }
+        if filter.activeCount > 0 {
+            let calendar = Calendar.current
+            let now = Date()
+            result = result.filter { filter.matches($0, amount: documentAmount($0), calendar: calendar, now: now) }
         }
 
         result.sort(by: documentIsOrderedBefore)
         return result
-    }
-
-    private func matchesFilter(_ id: String, _ d: Document) -> Bool {
-        switch id {
-        case "payee": return d.status == .payee
-        case "impaye": return d.status != .payee && d.status != .annulee
-        case "envoyee": return d.status == .envoyee
-        case "overdue": return d.isOverdue
-        case "brouillon": return d.status == .brouillon
-        default: return false
-        }
     }
 
     /// Montant comparable : total converti dans la devise comptable si un taux
@@ -148,9 +143,18 @@ struct DocumentListView: View {
                 sortOptions: sortOptions,
                 sortKey: $sortKey,
                 sortAscending: $sortAscending,
-                filterChips: filterChips,
-                activeFilters: $activeFilters
-            )
+                filterActiveCount: filter.activeCount
+            ) {
+                DocumentFilterPanel(
+                    filter: $filter,
+                    clients: distinctClients,
+                    currencies: availableCurrencies,
+                    lang: lang,
+                    numberFormat: dataStore.companyInfo.formatNombre,
+                    accent: Color.appPrimary(from: dataStore.companyInfo),
+                    onReset: { filter = DocumentFilter() }
+                )
+            }
         }
         .navigationTitle(documentType == .devis ? L10n.sidebarQuotes(lang) : L10n.sidebarInvoices(lang))
         .searchable(text: $searchText, prompt: L10n.searchByNumberOrClient(lang))

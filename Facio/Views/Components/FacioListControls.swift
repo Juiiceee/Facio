@@ -6,63 +6,32 @@ struct FacioSortOption: Identifiable, Equatable {
     let label: String
 }
 
-/// Un chip de filtre pour `FacioListControls` (clé stable + libellé + couleur
-/// d'accent quand il est actif).
-struct FacioFilterChip: Identifiable, Equatable {
-    let id: String
-    let label: String
-    var tone: Color?
-}
-
 /// Barre **Trier & Filtrer** partagée par les listes (factures, devis, clients).
 ///
-/// Entièrement tokenisée. Chaque liste fournit ses options de tri et ses chips
-/// de filtre ; le composant gère l'affichage et l'interaction :
-/// - **Tri** : un menu compact montrant toujours le critère actif et le sens (↑/↓).
-/// - **Filtres** : des chips cumulables (OU) ; le chip « Toutes » réinitialise.
-struct FacioListControls: View {
+/// Tokenisée. Chaque liste fournit :
+/// - ses options de tri (le menu montre toujours le critère actif + le sens ↑/↓) ;
+/// - un **panneau de filtres** (style Notion) affiché dans un popover via le
+///   bouton « Filtrer », avec un compteur de filtres actifs.
+struct FacioListControls<FilterPanel: View>: View {
     let lang: AppLanguage
     var accent: Color = .accentColor
     let sortOptions: [FacioSortOption]
     @Binding var sortKey: String
     @Binding var sortAscending: Bool
-    var filterChips: [FacioFilterChip] = []
-    @Binding var activeFilters: Set<String>
+    var filterActiveCount: Int = 0
+    @ViewBuilder var filterPanel: () -> FilterPanel
 
-    private static let allID = "__all__"
+    @State private var showFilter = false
 
     private var currentSortLabel: String {
         sortOptions.first { $0.id == sortKey }?.label ?? ""
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: FacioLayout.space8) {
-            HStack(spacing: FacioLayout.space8) {
-                sortMenu
-                Spacer(minLength: 0)
-                if !activeFilters.isEmpty {
-                    Button {
-                        activeFilters.removeAll()
-                    } label: {
-                        Label(L10n.clearFilters(lang), systemImage: "xmark.circle.fill")
-                            .font(FacioFont.captionSmall)
-                            .labelStyle(.titleAndIcon)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .help(L10n.clearFilters(lang))
-                }
-            }
-
-            if !filterChips.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: FacioLayout.space6) {
-                        chipButton(FacioFilterChip(id: Self.allID, label: L10n.filterAll(lang), tone: nil))
-                        ForEach(filterChips) { chipButton($0) }
-                    }
-                    .padding(.horizontal, 1)
-                }
-            }
+        HStack(spacing: FacioLayout.space8) {
+            sortMenu
+            filterButton
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, FacioLayout.screenPadding)
         .padding(.vertical, FacioLayout.space8)
@@ -92,21 +61,13 @@ struct FacioListControls: View {
                 Label(L10n.sortDescending(lang), systemImage: "arrow.down").tag(false)
             }
         } label: {
-            HStack(spacing: FacioLayout.space4) {
+            pill(active: false) {
                 Image(systemName: "arrow.up.arrow.down")
-                Text(currentSortLabel)
-                    .lineLimit(1)
+                Text(currentSortLabel).lineLimit(1)
                 Image(systemName: sortAscending ? "arrow.up" : "arrow.down")
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(.secondary)
             }
-            .font(FacioFont.captionSmall)
-            .fontWeight(.medium)
-            .padding(.horizontal, FacioLayout.space10)
-            .padding(.vertical, FacioLayout.space6)
-            .background(Color.secondary.opacity(0.12))
-            .clipShape(Capsule())
-            .contentShape(Capsule())
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
@@ -114,34 +75,47 @@ struct FacioListControls: View {
         .help(L10n.sortBy(lang))
     }
 
-    // MARK: - Filtres
+    // MARK: - Filtre
 
-    private func chipButton(_ chip: FacioFilterChip) -> some View {
-        let isAll = chip.id == Self.allID
-        let isActive = isAll ? activeFilters.isEmpty : activeFilters.contains(chip.id)
-        let tone = chip.tone ?? accent
-        return Button {
-            if isAll {
-                activeFilters.removeAll()
-            } else if activeFilters.contains(chip.id) {
-                activeFilters.remove(chip.id)
-            } else {
-                activeFilters.insert(chip.id)
-            }
+    private var filterButton: some View {
+        Button {
+            showFilter = true
         } label: {
-            Text(chip.label)
-                .font(FacioFont.captionSmall)
-                .fontWeight(isActive ? .semibold : .regular)
-                .lineLimit(1)
-                .padding(.horizontal, FacioLayout.space10)
-                .padding(.vertical, FacioLayout.space6)
-                .foregroundStyle(isActive ? tone : Color.secondary)
-                .background((isActive ? tone : Color.secondary).opacity(isActive ? 0.16 : 0.08))
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule().strokeBorder(tone.opacity(isActive ? 0.5 : 0), lineWidth: 1)
-                )
+            pill(active: filterActiveCount > 0) {
+                Image(systemName: "line.3.horizontal.decrease")
+                Text(L10n.filterButton(lang))
+                if filterActiveCount > 0 {
+                    Text("\(filterActiveCount)")
+                        .font(.system(size: 10, weight: .bold))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(accent, in: Capsule())
+                        .foregroundStyle(.white)
+                }
+            }
         }
         .buttonStyle(.plain)
+        .help(L10n.filterButton(lang))
+        .popover(isPresented: $showFilter, arrowEdge: .bottom) {
+            filterPanel()
+        }
+    }
+
+    // MARK: - Style commun (pilule)
+
+    @ViewBuilder
+    private func pill<Content: View>(active: Bool, @ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: FacioLayout.space4) {
+            content()
+        }
+        .font(FacioFont.captionSmall)
+        .fontWeight(.medium)
+        .foregroundStyle(active ? accent : Color.primary)
+        .padding(.horizontal, FacioLayout.space10)
+        .padding(.vertical, FacioLayout.space6)
+        .background((active ? accent : Color.secondary).opacity(active ? 0.16 : 0.12))
+        .clipShape(Capsule())
+        .overlay(Capsule().strokeBorder(accent.opacity(active ? 0.5 : 0), lineWidth: 1))
+        .contentShape(Capsule())
     }
 }
