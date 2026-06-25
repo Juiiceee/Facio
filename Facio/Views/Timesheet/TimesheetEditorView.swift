@@ -5,6 +5,7 @@ struct TimesheetEditorView: View {
     var onOpenInvoice: (Document) -> Void = { _ in }
 
     @Environment(DataStore.self) private var dataStore
+    @Environment(PrivacyMode.self) private var privacy
     @Environment(\.facioContainerWidth) private var containerWidth
     @State private var hourInputMode: TimesheetHourInputMode = .decimal
     @State private var showClientPicker = false
@@ -173,8 +174,8 @@ struct TimesheetEditorView: View {
     private func heroStatsRow(heures: Decimal, brut: Decimal, net: Decimal) -> some View {
         HStack(alignment: .center, spacing: FacioLayout.space16) {
             heroStat(L10n.totalHours(lang), value: "\(heures.formatted2Decimals(for: numberFormat))h")
-            heroStat(L10n.grossTotal(lang), value: brut.formatted2Decimals(for: numberFormat))
-            heroStat(L10n.netTotal(lang), value: net.formatted2Decimals(for: numberFormat))
+            heroStat(L10n.grossTotal(lang), value: privacy.formatNumber(brut, lang: numberFormat))
+            heroStat(L10n.netTotal(lang), value: privacy.formatNumber(net, lang: numberFormat))
         }
     }
 
@@ -352,25 +353,25 @@ struct TimesheetEditorView: View {
                 )
                 MetricTile(
                     title: L10n.normalCost(lang),
-                    value: coutNorm.formatted2Decimals(for: numberFormat),
+                    value: privacy.formatNumber(coutNorm, lang: numberFormat),
                     systemImage: "banknote",
                     color: .secondary
                 )
                 MetricTile(
                     title: L10n.overtimeCost(lang),
-                    value: coutSup.formatted2Decimals(for: numberFormat),
+                    value: privacy.formatNumber(coutSup, lang: numberFormat),
                     systemImage: "banknote",
                     color: .secondary
                 )
                 MetricTile(
                     title: L10n.grossTotal(lang),
-                    value: brut.formatted2Decimals(for: numberFormat),
+                    value: privacy.formatNumber(brut, lang: numberFormat),
                     systemImage: "sum",
                     color: .intentSuccess
                 )
                 MetricTile(
                     title: L10n.netTotal(lang),
-                    value: net.formatted2Decimals(for: numberFormat),
+                    value: privacy.formatNumber(net, lang: numberFormat),
                     systemImage: "checkmark.seal",
                     color: .intentSuccess
                 )
@@ -512,7 +513,7 @@ struct TimesheetEditorView: View {
             }
             Divider().frame(height: 14)
             let coutSemaine = norm * timesheet.tauxNormal + sup * timesheet.tauxSupplementaire
-            Text(coutSemaine.formatted2Decimals(for: numberFormat))
+            Text(privacy.formatNumber(coutSemaine, lang: numberFormat))
                 .font(FacioFont.rowValue)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.intentSuccess)

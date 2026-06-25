@@ -30,4 +30,11 @@ final class PrivacyMode {
     func format(_ amount: Decimal, _ currency: CurrencyType, lang: AppLanguage) -> String {
         hideAmounts ? Self.placeholder : currency.formatAccounting(amount, lang: lang)
     }
+
+    /// Variante sans symbole de devise (montants affichés via `formatted2Decimals`,
+    /// ex. relevés d'heures : brut / net / coûts). Les heures (`…h`) ne passent PAS
+    /// par ici et restent toujours visibles.
+    func formatNumber(_ amount: Decimal, lang: AppLanguage) -> String {
+        hideAmounts ? Self.placeholder : amount.formatted2Decimals(for: lang)
+    }
 }
