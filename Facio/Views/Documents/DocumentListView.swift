@@ -136,6 +136,10 @@ struct DocumentListView: View {
                     }
                 }
         }
+        // Recrée le cœur de la liste à chaque création de document : reproduit
+        // le contournement « changer de page » qui fait disparaître le clipping
+        // transitoire du nouveau row inséré en tête (glitch List + .searchable).
+        .id(dataStore.lastCreatedDocumentId)
         .safeAreaInset(edge: .top, spacing: 0) {
             FacioListControls(
                 lang: lang,

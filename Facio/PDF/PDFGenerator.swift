@@ -556,9 +556,13 @@ struct PDFGenerator {
 
         let cur = document.currency.rawValue
 
+        // Totaux arrondis par ligne (source unique partagée avec le XML Factur-X) :
+        // le total affiché égale toujours la somme des montants de ligne affichés.
+        let totals = InvoiceTotals.canonical(for: document.lignes)
+
         drawTextRight(L10n.totalHT(lang), rightX: labelRight, y: cy,
                       font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
-        drawTextRight("\(formatSpaced(document.totalHT)) \(cur)", rightX: valueRight, y: cy,
+        drawTextRight("\(formatSpaced(totals.totalHT)) \(cur)", rightX: valueRight, y: cy,
                       font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
         cy += 16
 
@@ -568,7 +572,7 @@ struct PDFGenerator {
 
         drawTextRight(L10n.totalVAT(lang), rightX: labelRight, y: cy,
                       font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
-        drawTextRight("\(formatSpaced(document.totalTVA)) \(cur)", rightX: valueRight, y: cy,
+        drawTextRight("\(formatSpaced(totals.totalTVA)) \(cur)", rightX: valueRight, y: cy,
                       font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
         cy += 18
 
@@ -581,7 +585,7 @@ struct PDFGenerator {
 
         drawTextRight(L10n.totalTTC(lang), rightX: labelRight, y: cy + 1,
                       font: PDFLayout.fontTotalTTC, color: PDFLayout.textBlack, context: context)
-        drawTextRight("\(formatSpaced(document.totalTTC)) \(cur)", rightX: valueRight, y: cy + 1,
+        drawTextRight("\(formatSpaced(totals.totalTTC)) \(cur)", rightX: valueRight, y: cy + 1,
                       font: PDFLayout.fontTotalTTC, color: PDFLayout.textBlack, context: context)
         cy += 20
 
