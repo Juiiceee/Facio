@@ -10,24 +10,95 @@ struct DocumentListView: View {
     @State private var documentPendingDeletion: Document?
     @State private var attachmentCopyFailures = 0
     @State private var showAttachmentCopyAlert = false
+    @State private var sortKey = "date"
+    @State private var sortAscending = false
+    @State private var filter = DocumentFilter()
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
-    private var allDocuments: [Document] {
-        dataStore.documents.sorted { $0.dateCreation > $1.dateCreation }
+    private var sortOptions: [FacioSortOption] {
+        [
+            FacioSortOption(id: "date", label: L10n.sortDate(lang)),
+            FacioSortOption(id: "amount", label: L10n.sortAmount(lang)),
+            FacioSortOption(id: "client", label: L10n.sortClient(lang)),
+            FacioSortOption(id: "status", label: L10n.sortStatus(lang)),
+            FacioSortOption(id: "number", label: L10n.sortNumber(lang)),
+        ]
+    }
+
+    /// Noms de clients distincts présents dans les documents de ce type.
+    private var distinctClients: [String] {
+        let names = dataStore.documents
+            .filter { $0.type == documentType && !$0.clientNom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .map(\.clientNom)
+        return Array(Set(names)).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    /// Devises présentes dans les documents de ce type (pour le filtre devise).
+    private var availableCurrencies: [CurrencyType] {
+        let raws = Set(dataStore.documents.filter { $0.type == documentType }.map { $0.currency.rawValue })
+        return CurrencyType.allCases.filter { raws.contains($0.rawValue) }
     }
 
     private var documents: [Document] {
-        let filtered = allDocuments.filter { $0.type == documentType }
-        guard !searchText.isEmpty else { return filtered }
-        let query = searchText.lowercased()
-        return filtered.filter { doc in
-            doc.number.lowercased().contains(query) ||
-            doc.clientNom.lowercased().contains(query) ||
-            doc.clientSiret.lowercased().contains(query) ||
-            doc.clientTva.lowercased().contains(query) ||
-            doc.clientApe.lowercased().contains(query)
+        var result = dataStore.documents.filter { $0.type == documentType }
+
+        if !searchText.isEmpty {
+            let query = searchText.lowercased()
+            result = result.filter { doc in
+                doc.number.lowercased().contains(query) ||
+                doc.clientNom.lowercased().contains(query) ||
+                doc.clientSiret.lowercased().contains(query) ||
+                doc.clientTva.lowercased().contains(query) ||
+                doc.clientApe.lowercased().contains(query)
+            }
         }
+
+        if filter.activeCount > 0 {
+            let calendar = Calendar.current
+            let now = Date()
+            result = result.filter { filter.matches($0, amount: documentAmount($0), calendar: calendar, now: now) }
+        }
+
+        result.sort(by: documentIsOrderedBefore)
+        return result
+    }
+
+    /// Montant comparable : total converti dans la devise comptable si un taux
+    /// est défini, sinon le TTC brut (cohérent pour le mono-devise).
+    private func documentAmount(_ d: Document) -> Decimal {
+        d.accountingTotal(referenceCurrency: dataStore.companyInfo.deviseComptable) ?? d.totalTTC
+    }
+
+    private func statusOrder(_ s: DocumentStatus) -> Int {
+        switch s {
+        case .brouillon: return 0
+        case .envoyee: return 1
+        case .payee: return 2
+        case .annulee: return 3
+        }
+    }
+
+    private func documentIsOrderedBefore(_ a: Document, _ b: Document) -> Bool {
+        let asc = sortAscending
+        switch sortKey {
+        case "amount":
+            let av = documentAmount(a), bv = documentAmount(b)
+            if av != bv { return asc ? av < bv : av > bv }
+        case "client":
+            let r = a.clientNom.localizedCaseInsensitiveCompare(b.clientNom)
+            if r != .orderedSame { return asc ? r == .orderedAscending : r == .orderedDescending }
+        case "status":
+            let av = statusOrder(a.status), bv = statusOrder(b.status)
+            if av != bv { return asc ? av < bv : av > bv }
+        case "number":
+            let r = a.number.localizedStandardCompare(b.number)
+            if r != .orderedSame { return asc ? r == .orderedAscending : r == .orderedDescending }
+        default:
+            if a.dateCreation != b.dateCreation { return asc ? a.dateCreation < b.dateCreation : a.dateCreation > b.dateCreation }
+        }
+        // Départage stable : plus récent d'abord.
+        return a.dateCreation > b.dateCreation
     }
 
     var body: some View {
@@ -69,6 +140,26 @@ struct DocumentListView: View {
         // le contournement « changer de page » qui fait disparaître le clipping
         // transitoire du nouveau row inséré en tête (glitch List + .searchable).
         .id(dataStore.lastCreatedDocumentId)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            FacioListControls(
+                lang: lang,
+                accent: Color.appPrimary(from: dataStore.companyInfo),
+                sortOptions: sortOptions,
+                sortKey: $sortKey,
+                sortAscending: $sortAscending,
+                filterActiveCount: filter.activeCount
+            ) {
+                DocumentFilterPanel(
+                    filter: $filter,
+                    clients: distinctClients,
+                    currencies: availableCurrencies,
+                    lang: lang,
+                    numberFormat: dataStore.companyInfo.formatNombre,
+                    accent: Color.appPrimary(from: dataStore.companyInfo),
+                    onReset: { filter = DocumentFilter() }
+                )
+            }
+        }
         .navigationTitle(documentType == .devis ? L10n.sidebarQuotes(lang) : L10n.sidebarInvoices(lang))
         .searchable(text: $searchText, prompt: L10n.searchByNumberOrClient(lang))
         .toolbar {
@@ -148,7 +239,7 @@ struct DocumentListView: View {
         let copie = document.dupliquer()
         copie.number = DocumentNumberService.nextNumber(
             type: copie.type,
-            existingDocuments: allDocuments,
+            existingDocuments: dataStore.documents,
             language: lang
         )
         dataStore.addDocument(copie)
@@ -160,7 +251,7 @@ struct DocumentListView: View {
         let facture = document.convertirEnFacture()
         facture.number = DocumentNumberService.nextNumber(
             type: .facture,
-            existingDocuments: allDocuments,
+            existingDocuments: dataStore.documents,
             language: lang
         )
         dataStore.addDocument(facture)

@@ -196,8 +196,47 @@ enum FacioRegressionSuite {
         RegressionCase(name: "responsive width class maps breakpoints", run: responsiveWidthClassMapsBreakpoints),
         RegressionCase(name: "window minimum fits split view columns", run: windowMinimumFitsSplitViewColumns),
         RegressionCase(name: "sheet minimums fit inside minimum window", run: sheetMinimumsFitInsideMinimumWindow),
-        RegressionCase(name: "color tokens resolve differently in dark mode", run: colorTokensResolveDifferentlyInDarkMode)
+        RegressionCase(name: "color tokens resolve differently in dark mode", run: colorTokensResolveDifferentlyInDarkMode),
+        RegressionCase(name: "document filter status categories are mutually exclusive", run: documentFilterStatusCategoriesAreMutuallyExclusive)
     ]
+
+    /// Le filtre de liste traite « En retard » comme une catégorie distincte
+    /// d'« Envoyée » : une facture envoyée dont l'échéance est dépassée ne doit
+    /// PAS remonter quand on filtre « Envoyée ».
+    private static func documentFilterStatusCategoriesAreMutuallyExclusive() throws {
+        let calendar = Calendar.current
+        let now = Date()
+        let past = calendar.date(byAdding: .day, value: -10, to: now)!
+        let future = calendar.date(byAdding: .day, value: 10, to: now)!
+
+        let onTime = Document(type: .facture, number: "F1")
+        onTime.status = .envoyee
+        onTime.dateEcheance = future
+
+        let overdue = Document(type: .facture, number: "F2")
+        overdue.status = .envoyee
+        overdue.dateEcheance = past
+
+        let draft = Document(type: .facture, number: "F3")
+        draft.status = .brouillon
+
+        try expectEqual(DocumentStatusFilter.category(of: onTime), .envoyee)
+        try expectEqual(DocumentStatusFilter.category(of: overdue), .overdue)
+        try expectEqual(DocumentStatusFilter.category(of: draft), .brouillon)
+
+        var sentFilter = DocumentFilter()
+        sentFilter.statusCategories = [.envoyee]
+        try expect(sentFilter.matches(onTime, amount: 0, calendar: calendar, now: now), "on-time sent matches Envoyée")
+        try expect(!sentFilter.matches(overdue, amount: 0, calendar: calendar, now: now), "overdue must NOT match Envoyée")
+
+        var overdueFilter = DocumentFilter()
+        overdueFilter.statusCategories = [.overdue]
+        try expect(overdueFilter.matches(overdue, amount: 0, calendar: calendar, now: now), "overdue matches En retard")
+        try expect(!overdueFilter.matches(onTime, amount: 0, calendar: calendar, now: now), "on-time must NOT match En retard")
+
+        // Filtre vide → tout passe.
+        try expect(DocumentFilter().matches(overdue, amount: 0, calendar: calendar, now: now), "empty filter matches everything")
+    }
 
     /// Garde-fou dark mode : les tokens doivent se résoudre différemment selon
     /// le colorScheme via le chemin de rendu SwiftUI (Color.resolve(in:)) —
