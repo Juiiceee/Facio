@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.5.0](https://github.com/Juiiceee/Facio/compare/Facio-v2.4.0...Facio-v2.5.0) (2026-06-25)
+
+
+### Nouvelles fonctionnalites
+
+* **documents:** record payment date and bucket monthly revenue by it ([#98](https://github.com/Juiiceee/Facio/issues/98)) ([887c572](https://github.com/Juiiceee/Facio/commit/887c5727ac8c1ebd7832075e270fa540a0fb8d21))
+* **lists:** sort & Notion-style filters for invoices, quotes and clients ([#97](https://github.com/Juiiceee/Facio/issues/97)) ([aeb83bd](https://github.com/Juiiceee/Facio/commit/aeb83bd823c60b4e743cd3a243c16ef521b68448))
+
+
+### Corrections de bugs
+
+* **documents:** resync DecimalField text when bound value changes ([#95](https://github.com/Juiiceee/Facio/issues/95)) ([3a9bde0](https://github.com/Juiiceee/Facio/commit/3a9bde0440fe580700e3c157dfd64b357482ef6a))
+
 ## [2.4.0](https://github.com/Juiiceee/Facio/compare/Facio-v2.3.1...Facio-v2.4.0) (2026-06-24)
 
 
