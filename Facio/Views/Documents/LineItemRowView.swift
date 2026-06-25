@@ -221,6 +221,17 @@ struct DecimalField: View {
             .onAppear {
                 text = value == 0 ? "" : formatDecimal(value)
             }
+            // Resynchronise le texte quand la valeur liée change de l'extérieur —
+            // typiquement quand SwiftUI réutilise cette vue pour un autre document
+            // (l'éditeur de facture n'est pas recréé au changement de sélection).
+            // Sans ceci, le champ garderait la valeur du document précédent (et
+            // pourrait la réécrire sur le document courant). On n'écrase jamais une
+            // saisie en cours (champ focus).
+            .onChange(of: value) { _, newValue in
+                guard !isFocused else { return }
+                let formatted = newValue == 0 ? "" : formatDecimal(newValue)
+                if formatted != text { text = formatted }
+            }
             // Commit à chaque frappe (sans reformater) : si la vue est détruite
             // pendant la saisie (bascule compact/large au franchissement du
             // breakpoint), aucune saisie n'est perdue.
