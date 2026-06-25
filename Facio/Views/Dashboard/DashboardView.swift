@@ -36,7 +36,7 @@ struct DashboardView: View {
         let calendar = Calendar.current
         let now = Date()
         let documents = facturesPayees
-            .filter { calendar.isDate($0.dateCreation, equalTo: now, toGranularity: .month) }
+            .filter { calendar.isDate($0.revenueDate, equalTo: now, toGranularity: .month) }
         return AccountingRevenueService.summary(
             for: documents,
             referenceCurrency: accountingCurrency
@@ -48,7 +48,7 @@ struct DashboardView: View {
         let calendar = Calendar.current
         let now = Date()
         let documents = facturesPayees
-            .filter { calendar.isDate($0.dateCreation, equalTo: now, toGranularity: .year) }
+            .filter { calendar.isDate($0.revenueDate, equalTo: now, toGranularity: .year) }
         return AccountingRevenueService.summary(
             for: documents,
             referenceCurrency: accountingCurrency

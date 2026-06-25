@@ -501,6 +501,15 @@ struct DocumentEditorView: View {
                     set: { document.dateEcheance = $0; saveDocument() }
                 ), displayedComponents: .date)
             }
+            // Date d'encaissement : rattache le CA au bon mois. Visible seulement
+            // quand la facture est payée.
+            if document.status == .payee {
+                DatePicker(L10n.paymentDate(lang), selection: Binding(
+                    get: { document.datePaiement ?? document.dateCreation },
+                    set: { document.datePaiement = $0; saveDocument() }
+                ), displayedComponents: .date)
+                .tint(.intentSuccess)
+            }
         }
     }
 

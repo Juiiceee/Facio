@@ -88,6 +88,9 @@ final class Document: Identifiable, Codable, Hashable {
     var number: String = ""
     var dateCreation: Date = Date()
     var dateEcheance: Date = Date()
+    /// Date d'encaissement, renseignée quand la facture passe en « Payée ».
+    /// Sert à rattacher le CA au bon mois (encaissement). Nil tant que non payée.
+    var datePaiement: Date?
     var statusRawValue: String = "Brouillon"
     var currencyRawValue: String = "EUR"
     var blockchainRawValue: String?
@@ -156,8 +159,22 @@ final class Document: Identifiable, Codable, Hashable {
 
     var status: DocumentStatus {
         get { DocumentStatus(rawValue: statusRawValue) ?? .brouillon }
-        set { statusRawValue = newValue.rawValue }
+        set {
+            statusRawValue = newValue.rawValue
+            // Encaissement : on horodate le passage en « Payée » (sans écraser une
+            // date déjà saisie) et on l'efface si on quitte ce statut.
+            if newValue == .payee {
+                if datePaiement == nil { datePaiement = Date() }
+            } else {
+                datePaiement = nil
+            }
+        }
     }
+
+    /// Date rattachant le CA au bon mois : la date de paiement si renseignée,
+    /// sinon la date de création (rétro-compatibilité avec les factures payées
+    /// avant l'ajout du champ).
+    var revenueDate: Date { datePaiement ?? dateCreation }
 
     var currency: CurrencyType {
         get { decodedCurrency }
@@ -540,7 +557,7 @@ final class Document: Identifiable, Codable, Hashable {
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case id, typeRawValue, number, dateCreation, dateEcheance, statusRawValue
+        case id, typeRawValue, number, dateCreation, dateEcheance, datePaiement, statusRawValue
         case currencyRawValue, blockchainRawValue, paymentModeRawValue
         case accountingCurrencyRawValue, accountingExchangeRate, accountingExchangeRateDate
         case clientNom, clientAdresse, clientCodePostal, clientVille
@@ -562,6 +579,7 @@ final class Document: Identifiable, Codable, Hashable {
             default: Calendar.current.date(byAdding: .day, value: 30, to: dateCreation) ?? dateCreation
         )
         statusRawValue = try container.decodeOrDefault(String.self, forKey: .statusRawValue, default: DocumentStatus.brouillon.rawValue)
+        datePaiement = try container.decodeIfPresent(Date.self, forKey: .datePaiement)
         currencyRawValue = try container.decodeOrDefault(String.self, forKey: .currencyRawValue, default: CurrencyType.eur.rawValue)
         blockchainRawValue = try container.decodeIfPresent(String.self, forKey: .blockchainRawValue)
         paymentModeRawValue = try container.decodeOrDefault(String.self, forKey: .paymentModeRawValue, default: PaymentMode.aucun.rawValue)
@@ -599,6 +617,7 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encode(dateCreation, forKey: .dateCreation)
         try container.encode(dateEcheance, forKey: .dateEcheance)
         try container.encode(statusRawValue, forKey: .statusRawValue)
+        try container.encodeIfPresent(datePaiement, forKey: .datePaiement)
         try container.encode(currencyRawValue, forKey: .currencyRawValue)
         try container.encodeIfPresent(blockchainRawValue, forKey: .blockchainRawValue)
         try container.encode(paymentModeRawValue, forKey: .paymentModeRawValue)
