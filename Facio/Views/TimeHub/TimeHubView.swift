@@ -41,6 +41,7 @@ struct TimeHubView: View {
     var onOpenInvoice: (Document) -> Void = { _ in }
 
     @Environment(DataStore.self) private var dataStore
+    @Environment(PrivacyMode.self) private var privacy
 
     @State private var selectedTimesheetId: UUID?
     @State private var selectedSection: TimeHubSection = .overview
@@ -231,7 +232,7 @@ struct TimeHubView: View {
             )
             MetricTile(
                 title: L10n.estimatedAmount(lang),
-                value: currency.formatAccounting(stats.estimatedAmount, lang: numberFormat),
+                value: privacy.format(stats.estimatedAmount, currency, lang: numberFormat),
                 systemImage: "banknote",
                 color: Color.appPrimary(from: dataStore.companyInfo)
             )
@@ -490,7 +491,7 @@ struct TimeHubView: View {
             HStack {
                 Label(formatDuration(group.stats.totalSeconds), systemImage: "clock")
                 Spacer()
-                Text(currency.formatAccounting(group.stats.estimatedAmount, lang: numberFormat))
+                MoneyText(amount: group.stats.estimatedAmount, currency: currency, lang: numberFormat)
                     .font(FacioFont.metaValue)
                     .foregroundStyle(.secondary)
             }
@@ -648,7 +649,7 @@ struct TimeHubView: View {
                                 Text(formatDuration(group.stats.totalSeconds))
                                     .font(FacioFont.rowValue)
                                     .foregroundStyle(.secondary)
-                                Text(currency.formatAccounting(group.stats.estimatedAmount, lang: numberFormat))
+                                MoneyText(amount: group.stats.estimatedAmount, currency: currency, lang: numberFormat)
                                     .font(FacioFont.rowValue)
                                     .foregroundStyle(.secondary)
                                 Spacer()
@@ -743,7 +744,7 @@ struct TimeHubView: View {
                 Text(formatDuration(stats.totalSeconds))
                     .font(FacioFont.rowValue)
                     .fontWeight(.semibold)
-                Text(currency.formatAccounting(stats.estimatedAmount, lang: numberFormat))
+                MoneyText(amount: stats.estimatedAmount, currency: currency, lang: numberFormat)
                     .font(FacioFont.metaValue)
                     .foregroundStyle(.secondary)
             }
@@ -873,7 +874,7 @@ private struct TimeHubEntryRow: View {
                     .font(FacioFont.rowValue)
                     .fontWeight(.semibold)
                 if context.entry.isBillable {
-                    Text((context.entry.currencySnapshot ?? defaultCurrency).formatAccounting(context.estimatedAmount(at: now), lang: numberFormat))
+                    MoneyText(amount: context.estimatedAmount(at: now), currency: context.entry.currencySnapshot ?? defaultCurrency, lang: numberFormat)
                         .font(FacioFont.metaValue)
                         .foregroundStyle(.secondary)
                 }

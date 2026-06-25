@@ -47,6 +47,7 @@ extension L10n {
     static func noClientActivity(_ l: AppLanguage) -> String { l == .fr ? "Aucune activité pour ce client." : "No activity for this client." }
 
     static func commandPaletteTitle(_ l: AppLanguage) -> String { l == .fr ? "Commande rapide" : "Quick command" }
+    static func privacyToggle(_ l: AppLanguage) -> String { l == .fr ? "Masquer les montants" : "Hide amounts" }
     static func commandPalettePlaceholder(_ l: AppLanguage) -> String { l == .fr ? "Rechercher une action..." : "Search an action..." }
     static func openSettingsPayment(_ l: AppLanguage) -> String { l == .fr ? "Ouvrir les réglages de paiement" : "Open payment settings" }
     static func searchDocumentsAndClients(_ l: AppLanguage) -> String { l == .fr ? "Rechercher documents et clients" : "Search documents and clients" }

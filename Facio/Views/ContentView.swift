@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(DataStore.self) private var dataStore
+    @Environment(PrivacyMode.self) private var privacy
     @State private var selectedSection: SidebarSection? = .dashboard
     @State private var selectedDocumentId: UUID?
     @State private var selectedTimesheetId: UUID?
@@ -123,6 +124,14 @@ struct ContentView: View {
                 }
                 .keyboardShortcut("k", modifiers: .command)
                 .help(L10n.commandPaletteTitle(lang))
+
+                Button {
+                    privacy.toggle()
+                } label: {
+                    Label(L10n.privacyToggle(lang), systemImage: privacy.hideAmounts ? "eye.slash" : "eye")
+                }
+                .keyboardShortcut("h", modifiers: [.command, .shift])
+                .help(L10n.privacyToggle(lang))
             }
         }
         .onChange(of: selectedSection) { _, newSection in

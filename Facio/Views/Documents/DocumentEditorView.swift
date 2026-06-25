@@ -237,7 +237,7 @@ struct DocumentEditorView: View {
             Text(L10n.totalTTC(lang))
                 .font(FacioFont.caption)
                 .foregroundStyle(.secondary)
-            Text(document.currency.formatAccounting(document.totalTTC, lang: dataStore.companyInfo.formatNombre))
+            MoneyText(amount: document.totalTTC, currency: document.currency, lang: dataStore.companyInfo.formatNombre)
                 .font(FacioFont.heroTotal)
                 .lineLimit(1)
                 .minimumScaleFactor(0.65)
@@ -622,7 +622,7 @@ struct DocumentEditorView: View {
 
                     if let total = document.accountingTotal(referenceCurrency: referenceCurrency) {
                         LabeledField(L10n.accountingTotal(lang)) {
-                            Text(referenceCurrency.formatAccounting(total, lang: dataStore.companyInfo.formatNombre))
+                            MoneyText(amount: total, currency: referenceCurrency, lang: dataStore.companyInfo.formatNombre)
                                 .font(.headline.monospacedDigit())
                         }
                     }

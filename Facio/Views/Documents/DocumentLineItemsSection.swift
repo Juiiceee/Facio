@@ -25,6 +25,7 @@ struct DocumentLineItemsSection: View {
     let onSave: () -> Void
 
     @Environment(\.facioContainerWidth) private var containerWidth
+    @Environment(PrivacyMode.self) private var privacy
 
     /// Bascule en disposition compacte (ligne sur deux niveaux) quand la largeur
     /// ne permet plus les colonnes fixes + une désignation lisible (≈ 620 pt).
@@ -122,7 +123,7 @@ struct DocumentLineItemsSection: View {
                             HStack {
                                 Text(preset.designation)
                                 Spacer()
-                                Text("\(document.currency.formatAccounting(preset.prixUnitaire, lang: company.formatNombre))/\(L10n.unitShort(lang))")
+                                Text("\(privacy.format(preset.prixUnitaire, document.currency, lang: company.formatNombre))/\(L10n.unitShort(lang))")
                                     .foregroundStyle(.secondary)
                             }
                         }

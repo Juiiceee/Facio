@@ -5,6 +5,7 @@ struct DashboardView: View {
     var onSelectTimesheet: (TimesheetPeriod) -> Void = { _ in }
 
     @Environment(DataStore.self) private var dataStore
+    @Environment(PrivacyMode.self) private var privacy
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
     private var dateFormat: AppLanguage { dataStore.companyInfo.formatDate }
@@ -106,21 +107,21 @@ struct DashboardView: View {
                 ], spacing: FacioLayout.space16) {
                     MetricTile(
                         title: L10n.revenueThisMonth(lang),
-                        value: accountingCurrency.formatAccounting(caMoisEnCours.total, lang: numberFormat),
+                        value: privacy.format(caMoisEnCours.total, accountingCurrency, lang: numberFormat),
                         subtitle: missingConversionSubtitle(caMoisEnCours),
                         systemImage: "chart.line.uptrend.xyaxis",
                         color: .appRevenue
                     )
                     MetricTile(
                         title: L10n.revenueThisYear(lang),
-                        value: accountingCurrency.formatAccounting(caAnneeEnCours.total, lang: numberFormat),
+                        value: privacy.format(caAnneeEnCours.total, accountingCurrency, lang: numberFormat),
                         subtitle: missingConversionSubtitle(caAnneeEnCours),
                         systemImage: "chart.bar.fill",
                         color: .appRevenue
                     )
                     MetricTile(
                         title: L10n.pending(lang),
-                        value: accountingCurrency.formatAccounting(montantEnAttente.total, lang: numberFormat),
+                        value: privacy.format(montantEnAttente.total, accountingCurrency, lang: numberFormat),
                         subtitle: pendingSubtitle,
                         systemImage: "clock.fill",
                         color: .appPending
@@ -291,7 +292,7 @@ struct DashboardView: View {
 
             Spacer(minLength: FacioLayout.space10)
 
-            Text(doc.currency.formatAccounting(doc.totalTTC, lang: numberFormat))
+            MoneyText(amount: doc.totalTTC, currency: doc.currency, lang: numberFormat)
                 .font(FacioFont.amount)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)

@@ -308,7 +308,7 @@ struct DocumentRowView: View {
 
             Spacer(minLength: 8)
 
-            Text(document.currency.formatAccounting(document.totalTTC, lang: numberFormat))
+            MoneyText(amount: document.totalTTC, currency: document.currency, lang: numberFormat)
                 .font(FacioFont.amount)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)

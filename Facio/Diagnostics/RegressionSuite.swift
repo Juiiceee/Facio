@@ -198,8 +198,25 @@ enum FacioRegressionSuite {
         RegressionCase(name: "sheet minimums fit inside minimum window", run: sheetMinimumsFitInsideMinimumWindow),
         RegressionCase(name: "color tokens resolve differently in dark mode", run: colorTokensResolveDifferentlyInDarkMode),
         RegressionCase(name: "payment date stamps on paid and feeds revenue month", run: paymentDateStampsOnPaidAndFeedsRevenueMonth),
-        RegressionCase(name: "document filter status categories are mutually exclusive", run: documentFilterStatusCategoriesAreMutuallyExclusive)
+        RegressionCase(name: "document filter status categories are mutually exclusive", run: documentFilterStatusCategoriesAreMutuallyExclusive),
+        RegressionCase(name: "privacy mode masks amounts", run: privacyModeMasksAmounts)
     ]
+
+    /// Mode confidentialité : `format` renvoie le montant formaté quand visible,
+    /// et le masque `••••` quand `hideAmounts` est actif.
+    private static func privacyModeMasksAmounts() throws {
+        let amount = Decimal(1000)
+        let privacy = PrivacyMode()
+
+        privacy.hideAmounts = false
+        try expectEqual(privacy.format(amount, .eur, lang: .fr), CurrencyType.eur.formatAccounting(amount, lang: .fr))
+
+        privacy.hideAmounts = true
+        try expectEqual(privacy.format(amount, .eur, lang: .fr), PrivacyMode.placeholder)
+        try expectEqual(privacy.format(Decimal(0), .usd, lang: .en), PrivacyMode.placeholder)
+
+        privacy.hideAmounts = false // ne pas laisser le réglage persisté à « masqué »
+    }
 
     /// Encaissement : passer en « Payée » horodate `datePaiement` (revenueDate),
     /// quitter ce statut l'efface, et un ancien payload (sans le champ) retombe
