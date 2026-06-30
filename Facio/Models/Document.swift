@@ -88,13 +88,13 @@ final class Document: Identifiable, Codable, Hashable {
     var number: String = ""
     var dateCreation: Date = Date()
     var dateEcheance: Date = Date()
-    /// Date d'encaissement, renseignée quand la facture passe en « Payée » ou
-    /// « Partiel ». Sert à rattacher le CA au bon mois (encaissement). Nil tant
-    /// que non encaissée.
+    /// Date d'encaissement de la facture soldée (statut « Payée »). Sert à
+    /// rattacher le CA au bon mois. Nil tant que la facture n'est pas payée. Les
+    /// factures partielles datent chaque versement via `paiementsPartiels`.
     var datePaiement: Date?
-    /// Montant déjà encaissé quand la facture est en « Partiel » (acompte cumulé,
-    /// dans la devise du document). Nil hors statut partiel.
-    var montantPaye: Decimal?
+    /// Journal des versements partiels (statut « Partiel ») : chaque versement
+    /// porte son montant et sa date. Vide hors statut partiel.
+    var paiementsPartiels: [PartialPayment] = []
     var statusRawValue: String = "Brouillon"
     var currencyRawValue: String = "EUR"
     var blockchainRawValue: String?
@@ -165,24 +165,33 @@ final class Document: Identifiable, Codable, Hashable {
         get { DocumentStatus(rawValue: statusRawValue) ?? .brouillon }
         set {
             let previous = DocumentStatus(rawValue: statusRawValue) ?? .brouillon
-            statusRawValue = newValue.rawValue
-            // Encaissement : on horodate le passage en « Payée »/« Partiel » (sans
-            // écraser une date déjà saisie). On efface la date — et l'acompte — dès
-            // qu'on quitte un statut encaissé.
             switch newValue {
             case .payee:
-                // Régler intégralement = encaissement du solde à cette date. On
-                // (re)horodate à l'instant du règlement, y compris depuis « Partiel »
-                // (sinon le solde resterait rattaché au mois de l'acompte), et on
-                // solde l'acompte (la facture est entièrement réglée).
-                if datePaiement == nil || previous == .partiel { datePaiement = Date() }
-                montantPaye = nil
+                if previous == .partiel {
+                    // Solder depuis « Partiel » : on enregistre le reliquat éventuel
+                    // comme dernier versement daté du jour et on CONSERVE le journal
+                    // daté — le CA garde l'attribution mois par mois des encaissements
+                    // (re-dater l'ensemble effacerait l'historique des versements).
+                    paiementsPartiels.removeAll { $0.montant == 0 }
+                    let collected = min(max(montantPaye, 0), totalTTC)
+                    let remaining = totalTTC - collected
+                    if remaining > 0 {
+                        paiementsPartiels.append(PartialPayment(montant: remaining, date: Date()))
+                    }
+                    datePaiement = paiementsPartiels.map(\.date).max()
+                } else {
+                    // Encaissement en une fois : on horodate le règlement.
+                    if datePaiement == nil { datePaiement = Date() }
+                    paiementsPartiels = []
+                }
             case .partiel:
-                if datePaiement == nil { datePaiement = Date() }
+                // Les dates d'encaissement vivent dans le journal des versements.
+                datePaiement = nil
             default:
                 datePaiement = nil
-                montantPaye = nil
+                paiementsPartiels = []
             }
+            statusRawValue = newValue.rawValue
         }
     }
 
@@ -191,18 +200,41 @@ final class Document: Identifiable, Codable, Hashable {
     /// avant l'ajout du champ).
     var revenueDate: Date { datePaiement ?? dateCreation }
 
-    /// Montant réellement encaissé pour le CA : le total pour une facture payée,
-    /// l'acompte (borné à [0, TTC]) pour une facture partielle, 0 sinon.
+    /// Somme brute des versements partiels saisis (devise du document).
+    var montantPaye: Decimal { paiementsPartiels.reduce(Decimal.zero) { $0 + $1.montant } }
+
+    /// Versements datés effectivement comptés, plafonnés **cumulativement** à
+    /// [0, TTC] dans l'ordre chronologique : un trop-perçu ne gonfle pas le CA et
+    /// un versement nul/négatif est ignoré. Chaque versement conserve sa date.
+    /// Source unique de l'encaissement (montant + ventilation mensuelle).
+    private var datedCashContributions: [(date: Date, amount: Decimal)] {
+        var remaining = totalTTC
+        var result: [(date: Date, amount: Decimal)] = []
+        for payment in paiementsPartiels.sorted(by: { $0.date < $1.date }) {
+            guard remaining > 0 else { break }
+            guard payment.montant > 0 else { continue }
+            let amount = min(payment.montant, remaining)
+            remaining -= amount
+            result.append((date: payment.date, amount: amount))
+        }
+        return result
+    }
+
+    /// Montant réellement encaissé pour le CA : le total pour une facture payée
+    /// en une fois, sinon la somme (plafonnée à TTC) des versements enregistrés.
     var montantEncaisse: Decimal {
         switch status {
-        case .payee: return totalTTC
-        case .partiel: return min(max(montantPaye ?? 0, 0), totalTTC)
-        default: return 0
+        case .payee where paiementsPartiels.isEmpty:
+            return totalTTC
+        case .payee, .partiel:
+            return datedCashContributions.reduce(Decimal.zero) { $0 + $1.amount }
+        default:
+            return 0
         }
     }
 
-    /// Solde restant dû. Complémentaire de `montantEncaisse` (acompte borné à
-    /// [0, TTC]), donc toujours dans [0, TTC] : encaissé + restant == TTC.
+    /// Solde restant dû. Complémentaire de `montantEncaisse` (borné à [0, TTC]),
+    /// donc toujours dans [0, TTC] : encaissé + restant == TTC.
     var resteAPayer: Decimal { totalTTC - montantEncaisse }
 
     /// Montant encore attendu pour le « Montant en attente » du tableau de bord :
@@ -212,6 +244,23 @@ final class Document: Identifiable, Codable, Hashable {
         case .envoyee: return totalTTC
         case .partiel: return resteAPayer
         default: return 0
+        }
+    }
+
+    /// Encaissements datés convertis en devise comptable, pour ventiler le CA par
+    /// mois : une facture soldée par versements (ou partielle) compte chaque
+    /// versement à sa propre date ; une facture payée en une fois compte son total
+    /// à sa date de paiement. `amount` vaut `nil` quand la conversion manque.
+    func accountingCashEvents(referenceCurrency: CurrencyType) -> [(date: Date, amount: Decimal?)] {
+        switch status {
+        case .payee where paiementsPartiels.isEmpty:
+            return [(revenueDate, convertedToAccounting(totalTTC, referenceCurrency: referenceCurrency))]
+        case .payee, .partiel:
+            return datedCashContributions.map {
+                (date: $0.date, amount: convertedToAccounting($0.amount, referenceCurrency: referenceCurrency))
+            }
+        default:
+            return []
         }
     }
 
@@ -613,7 +662,7 @@ final class Document: Identifiable, Codable, Hashable {
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case id, typeRawValue, number, dateCreation, dateEcheance, datePaiement, montantPaye, statusRawValue
+        case id, typeRawValue, number, dateCreation, dateEcheance, datePaiement, paiementsPartiels, statusRawValue
         case currencyRawValue, blockchainRawValue, paymentModeRawValue
         case accountingCurrencyRawValue, accountingExchangeRate, accountingExchangeRateDate
         case clientNom, clientAdresse, clientCodePostal, clientVille
@@ -636,7 +685,7 @@ final class Document: Identifiable, Codable, Hashable {
         )
         statusRawValue = try container.decodeOrDefault(String.self, forKey: .statusRawValue, default: DocumentStatus.brouillon.rawValue)
         datePaiement = try container.decodeIfPresent(Date.self, forKey: .datePaiement)
-        montantPaye = try container.decodeIfPresent(Decimal.self, forKey: .montantPaye)
+        paiementsPartiels = try container.decodeOrDefault([PartialPayment].self, forKey: .paiementsPartiels, default: [])
         currencyRawValue = try container.decodeOrDefault(String.self, forKey: .currencyRawValue, default: CurrencyType.eur.rawValue)
         blockchainRawValue = try container.decodeIfPresent(String.self, forKey: .blockchainRawValue)
         paymentModeRawValue = try container.decodeOrDefault(String.self, forKey: .paymentModeRawValue, default: PaymentMode.aucun.rawValue)
@@ -675,7 +724,7 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encode(dateEcheance, forKey: .dateEcheance)
         try container.encode(statusRawValue, forKey: .statusRawValue)
         try container.encodeIfPresent(datePaiement, forKey: .datePaiement)
-        try container.encodeIfPresent(montantPaye, forKey: .montantPaye)
+        try container.encode(paiementsPartiels, forKey: .paiementsPartiels)
         try container.encode(currencyRawValue, forKey: .currencyRawValue)
         try container.encodeIfPresent(blockchainRawValue, forKey: .blockchainRawValue)
         try container.encode(paymentModeRawValue, forKey: .paymentModeRawValue)

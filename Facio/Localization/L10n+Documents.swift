@@ -15,6 +15,9 @@ extension L10n {
     static func paymentDate(_ l: AppLanguage) -> String { l == .fr ? "Date de paiement" : "Payment date" }
     static func amountPaid(_ l: AppLanguage) -> String { l == .fr ? "Montant payé" : "Amount paid" }
     static func remainingToPay(_ l: AppLanguage) -> String { l == .fr ? "Reste à payer" : "Remaining to pay" }
+    static func partialPayments(_ l: AppLanguage) -> String { l == .fr ? "Paiements partiels" : "Partial payments" }
+    static func addPartialPayment(_ l: AppLanguage) -> String { l == .fr ? "Ajouter un paiement" : "Add a payment" }
+    static func noPartialPayments(_ l: AppLanguage) -> String { l == .fr ? "Aucun paiement enregistré." : "No payment recorded yet." }
 
     // Devise & Paiement
     static func currencyPayment(_ l: AppLanguage) -> String { l == .fr ? "Devise & Paiement" : "Currency & Payment" }

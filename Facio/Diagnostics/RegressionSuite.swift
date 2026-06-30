@@ -199,6 +199,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "color tokens resolve differently in dark mode", run: colorTokensResolveDifferentlyInDarkMode),
         RegressionCase(name: "payment date stamps on paid and feeds revenue month", run: paymentDateStampsOnPaidAndFeedsRevenueMonth),
         RegressionCase(name: "partial status computes reste à payer", run: partialStatusComputesResteAPayer),
+        RegressionCase(name: "partial payments bucket cash by payment date", run: partialPaymentsBucketCashByPaymentDate),
         RegressionCase(name: "document decodes old payload without partial-payment fields", run: documentDecodesOldPayloadWithoutPartialPaymentFields),
         RegressionCase(name: "document filter status categories are mutually exclusive", run: documentFilterStatusCategoriesAreMutuallyExclusive),
         RegressionCase(name: "privacy mode masks amounts", run: privacyModeMasksAmounts)
@@ -254,50 +255,89 @@ enum FacioRegressionSuite {
         try expectEqual(decoded.revenueDate, decoded.dateCreation)
     }
 
-    /// Le statut « Partiel » horodate l'encaissement, calcule le reste à payer
-    /// (borné à [0, TTC]) et n'expose que la part encaissée au CA. Solder en
-    /// « Payée » efface l'acompte ; revenir à un statut non encaissé efface tout.
+    /// Le journal des versements partiels somme les encaissements, calcule le
+    /// reste à payer (borné à [0, TTC]) et n'expose que la part reçue au CA.
+    /// Solder en « Payée » vide le journal et re-horodate ; quitter un statut
+    /// encaissé efface tout.
     private static func partialStatusComputesResteAPayer() throws {
         let doc = Document(type: .facture, number: "F1")
         doc.ajouterLigne(LineItem(quantite: decimal("1000"), prixUnitaire: decimal("1")))
         try expectDecimal(doc.totalTTC, equals: "1000")
 
-        // Passage en partiel : horodate l'encaissement.
         doc.status = .partiel
-        let stamped = try require(doc.datePaiement, "partial must stamp datePaiement")
-        try expectEqual(doc.revenueDate, stamped)
+        try expectDecimal(doc.montantEncaisse, equals: "0")
+        try expectDecimal(doc.resteAPayer, equals: "1000")
 
-        doc.montantPaye = decimal("400")
-        try expectDecimal(doc.resteAPayer, equals: "600")
-        try expectDecimal(doc.montantEncaisse, equals: "400")
+        // Plusieurs versements : la somme alimente l'encaissé, le reste suit.
+        doc.paiementsPartiels = [
+            PartialPayment(montant: decimal("400"), date: date("2026-03-15")),
+            PartialPayment(montant: decimal("150"), date: date("2026-04-10")),
+        ]
+        try expectDecimal(doc.montantPaye, equals: "550")
+        try expectDecimal(doc.montantEncaisse, equals: "550")
+        try expectDecimal(doc.resteAPayer, equals: "450")
+        try expectDecimal(doc.montantEncaisse + doc.resteAPayer, equals: "1000")
         let paid = try require(doc.accountingPaidTotal(referenceCurrency: doc.currency), "same-currency paid")
-        try expectDecimal(paid, equals: "400")
+        try expectDecimal(paid, equals: "550")
         let outstanding = try require(doc.accountingOutstandingTotal(referenceCurrency: doc.currency), "same-currency outstanding")
-        try expectDecimal(outstanding, equals: "600")
+        try expectDecimal(outstanding, equals: "450")
 
-        // Encaissé + restant == TTC, même pour un acompte supérieur au total
-        // (encaissé borné au TTC, restant jamais négatif).
-        doc.montantPaye = decimal("1500")
+        // Sur-paiement : encaissé borné au TTC, restant jamais négatif.
+        doc.paiementsPartiels.append(PartialPayment(montant: decimal("900"), date: date("2026-05-01")))
         try expectDecimal(doc.montantEncaisse, equals: "1000")
         try expectDecimal(doc.resteAPayer, equals: "0")
 
-        // Solder la facture efface l'acompte, encaisse le total et re-horodate le
-        // règlement (le solde ne doit pas rester rattaché au mois de l'acompte).
-        doc.montantPaye = decimal("400")
-        let acompteDate = Calendar.current.date(byAdding: .month, value: -2, to: Date())!
-        doc.datePaiement = acompteDate
+        // Solder depuis « Partiel » : on enregistre le reliquat comme dernier
+        // versement (daté du jour) et on CONSERVE le journal daté — l'acompte de
+        // mars n'est pas re-daté, le CA garde son attribution mensuelle.
+        doc.paiementsPartiels = [PartialPayment(montant: decimal("400"), date: date("2026-03-15"))]
         doc.status = .payee
-        try expectEqual(doc.montantPaye, nil)
+        try expect(doc.paiementsPartiels.count == 2, "settling keeps the ledger and records the balance")
         try expectDecimal(doc.montantEncaisse, equals: "1000")
-        try expect(doc.datePaiement != acompteDate, "settling a partial invoice re-stamps the payment date")
+        try expectDecimal(doc.resteAPayer, equals: "0")
+        let settledEvents = doc.accountingCashEvents(referenceCurrency: doc.currency)
+        let marchAfterSettle = try require(
+            settledEvents.first(where: { Calendar.current.isDate($0.date, equalTo: date("2026-03-01"), toGranularity: .month) }),
+            "the March installment keeps its date after settling"
+        )
+        try expectDecimal(try require(marchAfterSettle.amount, "march amount"), equals: "400")
 
-        // Quitter un statut encaissé efface date d'encaissement et acompte.
-        doc.status = .partiel
-        doc.montantPaye = decimal("400")
+        // Quitter un statut encaissé efface date et journal.
         doc.status = .brouillon
         try expectEqual(doc.datePaiement, nil)
-        try expectEqual(doc.montantPaye, nil)
+        try expect(doc.paiementsPartiels.isEmpty, "leaving a cash status clears the ledger")
         try expectDecimal(doc.montantEncaisse, equals: "0")
+    }
+
+    /// Chaque versement partiel alimente le CA à sa propre date (un acompte de
+    /// mars et un solde de juin ne tombent pas dans le même mois). Un versement
+    /// nul ne crée pas d'événement (donc pas de fausse conversion manquante).
+    private static func partialPaymentsBucketCashByPaymentDate() throws {
+        let doc = Document(type: .facture, number: "F1")
+        doc.ajouterLigne(LineItem(quantite: decimal("1000"), prixUnitaire: decimal("1"))) // EUR
+        doc.status = .partiel
+        doc.paiementsPartiels = [
+            PartialPayment(montant: decimal("400"), date: date("2026-03-15")),
+            PartialPayment(montant: decimal("600"), date: date("2026-06-20")),
+        ]
+
+        let events = doc.accountingCashEvents(referenceCurrency: .eur)
+        try expectEqual(events.count, 2)
+        let calendar = Calendar.current
+        let marchEvent = try require(
+            events.first(where: { calendar.isDate($0.date, equalTo: date("2026-03-01"), toGranularity: .month) }),
+            "a cash event must fall in March"
+        )
+        try expectDecimal(try require(marchEvent.amount, "March amount converts in same currency"), equals: "400")
+        let juneEvent = try require(
+            events.first(where: { calendar.isDate($0.date, equalTo: date("2026-06-01"), toGranularity: .month) }),
+            "a cash event must fall in June"
+        )
+        try expectDecimal(try require(juneEvent.amount, "June amount converts in same currency"), equals: "600")
+
+        // Un versement nul n'est pas un encaissement.
+        doc.paiementsPartiels.append(PartialPayment(montant: 0, date: date("2026-07-01")))
+        try expectEqual(doc.accountingCashEvents(referenceCurrency: .eur).count, 2)
     }
 
     /// Le filtre de liste traite « En retard » comme une catégorie distincte
@@ -615,20 +655,24 @@ enum FacioRegressionSuite {
     private static func documentDecodesOldPayloadWithoutPartialPaymentFields() throws {
         let legacy = Data(#"{"typeRawValue":"Facture","statusRawValue":"Payée"}"#.utf8)
         let document = try JSONDecoder().decode(Document.self, from: legacy)
-        try expect(document.montantPaye == nil, "old payload should not invent a paid amount")
+        try expect(document.paiementsPartiels.isEmpty, "old payload should not invent partial payments")
         try expectEqual(document.status, .payee)
         try expectDecimal(document.resteAPayer, equals: "0")
 
-        // Round-trip du nouveau statut + acompte.
+        // Round-trip du nouveau journal de versements.
         let partial = Document(type: .facture, number: "F1")
         partial.ajouterLigne(LineItem(quantite: decimal("1000"), prixUnitaire: decimal("1")))
         partial.status = .partiel
-        partial.montantPaye = decimal("250")
+        partial.paiementsPartiels = [
+            PartialPayment(montant: decimal("250"), date: date("2026-02-01")),
+            PartialPayment(montant: decimal("100"), date: date("2026-03-01")),
+        ]
         let data = try JSONEncoder().encode(partial)
         let decoded = try JSONDecoder().decode(Document.self, from: data)
         try expectEqual(decoded.status, .partiel)
-        try expectDecimal(try require(decoded.montantPaye, "encoded paid amount survives"), equals: "250")
-        try expectDecimal(decoded.resteAPayer, equals: "750")
+        try expectEqual(decoded.paiementsPartiels.count, 2)
+        try expectDecimal(decoded.montantPaye, equals: "350")
+        try expectDecimal(decoded.resteAPayer, equals: "650")
     }
 
     private static func sentInvoicesBecomeOverdueAfterDueDate() throws {

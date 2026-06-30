@@ -470,6 +470,10 @@ struct DocumentEditorView: View {
                             if newStatus == .envoyee {
                                 _ = document.freezePaymentSnapshot(from: company)
                             }
+                            // Premier versement prêt à saisir dès qu'on passe en partiel.
+                            if newStatus == .partiel && document.paiementsPartiels.isEmpty {
+                                document.paiementsPartiels.append(PartialPayment())
+                            }
                             prepareAccountingConversionIfNeeded()
                             saveDocument()
                             if newStatus == .payee && document.currency.isCrypto
@@ -517,45 +521,107 @@ struct DocumentEditorView: View {
                     set: { document.dateEcheance = $0; saveDocument() }
                 ), displayedComponents: .date)
             }
-            // Date d'encaissement : rattache le CA au bon mois. Visible quand la
-            // facture est payée ou partiellement réglée.
-            if document.status == .payee || document.status == .partiel {
+            // Date d'encaissement (facture payée en une fois) : rattache le CA au
+            // bon mois. Une facture soldée par versements montre son journal.
+            if document.status == .payee && document.paiementsPartiels.isEmpty {
                 DatePicker(L10n.paymentDate(lang), selection: Binding(
                     get: { document.datePaiement ?? document.dateCreation },
                     set: { document.datePaiement = $0; saveDocument() }
                 ), displayedComponents: .date)
-                .tint(document.status == .partiel ? .intentInfo : .intentSuccess)
+                .tint(.intentSuccess)
             }
-            // Paiement partiel : acompte encaissé saisi + reste à payer calculé.
-            if document.status == .partiel {
-                HStack(alignment: .top, spacing: FacioLayout.space24) {
-                    LabeledField(L10n.amountPaid(lang)) {
+            // Journal des versements : statut partiel, ou facture soldée par
+            // versements successifs.
+            if document.status == .partiel || (document.status == .payee && !document.paiementsPartiels.isEmpty) {
+                partialPaymentsEditor
+            }
+        }
+    }
+
+    // MARK: - Paiements partiels
+
+    private var partialPaymentsEditor: some View {
+        VStack(alignment: .leading, spacing: FacioLayout.space8) {
+            subsectionHeader(L10n.partialPayments(lang))
+
+            if document.paiementsPartiels.isEmpty {
+                Text(L10n.noPartialPayments(lang))
+                    .font(FacioFont.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(document.paiementsPartiels) { payment in
+                    HStack(spacing: FacioLayout.space12) {
+                        DatePicker("", selection: paymentDateBinding(payment), displayedComponents: .date)
+                            .labelsHidden()
+                            .tint(.intentInfo)
                         HStack(spacing: FacioLayout.space8) {
                             DecimalField(
                                 placeholder: "0",
-                                value: Binding(
-                                    get: { document.montantPaye ?? 0 },
-                                    set: { document.montantPaye = $0; saveDocument() }
-                                ),
+                                value: paymentAmountBinding(payment),
                                 maximumFractionDigits: document.currency.maximumFractionDigits,
                                 format: dataStore.companyInfo.formatNombre
                             )
                             .density(.regular)
-                            .frame(maxWidth: 160)
+                            .frame(maxWidth: 140)
                             Text(document.currency.label)
                                 .foregroundStyle(.secondary)
                         }
-                    }
-                    LabeledField(L10n.remainingToPay(lang)) {
-                        MoneyText(
-                            amount: document.resteAPayer,
-                            currency: document.currency,
-                            lang: dataStore.companyInfo.formatNombre
-                        )
+                        Button(role: .destructive) {
+                            document.paiementsPartiels.removeAll { $0.id == payment.id }
+                            saveDocument()
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.secondary)
+                        .help(L10n.delete(lang))
                     }
                 }
             }
+
+            Button {
+                document.paiementsPartiels.append(PartialPayment())
+                saveDocument()
+            } label: {
+                Label(L10n.addPartialPayment(lang), systemImage: "plus.circle")
+            }
+            .buttonStyle(.borderless)
+            .tint(.intentInfo)
+
+            Divider().padding(.vertical, FacioLayout.space4)
+
+            HStack(spacing: FacioLayout.space24) {
+                LabeledField(L10n.amountPaid(lang)) {
+                    MoneyText(amount: document.montantEncaisse, currency: document.currency, lang: dataStore.companyInfo.formatNombre)
+                }
+                LabeledField(L10n.remainingToPay(lang)) {
+                    MoneyText(amount: document.resteAPayer, currency: document.currency, lang: dataStore.companyInfo.formatNombre)
+                        .foregroundStyle(document.resteAPayer == 0 ? Color.intentSuccess : Color.intentInfo)
+                }
+            }
         }
+    }
+
+    private func paymentDateBinding(_ payment: PartialPayment) -> Binding<Date> {
+        Binding(
+            get: { document.paiementsPartiels.first(where: { $0.id == payment.id })?.date ?? payment.date },
+            set: { newValue in
+                guard let index = document.paiementsPartiels.firstIndex(where: { $0.id == payment.id }) else { return }
+                document.paiementsPartiels[index].date = newValue
+                saveDocument()
+            }
+        )
+    }
+
+    private func paymentAmountBinding(_ payment: PartialPayment) -> Binding<Decimal> {
+        Binding(
+            get: { document.paiementsPartiels.first(where: { $0.id == payment.id })?.montant ?? payment.montant },
+            set: { newValue in
+                guard let index = document.paiementsPartiels.firstIndex(where: { $0.id == payment.id }) else { return }
+                document.paiementsPartiels[index].montant = newValue
+                saveDocument()
+            }
+        )
     }
 
     // MARK: - Devise & Mode de paiement

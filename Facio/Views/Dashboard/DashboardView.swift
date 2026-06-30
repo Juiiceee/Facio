@@ -24,11 +24,10 @@ struct DashboardView: View {
         allDocuments.filter { $0.type == .devis }
     }
 
-    // Factures dont une part est encaissée (payées + partielles avec acompte) :
-    // elles alimentent le CA, à hauteur du montant réellement reçu. Une partielle
-    // sans acompte (0 reçu) est exclue pour ne pas fausser comptes et conversions.
+    // Factures dont une part est encaissée (payées + partielles) : elles
+    // alimentent le CA à hauteur des encaissements, chacun rattaché à sa date.
     private var facturesEncaissees: [Document] {
-        factures.filter { $0.status == .payee || ($0.status == .partiel && $0.montantEncaisse > 0) }
+        factures.filter { $0.status == .payee || $0.status == .partiel }
     }
 
     private var facturesEnAttente: [Document] {
@@ -41,31 +40,33 @@ struct DashboardView: View {
         factures.filter { $0.status == .envoyee || ($0.status == .partiel && $0.resteAPayer > 0) }
     }
 
-    // CA du mois en cours
-    private var caMoisEnCours: AccountingRevenueSummary {
+    /// CA d'une période : on ventile chaque encaissement (total d'une facture
+    /// payée, ou chaque versement d'une partielle) dans son propre mois/année.
+    private func caSummary(toGranularity granularity: Calendar.Component) -> AccountingRevenueSummary {
         let calendar = Calendar.current
         let now = Date()
-        let documents = facturesEncaissees
-            .filter { calendar.isDate($0.revenueDate, equalTo: now, toGranularity: .month) }
-        return AccountingRevenueService.summary(
-            for: documents,
-            referenceCurrency: accountingCurrency,
-            amount: { $0.accountingPaidTotal(referenceCurrency: $1) }
-        )
+        var summary = AccountingRevenueSummary()
+        for facture in facturesEncaissees {
+            var missingConversion = false
+            for event in facture.accountingCashEvents(referenceCurrency: accountingCurrency)
+            where calendar.isDate(event.date, equalTo: now, toGranularity: granularity) {
+                if let amount = event.amount {
+                    summary.total += amount
+                    summary.convertedCount += 1
+                } else {
+                    missingConversion = true
+                }
+            }
+            if missingConversion { summary.missingConversionCount += 1 }
+        }
+        return summary
     }
 
+    // CA du mois en cours
+    private var caMoisEnCours: AccountingRevenueSummary { caSummary(toGranularity: .month) }
+
     // CA de l'annee en cours
-    private var caAnneeEnCours: AccountingRevenueSummary {
-        let calendar = Calendar.current
-        let now = Date()
-        let documents = facturesEncaissees
-            .filter { calendar.isDate($0.revenueDate, equalTo: now, toGranularity: .year) }
-        return AccountingRevenueService.summary(
-            for: documents,
-            referenceCurrency: accountingCurrency,
-            amount: { $0.accountingPaidTotal(referenceCurrency: $1) }
-        )
-    }
+    private var caAnneeEnCours: AccountingRevenueSummary { caSummary(toGranularity: .year) }
 
     // Montant en attente (solde restant dû, partielles incluses)
     private var montantEnAttente: AccountingRevenueSummary {

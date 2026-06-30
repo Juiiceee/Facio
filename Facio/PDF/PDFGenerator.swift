@@ -593,7 +593,7 @@ struct PDFGenerator {
         // Le restant est calculé sur le TTC affiché pour rester cohérent au centime.
         if document.status == .partiel {
             cy += 6
-            let paid = max(0, min(document.montantPaye ?? 0, totals.totalTTC))
+            let paid = min(document.montantEncaisse, totals.totalTTC)
             let reste = totals.totalTTC - paid
             drawTextRight(L10n.amountPaid(lang), rightX: labelRight, y: cy,
                           font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
