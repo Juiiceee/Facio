@@ -517,14 +517,43 @@ struct DocumentEditorView: View {
                     set: { document.dateEcheance = $0; saveDocument() }
                 ), displayedComponents: .date)
             }
-            // Date d'encaissement : rattache le CA au bon mois. Visible seulement
-            // quand la facture est payée.
-            if document.status == .payee {
+            // Date d'encaissement : rattache le CA au bon mois. Visible quand la
+            // facture est payée ou partiellement réglée.
+            if document.status == .payee || document.status == .partiel {
                 DatePicker(L10n.paymentDate(lang), selection: Binding(
                     get: { document.datePaiement ?? document.dateCreation },
                     set: { document.datePaiement = $0; saveDocument() }
                 ), displayedComponents: .date)
-                .tint(.intentSuccess)
+                .tint(document.status == .partiel ? .intentInfo : .intentSuccess)
+            }
+            // Paiement partiel : acompte encaissé saisi + reste à payer calculé.
+            if document.status == .partiel {
+                HStack(alignment: .top, spacing: FacioLayout.space24) {
+                    LabeledField(L10n.amountPaid(lang)) {
+                        HStack(spacing: FacioLayout.space8) {
+                            DecimalField(
+                                placeholder: "0",
+                                value: Binding(
+                                    get: { document.montantPaye ?? 0 },
+                                    set: { document.montantPaye = $0; saveDocument() }
+                                ),
+                                maximumFractionDigits: document.currency.maximumFractionDigits,
+                                format: dataStore.companyInfo.formatNombre
+                            )
+                            .density(.regular)
+                            .frame(maxWidth: 160)
+                            Text(document.currency.label)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    LabeledField(L10n.remainingToPay(lang)) {
+                        MoneyText(
+                            amount: document.resteAPayer,
+                            currency: document.currency,
+                            lang: dataStore.companyInfo.formatNombre
+                        )
+                    }
+                }
             }
         }
     }

@@ -50,6 +50,7 @@ enum DocumentType: String, Codable, CaseIterable, Identifiable {
 enum DocumentStatus: String, Codable, CaseIterable, Identifiable {
     case brouillon = "Brouillon"
     case envoyee = "Envoyée"
+    case partiel = "Partiel"
     case payee = "Payée"
     case annulee = "Annulée"
 
@@ -61,6 +62,7 @@ enum DocumentStatus: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .brouillon: return L10n.draft(lang)
         case .envoyee: return L10n.sent(lang)
+        case .partiel: return L10n.partial(lang)
         case .payee: return L10n.paid(lang)
         case .annulee: return L10n.cancelled(lang)
         }
@@ -70,6 +72,7 @@ enum DocumentStatus: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .brouillon: return "gray"
         case .envoyee: return "orange"
+        case .partiel: return "blue"
         case .payee: return "green"
         case .annulee: return "red"
         }

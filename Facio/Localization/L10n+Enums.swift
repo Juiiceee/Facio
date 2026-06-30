@@ -11,6 +11,7 @@ extension L10n {
     // DocumentStatus
     static func draft(_ l: AppLanguage) -> String { l == .fr ? "Brouillon" : "Draft" }
     static func sent(_ l: AppLanguage) -> String { l == .fr ? "Envoyée" : "Sent" }
+    static func partial(_ l: AppLanguage) -> String { l == .fr ? "Partiel" : "Partial" }
     static func paid(_ l: AppLanguage) -> String { l == .fr ? "Payée" : "Paid" }
     static func cancelled(_ l: AppLanguage) -> String { l == .fr ? "Annulée" : "Cancelled" }
 

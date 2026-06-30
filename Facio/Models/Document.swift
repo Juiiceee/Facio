@@ -88,9 +88,13 @@ final class Document: Identifiable, Codable, Hashable {
     var number: String = ""
     var dateCreation: Date = Date()
     var dateEcheance: Date = Date()
-    /// Date d'encaissement, renseignée quand la facture passe en « Payée ».
-    /// Sert à rattacher le CA au bon mois (encaissement). Nil tant que non payée.
+    /// Date d'encaissement, renseignée quand la facture passe en « Payée » ou
+    /// « Partiel ». Sert à rattacher le CA au bon mois (encaissement). Nil tant
+    /// que non encaissée.
     var datePaiement: Date?
+    /// Montant déjà encaissé quand la facture est en « Partiel » (acompte cumulé,
+    /// dans la devise du document). Nil hors statut partiel.
+    var montantPaye: Decimal?
     var statusRawValue: String = "Brouillon"
     var currencyRawValue: String = "EUR"
     var blockchainRawValue: String?
@@ -160,13 +164,24 @@ final class Document: Identifiable, Codable, Hashable {
     var status: DocumentStatus {
         get { DocumentStatus(rawValue: statusRawValue) ?? .brouillon }
         set {
+            let previous = DocumentStatus(rawValue: statusRawValue) ?? .brouillon
             statusRawValue = newValue.rawValue
-            // Encaissement : on horodate le passage en « Payée » (sans écraser une
-            // date déjà saisie) et on l'efface si on quitte ce statut.
-            if newValue == .payee {
+            // Encaissement : on horodate le passage en « Payée »/« Partiel » (sans
+            // écraser une date déjà saisie). On efface la date — et l'acompte — dès
+            // qu'on quitte un statut encaissé.
+            switch newValue {
+            case .payee:
+                // Régler intégralement = encaissement du solde à cette date. On
+                // (re)horodate à l'instant du règlement, y compris depuis « Partiel »
+                // (sinon le solde resterait rattaché au mois de l'acompte), et on
+                // solde l'acompte (la facture est entièrement réglée).
+                if datePaiement == nil || previous == .partiel { datePaiement = Date() }
+                montantPaye = nil
+            case .partiel:
                 if datePaiement == nil { datePaiement = Date() }
-            } else {
+            default:
                 datePaiement = nil
+                montantPaye = nil
             }
         }
     }
@@ -175,6 +190,30 @@ final class Document: Identifiable, Codable, Hashable {
     /// sinon la date de création (rétro-compatibilité avec les factures payées
     /// avant l'ajout du champ).
     var revenueDate: Date { datePaiement ?? dateCreation }
+
+    /// Montant réellement encaissé pour le CA : le total pour une facture payée,
+    /// l'acompte (borné à [0, TTC]) pour une facture partielle, 0 sinon.
+    var montantEncaisse: Decimal {
+        switch status {
+        case .payee: return totalTTC
+        case .partiel: return min(max(montantPaye ?? 0, 0), totalTTC)
+        default: return 0
+        }
+    }
+
+    /// Solde restant dû. Complémentaire de `montantEncaisse` (acompte borné à
+    /// [0, TTC]), donc toujours dans [0, TTC] : encaissé + restant == TTC.
+    var resteAPayer: Decimal { totalTTC - montantEncaisse }
+
+    /// Montant encore attendu pour le « Montant en attente » du tableau de bord :
+    /// le total pour une facture envoyée, le solde restant pour une partielle.
+    private var montantEnAttente: Decimal {
+        switch status {
+        case .envoyee: return totalTTC
+        case .partiel: return resteAPayer
+        default: return 0
+        }
+    }
 
     var currency: CurrencyType {
         get { decodedCurrency }
@@ -426,9 +465,12 @@ final class Document: Identifiable, Codable, Hashable {
         totalHT + totalTVA
     }
 
-    func accountingTotal(referenceCurrency: CurrencyType) -> Decimal? {
+    /// Convertit un montant (devise du document) vers la devise comptable de
+    /// référence : tel quel si même devise, sinon via le taux comptable saisi, ou
+    /// `nil` si le taux manque. Source unique des montants du CA.
+    private func convertedToAccounting(_ amount: Decimal, referenceCurrency: CurrencyType) -> Decimal? {
         if currency == referenceCurrency {
-            return totalTTC
+            return amount
         }
 
         guard accountingCurrency == referenceCurrency,
@@ -436,7 +478,21 @@ final class Document: Identifiable, Codable, Hashable {
               accountingExchangeRate > 0 else {
             return nil
         }
-        return totalTTC * accountingExchangeRate
+        return amount * accountingExchangeRate
+    }
+
+    func accountingTotal(referenceCurrency: CurrencyType) -> Decimal? {
+        convertedToAccounting(totalTTC, referenceCurrency: referenceCurrency)
+    }
+
+    /// Part encaissée convertie en devise comptable (acompte pour les partielles).
+    func accountingPaidTotal(referenceCurrency: CurrencyType) -> Decimal? {
+        convertedToAccounting(montantEncaisse, referenceCurrency: referenceCurrency)
+    }
+
+    /// Solde en attente converti en devise comptable (reste à payer des partielles).
+    func accountingOutstandingTotal(referenceCurrency: CurrencyType) -> Decimal? {
+        convertedToAccounting(montantEnAttente, referenceCurrency: referenceCurrency)
     }
 
     func needsAccountingConversion(referenceCurrency: CurrencyType) -> Bool {
@@ -557,7 +613,7 @@ final class Document: Identifiable, Codable, Hashable {
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case id, typeRawValue, number, dateCreation, dateEcheance, datePaiement, statusRawValue
+        case id, typeRawValue, number, dateCreation, dateEcheance, datePaiement, montantPaye, statusRawValue
         case currencyRawValue, blockchainRawValue, paymentModeRawValue
         case accountingCurrencyRawValue, accountingExchangeRate, accountingExchangeRateDate
         case clientNom, clientAdresse, clientCodePostal, clientVille
@@ -580,6 +636,7 @@ final class Document: Identifiable, Codable, Hashable {
         )
         statusRawValue = try container.decodeOrDefault(String.self, forKey: .statusRawValue, default: DocumentStatus.brouillon.rawValue)
         datePaiement = try container.decodeIfPresent(Date.self, forKey: .datePaiement)
+        montantPaye = try container.decodeIfPresent(Decimal.self, forKey: .montantPaye)
         currencyRawValue = try container.decodeOrDefault(String.self, forKey: .currencyRawValue, default: CurrencyType.eur.rawValue)
         blockchainRawValue = try container.decodeIfPresent(String.self, forKey: .blockchainRawValue)
         paymentModeRawValue = try container.decodeOrDefault(String.self, forKey: .paymentModeRawValue, default: PaymentMode.aucun.rawValue)
@@ -618,6 +675,7 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encode(dateEcheance, forKey: .dateEcheance)
         try container.encode(statusRawValue, forKey: .statusRawValue)
         try container.encodeIfPresent(datePaiement, forKey: .datePaiement)
+        try container.encodeIfPresent(montantPaye, forKey: .montantPaye)
         try container.encode(currencyRawValue, forKey: .currencyRawValue)
         try container.encodeIfPresent(blockchainRawValue, forKey: .blockchainRawValue)
         try container.encode(paymentModeRawValue, forKey: .paymentModeRawValue)

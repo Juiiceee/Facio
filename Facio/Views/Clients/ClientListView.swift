@@ -60,7 +60,11 @@ struct ClientListView: View {
         for client in result {
             let inv = invoices(for: client)
             let invoiced = AccountingRevenueService.summary(for: inv, referenceCurrency: ref).total
-            let paid = AccountingRevenueService.summary(for: inv.filter { $0.status == .payee }, referenceCurrency: ref).total
+            let paid = AccountingRevenueService.summary(
+                for: inv.filter { $0.status == .payee || $0.status == .partiel },
+                referenceCurrency: ref,
+                amount: { $0.accountingPaidTotal(referenceCurrency: $1) }
+            ).total
             let hasUnpaid = inv.contains { $0.status != .payee && $0.status != .annulee }
             metrics[client.id] = (invoiced, paid, hasUnpaid)
         }
@@ -369,8 +373,9 @@ struct ClientDetailView: View {
 
     private var totalPaid: Decimal {
         AccountingRevenueService.summary(
-            for: relatedInvoices.filter { $0.status == .payee },
-            referenceCurrency: dataStore.companyInfo.deviseComptable
+            for: relatedInvoices.filter { $0.status == .payee || $0.status == .partiel },
+            referenceCurrency: dataStore.companyInfo.deviseComptable,
+            amount: { $0.accountingPaidTotal(referenceCurrency: $1) }
         ).total
     }
 

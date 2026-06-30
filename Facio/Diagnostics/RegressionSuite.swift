@@ -198,6 +198,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "sheet minimums fit inside minimum window", run: sheetMinimumsFitInsideMinimumWindow),
         RegressionCase(name: "color tokens resolve differently in dark mode", run: colorTokensResolveDifferentlyInDarkMode),
         RegressionCase(name: "payment date stamps on paid and feeds revenue month", run: paymentDateStampsOnPaidAndFeedsRevenueMonth),
+        RegressionCase(name: "partial status computes reste à payer", run: partialStatusComputesResteAPayer),
+        RegressionCase(name: "document decodes old payload without partial-payment fields", run: documentDecodesOldPayloadWithoutPartialPaymentFields),
         RegressionCase(name: "document filter status categories are mutually exclusive", run: documentFilterStatusCategoriesAreMutuallyExclusive),
         RegressionCase(name: "privacy mode masks amounts", run: privacyModeMasksAmounts)
     ]
@@ -252,6 +254,52 @@ enum FacioRegressionSuite {
         try expectEqual(decoded.revenueDate, decoded.dateCreation)
     }
 
+    /// Le statut « Partiel » horodate l'encaissement, calcule le reste à payer
+    /// (borné à [0, TTC]) et n'expose que la part encaissée au CA. Solder en
+    /// « Payée » efface l'acompte ; revenir à un statut non encaissé efface tout.
+    private static func partialStatusComputesResteAPayer() throws {
+        let doc = Document(type: .facture, number: "F1")
+        doc.ajouterLigne(LineItem(quantite: decimal("1000"), prixUnitaire: decimal("1")))
+        try expectDecimal(doc.totalTTC, equals: "1000")
+
+        // Passage en partiel : horodate l'encaissement.
+        doc.status = .partiel
+        let stamped = try require(doc.datePaiement, "partial must stamp datePaiement")
+        try expectEqual(doc.revenueDate, stamped)
+
+        doc.montantPaye = decimal("400")
+        try expectDecimal(doc.resteAPayer, equals: "600")
+        try expectDecimal(doc.montantEncaisse, equals: "400")
+        let paid = try require(doc.accountingPaidTotal(referenceCurrency: doc.currency), "same-currency paid")
+        try expectDecimal(paid, equals: "400")
+        let outstanding = try require(doc.accountingOutstandingTotal(referenceCurrency: doc.currency), "same-currency outstanding")
+        try expectDecimal(outstanding, equals: "600")
+
+        // Encaissé + restant == TTC, même pour un acompte supérieur au total
+        // (encaissé borné au TTC, restant jamais négatif).
+        doc.montantPaye = decimal("1500")
+        try expectDecimal(doc.montantEncaisse, equals: "1000")
+        try expectDecimal(doc.resteAPayer, equals: "0")
+
+        // Solder la facture efface l'acompte, encaisse le total et re-horodate le
+        // règlement (le solde ne doit pas rester rattaché au mois de l'acompte).
+        doc.montantPaye = decimal("400")
+        let acompteDate = Calendar.current.date(byAdding: .month, value: -2, to: Date())!
+        doc.datePaiement = acompteDate
+        doc.status = .payee
+        try expectEqual(doc.montantPaye, nil)
+        try expectDecimal(doc.montantEncaisse, equals: "1000")
+        try expect(doc.datePaiement != acompteDate, "settling a partial invoice re-stamps the payment date")
+
+        // Quitter un statut encaissé efface date d'encaissement et acompte.
+        doc.status = .partiel
+        doc.montantPaye = decimal("400")
+        doc.status = .brouillon
+        try expectEqual(doc.datePaiement, nil)
+        try expectEqual(doc.montantPaye, nil)
+        try expectDecimal(doc.montantEncaisse, equals: "0")
+    }
+
     /// Le filtre de liste traite « En retard » comme une catégorie distincte
     /// d'« Envoyée » : une facture envoyée dont l'échéance est dépassée ne doit
     /// PAS remonter quand on filtre « Envoyée ».
@@ -272,9 +320,16 @@ enum FacioRegressionSuite {
         let draft = Document(type: .facture, number: "F3")
         draft.status = .brouillon
 
+        // Une facture partielle reste « Partiel » même échéance dépassée : elle ne
+        // bascule pas dans « En retard » (réservé aux factures envoyées non réglées).
+        let partial = Document(type: .facture, number: "F4")
+        partial.status = .partiel
+        partial.dateEcheance = past
+
         try expectEqual(DocumentStatusFilter.category(of: onTime), .envoyee)
         try expectEqual(DocumentStatusFilter.category(of: overdue), .overdue)
         try expectEqual(DocumentStatusFilter.category(of: draft), .brouillon)
+        try expectEqual(DocumentStatusFilter.category(of: partial), .partiel)
 
         var sentFilter = DocumentFilter()
         sentFilter.statusCategories = [.envoyee]
@@ -552,6 +607,28 @@ enum FacioRegressionSuite {
         try expectEqual(document.clientTva, "")
         try expectEqual(document.clientApe, "")
         try expect(document.accountingTotal(referenceCurrency: .eur) == nil, "cross-currency old payload should need a rate")
+    }
+
+    /// Une facture sérialisée avant l'ajout du paiement partiel décode sans
+    /// acompte (montantPaye nil → reste à payer = TTC), et le statut « Partiel »
+    /// fait l'aller-retour Codable.
+    private static func documentDecodesOldPayloadWithoutPartialPaymentFields() throws {
+        let legacy = Data(#"{"typeRawValue":"Facture","statusRawValue":"Payée"}"#.utf8)
+        let document = try JSONDecoder().decode(Document.self, from: legacy)
+        try expect(document.montantPaye == nil, "old payload should not invent a paid amount")
+        try expectEqual(document.status, .payee)
+        try expectDecimal(document.resteAPayer, equals: "0")
+
+        // Round-trip du nouveau statut + acompte.
+        let partial = Document(type: .facture, number: "F1")
+        partial.ajouterLigne(LineItem(quantite: decimal("1000"), prixUnitaire: decimal("1")))
+        partial.status = .partiel
+        partial.montantPaye = decimal("250")
+        let data = try JSONEncoder().encode(partial)
+        let decoded = try JSONDecoder().decode(Document.self, from: data)
+        try expectEqual(decoded.status, .partiel)
+        try expectDecimal(try require(decoded.montantPaye, "encoded paid amount survives"), equals: "250")
+        try expectDecimal(decoded.resteAPayer, equals: "750")
     }
 
     private static func sentInvoicesBecomeOverdueAfterDueDate() throws {

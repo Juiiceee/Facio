@@ -13,6 +13,8 @@ extension L10n {
     static func creationDate(_ l: AppLanguage) -> String { l == .fr ? "Date de création" : "Creation date" }
     static func dueDateLabel(_ l: AppLanguage) -> String { l == .fr ? "Date d'échéance" : "Due date" }
     static func paymentDate(_ l: AppLanguage) -> String { l == .fr ? "Date de paiement" : "Payment date" }
+    static func amountPaid(_ l: AppLanguage) -> String { l == .fr ? "Montant payé" : "Amount paid" }
+    static func remainingToPay(_ l: AppLanguage) -> String { l == .fr ? "Reste à payer" : "Remaining to pay" }
 
     // Devise & Paiement
     static func currencyPayment(_ l: AppLanguage) -> String { l == .fr ? "Devise & Paiement" : "Currency & Payment" }

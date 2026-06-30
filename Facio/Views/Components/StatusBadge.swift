@@ -13,6 +13,7 @@ struct StatusBadge: View {
         switch status {
         case .brouillon: return "pencil"
         case .envoyee: return "paperplane.fill"
+        case .partiel: return "circle.lefthalf.filled"
         case .payee: return "checkmark.circle.fill"
         case .annulee: return "xmark.circle.fill"
         }

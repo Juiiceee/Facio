@@ -24,23 +24,33 @@ struct DashboardView: View {
         allDocuments.filter { $0.type == .devis }
     }
 
-    private var facturesPayees: [Document] {
-        factures.filter { $0.status == .payee }
+    // Factures dont une part est encaissée (payées + partielles avec acompte) :
+    // elles alimentent le CA, à hauteur du montant réellement reçu. Une partielle
+    // sans acompte (0 reçu) est exclue pour ne pas fausser comptes et conversions.
+    private var facturesEncaissees: [Document] {
+        factures.filter { $0.status == .payee || ($0.status == .partiel && $0.montantEncaisse > 0) }
     }
 
     private var facturesEnAttente: [Document] {
         factures.filter { $0.status == .envoyee }
     }
 
+    // Factures avec un solde encore dû : envoyées + partielles dont il reste à
+    // payer (une partielle intégralement reçue n'attend plus rien).
+    private var outstandingInvoices: [Document] {
+        factures.filter { $0.status == .envoyee || ($0.status == .partiel && $0.resteAPayer > 0) }
+    }
+
     // CA du mois en cours
     private var caMoisEnCours: AccountingRevenueSummary {
         let calendar = Calendar.current
         let now = Date()
-        let documents = facturesPayees
+        let documents = facturesEncaissees
             .filter { calendar.isDate($0.revenueDate, equalTo: now, toGranularity: .month) }
         return AccountingRevenueService.summary(
             for: documents,
-            referenceCurrency: accountingCurrency
+            referenceCurrency: accountingCurrency,
+            amount: { $0.accountingPaidTotal(referenceCurrency: $1) }
         )
     }
 
@@ -48,19 +58,21 @@ struct DashboardView: View {
     private var caAnneeEnCours: AccountingRevenueSummary {
         let calendar = Calendar.current
         let now = Date()
-        let documents = facturesPayees
+        let documents = facturesEncaissees
             .filter { calendar.isDate($0.revenueDate, equalTo: now, toGranularity: .year) }
         return AccountingRevenueService.summary(
             for: documents,
-            referenceCurrency: accountingCurrency
+            referenceCurrency: accountingCurrency,
+            amount: { $0.accountingPaidTotal(referenceCurrency: $1) }
         )
     }
 
-    // Montant en attente
+    // Montant en attente (solde restant dû, partielles incluses)
     private var montantEnAttente: AccountingRevenueSummary {
         AccountingRevenueService.summary(
-            for: facturesEnAttente,
-            referenceCurrency: accountingCurrency
+            for: outstandingInvoices,
+            referenceCurrency: accountingCurrency,
+            amount: { $0.accountingOutstandingTotal(referenceCurrency: $1) }
         )
     }
 
@@ -69,7 +81,7 @@ struct DashboardView: View {
     }
 
     private var awaitingPaymentInvoices: [Document] {
-        facturesEnAttente.filter { !$0.isOverdue }
+        outstandingInvoices.filter { !$0.isOverdue }
     }
 
     private var quotesToFollowUp: [Document] {
@@ -196,9 +208,9 @@ struct DashboardView: View {
 
     private var pendingSubtitle: String {
         if montantEnAttente.missingConversionCount > 0 {
-            return "\(L10n.pendingInvoices(lang, count: facturesEnAttente.count)) - \(L10n.missingConversions(lang, count: montantEnAttente.missingConversionCount))"
+            return "\(L10n.pendingInvoices(lang, count: outstandingInvoices.count)) - \(L10n.missingConversions(lang, count: montantEnAttente.missingConversionCount))"
         }
-        return L10n.pendingInvoices(lang, count: facturesEnAttente.count)
+        return L10n.pendingInvoices(lang, count: outstandingInvoices.count)
     }
 
     private func missingConversionSubtitle(_ summary: AccountingRevenueSummary) -> String? {
@@ -340,7 +352,7 @@ struct DashboardView: View {
     }
 
     private func documentRowDetail(_ doc: Document) -> String {
-        if doc.type == .facture && (doc.status == .envoyee || doc.isOverdue) {
+        if doc.type == .facture && (doc.status == .envoyee || doc.status == .partiel || doc.isOverdue) {
             return "\(L10n.dueDateLabel(lang)): \(doc.dateEcheance.formattedDate(for: dateFormat))"
         }
         return doc.dateCreation.formattedDate(for: dateFormat)

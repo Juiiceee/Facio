@@ -74,8 +74,9 @@ struct DocumentListView: View {
         switch s {
         case .brouillon: return 0
         case .envoyee: return 1
-        case .payee: return 2
-        case .annulee: return 3
+        case .partiel: return 2
+        case .payee: return 3
+        case .annulee: return 4
         }
     }
 
@@ -318,7 +319,7 @@ struct DocumentRowView: View {
     }
 
     private var dateSummary: String {
-        if document.type == .facture && (document.status == .envoyee || document.isOverdue) {
+        if document.type == .facture && (document.status == .envoyee || document.status == .partiel || document.isOverdue) {
             return "\(L10n.dueDateLabel(lang)): \(document.dateEcheance.formattedDate(for: dateFormat))"
         }
         return document.dateCreation.formattedDate(for: dateFormat)
