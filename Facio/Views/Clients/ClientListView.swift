@@ -547,7 +547,7 @@ struct ClientDetailView: View {
                 Spacer()
                 MoneyText(amount: document.totalTTC, currency: document.currency, lang: numberFormat)
                     .font(FacioFont.amount)
-                StatusBadge(status: document.status, isOverdue: document.isOverdue)
+                StatusBadge(status: document.status, isOverdue: document.isOverdue, paidViaInstallments: document.isPaidViaInstallments)
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundStyle(.tertiary)

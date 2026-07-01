@@ -288,7 +288,7 @@ struct DocumentRowView: View {
                     Text(document.number)
                         .font(.headline)
                         .lineLimit(1)
-                    StatusBadge(status: document.status, isOverdue: document.isOverdue)
+                    StatusBadge(status: document.status, isOverdue: document.isOverdue, paidViaInstallments: document.isPaidViaInstallments)
                 }
 
                 HStack(spacing: 6) {

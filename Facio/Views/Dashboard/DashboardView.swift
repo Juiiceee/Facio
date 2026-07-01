@@ -310,7 +310,7 @@ struct DashboardView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
                 .frame(minWidth: 92, maxWidth: 130, alignment: .trailing)
-            StatusBadge(status: doc.status, isOverdue: doc.isOverdue)
+            StatusBadge(status: doc.status, isOverdue: doc.isOverdue, paidViaInstallments: doc.isPaidViaInstallments)
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundStyle(.tertiary)

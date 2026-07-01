@@ -293,6 +293,7 @@ enum FacioRegressionSuite {
         doc.paiementsPartiels = [PartialPayment(montant: decimal("400"), date: date("2026-03-15"))]
         doc.status = .payee
         try expect(doc.paiementsPartiels.count == 2, "settling keeps the ledger and records the balance")
+        try expect(doc.isPaidViaInstallments, "a settled-by-installments invoice keeps the memory of being partial")
         try expectDecimal(doc.montantEncaisse, equals: "1000")
         try expectDecimal(doc.resteAPayer, equals: "0")
         let settledEvents = doc.accountingCashEvents(referenceCurrency: doc.currency)

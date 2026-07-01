@@ -237,6 +237,10 @@ final class Document: Identifiable, Codable, Hashable {
     /// donc toujours dans [0, TTC] : encaissé + restant == TTC.
     var resteAPayer: Decimal { totalTTC - montantEncaisse }
 
+    /// Facture payée mais réglée en plusieurs versements : elle est comptée comme
+    /// « Payée », tout en gardant la mémoire (et l'historique daté) du partiel.
+    var isPaidViaInstallments: Bool { status == .payee && !paiementsPartiels.isEmpty }
+
     /// Montant encore attendu pour le « Montant en attente » du tableau de bord :
     /// le total pour une facture envoyée, le solde restant pour une partielle.
     private var montantEnAttente: Decimal {

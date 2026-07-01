@@ -213,7 +213,7 @@ struct DocumentEditorView: View {
                 Text(document.type.label(for: lang))
                     .font(FacioFont.subsectionTitle)
                     .foregroundStyle(Color.appPrimary(from: company))
-                StatusBadge(status: document.status, isOverdue: document.isOverdue)
+                StatusBadge(status: document.status, isOverdue: document.isOverdue, paidViaInstallments: document.isPaidViaInstallments)
             }
 
             TextField(L10n.number(lang), text: Binding(
@@ -568,7 +568,7 @@ struct DocumentEditorView: View {
                         }
                         Button(role: .destructive) {
                             document.paiementsPartiels.removeAll { $0.id == payment.id }
-                            saveDocument()
+                            saveAfterLedgerChange()
                         } label: {
                             Image(systemName: "trash")
                         }
@@ -631,6 +631,26 @@ struct DocumentEditorView: View {
         } else {
             document.paiementsPartiels.append(PartialPayment(montant: reste, date: Date()))
         }
+        saveAfterLedgerChange()
+    }
+
+    /// Aligne le statut sur l'encaissement du journal. N'est appelée que depuis
+    /// l'édition d'un journal existant (montant, suppression, « Payer le reste »).
+    /// Une facture partielle intégralement réglée passe en « Payée » (journal daté
+    /// conservé = mémoire du paiement en plusieurs fois) ; à l'inverse, une facture
+    /// soldée par versements repassée sous 100 % — ou dont on a supprimé tous les
+    /// versements — redevient « Partiel » (sinon elle resterait « Payée » avec un
+    /// journal vide et un encaissé qui rebascule au TTC complet).
+    private func reconcilePartialStatus() {
+        if document.status == .partiel, document.montantEncaisse > 0, document.resteAPayer == 0 {
+            document.status = .payee
+        } else if document.status == .payee, document.resteAPayer > 0 || document.paiementsPartiels.isEmpty {
+            document.status = .partiel
+        }
+    }
+
+    private func saveAfterLedgerChange() {
+        reconcilePartialStatus()
         saveDocument()
     }
 
@@ -651,7 +671,7 @@ struct DocumentEditorView: View {
             set: { newValue in
                 guard let index = document.paiementsPartiels.firstIndex(where: { $0.id == payment.id }) else { return }
                 document.paiementsPartiels[index].montant = newValue
-                saveDocument()
+                saveAfterLedgerChange()
             }
         )
     }
