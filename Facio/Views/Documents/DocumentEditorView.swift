@@ -579,14 +579,32 @@ struct DocumentEditorView: View {
                 }
             }
 
-            Button {
-                document.paiementsPartiels.append(PartialPayment())
-                saveDocument()
-            } label: {
-                Label(L10n.addPartialPayment(lang), systemImage: "plus.circle")
+            HStack(spacing: FacioLayout.space16) {
+                Button {
+                    document.paiementsPartiels.append(PartialPayment())
+                    saveDocument()
+                } label: {
+                    Label(L10n.addPartialPayment(lang), systemImage: "plus.circle")
+                }
+                .buttonStyle(.borderless)
+                .tint(.intentInfo)
+
+                // Raccourci : une fois un premier versement saisi, régler d'un clic
+                // tout le solde restant (100 %) comme dernier versement.
+                if document.montantEncaisse > 0 && document.resteAPayer > 0 {
+                    Button(action: payRemainingBalance) {
+                        Label(
+                            L10n.payRemainingBalance(
+                                lang,
+                                amount: document.currency.formatAccounting(document.resteAPayer, lang: dataStore.companyInfo.formatNombre)
+                            ),
+                            systemImage: "checkmark.circle"
+                        )
+                    }
+                    .buttonStyle(.borderless)
+                    .tint(.intentSuccess)
+                }
             }
-            .buttonStyle(.borderless)
-            .tint(.intentInfo)
 
             Divider().padding(.vertical, FacioLayout.space4)
 
@@ -600,6 +618,20 @@ struct DocumentEditorView: View {
                 }
             }
         }
+    }
+
+    /// Règle tout le solde restant en un versement daté du jour : remplit une
+    /// ligne vide si elle existe, sinon en ajoute une.
+    private func payRemainingBalance() {
+        let reste = document.resteAPayer
+        guard reste > 0 else { return }
+        if let emptyIndex = document.paiementsPartiels.lastIndex(where: { $0.montant == 0 }) {
+            document.paiementsPartiels[emptyIndex].montant = reste
+            document.paiementsPartiels[emptyIndex].date = Date()
+        } else {
+            document.paiementsPartiels.append(PartialPayment(montant: reste, date: Date()))
+        }
+        saveDocument()
     }
 
     private func paymentDateBinding(_ payment: PartialPayment) -> Binding<Date> {

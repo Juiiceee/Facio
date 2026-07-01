@@ -17,6 +17,9 @@ extension L10n {
     static func remainingToPay(_ l: AppLanguage) -> String { l == .fr ? "Reste à payer" : "Remaining to pay" }
     static func partialPayments(_ l: AppLanguage) -> String { l == .fr ? "Paiements partiels" : "Partial payments" }
     static func addPartialPayment(_ l: AppLanguage) -> String { l == .fr ? "Ajouter un paiement" : "Add a payment" }
+    static func payRemainingBalance(_ l: AppLanguage, amount: String) -> String {
+        l == .fr ? "Payer le reste (\(amount))" : "Pay the remainder (\(amount))"
+    }
     static func noPartialPayments(_ l: AppLanguage) -> String { l == .fr ? "Aucun paiement enregistré." : "No payment recorded yet." }
 
     // Devise & Paiement
