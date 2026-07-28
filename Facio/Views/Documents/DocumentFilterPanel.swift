@@ -10,7 +10,7 @@ enum DateFilterPreset: String, CaseIterable, Identifiable {
 /// en retard (envoyée + échéance dépassée) est « En retard » et non « Envoyée ».
 /// Chaque document tombe dans exactement une catégorie.
 enum DocumentStatusFilter: String, CaseIterable, Identifiable {
-    case brouillon, envoyee, overdue, payee, annulee
+    case brouillon, envoyee, overdue, partiel, payee, annulee
     var id: String { rawValue }
 
     static func category(of doc: Document) -> DocumentStatusFilter {
@@ -18,6 +18,7 @@ enum DocumentStatusFilter: String, CaseIterable, Identifiable {
         switch doc.status {
         case .brouillon: return .brouillon
         case .envoyee: return .envoyee
+        case .partiel: return .partiel
         case .payee: return .payee
         case .annulee: return .annulee
         }
@@ -28,6 +29,7 @@ enum DocumentStatusFilter: String, CaseIterable, Identifiable {
         case .brouillon: return DocumentStatus.brouillon.label(for: l)
         case .envoyee: return DocumentStatus.envoyee.label(for: l)
         case .overdue: return L10n.filterOverdue(l)
+        case .partiel: return DocumentStatus.partiel.label(for: l)
         case .payee: return DocumentStatus.payee.label(for: l)
         case .annulee: return DocumentStatus.annulee.label(for: l)
         }
@@ -38,6 +40,7 @@ enum DocumentStatusFilter: String, CaseIterable, Identifiable {
         case .overdue: return .intentDanger
         case .brouillon: return Color.statusColor(for: .brouillon)
         case .envoyee: return Color.statusColor(for: .envoyee)
+        case .partiel: return Color.statusColor(for: .partiel)
         case .payee: return Color.statusColor(for: .payee)
         case .annulee: return Color.statusColor(for: .annulee)
         }

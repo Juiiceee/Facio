@@ -589,6 +589,24 @@ struct PDFGenerator {
                       font: PDFLayout.fontTotalTTC, color: PDFLayout.textBlack, context: context)
         cy += 20
 
+        // Paiement partiel : acompte encaissé + solde restant, sous le Total TTC.
+        // Le restant est calculé sur le TTC affiché pour rester cohérent au centime.
+        if document.status == .partiel {
+            cy += 6
+            let paid = min(document.montantEncaisse, totals.totalTTC)
+            let reste = totals.totalTTC - paid
+            drawTextRight(L10n.amountPaid(lang), rightX: labelRight, y: cy,
+                          font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
+            drawTextRight("\(formatSpaced(paid)) \(cur)", rightX: valueRight, y: cy,
+                          font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
+            cy += 17
+            drawTextRight(L10n.remainingToPay(lang), rightX: labelRight, y: cy,
+                          font: PDFLayout.fontTotalTTC, color: themePrimary, context: context)
+            drawTextRight("\(formatSpaced(reste)) \(cur)", rightX: valueRight, y: cy,
+                          font: PDFLayout.fontTotalTTC, color: themePrimary, context: context)
+            cy += 20
+        }
+
         return cy
     }
 

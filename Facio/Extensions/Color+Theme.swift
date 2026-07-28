@@ -67,6 +67,7 @@ extension Color {
 
     static var statusBrouillon: Color { intentNeutral }
     static var statusEnvoyee: Color { intentWarning }
+    static var statusPartiel: Color { intentInfo }
     static var statusPayee: Color { intentSuccess }
     static var statusAnnulee: Color { intentDanger }
 
@@ -74,6 +75,7 @@ extension Color {
         switch status {
         case .brouillon: return .statusBrouillon
         case .envoyee: return .statusEnvoyee
+        case .partiel: return .statusPartiel
         case .payee: return .statusPayee
         case .annulee: return .statusAnnulee
         }

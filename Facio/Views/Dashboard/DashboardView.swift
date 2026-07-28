@@ -24,43 +24,56 @@ struct DashboardView: View {
         allDocuments.filter { $0.type == .devis }
     }
 
-    private var facturesPayees: [Document] {
-        factures.filter { $0.status == .payee }
+    // Factures dont une part est encaissée (payées + partielles) : elles
+    // alimentent le CA à hauteur des encaissements, chacun rattaché à sa date.
+    private var facturesEncaissees: [Document] {
+        factures.filter { $0.status == .payee || $0.status == .partiel }
     }
 
     private var facturesEnAttente: [Document] {
         factures.filter { $0.status == .envoyee }
     }
 
-    // CA du mois en cours
-    private var caMoisEnCours: AccountingRevenueSummary {
+    // Factures avec un solde encore dû : envoyées + partielles dont il reste à
+    // payer (une partielle intégralement reçue n'attend plus rien).
+    private var outstandingInvoices: [Document] {
+        factures.filter { $0.status == .envoyee || ($0.status == .partiel && $0.resteAPayer > 0) }
+    }
+
+    /// CA d'une période : on ventile chaque encaissement (total d'une facture
+    /// payée, ou chaque versement d'une partielle) dans son propre mois/année.
+    private func caSummary(toGranularity granularity: Calendar.Component) -> AccountingRevenueSummary {
         let calendar = Calendar.current
         let now = Date()
-        let documents = facturesPayees
-            .filter { calendar.isDate($0.revenueDate, equalTo: now, toGranularity: .month) }
-        return AccountingRevenueService.summary(
-            for: documents,
-            referenceCurrency: accountingCurrency
-        )
+        var summary = AccountingRevenueSummary()
+        for facture in facturesEncaissees {
+            var missingConversion = false
+            for event in facture.accountingCashEvents(referenceCurrency: accountingCurrency)
+            where calendar.isDate(event.date, equalTo: now, toGranularity: granularity) {
+                if let amount = event.amount {
+                    summary.total += amount
+                    summary.convertedCount += 1
+                } else {
+                    missingConversion = true
+                }
+            }
+            if missingConversion { summary.missingConversionCount += 1 }
+        }
+        return summary
     }
+
+    // CA du mois en cours
+    private var caMoisEnCours: AccountingRevenueSummary { caSummary(toGranularity: .month) }
 
     // CA de l'annee en cours
-    private var caAnneeEnCours: AccountingRevenueSummary {
-        let calendar = Calendar.current
-        let now = Date()
-        let documents = facturesPayees
-            .filter { calendar.isDate($0.revenueDate, equalTo: now, toGranularity: .year) }
-        return AccountingRevenueService.summary(
-            for: documents,
-            referenceCurrency: accountingCurrency
-        )
-    }
+    private var caAnneeEnCours: AccountingRevenueSummary { caSummary(toGranularity: .year) }
 
-    // Montant en attente
+    // Montant en attente (solde restant dû, partielles incluses)
     private var montantEnAttente: AccountingRevenueSummary {
         AccountingRevenueService.summary(
-            for: facturesEnAttente,
-            referenceCurrency: accountingCurrency
+            for: outstandingInvoices,
+            referenceCurrency: accountingCurrency,
+            amount: { $0.accountingOutstandingTotal(referenceCurrency: $1) }
         )
     }
 
@@ -69,7 +82,7 @@ struct DashboardView: View {
     }
 
     private var awaitingPaymentInvoices: [Document] {
-        facturesEnAttente.filter { !$0.isOverdue }
+        outstandingInvoices.filter { !$0.isOverdue }
     }
 
     private var quotesToFollowUp: [Document] {
@@ -196,9 +209,9 @@ struct DashboardView: View {
 
     private var pendingSubtitle: String {
         if montantEnAttente.missingConversionCount > 0 {
-            return "\(L10n.pendingInvoices(lang, count: facturesEnAttente.count)) - \(L10n.missingConversions(lang, count: montantEnAttente.missingConversionCount))"
+            return "\(L10n.pendingInvoices(lang, count: outstandingInvoices.count)) - \(L10n.missingConversions(lang, count: montantEnAttente.missingConversionCount))"
         }
-        return L10n.pendingInvoices(lang, count: facturesEnAttente.count)
+        return L10n.pendingInvoices(lang, count: outstandingInvoices.count)
     }
 
     private func missingConversionSubtitle(_ summary: AccountingRevenueSummary) -> String? {
@@ -297,7 +310,7 @@ struct DashboardView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
                 .frame(minWidth: 92, maxWidth: 130, alignment: .trailing)
-            StatusBadge(status: doc.status, isOverdue: doc.isOverdue)
+            StatusBadge(status: doc.status, isOverdue: doc.isOverdue, paidViaInstallments: doc.isPaidViaInstallments)
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
@@ -340,7 +353,7 @@ struct DashboardView: View {
     }
 
     private func documentRowDetail(_ doc: Document) -> String {
-        if doc.type == .facture && (doc.status == .envoyee || doc.isOverdue) {
+        if doc.type == .facture && (doc.status == .envoyee || doc.status == .partiel || doc.isOverdue) {
             return "\(L10n.dueDateLabel(lang)): \(doc.dateEcheance.formattedDate(for: dateFormat))"
         }
         return doc.dateCreation.formattedDate(for: dateFormat)
