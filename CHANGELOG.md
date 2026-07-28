@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.6.0](https://github.com/Juiiceee/Facio/compare/Facio-v2.5.0...Facio-v2.6.0) (2026-07-28)
+
+
+### Nouvelles fonctionnalites
+
+* **documents:** "Partiel" invoice status with deposit tracking ([#102](https://github.com/Juiiceee/Facio/issues/102)) ([0afc741](https://github.com/Juiiceee/Facio/commit/0afc7418bdb477649f8d4a4a16d816440edba6bf))
+* **ui:** privacy mode — hide all on-screen amounts (eye toggle) ([#99](https://github.com/Juiiceee/Facio/issues/99)) ([b22b205](https://github.com/Juiiceee/Facio/commit/b22b205ce72f8e1d0379623f4adfff23bb947a54))
+
 ## [2.5.0](https://github.com/Juiiceee/Facio/compare/Facio-v2.4.0...Facio-v2.5.0) (2026-06-25)
 
 
