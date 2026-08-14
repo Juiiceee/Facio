@@ -1259,15 +1259,28 @@ enum FacioRegressionSuite {
             try expectEqual(Set(labels).count, labels.count)
         }
 
-        // Le rail ne doit pas casser l'invariant de largeur minimale de fenêtre.
+        // Une section sans liste replie la colonne à ZÉRO : lui réserver une
+        // bande visible privait la colonne de détail de la largeur dont
+        // « Clients » a besoin, et provoquait une contrainte insatisfiable.
         try expect(
-            FacioLayout.sidebarMin + FacioLayout.contentRailWidth + FacioLayout.detailMin
-                <= FacioLayout.windowMinWidth,
-            "sidebar + rail + detail must fit inside the minimum window"
+            FacioLayout.sidebarMin + FacioLayout.detailMin <= FacioLayout.windowMinWidth,
+            "sidebar + detail must fit inside the minimum window when the list column is collapsed"
+        )
+
+        // Le split interne de « Clients » doit tenir dans la colonne de détail
+        // la plus étroite. Il exigeait 640 pt en dur alors que la colonne peut
+        // descendre à 460 : contrainte insatisfiable, exception AppKit, crash.
+        try expect(
+            FacioLayout.clientListMin + FacioLayout.clientDetailMin <= FacioLayout.detailMin,
+            "the client split must fit inside the narrowest detail column"
         )
         try expect(
-            FacioLayout.contentRailWidth < FacioLayout.contentColumnMin,
-            "the rail must be narrower than the expanded list column"
+            FacioLayout.clientListMin <= FacioLayout.clientListIdeal,
+            "the client list ideal width must not fall below its minimum"
+        )
+        try expect(
+            FacioLayout.clientListIdeal <= FacioLayout.clientListMax,
+            "the client list maximum width must not fall below its ideal"
         )
     }
 
