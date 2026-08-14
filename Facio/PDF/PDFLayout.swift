@@ -47,7 +47,7 @@ struct PDFLayout {
 
     // MARK: - Couleurs
     /// Vert principal (en-tetes tableau, bordures, accents)
-    static let greenPrimary = NSColor(red: 0.42, green: 0.56, blue: 0.23, alpha: 1.0) // #6B8E3A
+    static let greenPrimary = NSColor(srgbRed: 0x4A / 255.0, green: 0x7A / 255.0, blue: 0x2B / 255.0, alpha: 1.0) // #4A7A2B
     /// Vert fonce (texte DESTINATAIRE, accents forts)
     static let greenDark = NSColor(red: 0.36, green: 0.43, blue: 0.18, alpha: 1.0) // #5B6E2D
     /// Vert clair pour alternance
