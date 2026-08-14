@@ -195,6 +195,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "attachment urls expose only existing files", run: attachmentURLsExposeOnlyExistingFiles),
         RegressionCase(name: "email attachment filenames use labels and dedupe", run: emailAttachmentFilenamesUseLabelsAndDedupe),
         RegressionCase(name: "pdf generation paginates long invoices", run: pdfGenerationPaginatesLongInvoices),
+        RegressionCase(name: "revenue series buckets payments by month", run: revenueSeriesBucketsPaymentsByMonth),
+        RegressionCase(name: "vat collected prorates each payment", run: vatCollectedProratesEachPayment),
         RegressionCase(name: "line item accepts any vat rate", run: lineItemAcceptsAnyVATRate),
         RegressionCase(name: "sidebar has five destinations", run: sidebarHasFiveDestinations),
         RegressionCase(name: "document status flow offers one primary per state", run: documentStatusFlowOffersOnePrimaryPerState),
@@ -1132,6 +1134,101 @@ enum FacioRegressionSuite {
     /// français [0 ; 5,5 ; 10 ; 20], donc 2,1 % (presse, médicaments), un taux
     /// DOM ou un taux étranger étaient inatteignables — dans une app bilingue
     /// qui facture aussi en USD.
+    /// La série mensuelle du tableau de bord. La donnée existait — chaque
+    /// versement porte sa date — mais l'écran n'a jamais rien tracé.
+    private static func revenueSeriesBucketsPaymentsByMonth() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Paris") ?? .current
+
+        func date(_ string: String) throws -> Date {
+            let formatter = DateFormatter()
+            formatter.calendar = calendar
+            formatter.timeZone = calendar.timeZone
+            formatter.dateFormat = "yyyy-MM-dd"
+            guard let value = formatter.date(from: string) else {
+                throw RegressionFailure(message: "bad date \(string)")
+            }
+            return value
+        }
+
+        let reference = try date("2026-08-14")
+
+        let invoice = Document(type: .facture)
+        invoice.currency = .eur
+        invoice.ajouterLigne(LineItem(designation: "x", quantite: 1, prixUnitaire: 1000, tauxTVA: 20))
+        invoice.status = .partiel
+        invoice.paiementsPartiels = [
+            PartialPayment(montant: 600, date: try date("2026-08-03")),
+            PartialPayment(montant: 400, date: try date("2026-06-20"))
+        ]
+
+        let series = RevenueSeriesService.monthlySeries(
+            for: [invoice],
+            referenceCurrency: .eur,
+            endingAt: reference,
+            count: 12,
+            calendar: calendar
+        )
+
+        try expectEqual(series.count, 12)
+        // Du plus ancien au plus récent, et le dernier est le mois courant.
+        try expect(series.map(\.start) == series.map(\.start).sorted(), "the series must run oldest to newest")
+        try expectEqual(series.filter(\.isCurrent).count, 1)
+        try expect(series.last?.isCurrent == true, "the current month must close the series")
+
+        try expectDecimal(series.last?.collected, equals: "600")
+        let june = series.first { calendar.component(.month, from: $0.start) == 6 }
+        try expectDecimal(june?.collected, equals: "400")
+        // Les mois sans encaissement valent zéro, ils ne disparaissent pas —
+        // un trou dans une série se lit comme une absence de barre, pas comme
+        // un mois manquant.
+        try expectEqual(series.filter { $0.collected == 0 }.count, 10)
+    }
+
+    /// La TVA collectée remplace « Devis en cours », qui comptait exactement le
+    /// même filtre que le groupe affiché juste dessous. Chaque versement est
+    /// proraté : encaisser la moitié d'une facture, c'est encaisser la moitié
+    /// de sa TVA.
+    private static func vatCollectedProratesEachPayment() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Paris") ?? .current
+
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let reference = formatter.date(from: "2026-08-14"),
+              let paid = formatter.date(from: "2026-07-10") else {
+            throw RegressionFailure(message: "bad fixture dates")
+        }
+
+        // 1 000 HT + 20 % = 1 200 TTC, dont 200 de TVA. La moitié encaissée →
+        // 100 de TVA.
+        let invoice = Document(type: .facture)
+        invoice.currency = .eur
+        invoice.ajouterLigne(LineItem(designation: "x", quantite: 1, prixUnitaire: 1000, tauxTVA: 20))
+        invoice.status = .partiel
+        invoice.paiementsPartiels = [PartialPayment(montant: 600, date: paid)]
+
+        let vat = RevenueSeriesService.vatCollectedThisQuarter(
+            for: [invoice],
+            referenceCurrency: .eur,
+            reference: reference,
+            calendar: calendar
+        )
+        try expectDecimal(vat, equals: "100")
+
+        // Le trimestre est bien Q3 (juillet-septembre), et un versement hors
+        // trimestre n'y entre pas.
+        try expectEqual(RevenueSeriesService.quarterNumber(of: reference, calendar: calendar), 3)
+        guard let quarter = RevenueSeriesService.quarterInterval(containing: reference, calendar: calendar),
+              let april = formatter.date(from: "2026-04-02") else {
+            throw RegressionFailure(message: "bad quarter")
+        }
+        try expect(quarter.contains(paid), "July belongs to Q3")
+        try expect(!quarter.contains(april), "April must not belong to Q3")
+    }
+
     private static func lineItemAcceptsAnyVATRate() throws {
         for rate in ["0", "2.1", "8.5", "13.8", "21"] {
             let document = Document(type: .facture)

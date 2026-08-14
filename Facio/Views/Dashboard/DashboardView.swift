@@ -121,37 +121,76 @@ struct DashboardView: View {
                     MetricTile(
                         title: L10n.revenueThisMonth(lang),
                         value: privacy.format(caMoisEnCours.total, accountingCurrency, lang: numberFormat),
-                        subtitle: missingConversionSubtitle(caMoisEnCours),
+                        subtitle: missingConversionSubtitle(caMoisEnCours)
+                            ?? L10n.basisCollected(lang, currency: accountingCurrency.rawValue),
                         systemImage: "chart.line.uptrend.xyaxis",
                         intent: .info
                     )
                     MetricTile(
                         title: L10n.revenueThisYear(lang),
                         value: privacy.format(caAnneeEnCours.total, accountingCurrency, lang: numberFormat),
-                        subtitle: missingConversionSubtitle(caAnneeEnCours),
+                        subtitle: missingConversionSubtitle(caAnneeEnCours)
+                            ?? L10n.basisCollected(lang, currency: accountingCurrency.rawValue),
                         systemImage: "chart.bar.fill",
                         intent: .info
                     )
                     MetricTile(
                         title: L10n.pending(lang),
                         value: privacy.format(montantEnAttente.total, accountingCurrency, lang: numberFormat),
-                        subtitle: pendingSubtitle,
+                        subtitle: pendingSubtitle
+                            ?? L10n.basisOutstanding(lang, currency: accountingCurrency.rawValue),
                         systemImage: "clock.fill",
                         intent: .warning
                     )
+                    // « Devis en cours » comptait exactement le même filtre que
+                    // le groupe « Devis à relancer » juste dessous : le même
+                    // ensemble, montré deux fois sous deux noms. La TVA
+                    // collectée, elle, a une échéance.
                     MetricTile(
-                        title: L10n.quotesInProgress(lang),
-                        value: "\(devis.filter { $0.status == .envoyee }.count)",
-                        systemImage: "doc.text",
-                        intent: .info
+                        title: L10n.vatCollected(lang, quarter: RevenueSeriesService.quarterNumber(of: Date())),
+                        value: privacy.format(vatCollectedThisQuarter, accountingCurrency, lang: numberFormat),
+                        subtitle: L10n.basisCollected(lang, currency: accountingCurrency.rawValue),
+                        systemImage: "percent",
+                        intent: .warning
                     )
                 }
+
+                revenueSeriesSection
 
                 focusSection
                 recentSection
             }
             .padding(FacioLayout.screenPadding)
         }
+    }
+
+    /// Les douze derniers mois d'encaissements.
+    private var revenueSeriesSection: some View {
+        SectionPanel(
+            L10n.revenueSeriesTitle(lang, count: 12),
+            systemImage: "chart.bar"
+        ) {
+            RevenueChartView(
+                months: monthlySeries,
+                currency: accountingCurrency,
+                lang: lang,
+                numberFormat: numberFormat
+            )
+        }
+    }
+
+    private var monthlySeries: [RevenueMonth] {
+        RevenueSeriesService.monthlySeries(
+            for: facturesEncaissees,
+            referenceCurrency: accountingCurrency
+        )
+    }
+
+    private var vatCollectedThisQuarter: Decimal {
+        RevenueSeriesService.vatCollectedThisQuarter(
+            for: facturesEncaissees,
+            referenceCurrency: accountingCurrency
+        )
     }
 
     private var dashboardHeader: some View {
