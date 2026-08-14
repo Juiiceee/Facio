@@ -426,7 +426,11 @@ struct CommandPaletteView: View {
     private func exportPDF(_ document: Document) {
         let pdfData = PDFGenerator(document: document, company: dataStore.companyInfo).generate()
         Task {
-            _ = await ExportService.exportPDF(data: pdfData, defaultFilename: document.number, language: lang)
+            _ = await ExportService.exportPDF(
+                data: pdfData,
+                defaultFilename: DocumentExportNaming.pdfFilename(number: document.number, clientName: document.clientNom),
+                language: lang
+            )
         }
         dismiss()
     }

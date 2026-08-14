@@ -237,7 +237,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "app lock lockout starts after three failures and backs off", run: appLockLockoutStartsAfterThreeFailuresAndBacksOff),
         RegressionCase(name: "app lock countdown stays readable across the minute", run: appLockCountdownStaysReadableAcrossTheMinute),
         RegressionCase(name: "app lock auto-lock waits for the configured idle delay", run: appLockAutoLockWaitsForConfiguredIdleDelay),
-        RegressionCase(name: "passcode flow numbers its steps and can go back", run: passcodeFlowNumbersItsStepsAndCanGoBack)
+        RegressionCase(name: "passcode flow numbers its steps and can go back", run: passcodeFlowNumbersItsStepsAndCanGoBack),
+        RegressionCase(name: "the two PDF exports of a document never share a filename", run: pdfExportsNeverShareAFilename)
     ]
 
     // MARK: - Verrouillage par code
@@ -3949,6 +3950,50 @@ enum FacioRegressionSuite {
     private static func decimal(_ string: String) -> Decimal {
         Decimal(string: string, locale: Locale(identifier: "en_US_POSIX"))!
     }
+
+    // MARK: - Nommage des exports
+
+    /// Le PDF simple et le Factur-X sont DEUX fichiers différents : ils ne
+    /// doivent jamais se présenter sous le même nom.
+    ///
+    /// Les deux exports proposaient `document.number` — exporter les deux dans
+    /// le même dossier offrait donc d'écraser le premier par le second, alors
+    /// que l'un porte une facture électronique structurée et l'autre non.
+    private static func pdfExportsNeverShareAFilename() throws {
+        let cases = [
+            ("Facture_2026_03", "Studio Norne SARL"),
+            ("Invoice_2026_11", "Coopérative Sillage"),
+            ("Facture_2026_01", ""),
+            ("Devis_2026_02", "   "),
+        ]
+
+        for (number, client) in cases {
+            let pdf = DocumentExportNaming.pdfFilename(number: number, clientName: client)
+            let facturX = DocumentExportNaming.facturXFilename(number: number, clientName: client)
+
+            try expect(pdf != facturX, "the two exports of \(number) must not share a filename")
+            try expect(pdf.hasPrefix(number), "\(pdf) must stay identifiable by its document number")
+            try expect(
+                facturX.hasSuffix(DocumentExportNaming.facturXSuffix),
+                "the structured export must announce itself: \(facturX)"
+            )
+            // Un nom vide ou blanc ne doit pas produire de séparateur orphelin.
+            try expect(!pdf.contains("__"), "\(pdf) must not carry an empty segment")
+            try expect(!pdf.hasSuffix("_"), "\(pdf) must not end on a separator")
+        }
+
+        // Le client entre dans le nom : un dossier d'exports ne contenait que
+        // des « Facture_2026_03.pdf » indistinguables d'un client à l'autre.
+        let a = DocumentExportNaming.pdfFilename(number: "Facture_2026_03", clientName: "Studio Norne")
+        let b = DocumentExportNaming.pdfFilename(number: "Facture_2026_03", clientName: "Atelier Vermeille")
+        try expect(a != b, "two clients must not produce the same filename for the same number")
+
+        // Les séparateurs de chemin ne survivent pas au passage en nom de fichier.
+        let hostile = DocumentExportNaming.slug("A/B:C  *E")
+        try expect(!hostile.contains("/") && !hostile.contains(":"), "path separators must not survive: \(hostile)")
+        try expect(!hostile.contains("--"), "runs of punctuation must collapse: \(hostile)")
+    }
+
 }
 
 private struct RegressionCase: Sendable {
