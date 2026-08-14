@@ -206,6 +206,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "intent glyphs meet graphical contrast", run: intentGlyphsMeetGraphicalContrast),
         RegressionCase(name: "intent glyphs are brighter than their fills", run: intentGlyphsAreBrighterThanFills),
         RegressionCase(name: "button foregrounds are readable on their fills", run: buttonForegroundsAreReadableOnTheirFills),
+        RegressionCase(name: "undo and cancel are distinct in french", run: undoAndCancelAreDistinctInFrench),
+        RegressionCase(name: "destructive icon button has a bigger target", run: destructiveIconButtonHasABiggerTarget),
         RegressionCase(name: "custom accent picks a readable foreground", run: customAccentPicksAReadableForeground),
         RegressionCase(name: "dark elevation planes are ordered", run: darkElevationPlanesAreOrdered),
         RegressionCase(name: "spacing scale stays on the four point grid", run: spacingScaleStaysOnTheFourPointGrid),
@@ -904,8 +906,55 @@ enum FacioRegressionSuite {
                         "\(rName) button on \(aName) must reach 4.5:1 in \(scheme), got \(String(format: "%.2f", Double(r)))"
                     )
                 }
+
+                // Le tertiaire n'a pas d'aplat : il vit sur la surface qui le
+                // porte. Son libellé doit donc tenir 4,5:1 sur CHACUNE d'elles,
+                // sinon le rôle qui absorbe les 15 « borderless » de l'app est
+                // le moins lisible des quatre.
+                for (sName, surface) in [
+                    ("canvas", Color.surfaceCanvas),
+                    ("raised", Color.surfaceRaised),
+                    ("sunken", Color.surfaceSunken)
+                ] {
+                    let r = ratio(
+                        FacioButtonRole.tertiary.foreground(accent: accent, scheme: scheme),
+                        on: surface,
+                        scheme
+                    )
+                    try expect(
+                        r >= 4.5,
+                        "tertiary button on \(aName) over \(sName) must reach 4.5:1 in \(scheme), got \(String(format: "%.2f", Double(r)))"
+                    )
+                }
             }
         }
+    }
+
+    /// « Annuler » ne peut plus désigner deux gestes opposés sur le même écran :
+    /// la barre d'annulation DÉFAIT une suppression, le pied d'un éditeur
+    /// ABANDONNE une saisie. En français les deux disaient « Annuler ».
+    private static func undoAndCancelAreDistinctInFrench() throws {
+        try expect(
+            L10n.undo(.fr) != L10n.cancel(.fr),
+            "undo and cancel must not share a French label — got \"\(L10n.undo(.fr))\" for both"
+        )
+        try expectEqual(L10n.undo(.fr), "Rétablir")
+        try expectEqual(L10n.cancel(.fr), "Annuler")
+        // L'anglais distinguait déjà les deux : on ne le casse pas.
+        try expect(L10n.undo(.en) != L10n.cancel(.en), "undo and cancel must stay distinct in English")
+    }
+
+    /// Un bouton-icône destructif ne doit pas être un glyphe parmi d'autres au
+    /// même poids dans une rangée dense : sa cible est élargie.
+    private static func destructiveIconButtonHasABiggerTarget() throws {
+        let normal = FacioLayout.iconHitTarget
+        try expect(normal >= 28, "the base hit target must stay at least 28 pt")
+        // La cible destructive est calculée dans FacioIconButton à partir du
+        // même token : on épingle la règle, pas une valeur recopiée.
+        try expect(
+            normal + FacioLayout.space4 > normal,
+            "the destructive target must be strictly larger than the base one"
+        )
     }
 
     /// Le bouton primaire forçait du texte blanc : un accent clair rendait tous

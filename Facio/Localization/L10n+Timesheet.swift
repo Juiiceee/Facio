@@ -174,7 +174,13 @@ extension L10n {
     static func invoiceTimeEntries(_ l: AppLanguage) -> String { l == .fr ? "Facturer les heures" : "Invoice time" }
     static func estimatedAmount(_ l: AppLanguage) -> String { l == .fr ? "Montant estimé" : "Estimated amount" }
     static func entryDeleted(_ l: AppLanguage) -> String { l == .fr ? "Entrée supprimée." : "Entry deleted." }
-    static func undo(_ l: AppLanguage) -> String { l == .fr ? "Annuler" : "Undo" }
+    /// « Rétablir », pas « Annuler ».
+    ///
+    /// En français, `undo` et `cancel` se traduisaient tous les deux par
+    /// « Annuler » — et les deux apparaissaient sur le même écran, avec des sens
+    /// opposés : la barre d'annulation *défait* une suppression, le pied d'un
+    /// éditeur *abandonne* une saisie.
+    static func undo(_ l: AppLanguage) -> String { l == .fr ? "Rétablir" : "Undo" }
     static func invalidDuration(_ l: AppLanguage) -> String { l == .fr ? "Durée invalide" : "Invalid duration" }
     static func invalidTimeRange(_ l: AppLanguage) -> String {
         l == .fr ? "L'heure de fin doit être après l'heure de début." :

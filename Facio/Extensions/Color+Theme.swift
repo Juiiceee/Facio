@@ -93,6 +93,18 @@ extension Color {
     /// Texte sur l'aplat d'accent de marque.
     static var textOnAccent: Color { dynamic(srgb(0xFFFFFF), srgb(0x12160C)) }
 
+    /// **L'accent EN TEXTE**, posé sur une surface — distinct de l'aplat.
+    ///
+    /// `#4A7A2B` est calibré pour porter du texte blanc (5,11:1). Utilisé en
+    /// sens inverse, comme encre sur une surface, il tombe à 4,40:1 sur le
+    /// canvas et 4,23:1 sur une ligne sélectionnée : sous AA, précisément là où
+    /// vit le bouton tertiaire, le rôle qui absorbe les 15 « borderless » de
+    /// l'app. On sert donc la nuance foncée (celle du survol) dès que l'accent
+    /// devient de l'encre : 5,58:1 au pire en clair, 6,40:1 en sombre.
+    ///
+    /// L'aplat, lui, ne bouge pas — le PDF et les pastilles d'aperçu non plus.
+    static var accentText: Color { dynamic(srgb(0x3D6621), srgb(0xA9C68C)) }
+
     /// Valeur imprimée : le PDF ne connaît pas le thème et utilise l'olive clair.
     /// C'est la MÊME constante que l'interface — un cas de non-régression
     /// l'épingle, avec le défaut par défaut de `CompanyInfo`.
@@ -125,6 +137,50 @@ extension Color {
     /// des deux qui contraste le mieux.
     static func onAccent(_ background: NSColor) -> Color {
         Color(nsColor: NSColor.bestForeground(on: background))
+    }
+
+    /// La version LISIBLE d'une couleur employée comme encre.
+    ///
+    /// Une couleur de marque est calibrée pour porter du texte ; utilisée en
+    /// sens inverse, comme texte sur une surface, elle n'a aucune raison de
+    /// tenir le même seuil. L'olive `#4A7A2B` tombe ainsi à 4,40:1 sur le canvas
+    /// et 4,23:1 sur une ligne sélectionnée.
+    ///
+    /// Plutôt que de coder en dur une exception pour l'accent de marque — qui
+    /// laisserait tous les accents personnalisés dans le mur — on assombrit (ou
+    /// on éclaircit, en sombre) par pas de 5 % jusqu'à ce que le pire des fonds
+    /// passe. Une couleur déjà conforme est renvoyée telle quelle.
+    static func readableInk(
+        _ color: Color,
+        onAnyOf surfaces: [Color],
+        _ scheme: ColorScheme,
+        minimum: CGFloat = 4.5
+    ) -> Color {
+        let backgrounds = surfaces.map { $0.facioResolved(scheme) }
+        guard let base = color.facioResolved(scheme).usingColorSpace(.sRGB) else { return color }
+
+        func worst(_ candidate: NSColor) -> CGFloat {
+            backgrounds.map { NSColor.contrastRatio(candidate, $0) }.min() ?? 0
+        }
+        guard worst(base) < minimum else { return color }
+
+        // En sombre on éclaircit, en clair on assombrit : on s'éloigne du fond.
+        let target: NSColor = scheme == .dark ? .white : .black
+        var fraction: CGFloat = 0.05
+        while fraction <= 1 {
+            if let candidate = base.blended(withFraction: fraction, of: target), worst(candidate) >= minimum {
+                return Color(nsColor: candidate)
+            }
+            fraction += 0.05
+        }
+        return scheme == .dark ? Color(nsColor: .white) : .textPrimary
+    }
+
+    /// Les surfaces sur lesquelles une encre peut atterrir. Le pire cas change
+    /// de thème : en clair c'est le canvas et la ligne sélectionnée, en sombre
+    /// la ligne survolée.
+    static var inkSurfaces: [Color] {
+        [.surfaceCanvas, .surfaceRaised, .surfaceSunken, .surfaceHover, .surfaceSelected]
     }
 
     /// Ce token, résolu en `NSColor` dans un thème donné.
@@ -299,7 +355,7 @@ extension Color {
         )
     }
     static var intentInfoTriple: FacioIntent {
-        FacioIntent(fill: accent, tint: accentTint, onTint: accent, glyph: accentGlyph)
+        FacioIntent(fill: accent, tint: accentTint, onTint: accentText, glyph: accentGlyph)
     }
 
     /// Olive de marque en marque colorée sans texte (pastille, icône, filet).

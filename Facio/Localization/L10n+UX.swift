@@ -94,4 +94,6 @@ extension L10n {
             ? "Le fichier « \(name) » sera supprimé définitivement du disque."
             : "The file “\(name)” will be permanently deleted from disk."
     }
+    // Champs de formulaire
+    static func fieldRequired(_ l: AppLanguage) -> String { l == .fr ? "requis" : "required" }
 }

@@ -781,19 +781,20 @@ private struct TimeEntryRow: View {
             HStack(spacing: FacioLayout.space4) {
                 FacioIconButton(
                     systemImage: "play.fill",
-                    help: canContinue ? L10n.continueTimer(lang) : L10n.timerOutsidePeriod(lang),
+                    label: L10n.continueTimer(lang),
                     isEnabled: !entry.isRunning && canContinue,
+                    help: canContinue ? L10n.continueTimer(lang) : L10n.timerOutsidePeriod(lang),
                     action: onContinue
                 )
                 FacioIconButton(
                     systemImage: "pencil",
-                    help: L10n.editTimeEntry(lang),
+                    label: L10n.editTimeEntry(lang),
                     action: onEdit
                 )
                 FacioIconButton(
                     systemImage: "trash",
-                    tone: .intentDanger,
-                    help: L10n.delete(lang),
+                    label: L10n.delete(lang),
+                    role: .destructive,
                     isEnabled: !entry.isInvoiced,
                     action: onDelete
                 )

@@ -216,10 +216,10 @@ private struct AttachmentRowView: View {
 
                 Spacer()
 
-                FacioIconButton(systemImage: "arrow.up.right.square", help: L10n.openAttachment(lang)) {
+                FacioIconButton(systemImage: "arrow.up.right.square", label: L10n.openAttachment(lang)) {
                     onOpen()
                 }
-                FacioIconButton(systemImage: "trash", tone: .intentDanger, help: L10n.delete(lang)) {
+                FacioIconButton(systemImage: "trash", label: L10n.delete(lang), role: .destructive) {
                     onDelete()
                 }
             }

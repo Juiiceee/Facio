@@ -480,8 +480,8 @@ struct TimeHubView: View {
                 Spacer()
                 FacioIconButton(
                     systemImage: "play.fill",
-                    tone: .intentSuccess,
-                    help: L10n.startThisTask(lang),
+                    label: L10n.startThisTask(lang),
+                    tone: FacioIntent.success.glyph,
                     isEnabled: dataStore.runningTimeEntryContext == nil
                 ) {
                     startTask(group)
@@ -894,25 +894,25 @@ private struct TimeHubEntryRow: View {
             HStack(spacing: FacioLayout.space4) {
                 FacioIconButton(
                     systemImage: "play.fill",
-                    help: L10n.continueTimer(lang),
+                    label: L10n.continueTimer(lang),
                     isEnabled: !context.entry.isRunning,
                     action: onContinue
                 )
                 FacioIconButton(
                     systemImage: "pencil",
-                    help: L10n.editTimeEntry(lang),
+                    label: L10n.editTimeEntry(lang),
                     action: onEdit
                 )
                 FacioIconButton(
                     systemImage: "doc.badge.plus",
-                    help: L10n.createInvoice(lang),
+                    label: L10n.createInvoice(lang),
                     isEnabled: context.entry.isBillable && !context.entry.isInvoiced && !context.entry.isRunning,
                     action: onInvoice
                 )
                 FacioIconButton(
                     systemImage: "trash",
-                    tone: .intentDanger,
-                    help: L10n.delete(lang),
+                    label: L10n.delete(lang),
+                    role: .destructive,
                     isEnabled: !context.entry.isInvoiced,
                     action: onDelete
                 )

@@ -38,6 +38,11 @@ enum FacioFont {
     /// 11 / medium — libellé de champ, badge. **Plancher : rien en dessous.**
     static let label: Font = .system(size: 11, weight: .medium)
 
+    /// 12 / medium — libellé de bouton.
+    static let buttonLabel: Font = .system(size: 12, weight: .medium)
+    /// 12 / semibold — libellé du bouton primaire, le seul mis en avant.
+    static let buttonLabelEmphasis: Font = .system(size: 12, weight: .semibold)
+
     // MARK: - Jeu numérique (chiffres tabulaires)
 
     /// 28 / mono semibold — valeur d'une tuile KPI.

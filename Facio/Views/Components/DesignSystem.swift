@@ -218,30 +218,138 @@ extension View {
     }
 }
 
-struct SectionPanel<Content: View>: View {
+/// Présentation d'un panneau.
+enum FacioPanelStyle {
+    /// Carte : fond, contour, élévation. Le cas courant.
+    case card
+    /// Sans chrome : pour les groupes qui ne SONT pas des objets. « Saisie des
+    /// heures » et son segmenté n'ont pas à se présenter comme une carte —
+    /// c'était pourtant la seule rangée nue de son écran, sans conteneur du tout.
+    case plain
+}
+
+/// Panneau de section — le conteneur le plus utilisé de l'app (61 usages).
+///
+/// Trois variantes : titrée, sans chrome, et repliable. Le titre accepte une
+/// **action de droite** : c'est là que remontent les « + » et les « Voir tout »
+/// aujourd'hui absents, ou perdus en bas de panneau après la liste qu'ils
+/// commandent.
+struct SectionPanel<Content: View, Accessory: View>: View {
     let title: String?
     let systemImage: String?
+    var style: FacioPanelStyle = .card
+    /// Compteur affiché à côté du titre (« Justificatifs · 3 »).
+    var count: Int?
+    /// Rend le panneau repliable. L'état vit dans le panneau.
+    var isCollapsible: Bool = false
+    let accessory: Accessory
     let content: Content
 
-    init(_ title: String? = nil, systemImage: String? = nil, @ViewBuilder content: () -> Content) {
+    @State private var isExpanded = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    init(
+        _ title: String? = nil,
+        systemImage: String? = nil,
+        style: FacioPanelStyle = .card,
+        count: Int? = nil,
+        isCollapsible: Bool = false,
+        @ViewBuilder accessory: () -> Accessory,
+        @ViewBuilder content: () -> Content
+    ) {
         self.title = title
         self.systemImage = systemImage
+        self.style = style
+        self.count = count
+        self.isCollapsible = isCollapsible
+        self.accessory = accessory()
         self.content = content()
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: FacioLayout.space16) {
+            if title != nil || Accessory.self != EmptyView.self {
+                header
+            }
+            if isExpanded || !isCollapsible {
+                content
+            }
+        }
+        .padding(style == .card ? FacioLayout.density.panelPadding : 0)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(FacioPanelChrome(style: style))
+    }
+
+    private var header: some View {
+        HStack(spacing: FacioLayout.space8) {
+            if isCollapsible {
+                Image(systemName: "chevron.right")
+                    .font(FacioFont.label)
+                    .foregroundStyle(Color.textSecondary)
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .accessibilityHidden(true)
+            }
             if let title {
                 Label(title, systemImage: systemImage ?? "square.grid.2x2")
                     .font(FacioFont.titleSection)
                     .foregroundStyle(Color.textPrimary)
                     .labelStyle(.titleAndIcon)
             }
-            content
+            if let count {
+                Text("\(count)")
+                    .font(FacioFont.label)
+                    .foregroundStyle(Color.textSecondary)
+                    .padding(.horizontal, FacioLayout.space8)
+                    .frame(minHeight: FacioLayout.density.badgeHeight - FacioLayout.space4)
+                    .background(Color.surfaceSunken)
+                    .clipShape(Capsule())
+            }
+            Spacer(minLength: FacioLayout.space8)
+            accessory
         }
-        .padding(FacioLayout.panelPadding)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .facioCardChrome()
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard isCollapsible else { return }
+            withAnimation(FacioMotion.respecting(FacioMotion.state, reduceMotion: reduceMotion)) {
+                isExpanded.toggle()
+            }
+        }
+    }
+}
+
+/// Chrome du panneau, isolé pour que la variante `plain` n'ait ni fond, ni
+/// contour, ni élévation — et pas simplement un fond transparent.
+private struct FacioPanelChrome: ViewModifier {
+    let style: FacioPanelStyle
+
+    func body(content: Content) -> some View {
+        switch style {
+        case .card: content.facioElevation(.e1, radius: FacioLayout.radiusMedium)
+        case .plain: content
+        }
+    }
+}
+
+// Les 61 appels existants ne passent pas d'accessoire : cette surcharge garde
+// leur signature intacte.
+extension SectionPanel where Accessory == EmptyView {
+    init(
+        _ title: String? = nil,
+        systemImage: String? = nil,
+        style: FacioPanelStyle = .card,
+        count: Int? = nil,
+        isCollapsible: Bool = false,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.init(
+            title,
+            systemImage: systemImage,
+            style: style,
+            count: count,
+            isCollapsible: isCollapsible,
+            accessory: { EmptyView() },
+            content: content
+        )
     }
 }
 
