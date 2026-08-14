@@ -17,6 +17,7 @@ struct CommandPaletteView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(DataStore.self) private var dataStore
+    @Environment(AppLock.self) private var appLock
 
     @State private var searchText = ""
     @State private var selectedIndex = 0
@@ -84,8 +85,31 @@ struct CommandPaletteView: View {
             ) {
                 selectedSettingsTab = 2
                 goTo(.parametres)
+            },
+            PaletteAction(
+                id: "settings-security",
+                title: L10n.settingsSecurity(lang),
+                subtitle: L10n.settings(lang),
+                systemImage: "lock.shield"
+            ) {
+                selectedSettingsTab = 8
+                goTo(.parametres)
             }
         ]
+
+        if appLock.isEnabled {
+            items.append(
+                PaletteAction(
+                    id: "lock-now",
+                    title: L10n.lockNow(lang),
+                    subtitle: L10n.appLockSection(lang),
+                    systemImage: "lock"
+                ) {
+                    appLock.lockNow()
+                    dismiss()
+                }
+            )
+        }
 
         if let running = dataStore.runningTimeEntryContext {
             items.append(

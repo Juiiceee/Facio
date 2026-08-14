@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @Environment(DataStore.self) private var dataStore
     @Environment(PrivacyMode.self) private var privacy
+    @Environment(AppLock.self) private var appLock
     @State private var selectedSection: SidebarSection? = .dashboard
     @State private var selectedDocumentId: UUID?
     @State private var selectedTimesheetId: UUID?
@@ -90,48 +91,14 @@ struct ContentView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                // Masqué sur « Heures & facturation » : sur cette page on fait un
-                // relevé d'heures (« Nouvelle période »), pas une facture — le menu
-                // « Nouveau » global y prêtait à confusion.
-                if selectedSection != .heures {
-                    Menu {
-                        Button {
-                            newDocument(.facture)
-                        } label: {
-                            Label(L10n.quickCreateInvoice(lang), systemImage: SidebarSection.factures.icon)
-                        }
-                        Button {
-                            newDocument(.devis)
-                        } label: {
-                            Label(L10n.quickCreateQuote(lang), systemImage: SidebarSection.devis.icon)
-                        }
-                        Divider()
-                        Button {
-                            newClient()
-                        } label: {
-                            Label(L10n.quickCreateClient(lang), systemImage: "person.crop.circle.badge.plus")
-                        }
-                    } label: {
-                        Label(L10n.new(lang), systemImage: "plus")
-                    }
-                    .help(L10n.new(lang))
+                // La barre d'outils est hissée dans la fenêtre, hors de la pile
+                // que recouvre l'écran de verrouillage : on la retire nous-mêmes,
+                // sinon ses actions et raccourcis restent joignables verrouillé.
+                if appLock.isLocked {
+                    EmptyView()
+                } else {
+                    toolbarActions
                 }
-
-                Button {
-                    showCommandPalette = true
-                } label: {
-                    Label(L10n.commandPaletteTitle(lang), systemImage: "command")
-                }
-                .keyboardShortcut("k", modifiers: .command)
-                .help(L10n.commandPaletteTitle(lang))
-
-                Button {
-                    privacy.toggle()
-                } label: {
-                    Label(L10n.privacyToggle(lang), systemImage: privacy.hideAmounts ? "eye.slash" : "eye")
-                }
-                .keyboardShortcut("h", modifiers: [.command, .shift])
-                .help(L10n.privacyToggle(lang))
             }
         }
         .onChange(of: selectedSection) { _, newSection in
@@ -159,6 +126,64 @@ struct ContentView: View {
                 selectedTimesheetId = nil
                 selectedClientId = nil
             }
+        }
+    }
+
+    @ViewBuilder
+    private var toolbarActions: some View {
+        // Masqué sur « Heures & facturation » : sur cette page on fait un
+        // relevé d'heures (« Nouvelle période »), pas une facture — le menu
+        // « Nouveau » global y prêtait à confusion.
+        if selectedSection != .heures {
+            Menu {
+                Button {
+                    newDocument(.facture)
+                } label: {
+                    Label(L10n.quickCreateInvoice(lang), systemImage: SidebarSection.factures.icon)
+                }
+                Button {
+                    newDocument(.devis)
+                } label: {
+                    Label(L10n.quickCreateQuote(lang), systemImage: SidebarSection.devis.icon)
+                }
+                Divider()
+                Button {
+                    newClient()
+                } label: {
+                    Label(L10n.quickCreateClient(lang), systemImage: "person.crop.circle.badge.plus")
+                }
+            } label: {
+                Label(L10n.new(lang), systemImage: "plus")
+            }
+            .help(L10n.new(lang))
+        }
+
+        Button {
+            showCommandPalette = true
+        } label: {
+            Label(L10n.commandPaletteTitle(lang), systemImage: "command")
+        }
+        .keyboardShortcut("k", modifiers: .command)
+        .help(L10n.commandPaletteTitle(lang))
+
+        Button {
+            privacy.toggle()
+        } label: {
+            Label(L10n.privacyToggle(lang), systemImage: privacy.hideAmounts ? "eye.slash" : "eye")
+        }
+        .keyboardShortcut("h", modifiers: [.command, .shift])
+        .help(L10n.privacyToggle(lang))
+
+        // Verrouillage manuel — visible seulement si un code est configuré.
+        if appLock.isEnabled {
+            Button {
+                appLock.lockNow()
+            } label: {
+                Label(L10n.lockNow(lang), systemImage: "lock")
+            }
+            // Le raccourci ⌃⌘L est porté par la commande du menu de l'app
+            // (FacioApp) — le dupliquer ici le rendrait ambigu.
+            .help(L10n.lockNow(lang))
         }
     }
 

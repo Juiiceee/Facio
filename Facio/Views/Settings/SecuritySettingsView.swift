@@ -1,0 +1,109 @@
+import SwiftUI
+
+/// Réglages du verrouillage par code : création / modification / suppression du
+/// code, délai de re-verrouillage automatique et Touch ID.
+struct SecuritySettingsView: View {
+    @Environment(DataStore.self) private var dataStore
+    @Environment(AppLock.self) private var lock
+
+    @State private var sheetMode: PasscodeSheetMode?
+
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
+    var body: some View {
+        @Bindable var lock = lock
+
+        return VStack(spacing: FacioLayout.space20) {
+            SectionPanel(L10n.appLockSection(lang), systemImage: "lock.shield") {
+                VStack(alignment: .leading, spacing: FacioLayout.space16) {
+                    HStack(spacing: FacioLayout.space8) {
+                        Circle()
+                            .fill(lock.isEnabled ? Color.intentSuccess : Color.intentNeutral)
+                            .frame(width: FacioLayout.space8, height: FacioLayout.space8)
+                        Text(lock.isEnabled ? L10n.appLockOn(lang) : L10n.appLockOff(lang))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+
+                    Text(L10n.appLockDescription(lang))
+                        .font(FacioFont.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: FacioLayout.space12) {
+                        if lock.isEnabled {
+                            Button(L10n.changeCode(lang)) { sheetMode = .change }
+                                .buttonStyle(.facio(.primary))
+                            Button(L10n.lockNow(lang)) { lock.lockNow() }
+                                .buttonStyle(.facio(.secondary))
+                            Button(L10n.removeCode(lang)) { sheetMode = .remove }
+                                .buttonStyle(.borderless)
+                                .foregroundStyle(Color.intentDanger)
+                        } else {
+                            Button(L10n.createCode(lang)) { sheetMode = .create }
+                                .buttonStyle(.facio(.primary))
+                        }
+                        Spacer()
+                    }
+
+                    if let storageError = lock.storageError {
+                        InlineWarning(text: "\(L10n.codeStorageFailed(lang)) \(storageError)", tone: .danger)
+                    }
+
+                    Text(L10n.appLockSecurityNote(lang))
+                        .font(FacioFont.captionSmall)
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            // Les réglages ci-dessous n'ont de sens qu'avec un code configuré.
+            if lock.isEnabled {
+                SectionPanel(L10n.autoLockSection(lang), systemImage: "timer") {
+                    VStack(alignment: .leading, spacing: FacioLayout.space16) {
+                        LabeledField(L10n.autoLockDelayLabel(lang)) {
+                            Picker("", selection: $lock.autoLockDelay) {
+                                ForEach(AutoLockDelay.allCases) { delay in
+                                    Text(delay.label(for: lang)).tag(delay)
+                                }
+                            }
+                            .labelsHidden()
+                            .frame(maxWidth: FacioLayout.fieldWidth)
+                        }
+
+                        Text(L10n.autoLockHint(lang))
+                            .font(FacioFont.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Divider()
+
+                        Toggle(L10n.lockOnBackgroundLabel(lang), isOn: $lock.lockOnBackground)
+                        Text(L10n.lockOnBackgroundHint(lang))
+                            .font(FacioFont.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                SectionPanel(L10n.biometricsSection(lang), systemImage: "touchid") {
+                    VStack(alignment: .leading, spacing: FacioLayout.space16) {
+                        if AppLock.biometricsAvailable {
+                            Toggle(L10n.biometricsToggle(lang), isOn: $lock.useBiometrics)
+                        } else {
+                            Text(L10n.biometricsUnavailable(lang))
+                                .font(FacioFont.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
+            Spacer()
+        }
+        .padding(FacioLayout.screenPadding)
+        .sheet(item: $sheetMode) { mode in
+            PasscodeSheet(mode: mode, currentLength: lock.credential?.length ?? AppLockCode.defaultLength)
+        }
+    }
+}

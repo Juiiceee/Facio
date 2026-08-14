@@ -19,6 +19,7 @@ struct SettingsInlineView: View {
             (L10n.settingsServices(lang), "star", L10n.settingsServicesHelp(lang)),
             (L10n.settingsLanguage(lang), "globe", L10n.settingsLanguageHelp(lang)),
             (L10n.settingsSync(lang), "arrow.triangle.2.circlepath", L10n.settingsSyncHelp(lang)),
+            (L10n.settingsSecurity(lang), "lock.shield", L10n.settingsSecurityHelp(lang)),
             (L10n.settingsAbout(lang), "info.circle", L10n.settingsAboutHelp(lang))
         ]
     }
@@ -78,7 +79,8 @@ struct SettingsInlineView: View {
         case 5: PrestationsSettingsView()
         case 6: LanguageSettingsView()
         case 7: SyncSettingsView(syncService: syncService, authService: authService)
-        case 8: AboutSettingsView()
+        case 8: SecuritySettingsView()
+        case 9: AboutSettingsView()
         default: EmptyView()
         }
     }
