@@ -192,7 +192,9 @@ struct ContentView: View {
             salesList
         case .temps:
             timeList
-        case .clients, .dashboard, .parametres, .none:
+        case .clients:
+            ClientListView(selectedClientId: $selectedClientId)
+        case .dashboard, .parametres, .none:
             // Rien à lister : la colonne existe toujours — c'est elle qui évite
             // la reconstruction du châssis — mais elle ne prend aucune place.
             Color.clear.frame(width: 0)
@@ -291,7 +293,7 @@ struct ContentView: View {
                 )
             }
         case .clients:
-            ClientListView(selectedClientId: $selectedClientId) { document in
+            ClientDetailPane(selectedClientId: $selectedClientId) { document in
                 openDocument(document)
             }
         case .dashboard:

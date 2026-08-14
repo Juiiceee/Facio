@@ -50,10 +50,15 @@ enum SidebarSection: String, Hashable, Identifiable, CaseIterable {
         }
     }
 
-    /// Les seules sections qui ont une colonne liste. Ailleurs, la colonne se
-    /// replie en rail — elle ne disparaît pas, sinon le châssis se reconstruit.
+    /// Les sections qui ont une colonne liste. Ailleurs, la colonne se replie à
+    /// zéro — elle ne disparaît pas de la structure, sinon le châssis se
+    /// reconstruit.
+    ///
+    /// Clients en fait partie : son carnet EST une liste, et le loger dans la
+    /// colonne prévue pour ça évite en prime que la largeur du détail balaye le
+    /// seuil responsive pendant l'animation de repli (voir `ClientListView`).
     var hasList: Bool {
-        self == .ventes || self == .temps
+        self == .ventes || self == .temps || self == .clients
     }
 }
 
