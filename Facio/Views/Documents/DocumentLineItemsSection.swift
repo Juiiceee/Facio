@@ -34,11 +34,12 @@ struct DocumentLineItemsSection: View {
     var body: some View {
         SectionPanel(L10n.linesSection(lang), systemImage: "list.bullet.rectangle") {
             VStack(alignment: .leading, spacing: FacioLayout.space8) {
-                // En compact, l'en-tête de colonnes n'a plus de colonnes à titrer.
-                if !compact {
-                    header
-                    Divider()
-                }
+                // L'en-tête existe à TOUTES les largeurs. Sous 820 pt il
+                // disparaissait : quantité, prix unitaire et TVA devenaient
+                // trois contrôles sans libellé — le picker de TVA n'ayant même
+                // plus de placeholder pour l'expliquer.
+                if compact { compactHeader } else { header }
+                Divider()
                 content
                 Divider()
                 addLineButton
@@ -62,8 +63,26 @@ struct DocumentLineItemsSection: View {
                 .frame(width: LineItemColumns.totalTTC, alignment: .trailing)
             Spacer().frame(width: LineItemColumns.actions)
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
+        .font(FacioFont.label)
+        .foregroundStyle(Color.textSecondary)
+        .padding(.horizontal, FacioLayout.space4)
+    }
+
+    /// En-tête de la variante compacte : il titre la SECONDE rangée, celle qui
+    /// porte les trois champs chiffrés.
+    private var compactHeader: some View {
+        HStack(spacing: FacioLayout.space8) {
+            Text(L10n.quantityLabel(lang))
+                .frame(width: LineItemColumns.compactQty, alignment: .trailing)
+            Text(L10n.unitPrice(lang))
+                .frame(width: LineItemColumns.compactUnitPrice, alignment: .trailing)
+            Text(L10n.vatLabel(lang))
+                .frame(width: LineItemColumns.compactVat, alignment: .center)
+            Spacer()
+            Text(L10n.totalTTCLabel(lang))
+        }
+        .font(FacioFont.label)
+        .foregroundStyle(Color.textSecondary)
         .padding(.horizontal, FacioLayout.space4)
     }
 
@@ -84,7 +103,8 @@ struct DocumentLineItemsSection: View {
                     onInsertBelow: {
                         insertLineBelow(ligne)
                     },
-                    onUpdate: onSave
+                    onUpdate: onSave,
+                    onMove: { offset in move(ligne, by: offset) }
                 )
             }
 
@@ -95,6 +115,22 @@ struct DocumentLineItemsSection: View {
                     .padding(.vertical, FacioLayout.space12)
             }
         }
+    }
+
+    /// Déplace une ligne d'un cran. Le modèle porte `ordre` et trie dessus,
+    /// mais rien ne permettait de réordonner : il fallait supprimer et retaper.
+    private func move(_ ligne: LineItem, by offset: Int) {
+        var ordered = document.lignesTriees
+        guard let from = ordered.firstIndex(where: { $0.id == ligne.id }) else { return }
+        let to = from + offset
+        guard ordered.indices.contains(to) else { return }
+        ordered.swapAt(from, to)
+        for (index, line) in ordered.enumerated() {
+            if let i = document.lignes.firstIndex(where: { $0.id == line.id }) {
+                document.lignes[i].ordre = index
+            }
+        }
+        onSave()
     }
 
     private var addLineButton: some View {

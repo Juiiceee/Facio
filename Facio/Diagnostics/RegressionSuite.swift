@@ -195,6 +195,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "attachment urls expose only existing files", run: attachmentURLsExposeOnlyExistingFiles),
         RegressionCase(name: "email attachment filenames use labels and dedupe", run: emailAttachmentFilenamesUseLabelsAndDedupe),
         RegressionCase(name: "pdf generation paginates long invoices", run: pdfGenerationPaginatesLongInvoices),
+        RegressionCase(name: "line item accepts any vat rate", run: lineItemAcceptsAnyVATRate),
         RegressionCase(name: "sidebar has five destinations", run: sidebarHasFiveDestinations),
         RegressionCase(name: "document status flow offers one primary per state", run: documentStatusFlowOffersOnePrimaryPerState),
         RegressionCase(name: "responsive width class maps breakpoints", run: responsiveWidthClassMapsBreakpoints),
@@ -1125,6 +1126,25 @@ enum FacioRegressionSuite {
         // « Relancer » est une action, pas un changement d'état : elle ne doit
         // pas prétendre en être un.
         try expect(DocumentTransition.remind.target == nil, "a reminder must not change the status")
+    }
+
+    /// Le taux de TVA d'une ligne est libre : il était figé sur le barème
+    /// français [0 ; 5,5 ; 10 ; 20], donc 2,1 % (presse, médicaments), un taux
+    /// DOM ou un taux étranger étaient inatteignables — dans une app bilingue
+    /// qui facture aussi en USD.
+    private static func lineItemAcceptsAnyVATRate() throws {
+        for rate in ["0", "2.1", "8.5", "13.8", "21"] {
+            let document = Document(type: .facture)
+            document.ajouterLigne(
+                LineItem(designation: "x", quantite: 1, prixUnitaire: 100, tauxTVA: decimal(rate))
+            )
+            try expectDecimal(document.totalHT, equals: "100")
+            // La TVA suit le taux saisi, quel qu'il soit — pas un barème figé.
+            let expected = (decimal("100") as NSDecimalNumber)
+                .multiplying(by: decimal(rate) as NSDecimalNumber)
+                .dividing(by: 100)
+            try expectDecimal(document.totalTVA, equals: expected.stringValue)
+        }
     }
 
     private static func sidebarHasFiveDestinations() throws {

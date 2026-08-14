@@ -167,4 +167,23 @@ extension L10n {
     static func inspectorToggle(_ l: AppLanguage) -> String {
         l == .fr ? "Conformité" : "Compliance"
     }
+    // MARK: - Lignes
+    //
+    // Une ligne incomplète était signalée par un fond orange et RIEN d'autre :
+    // ni icône, ni infobulle, ni texte. Invisible pour un daltonien, pour
+    // VoiceOver, et sur une capture d'écran. La chaîne existait pourtant.
+    static func lineIncomplete(_ l: AppLanguage) -> String {
+        l == .fr ? "Ligne à compléter" : "Line needs completing"
+    }
+    static func lineMissingDesignation(_ l: AppLanguage) -> String {
+        l == .fr ? "désignation manquante" : "missing description"
+    }
+    static func lineMissingQuantity(_ l: AppLanguage) -> String {
+        l == .fr ? "quantité à zéro" : "zero quantity"
+    }
+    static func lineMissingPrice(_ l: AppLanguage) -> String {
+        l == .fr ? "prix négatif" : "negative price"
+    }
+    static func moveLineUp(_ l: AppLanguage) -> String { l == .fr ? "Monter la ligne" : "Move line up" }
+    static func moveLineDown(_ l: AppLanguage) -> String { l == .fr ? "Descendre la ligne" : "Move line down" }
 }
