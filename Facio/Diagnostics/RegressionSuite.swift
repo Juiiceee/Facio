@@ -200,6 +200,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "brand accent is identical in UI and PDF", run: brandAccentIsIdenticalInUIAndPDF),
         RegressionCase(name: "document empty state copy agrees grammatically", run: documentEmptyStateCopyAgreesGrammatically),
         RegressionCase(name: "list empty reason separates filters from search", run: listEmptyReasonSeparatesFiltersFromSearch),
+        RegressionCase(name: "month grid aligns days on weekdays", run: monthGridAlignsDaysOnWeekdays),
         RegressionCase(name: "payment date stamps on paid and feeds revenue month", run: paymentDateStampsOnPaidAndFeedsRevenueMonth),
         RegressionCase(name: "partial status computes reste à payer", run: partialStatusComputesResteAPayer),
         RegressionCase(name: "partial payments bucket cash by payment date", run: partialPaymentsBucketCashByPaymentDate),
@@ -414,6 +415,48 @@ enum FacioRegressionSuite {
                 components(token, lightEnv) != components(token, darkEnv),
                 "\(name) should resolve to different colors in light and dark mode"
             )
+        }
+    }
+
+    /// La grille du mois du Hub temps posait les jours séquentiellement depuis
+    /// le 1er : les colonnes ne correspondaient à aucun jour de la semaine.
+    private static func monthGridAlignsDaysOnWeekdays() throws {
+        let cal = MonthGrid.calendar()
+        try expectEqual(cal.firstWeekday, 2)
+        try expectEqual(MonthGrid.weekdaySymbols().count, 7)
+
+        func firstOf(_ year: Int, _ month: Int) throws -> Date {
+            var components = DateComponents()
+            components.year = year
+            components.month = month
+            components.day = 1
+            guard let date = cal.date(from: components) else {
+                throw RegressionFailure(message: "could not build \(year)-\(month)-01")
+            }
+            return date
+        }
+
+        // Ancrages concrets : 01/03/2026 est un dimanche (6 cases avant lui),
+        // 01/06/2026 un lundi (aucune), 01/08/2026 un samedi (5).
+        let sunday = try firstOf(2026, 3)
+        let monday = try firstOf(2026, 6)
+        let saturday = try firstOf(2026, 8)
+        try expectEqual(MonthGrid.leadingBlanks(monthStart: sunday), 6)
+        try expectEqual(MonthGrid.leadingBlanks(monthStart: monday), 0)
+        try expectEqual(MonthGrid.leadingBlanks(monthStart: saturday), 5)
+
+        // Invariant : le décalage place toujours le 1er sur le bon jour, c'est-à-dire
+        // exactement à N jours du lundi ouvrant sa semaine.
+        for month in 1...12 {
+            let start = try firstOf(2026, month)
+            let blanks = MonthGrid.leadingBlanks(monthStart: start)
+            try expect(blanks >= 0 && blanks <= 6, "leading blanks must stay within a week, got \(blanks)")
+
+            guard let weekStart = cal.dateInterval(of: .weekOfYear, for: start)?.start,
+                  let offset = cal.dateComponents([.day], from: weekStart, to: start).day else {
+                throw RegressionFailure(message: "could not resolve the week containing 2026-\(month)-01")
+            }
+            try expectEqual(blanks, offset)
         }
     }
 

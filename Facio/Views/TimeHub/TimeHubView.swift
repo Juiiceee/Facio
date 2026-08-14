@@ -539,10 +539,22 @@ struct TimeHubView: View {
 
     private func monthCalendar(contexts: [TimeHubEntryContext], now: Date) -> some View {
         let month = TimeHubPeriodMode.month.interval(containing: anchorDate)
-        let calendar = Calendar.current
+        let calendar = MonthGrid.calendar()
         let dayCount = calendar.range(of: .day, in: .month, for: month.start)?.count ?? 30
         let days = (0..<dayCount).compactMap { calendar.date(byAdding: .day, value: $0, to: month.start) }
+        // Sans ces cases vides, la colonne 1 n'est pas le lundi : la grille
+        // ressemble à un calendrier sans en être un.
+        let leadingBlanks = MonthGrid.leadingBlanks(monthStart: month.start)
         return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: FacioLayout.space8), count: 7), spacing: FacioLayout.space8) {
+            ForEach(Array(MonthGrid.weekdaySymbols().enumerated()), id: \.offset) { _, symbol in
+                Text(symbol)
+                    .font(FacioFont.captionSmall)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+            }
+            ForEach(Array(0..<leadingBlanks), id: \.self) { _ in
+                Color.clear.frame(height: 1)
+            }
             ForEach(days, id: \.self) { day in
                 monthDayCell(day: day, contexts: contextsForDay(day, in: contexts), now: now)
             }

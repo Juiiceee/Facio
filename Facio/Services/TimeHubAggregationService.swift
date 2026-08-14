@@ -1,5 +1,35 @@
 import Foundation
 
+/// Géométrie d'une grille de mois à 7 colonnes, semaine commençant le lundi.
+///
+/// Sans décalage de tête, une grille de 7 colonnes remplie séquentiellement
+/// depuis le 1er ne dit rien : chaque colonne change de jour de la semaine d'un
+/// mois à l'autre, alors que la forme se lit sans ambiguïté comme un calendrier.
+enum MonthGrid {
+    /// Le calendrier de référence, aligné sur le reste de l'app (lundi d'abord).
+    static func calendar(_ base: Calendar = .current) -> Calendar {
+        var cal = base
+        cal.firstWeekday = 2
+        return cal
+    }
+
+    /// Nombre de cases vides à poser avant le 1er du mois.
+    static func leadingBlanks(monthStart: Date, calendar base: Calendar = .current) -> Int {
+        let cal = calendar(base)
+        let weekday = cal.component(.weekday, from: monthStart)
+        return (weekday - cal.firstWeekday + 7) % 7
+    }
+
+    /// Initiales des jours dans l'ordre de la grille (lundi en premier).
+    static func weekdaySymbols(calendar base: Calendar = .current) -> [String] {
+        let cal = calendar(base)
+        let symbols = cal.veryShortWeekdaySymbols
+        guard symbols.count == 7 else { return symbols }
+        let offset = cal.firstWeekday - 1
+        return Array(symbols[offset...] + symbols[..<offset])
+    }
+}
+
 enum TimeHubPeriodMode: String, CaseIterable, Identifiable {
     case day
     case week
