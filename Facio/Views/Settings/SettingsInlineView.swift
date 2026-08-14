@@ -102,14 +102,24 @@ private struct SettingsSidebarColumn: View {
     var body: some View {
         VStack(alignment: .leading, spacing: FacioLayout.space16) {
             // En compact, le titre de colonne est masqué (la sidebar réduite
-            // aux icônes ne peut pas l'afficher).
-            if !isCompact {
-                Text(title)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .padding(.horizontal, FacioLayout.space16)
-                    .padding(.top, FacioLayout.space16)
-            }
+            // aux icônes ne peut pas l'afficher) — mais il reste PRÉSENT dans
+            // l'arbre, replié à zéro.
+            //
+            // Un `if !isCompact` insérait et retirait la vue, donc changeait la
+            // structure de l'arbre. Or `isCompact` vient d'une largeur mesurée
+            // qui balaye le seuil de 640 pt pendant l'animation de la colonne du
+            // milieu : SwiftUI restructurait l'arbre à l'intérieur de la passe
+            // de layout d'AppKit, ce qui lève une exception fatale. Ici seule la
+            // MISE EN PAGE change, jamais l'identité.
+            Text(title)
+                .font(.title2)
+                .fontWeight(.bold)
+                .padding(.horizontal, FacioLayout.space16)
+                .padding(.top, isCompact ? 0 : FacioLayout.space16)
+                .frame(height: isCompact ? 0 : nil)
+                .opacity(isCompact ? 0 : 1)
+                .clipped()
+                .accessibilityHidden(isCompact)
 
             List(selection: Binding<Int?>(
                 get: { selectedTab },
@@ -126,15 +136,30 @@ private struct SettingsSidebarColumn: View {
         .background(Color(nsColor: .controlBackgroundColor))
     }
 
-    /// Libellé d'un onglet : icône seule + infobulle (libellé existant) en compact.
-    @ViewBuilder
+    /// Libellé d'un onglet : icône seule + infobulle en compact.
+    ///
+    /// Un style de libellé porté par une VALEUR et non par une branche `if` :
+    /// deux `labelStyle` différents produisent deux types de vue différents,
+    /// donc un changement d'identité au franchissement du seuil — exactement ce
+    /// qui plantait.
     private func tabLabel(_ tab: (label: String, icon: String, help: String)) -> some View {
-        if isCompact {
-            Label(tab.label, systemImage: tab.icon)
-                .labelStyle(.iconOnly)
-                .help(tab.label)
-        } else {
-            Label(tab.label, systemImage: tab.icon)
+        Label(tab.label, systemImage: tab.icon)
+            .labelStyle(SettingsTabLabelStyle(iconOnly: isCompact))
+            .help(tab.label)
+    }
+}
+
+/// Icône seule ou icône + titre, sans changer le type de la vue.
+private struct SettingsTabLabelStyle: LabelStyle {
+    let iconOnly: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: iconOnly ? 0 : FacioLayout.space8) {
+            configuration.icon
+            configuration.title
+                .frame(maxWidth: iconOnly ? 0 : .infinity, alignment: .leading)
+                .opacity(iconOnly ? 0 : 1)
+                .clipped()
         }
     }
 }

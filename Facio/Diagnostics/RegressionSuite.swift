@@ -1084,9 +1084,6 @@ enum FacioRegressionSuite {
         )
     }
 
-    /// Cinq destinations, sans groupe. Deux d'entre elles seulement portent une
-    /// colonne liste — c'est ce qui décide de la largeur du rail, et donc le
-    /// seul endroit où le châssis peut encore diverger.
     /// Chaque état propose exactement UNE action primaire — c'est elle qui
     /// remplace les cinq glyphes de poids égal de la barre d'outils — et une
     /// facture en retard n'appelle pas la même que l'état nominal.
@@ -1244,11 +1241,25 @@ enum FacioRegressionSuite {
         }
     }
 
+    /// Cinq destinations, sans groupe. Trois d'entre elles portent une colonne
+    /// liste — c'est ce qui décide du repli du châssis, et donc le seul endroit
+    /// où il peut encore diverger.
     private static func sidebarHasFiveDestinations() throws {
         try expectEqual(SidebarSection.allCases.count, 5)
 
         let withList = SidebarSection.allCases.filter(\.hasList)
-        try expectEqual(Set(withList), Set([.ventes, .temps]))
+        try expectEqual(Set(withList), Set([.ventes, .clients, .temps]))
+
+        // Clients DOIT en faire partie. Sans colonne liste, son carnet repart
+        // dans un split fait main à l'intérieur de la colonne détail, dont la
+        // largeur balaye alors `breakpointCompact` pendant l'animation de repli
+        // — et une vue qui restructure son arbre à ce moment-là fait planter
+        // AppKit en pleine passe de layout. C'est le plantage « Ventes →
+        // Clients » ; ce cas existe pour qu'il ne revienne pas.
+        try expect(
+            SidebarSection.clients.hasList,
+            "Clients must own the list column instead of splitting the detail column itself"
+        )
 
         for lang in [AppLanguage.fr, .en] {
             let labels = SidebarSection.allCases.map { $0.label(for: lang) }
