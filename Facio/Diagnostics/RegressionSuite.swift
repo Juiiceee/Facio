@@ -235,10 +235,61 @@ enum FacioRegressionSuite {
         RegressionCase(name: "app lock credential survives codable round trip", run: appLockCredentialSurvivesCodableRoundTrip),
         RegressionCase(name: "app lock lockout starts after three failures and backs off", run: appLockLockoutStartsAfterThreeFailuresAndBacksOff),
         RegressionCase(name: "app lock countdown stays readable across the minute", run: appLockCountdownStaysReadableAcrossTheMinute),
-        RegressionCase(name: "app lock auto-lock waits for the configured idle delay", run: appLockAutoLockWaitsForConfiguredIdleDelay)
+        RegressionCase(name: "app lock auto-lock waits for the configured idle delay", run: appLockAutoLockWaitsForConfiguredIdleDelay),
+        RegressionCase(name: "passcode flow numbers its steps and can go back", run: passcodeFlowNumbersItsStepsAndCanGoBack)
     ]
 
     // MARK: - Verrouillage par code
+
+    /// La feuille de code annonce son avancement et sait revenir en arrière.
+    ///
+    /// Elle enchaînait jusqu'à TROIS saisies de six chiffres sans jamais dire
+    /// combien il en restait, et sans retour possible : se tromper de nouveau
+    /// code obligeait à annuler la feuille entière et à ressaisir le code
+    /// actuel depuis le début.
+    private static func passcodeFlowNumbersItsStepsAndCanGoBack() throws {
+        // Chaque mode annonce le bon nombre d'étapes.
+        try expectEqual(PasscodeFlow.totalSteps(for: .remove), 1)
+        try expectEqual(PasscodeFlow.totalSteps(for: .create), 2)
+        try expectEqual(PasscodeFlow.totalSteps(for: .change), 3)
+
+        // La création saute la vérification du code actuel : il n'y en a pas.
+        try expectEqual(PasscodeFlow.firstStep(for: .create), .newCode)
+        try expectEqual(PasscodeFlow.firstStep(for: .change), .current)
+        try expectEqual(PasscodeFlow.firstStep(for: .remove), .current)
+
+        // Les rangs vont de 1 au total, sans trou ni doublon.
+        for mode in [PasscodeSheetMode.create, .change, .remove] {
+            var step: PasscodeStep? = PasscodeFlow.firstStep(for: mode)
+            var seen: [Int] = []
+            var walked: [PasscodeStep] = []
+            while let current = step {
+                seen.append(PasscodeFlow.index(of: current, in: mode))
+                walked.append(current)
+                step = nextStep(after: current, in: mode)
+            }
+            try expectEqual(seen, Array(1...PasscodeFlow.totalSteps(for: mode)))
+
+            // Et chaque étape sait d'où elle vient — sauf la première.
+            try expect(
+                PasscodeFlow.previous(of: walked[0], in: mode) == nil,
+                "the first step of \(mode.id) must have nowhere to go back to"
+            )
+            for (offset, current) in walked.enumerated() where offset > 0 {
+                try expectEqual(PasscodeFlow.previous(of: current, in: mode), walked[offset - 1])
+            }
+        }
+    }
+
+    /// L'étape suivante, telle que la parcourt `advance(with:)`.
+    private static func nextStep(after step: PasscodeStep, in mode: PasscodeSheetMode) -> PasscodeStep? {
+        switch (mode, step) {
+        case (.remove, _): return nil
+        case (_, .current): return .newCode
+        case (_, .newCode): return .confirmation
+        case (_, .confirmation): return nil
+        }
+    }
 
     /// Le code exact déverrouille, tout le reste échoue — y compris un code de
     /// la bonne longueur qui ne diffère que d'un chiffre.
