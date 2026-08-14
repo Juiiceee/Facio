@@ -144,12 +144,12 @@ struct ClientListView: View {
     private var splitLayout: some View {
         HStack(spacing: 0) {
             clientList
-                .frame(minWidth: 260, idealWidth: 340, maxWidth: 480, maxHeight: .infinity)
+                .frame(minWidth: FacioLayout.clientListMin, idealWidth: FacioLayout.clientListIdeal, maxWidth: FacioLayout.clientListMax, maxHeight: .infinity)
 
             Divider()
 
             detailPane
-                .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
+                .frame(minWidth: FacioLayout.clientDetailMin, maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
