@@ -51,14 +51,42 @@ extension EnvironmentValues {
 }
 
 /// Mesure la largeur du conteneur et la propage dans l'environnement.
+///
+/// La republication est DIFFÉRÉE hors de la passe de layout en cours.
+///
+/// Les consommateurs de cette largeur choisissent parfois entre deux arbres de
+/// vues différents (`if compact { … } else { … }`), et pas seulement entre deux
+/// mises en page. Écrire l'état pendant qu'AppKit est à l'intérieur de
+/// `_NSViewLayout` fait alors restructurer l'arbre au milieu de sa passe, ce qui
+/// lève une exception fatale — c'est le plantage « Ventes → Clients », et il
+/// était aussi atteignable en redimensionnant simplement la fenêtre.
+///
+/// `ClientListView` et `SettingsInlineView` ont vu leur bascule supprimée à la
+/// source. Restent `DocumentLineItemsSection` et `LineItemRowView`, dont les
+/// deux variantes sont des dispositions réellement distinctes (une rangée
+/// contre deux) : les stabiliser vue par vue demanderait un `Layout` sur
+/// mesure. Différer d'un tour de boucle protège tout le monde, y compris les
+/// consommateurs à venir.
 private struct FacioResponsiveContainer: ViewModifier {
-    @State private var width: CGFloat = FacioLayout.windowIdealWidth
+    @State private var width: CGFloat?
+
+    private var resolved: CGFloat { width ?? FacioLayout.windowIdealWidth }
 
     func body(content: Content) -> some View {
         content
-            .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { width = $0 }
-            .environment(\.facioWidthClass, FacioWidthClass(width: width))
-            .environment(\.facioContainerWidth, width)
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { measured in
+                // Première mesure : synchrone, pour que la toute première passe
+                // de layout parte de la bonne largeur plutôt que d'une valeur
+                // par défaut qu'on corrigerait à la frame suivante.
+                guard width != nil else {
+                    width = measured
+                    return
+                }
+                guard measured != width else { return }
+                Task { @MainActor in width = measured }
+            }
+            .environment(\.facioWidthClass, FacioWidthClass(width: resolved))
+            .environment(\.facioContainerWidth, resolved)
     }
 }
 
