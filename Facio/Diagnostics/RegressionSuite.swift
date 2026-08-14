@@ -196,6 +196,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "email attachment filenames use labels and dedupe", run: emailAttachmentFilenamesUseLabelsAndDedupe),
         RegressionCase(name: "pdf generation paginates long invoices", run: pdfGenerationPaginatesLongInvoices),
         RegressionCase(name: "sidebar has five destinations", run: sidebarHasFiveDestinations),
+        RegressionCase(name: "document status flow offers one primary per state", run: documentStatusFlowOffersOnePrimaryPerState),
         RegressionCase(name: "responsive width class maps breakpoints", run: responsiveWidthClassMapsBreakpoints),
         RegressionCase(name: "window minimum fits split view columns", run: windowMinimumFitsSplitViewColumns),
         RegressionCase(name: "sheet minimums fit inside minimum window", run: sheetMinimumsFitInsideMinimumWindow),
@@ -1083,6 +1084,49 @@ enum FacioRegressionSuite {
     /// Cinq destinations, sans groupe. Deux d'entre elles seulement portent une
     /// colonne liste — c'est ce qui décide de la largeur du rail, et donc le
     /// seul endroit où le châssis peut encore diverger.
+    /// Chaque état propose exactement UNE action primaire — c'est elle qui
+    /// remplace les cinq glyphes de poids égal de la barre d'outils — et une
+    /// facture en retard n'appelle pas la même que l'état nominal.
+    private static func documentStatusFlowOffersOnePrimaryPerState() throws {
+        // Un brouillon s'envoie ; une facture envoyée s'encaisse ; une facture
+        // en retard se relance.
+        try expectEqual(DocumentStatusFlow.primary(for: .brouillon, isOverdue: false), .send)
+        try expectEqual(DocumentStatusFlow.primary(for: .envoyee, isOverdue: false), .markPaid)
+        try expectEqual(DocumentStatusFlow.primary(for: .envoyee, isOverdue: true), .remind)
+        try expectEqual(DocumentStatusFlow.primary(for: .partiel, isOverdue: false), .markPaid)
+
+        // Un document soldé ou annulé n'a rien à proposer en primaire : forcer
+        // une action y serait une invitation à se tromper.
+        try expect(DocumentStatusFlow.primary(for: .payee, isOverdue: false) == nil, "a paid document has no primary action")
+        try expect(DocumentStatusFlow.primary(for: .annulee, isOverdue: false) == nil, "a cancelled document has no primary action")
+
+        for status in DocumentStatus.allCases {
+            for overdue in [false, true] {
+                let all = DocumentStatusFlow.all(for: status, isOverdue: overdue)
+                // Aucune transition proposée deux fois dans le même état.
+                try expectEqual(Set(all).count, all.count)
+                // Aucune transition ne ramène à l'état où l'on est déjà.
+                try expect(
+                    !all.contains { $0.target == status },
+                    "\(status) must not offer a transition to itself"
+                )
+                // Tout ce qui est proposé porte un libellé dans les deux langues.
+                for transition in all {
+                    for lang in [AppLanguage.fr, .en] {
+                        try expect(
+                            !transition.label(for: lang).trimmingCharacters(in: .whitespaces).isEmpty,
+                            "\(transition) must be labelled in \(lang)"
+                        )
+                    }
+                }
+            }
+        }
+
+        // « Relancer » est une action, pas un changement d'état : elle ne doit
+        // pas prétendre en être un.
+        try expect(DocumentTransition.remind.target == nil, "a reminder must not change the status")
+    }
+
     private static func sidebarHasFiveDestinations() throws {
         try expectEqual(SidebarSection.allCases.count, 5)
 

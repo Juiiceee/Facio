@@ -96,9 +96,6 @@ struct DocumentEditorView: View {
             saveTask?.cancel()
             saveDocument()
         }
-        .toolbar {
-            editorToolbar
-        }
         .sheet(isPresented: $showClientPicker) {
             ClientPickerSheet(clients: clients) { client in
                 client.appliquer(sur: document)
@@ -223,13 +220,17 @@ struct DocumentEditorView: View {
                 StatusBadge(status: document.status, isOverdue: document.isOverdue, paidViaInstallments: document.isPaidViaInstallments)
             }
 
+            // Un seul numéro dans l'écran — il était éditable ici ET dans la
+            // grille « En-tête », sans contrôle, alors que la numérotation
+            // continue est une obligation légale.
             TextField(L10n.number(lang), text: Binding(
                 get: { document.number },
                 set: { document.number = $0; scheduleSave() }
             ))
-            .font(FacioFont.heroTitle)
+            .font(FacioFont.titleHero)
             .textFieldStyle(.plain)
             .lineLimit(1)
+            .facioField(error: duplicateNumberError)
 
             Text(document.clientNom.isEmpty ? L10n.noClient(lang) : document.clientNom)
                 .font(FacioFont.screenSubtitle)
@@ -252,21 +253,114 @@ struct DocumentEditorView: View {
         .frame(minWidth: 150, alignment: .trailing)
     }
 
+    /// L'action attendue dans l'état courant, plus les autres gestes dans un
+    /// menu unique. Les cinq glyphes de poids égal de la barre d'outils n'en
+    /// portaient aucun, et « Aperçu » comme « Exporter » y étaient en double
+    /// avec le hero.
     private var heroActions: some View {
-        VStack(alignment: .trailing, spacing: FacioLayout.space8) {
-            Button {
-                showPreview = true
-            } label: {
-                Label(L10n.preview(lang), systemImage: "eye")
+        HStack(spacing: FacioLayout.space8) {
+            if let primary = DocumentStatusFlow.primary(for: document.status, isOverdue: document.isOverdue) {
+                FacioButton(
+                    primary.label(for: lang),
+                    systemImage: primary.systemImage,
+                    role: .primary
+                ) {
+                    apply(primary)
+                }
             }
-            .buttonStyle(.facio(.secondary))
 
-            Button {
-                exporterPDF()
+            Menu {
+                ForEach(DocumentStatusFlow.secondary(for: document.status, isOverdue: document.isOverdue)) { transition in
+                    Button(role: transition.isDestructive ? .destructive : nil) {
+                        apply(transition)
+                    } label: {
+                        Label(transition.label(for: lang), systemImage: transition.systemImage)
+                    }
+                }
+
+                Divider()
+
+                Button { showPreview = true } label: {
+                    Label(L10n.preview(lang), systemImage: "eye")
+                }
+                Button { exporterPDF() } label: {
+                    Label(L10n.exportPDF(lang), systemImage: "square.and.arrow.up")
+                }
+                if document.type == .facture {
+                    Button { exporterFacturX() } label: {
+                        Label(L10n.exportFacturX(lang), systemImage: "checkmark.seal")
+                    }
+                }
+                Button { envoyerParEmail() } label: {
+                    Label(L10n.sendByEmail(lang), systemImage: "paperplane")
+                }
+                Divider()
+                Button { dupliquer() } label: {
+                    Label(L10n.duplicate(lang), systemImage: "doc.on.doc")
+                }
             } label: {
-                Label(L10n.exportPDF(lang), systemImage: "square.and.arrow.up")
+                Label(L10n.moreActions(lang), systemImage: "ellipsis")
             }
-            .buttonStyle(.facio(.primary))
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help(L10n.moreActions(lang))
+        }
+    }
+
+    /// Un autre document porte déjà ce numéro.
+    private var duplicateNumberError: String? {
+        let number = document.number.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !number.isEmpty else { return nil }
+        let clash = dataStore.documents.contains {
+            $0.id != document.id
+                && $0.number.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == number
+        }
+        return clash ? L10n.duplicateNumberError(lang) : nil
+    }
+
+    // MARK: - Transitions
+
+    /// Applique une transition : un geste nommé, un toast, et « Rétablir ».
+    private func apply(_ transition: DocumentTransition) {
+        // « Relancer » n'est pas un changement d'état : c'est l'action que
+        // l'état appelle.
+        guard transition != .remind else {
+            envoyerParEmail()
+            return
+        }
+
+        if transition == .recordDeposit {
+            // On ouvre la saisie ; on ne fabrique pas un versement à zéro daté
+            // du jour, que l'utilisateur lisait comme un paiement réel. Le
+            // passage en « Partiel » n'a lieu que si on n'y est pas déjà.
+            guard document.status != .partiel else { return }
+            document.status = .partiel
+            prepareAccountingConversionIfNeeded()
+            saveDocument()
+            toastCenter.show(
+                L10n.statusChangedToast(lang, status: DocumentStatus.partiel.label(for: lang)),
+                tone: .info
+            )
+            return
+        }
+
+        guard let target = transition.target else { return }
+        let previous = document.status
+
+        document.status = target
+        if target == .envoyee {
+            _ = document.freezePaymentSnapshot(from: company)
+        }
+        prepareAccountingConversionIfNeeded()
+        saveDocument()
+
+        toastCenter.show(
+            L10n.statusChangedToast(lang, status: target.label(for: lang)),
+            tone: target == .annulee ? .warning : .success,
+            actionTitle: L10n.undo(lang)
+        ) {
+            document.status = previous
+            saveDocument()
         }
     }
 
@@ -389,47 +483,11 @@ struct DocumentEditorView: View {
         return document.accountingTotal(referenceCurrency: company.deviseComptable) != nil
     }
 
-    @ToolbarContentBuilder
-    private var editorToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
-            Button {
-                dupliquer()
-            } label: {
-                Label(L10n.duplicate(lang), systemImage: "doc.on.doc")
-            }
-            .help(L10n.duplicate(lang))
-
-            Button {
-                showPreview = true
-            } label: {
-                Label(L10n.preview(lang), systemImage: "eye")
-            }
-            .help(L10n.preview(lang))
-
-            Button {
-                exporterPDF()
-            } label: {
-                Label(L10n.exportPDF(lang), systemImage: "square.and.arrow.up")
-            }
-            .help(L10n.exportPDF(lang))
-
-            if document.type == .facture {
-                Button {
-                    exporterFacturX()
-                } label: {
-                    Label(L10n.exportFacturX(lang), systemImage: "checkmark.seal")
-                }
-                .help(L10n.exportFacturXHelp(lang))
-            }
-
-            Button {
-                envoyerParEmail()
-            } label: {
-                Label(L10n.sendByEmail(lang), systemImage: "paperplane")
-            }
-            .help(L10n.sendByEmail(lang))
-        }
-    }
+    // La barre d'outils portait cinq glyphes non libellés de poids égal —
+    // « Dupliquer », « Aperçu », « Exporter PDF », « Facture électronique »,
+    // « Envoyer par email » — dont deux faisaient doublon avec le hero, et dont
+    // aucun ne portait le geste réellement attendu par l'état du document.
+    // Tout est descendu dans le menu « ··· » du bandeau, libellé.
 
     // MARK: - En-tete
 
@@ -445,13 +503,6 @@ struct DocumentEditorView: View {
                         .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
                 }
 
-                LabeledField(L10n.number(lang)) {
-                    TextField(L10n.number(lang), text: Binding(
-                        get: { document.number },
-                        set: { document.number = $0; scheduleSave() }
-                    ))
-                    .facioField()
-                }
 
                 LabeledField(L10n.language(lang)) {
                     Picker("", selection: Binding(
@@ -469,39 +520,8 @@ struct DocumentEditorView: View {
                     .frame(maxWidth: .infinity)
                 }
 
-                LabeledField(L10n.status(lang)) {
-                    Picker(L10n.status(lang), selection: Binding(
-                        get: { document.status },
-                        set: { newStatus in
-                            document.status = newStatus
-                            if newStatus == .envoyee {
-                                _ = document.freezePaymentSnapshot(from: company)
-                            }
-                            // Premier versement prêt à saisir dès qu'on passe en partiel.
-                            if newStatus == .partiel && document.paiementsPartiels.isEmpty {
-                                document.paiementsPartiels.append(PartialPayment())
-                            }
-                            prepareAccountingConversionIfNeeded()
-                            saveDocument()
-                            if newStatus == .payee && document.currency.isCrypto
-                                && document.transactionSignatures.isEmpty {
-                                presentAddSignatureSheet()
-                            }
-                        }
-                    )) {
-                        ForEach(DocumentStatus.allCases) { status in
-                            HStack(spacing: FacioLayout.space6) {
-                                Circle()
-                                    .fill(Color.statusColor(for: status))
-                                    .frame(width: 8, height: 8)
-                                Text(status.label(for: lang))
-                            }
-                            .tag(status)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(maxWidth: .infinity)
-                }
+                // Le statut a quitté le formulaire : il EST l'état du bandeau,
+                // et chaque transition y est un bouton nommé.
             }
         }
     }
