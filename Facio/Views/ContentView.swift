@@ -43,15 +43,18 @@ struct ContentView: View {
         // redimensionnées et l'état de repli de la barre latérale étaient perdus,
         // sans animation. C'était le défaut structurel le plus visible du produit.
         //
-        // La colonne liste ne disparaît plus : elle se replie en rail.
+        // La colonne liste ne disparaît pas de la STRUCTURE : elle se replie à
+        // zéro. C'est ce qui suffit à ne plus reconstruire le châssis — garder
+        // une bande visible n'apportait rien, et lui réserver 44 pt privait la
+        // colonne de détail d'une largeur dont « Clients » a besoin.
         NavigationSplitView {
             SidebarView(selection: $selectedSection)
         } content: {
             contentColumn
                 .navigationSplitViewColumnWidth(
-                    min: hasList ? FacioLayout.contentColumnMin : FacioLayout.contentRailWidth,
-                    ideal: hasList ? FacioLayout.contentColumnIdeal : FacioLayout.contentRailWidth,
-                    max: hasList ? FacioLayout.contentColumnMax : FacioLayout.contentRailWidth
+                    min: hasList ? FacioLayout.contentColumnMin : 0,
+                    ideal: hasList ? FacioLayout.contentColumnIdeal : 0,
+                    max: hasList ? FacioLayout.contentColumnMax : 0
                 )
         } detail: {
             detailForSection
@@ -190,9 +193,9 @@ struct ContentView: View {
         case .temps:
             timeList
         case .clients, .dashboard, .parametres, .none:
-            // Rail : la colonne reste en place, réduite. C'est ce qui évite de
-            // reconstruire le châssis à chaque changement de section.
-            ContentRail(lang: lang) { selectedSection = .ventes }
+            // Rien à lister : la colonne existe toujours — c'est elle qui évite
+            // la reconstruction du châssis — mais elle ne prend aucune place.
+            Color.clear.frame(width: 0)
         }
     }
 
@@ -337,29 +340,3 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Rail
-
-/// La colonne liste, repliée.
-///
-/// Les sections sans liste (Tableau de bord, Clients, Paramètres) ne font plus
-/// disparaître la colonne : elle se réduit à un rail. Le châssis garde ainsi la
-/// même structure d'un bout à l'autre de l'application, et le chevron ramène à
-/// la dernière liste.
-private struct ContentRail: View {
-    let lang: AppLanguage
-    let onExpand: () -> Void
-
-    var body: some View {
-        VStack {
-            FacioIconButton(
-                systemImage: "chevron.right",
-                label: L10n.sidebarSales(lang),
-                action: onExpand
-            )
-            .padding(.top, FacioLayout.space8)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.surfaceCanvas)
-    }
-}

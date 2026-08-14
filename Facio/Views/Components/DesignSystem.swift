@@ -118,11 +118,17 @@ enum FacioLayout {
     static let contentColumnIdeal: CGFloat = 320
     static let contentColumnMax: CGFloat = 400
 
-    /// Largeur de la colonne liste quand elle est repliée en rail. La colonne
-    /// ne disparaît jamais : c'est ce qui évite de reconstruire le châssis.
-    static let contentRailWidth: CGFloat = 44
-
     static let detailMin: CGFloat = 460
+
+    // Split interne de la fiche client. Ces largeurs vivaient en dur dans la
+    // vue — 260 + 380 = 640 pt incompressibles dans une colonne de détail qui
+    // peut descendre à 460 : la contrainte devenait insatisfiable et AppKit
+    // levait une exception pendant le layout. Un cas de non-régression épingle
+    // désormais qu'elles tiennent.
+    static let clientListMin: CGFloat = 200
+    static let clientListIdeal: CGFloat = 300
+    static let clientListMax: CGFloat = 420
+    static let clientDetailMin: CGFloat = 240
 
     static let inspectorMin: CGFloat = 260
     static let inspectorIdeal: CGFloat = 300
