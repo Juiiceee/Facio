@@ -29,15 +29,7 @@ struct ClientListView: View {
     }
 
     private func clientMatches(_ client: ClientInfo, _ doc: Document) -> Bool {
-        let cn = client.nom.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let dn = doc.clientNom.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if !cn.isEmpty, cn == dn { return true }
-        for (c, d) in [(client.siret, doc.clientSiret), (client.tva, doc.clientTva), (client.ape, doc.clientApe)] {
-            let lhs = c.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let rhs = d.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            if !lhs.isEmpty, lhs == rhs { return true }
-        }
-        return false
+        client.matches(doc)
     }
 
     private var filteredClients: [ClientInfo] {
@@ -560,20 +552,7 @@ struct ClientDetailView: View {
     }
 
     private func documentMatchesClient(_ document: Document) -> Bool {
-        let clientName = client.nom.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let docName = document.clientNom.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if !clientName.isEmpty, clientName == docName { return true }
-
-        let identifiers = [
-            (client.siret, document.clientSiret),
-            (client.tva, document.clientTva),
-            (client.ape, document.clientApe)
-        ]
-        return identifiers.contains { clientValue, documentValue in
-            let lhs = clientValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let rhs = documentValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            return !lhs.isEmpty && lhs == rhs
-        }
+        client.matches(document)
     }
 
 }

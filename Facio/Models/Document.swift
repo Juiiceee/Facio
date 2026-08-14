@@ -103,6 +103,19 @@ final class Document: Identifiable, Codable, Hashable {
     var accountingExchangeRate: Decimal?
     var accountingExchangeRateDate: Date?
 
+    /// Lien vers la fiche client d'origine.
+    ///
+    /// Les champs `client*` ci-dessous restent une copie FIGÉE : ils portent la
+    /// valeur légale du document et ne doivent pas suivre les modifications de
+    /// la fiche. Cet identifiant, lui, sert uniquement à rattacher le document à
+    /// son client (totaux, historique) — sans lui, le rattachement se faisait par
+    /// comparaison de chaînes et renommer un client détachait tout son historique.
+    ///
+    /// `nil` pour les documents créés avant cette version et pour ceux dont le
+    /// destinataire a été saisi à la main : le rattachement retombe alors sur la
+    /// comparaison de chaînes (voir `ClientInfo.matches(_:)`).
+    var clientId: UUID?
+
     // Client embarque (copie figee)
     var clientNom: String = ""
     var clientAdresse: String = ""
@@ -626,6 +639,7 @@ final class Document: Identifiable, Codable, Hashable {
             currency: currency,
             blockchain: blockchain
         )
+        copie.clientId = clientId
         copie.clientNom = clientNom
         copie.clientAdresse = clientAdresse
         copie.clientCodePostal = clientCodePostal
@@ -669,6 +683,7 @@ final class Document: Identifiable, Codable, Hashable {
         case id, typeRawValue, number, dateCreation, dateEcheance, datePaiement, paiementsPartiels, statusRawValue
         case currencyRawValue, blockchainRawValue, paymentModeRawValue
         case accountingCurrencyRawValue, accountingExchangeRate, accountingExchangeRateDate
+        case clientId
         case clientNom, clientAdresse, clientCodePostal, clientVille
         case clientSiret, clientTva, clientApe, clientEmail
         case lignes, transactionSignatures, attachments, sourceTimesheetId, timesheetAutoSyncSignature
@@ -696,6 +711,7 @@ final class Document: Identifiable, Codable, Hashable {
         accountingCurrencyRawValue = try container.decodeIfPresent(String.self, forKey: .accountingCurrencyRawValue)
         accountingExchangeRate = try container.decodeIfPresent(Decimal.self, forKey: .accountingExchangeRate)
         accountingExchangeRateDate = try container.decodeIfPresent(Date.self, forKey: .accountingExchangeRateDate)
+        clientId = try container.decodeIfPresent(UUID.self, forKey: .clientId)
         clientNom = try container.decodeOrDefault(String.self, forKey: .clientNom, default: "")
         clientAdresse = try container.decodeOrDefault(String.self, forKey: .clientAdresse, default: "")
         clientCodePostal = try container.decodeOrDefault(String.self, forKey: .clientCodePostal, default: "")
@@ -735,6 +751,7 @@ final class Document: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(accountingCurrencyRawValue, forKey: .accountingCurrencyRawValue)
         try container.encodeIfPresent(accountingExchangeRate, forKey: .accountingExchangeRate)
         try container.encodeIfPresent(accountingExchangeRateDate, forKey: .accountingExchangeRateDate)
+        try container.encodeIfPresent(clientId, forKey: .clientId)
         try container.encode(clientNom, forKey: .clientNom)
         try container.encode(clientAdresse, forKey: .clientAdresse)
         try container.encode(clientCodePostal, forKey: .clientCodePostal)

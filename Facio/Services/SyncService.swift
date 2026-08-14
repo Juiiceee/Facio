@@ -226,6 +226,7 @@ final class SyncService: Sendable {
                 "accounting_currency_raw_value": doc.accountingCurrencyRawValue ?? "",
                 "accounting_exchange_rate": doc.accountingExchangeRate.map(decimalPayload) ?? NSNull(),
                 "accounting_exchange_rate_date": doc.accountingExchangeRateDate.map(syncDateString) ?? NSNull(),
+                "client_id": doc.clientId?.uuidString ?? NSNull(),
                 "client_nom": doc.clientNom,
                 "client_adresse": doc.clientAdresse,
                 "client_code_postal": doc.clientCodePostal,
@@ -610,6 +611,7 @@ final class SyncService: Sendable {
             doc.accountingCurrencyRawValue = accountingCurrencyRaw.isEmpty ? nil : accountingCurrencyRaw
             doc.accountingExchangeRate = decimalValueOrNil(json["accounting_exchange_rate"])
             doc.accountingExchangeRateDate = parseDate(json["accounting_exchange_rate_date"])
+            doc.clientId = (json["client_id"] as? String).flatMap { UUID(uuidString: $0) }
             doc.clientNom = json["client_nom"] as? String ?? ""
             doc.clientAdresse = json["client_adresse"] as? String ?? ""
             doc.clientCodePostal = json["client_code_postal"] as? String ?? ""
@@ -1328,6 +1330,7 @@ final class SyncService: Sendable {
     -- Executez ce SQL dans l'editeur SQL de votre projet Supabase
     -- Migrations non destructives pour bases existantes
     ALTER TABLE IF EXISTS documents ADD COLUMN IF NOT EXISTS payment_snapshot JSONB;
+    ALTER TABLE IF EXISTS documents ADD COLUMN IF NOT EXISTS client_id UUID;
     ALTER TABLE IF EXISTS timesheet_periods ADD COLUMN IF NOT EXISTS invoice_detail_mode_raw_value TEXT NOT NULL DEFAULT 'summary';
 
     -- 1. Documents (factures et devis)
@@ -1345,6 +1348,7 @@ final class SyncService: Sendable {
       accounting_currency_raw_value TEXT NOT NULL DEFAULT '',
       accounting_exchange_rate NUMERIC,
       accounting_exchange_rate_date TIMESTAMPTZ,
+      client_id UUID,
       client_nom TEXT NOT NULL DEFAULT '',
       client_adresse TEXT NOT NULL DEFAULT '',
       client_code_postal TEXT NOT NULL DEFAULT '',

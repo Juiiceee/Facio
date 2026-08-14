@@ -110,6 +110,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "currency precision keeps crypto amounts", run: currencyPrecisionKeepsCryptoAmounts),
         RegressionCase(name: "accounting currency format keeps document totals readable", run: accountingCurrencyFormatKeepsDocumentTotalsReadable),
         RegressionCase(name: "document totals include VAT and line ordering", run: documentTotalsIncludeVATAndLineOrdering),
+        RegressionCase(name: "client document link survives rename", run: clientDocumentLinkSurvivesRename),
+        RegressionCase(name: "legacy documents still match clients by string", run: legacyDocumentsStillMatchClientsByString),
         RegressionCase(name: "document decodes old payloads without accounting conversion", run: documentDecodesOldPayloadsWithoutAccountingConversion),
         RegressionCase(name: "company decodes old payloads without intracom vat", run: companyDecodesOldPayloadsWithoutIntracomVAT),
         RegressionCase(name: "facturx applicability gates non invoices", run: facturXApplicabilityGatesNonInvoices),
@@ -632,6 +634,75 @@ enum FacioRegressionSuite {
         try expectEqual(document.lignes.count, 1)
         try expectEqual(document.lignes[0].ordre, 0)
         try expectDecimal(document.totalTTC, equals: "165")
+    }
+
+    /// Le rattachement document↔client passe par un identifiant stable, pas par
+    /// le nom : renommer une fiche détachait auparavant tout son historique en
+    /// direct, sans avertissement ni moyen de relier.
+    private static func clientDocumentLinkSurvivesRename() throws {
+        let client = ClientInfo()
+        client.nom = "Acme SAS"
+        client.siret = "12345678900012"
+
+        let document = Document(type: .facture)
+        client.appliquer(sur: document)
+
+        try expectEqual(document.clientId, client.id)
+        try expect(client.matches(document), "a freshly assigned document belongs to its client")
+
+        // Le geste qui cassait tout : renommer, lettre par lettre.
+        client.nom = "Acme SA"
+        try expect(client.matches(document), "renaming the client must not detach the document")
+        client.nom = ""
+        try expect(client.matches(document), "even an empty name must not detach the document")
+
+        // La copie figée du document, elle, ne bouge pas : c'est la valeur légale.
+        try expectEqual(document.clientNom, "Acme SAS")
+
+        // Un lien explicite tranche aussi dans l'autre sens : un homonyme qui
+        // n'est pas le client rattaché ne récupère pas le document.
+        let homonym = ClientInfo()
+        homonym.nom = "Acme SAS"
+        try expect(!homonym.matches(document), "an explicit link must win over a name collision")
+
+        // Et la duplication conserve le rattachement.
+        try expectEqual(document.dupliquer().clientId, client.id)
+    }
+
+    /// Les documents antérieurs au lien stable n'ont pas d'identifiant : ils
+    /// doivent continuer à se rattacher par comparaison de chaînes, sinon la
+    /// migration effacerait l'historique qu'elle prétend protéger.
+    private static func legacyDocumentsStillMatchClientsByString() throws {
+        let legacy = try JSONDecoder().decode(
+            Document.self,
+            from: Data(#"{"typeRawValue":"Facture","clientNom":"Acme SAS","clientSiret":"12345678900012"}"#.utf8)
+        )
+        try expect(legacy.clientId == nil, "an old payload must not invent a client link")
+
+        let byName = ClientInfo()
+        byName.nom = "  acme sas  "
+        try expect(byName.matches(legacy), "legacy documents still match on a trimmed, case-insensitive name")
+
+        let bySiret = ClientInfo()
+        bySiret.nom = "Renamed"
+        bySiret.siret = "12345678900012"
+        try expect(bySiret.matches(legacy), "legacy documents still match on fiscal identifiers")
+
+        let stranger = ClientInfo()
+        stranger.nom = "Globex"
+        try expect(!stranger.matches(legacy), "an unrelated client must not capture a legacy document")
+
+        // Un client sans aucune donnée ne doit pas ramasser tous les documents vides.
+        let blank = ClientInfo()
+        let blankDocument = Document(type: .facture)
+        try expect(!blank.matches(blankDocument), "empty fields must not match everything")
+
+        // Aller-retour Codable du nouveau champ.
+        let linked = Document(type: .facture)
+        let clientId = UUID()
+        linked.clientId = clientId
+        let roundTrip = try JSONDecoder().decode(Document.self, from: try JSONEncoder().encode(linked))
+        try expectEqual(roundTrip.clientId, clientId)
     }
 
     private static func documentDecodesOldPayloadsWithoutAccountingConversion() throws {
