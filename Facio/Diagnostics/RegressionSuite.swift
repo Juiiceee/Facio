@@ -195,6 +195,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "attachment urls expose only existing files", run: attachmentURLsExposeOnlyExistingFiles),
         RegressionCase(name: "email attachment filenames use labels and dedupe", run: emailAttachmentFilenamesUseLabelsAndDedupe),
         RegressionCase(name: "pdf generation paginates long invoices", run: pdfGenerationPaginatesLongInvoices),
+        RegressionCase(name: "lockout rule is announced from the policy", run: lockoutRuleIsAnnouncedFromThePolicy),
         RegressionCase(name: "revenue series buckets payments by month", run: revenueSeriesBucketsPaymentsByMonth),
         RegressionCase(name: "vat collected prorates each payment", run: vatCollectedProratesEachPayment),
         RegressionCase(name: "line item accepts any vat rate", run: lineItemAcceptsAnyVATRate),
@@ -1136,6 +1137,48 @@ enum FacioRegressionSuite {
     /// qui facture aussi en USD.
     /// La série mensuelle du tableau de bord. La donnée existait — chaque
     /// versement porte sa date — mais l'écran n'a jamais rien tracé.
+    /// L'anti-force-brute doit être ANNONÇABLE : la règle complète est lue
+    /// depuis la politique, pas recopiée dans un libellé — sinon le texte et la
+    /// sanction divergent, et l'utilisateur légitime est puni sans avertissement.
+    private static func lockoutRuleIsAnnouncedFromThePolicy() throws {
+        try expect(!AppLockPolicy.lockoutSchedule.isEmpty, "the lockout schedule must not be empty")
+        try expect(
+            AppLockPolicy.lockoutSchedule == AppLockPolicy.lockoutSchedule.sorted(),
+            "the schedule must escalate, never shorten"
+        )
+
+        // Chaque palier est formatable dans les deux langues : la règle est
+        // affichée en toutes lettres dès le premier refus.
+        for lang in [AppLanguage.fr, .en] {
+            let steps = AppLockPolicy.lockoutSchedule
+                .map { DurationFormatter.countdown($0, lang: lang) }
+                .joined(separator: ", ")
+            try expect(!steps.isEmpty, "the schedule must render in \(lang)")
+            let rule = L10n.lockoutRule(lang, steps: steps)
+            try expect(rule.contains(steps), "the rule must quote the real schedule in \(lang)")
+        }
+
+        // Le mot « temporisation » a disparu des chaînes visibles : c'était un
+        // terme technique inhabituel pour un utilisateur non expert.
+        for lang in [AppLanguage.fr, .en] {
+            try expect(
+                !L10n.lockedOutRetryIn(lang, delay: "30 s").lowercased().contains("temporisation"),
+                "the lockout message must not use the word « temporisation »"
+            )
+            try expect(
+                !L10n.attemptsRemaining(lang, count: 2).lowercased().contains("temporisation"),
+                "the attempts message must not use the word « temporisation »"
+            )
+        }
+
+        // Le barème s'applique bien à partir du seuil, et plafonne.
+        try expect(AppLockPolicy.lockoutDuration(failedAttempts: 0) == nil, "no lockout before the threshold")
+        let atThreshold = AppLockPolicy.lockoutDuration(failedAttempts: AppLockPolicy.attemptsBeforeLockout)
+        try expectEqual(atThreshold, AppLockPolicy.lockoutSchedule.first)
+        let farBeyond = AppLockPolicy.lockoutDuration(failedAttempts: AppLockPolicy.attemptsBeforeLockout + 99)
+        try expectEqual(farBeyond, AppLockPolicy.lockoutSchedule.last)
+    }
+
     private static func revenueSeriesBucketsPaymentsByMonth() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Paris") ?? .current

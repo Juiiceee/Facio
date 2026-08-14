@@ -129,8 +129,18 @@ struct FacioApp: App {
             // code) resteraient joignables sans avoir saisi le code.
             Group {
                 if appLock.isLocked {
-                    AppLockView()
-                        .frame(minWidth: FacioLayout.sheetMinWidth, minHeight: FacioLayout.sheetIdealHeight)
+                    // PAS un second écran de verrouillage : deux écrans complets
+                    // s'affichaient, chacun avec son capteur clavier réclamant le
+                    // premier répondant à chaque rendu, sans rien pour dire lequel
+                    // recevait la frappe. Les réglages se contentent de renvoyer
+                    // vers la fenêtre principale, qui porte la saisie.
+                    FacioEmptyState(
+                        title: L10n.lockedSubtitle(dataStore.companyInfo.langueParDefaut),
+                        systemImage: "lock.fill",
+                        message: L10n.settingsLockedMessage(dataStore.companyInfo.langueParDefaut)
+                    )
+                    .frame(minWidth: FacioLayout.sheetMinWidth, minHeight: FacioLayout.sheetMinHeight)
+                    .background(Color.surfaceCanvas)
                 } else {
                     SettingsView()
                 }
