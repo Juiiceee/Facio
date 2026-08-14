@@ -56,3 +56,30 @@ extension FacioEmptyState where Action == EmptyView {
         self.init(title: title, systemImage: systemImage, message: message) { EmptyView() }
     }
 }
+
+/// Pourquoi une liste filtrable est vide. La réponse gouverne le message ET
+/// l'action proposée : suggérer « créez-en un » à quelqu'un dont la liste est
+/// simplement filtrée est faux, et le laisse sans issue.
+///
+/// Partagé par toutes les listes pour que les trois cas ne puissent pas
+/// diverger d'un écran à l'autre.
+enum FacioListEmptyReason: Equatable {
+    /// La collection est réellement vide : proposer de créer.
+    case noData
+    /// La recherche texte ne renvoie rien : proposer un autre mot-clé.
+    case noSearchResults
+    /// Les filtres actifs ne laissent rien passer : proposer de les lever.
+    case noFilterResults
+
+    /// L'ordre compte : une recherche en cours explique le vide même si des
+    /// filtres sont actifs, parce que c'est le dernier geste de l'utilisateur.
+    init(searchText: String, activeFilterCount: Int) {
+        if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            self = .noSearchResults
+        } else if activeFilterCount > 0 {
+            self = .noFilterResults
+        } else {
+            self = .noData
+        }
+    }
+}

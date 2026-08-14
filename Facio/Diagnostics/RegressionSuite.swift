@@ -199,6 +199,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "color tokens resolve differently in dark mode", run: colorTokensResolveDifferentlyInDarkMode),
         RegressionCase(name: "brand accent is identical in UI and PDF", run: brandAccentIsIdenticalInUIAndPDF),
         RegressionCase(name: "document empty state copy agrees grammatically", run: documentEmptyStateCopyAgreesGrammatically),
+        RegressionCase(name: "list empty reason separates filters from search", run: listEmptyReasonSeparatesFiltersFromSearch),
         RegressionCase(name: "payment date stamps on paid and feeds revenue month", run: paymentDateStampsOnPaidAndFeedsRevenueMonth),
         RegressionCase(name: "partial status computes reste à payer", run: partialStatusComputesResteAPayer),
         RegressionCase(name: "partial payments bucket cash by payment date", run: partialPaymentsBucketCashByPaymentDate),
@@ -414,6 +415,22 @@ enum FacioRegressionSuite {
                 "\(name) should resolve to different colors in light and dark mode"
             )
         }
+    }
+
+    /// Une liste vide parce qu'elle est FILTRÉE ne doit pas être annoncée comme
+    /// une liste vide tout court : les deux écrans concernés ne testaient que la
+    /// recherche et proposaient donc « créez-en un » sur un carnet plein.
+    private static func listEmptyReasonSeparatesFiltersFromSearch() throws {
+        try expectEqual(FacioListEmptyReason(searchText: "", activeFilterCount: 0), .noData)
+        try expectEqual(FacioListEmptyReason(searchText: "", activeFilterCount: 2), .noFilterResults)
+        try expectEqual(FacioListEmptyReason(searchText: "acme", activeFilterCount: 0), .noSearchResults)
+
+        // Une recherche en cours prime : c'est le dernier geste de l'utilisateur.
+        try expectEqual(FacioListEmptyReason(searchText: "acme", activeFilterCount: 3), .noSearchResults)
+
+        // Une recherche réduite à des espaces n'explique rien.
+        try expectEqual(FacioListEmptyReason(searchText: "   ", activeFilterCount: 0), .noData)
+        try expectEqual(FacioListEmptyReason(searchText: "   ", activeFilterCount: 1), .noFilterResults)
     }
 
     /// Les états vides des listes de documents s'accordent avec le type qu'ils

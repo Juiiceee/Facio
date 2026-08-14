@@ -42,4 +42,10 @@ extension L10n {
     static func filterAllClients(_ l: AppLanguage) -> String { l == .fr ? "Tous les clients" : "All clients" }
     static func filterAllCurrencies(_ l: AppLanguage) -> String { l == .fr ? "Toutes les devises" : "All currencies" }
     static func filterCurrency(_ l: AppLanguage) -> String { l == .fr ? "Devise" : "Currency" }
+
+    // État vide d'une liste dont les filtres ne laissent rien passer.
+    static func noFilterResultsHint(_ l: AppLanguage) -> String {
+        l == .fr ? "Aucun élément ne correspond aux filtres actifs." : "Nothing matches the active filters."
+    }
+    static func resetFilters(_ l: AppLanguage) -> String { l == .fr ? "Réinitialiser les filtres" : "Reset filters" }
 }
