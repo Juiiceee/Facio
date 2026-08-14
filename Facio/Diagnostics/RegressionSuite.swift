@@ -197,6 +197,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "window minimum fits split view columns", run: windowMinimumFitsSplitViewColumns),
         RegressionCase(name: "sheet minimums fit inside minimum window", run: sheetMinimumsFitInsideMinimumWindow),
         RegressionCase(name: "color tokens resolve differently in dark mode", run: colorTokensResolveDifferentlyInDarkMode),
+        RegressionCase(name: "brand accent is identical in UI and PDF", run: brandAccentIsIdenticalInUIAndPDF),
         RegressionCase(name: "payment date stamps on paid and feeds revenue month", run: paymentDateStampsOnPaidAndFeedsRevenueMonth),
         RegressionCase(name: "partial status computes reste à payer", run: partialStatusComputesResteAPayer),
         RegressionCase(name: "partial payments bucket cash by payment date", run: partialPaymentsBucketCashByPaymentDate),
@@ -410,6 +411,43 @@ enum FacioRegressionSuite {
             try expect(
                 components(token, lightEnv) != components(token, darkEnv),
                 "\(name) should resolve to different colors in light and dark mode"
+            )
+        }
+    }
+
+    /// L'interface et le PDF doivent être peints du MÊME vert de marque par
+    /// défaut. Ils ont divergé (#548A30 côté UI contre #6B8E3A côté PDF et
+    /// CompanyInfo), ce qui rendait faux l'aperçu de Réglages > Personnalisation.
+    private static func brandAccentIsIdenticalInUIAndPDF() throws {
+        guard let company = CompanyInfo().accentNSColor.usingColorSpace(.sRGB),
+              let pdf = PDFLayout.greenPrimary.usingColorSpace(.sRGB) else {
+            throw RegressionFailure(message: "brand greens must be convertible to sRGB")
+        }
+
+        // Le défaut du modèle et la constante du PDF sont la même couleur.
+        for (channel, lhs, rhs) in [
+            ("red", company.redComponent, pdf.redComponent),
+            ("green", company.greenComponent, pdf.greenComponent),
+            ("blue", company.blueComponent, pdf.blueComponent)
+        ] {
+            try expect(
+                abs(lhs - rhs) < 0.001,
+                "CompanyInfo default accent and PDFLayout.greenPrimary must share their \(channel) channel"
+            )
+        }
+
+        // Et l'accent réellement peint dans l'interface en clair est ce vert-là.
+        var lightEnv = EnvironmentValues()
+        lightEnv.colorScheme = .light
+        let ui = Color.appPrimary.resolve(in: lightEnv)
+        for (channel, lhs, rhs) in [
+            ("red", Double(ui.red), pdf.redComponent),
+            ("green", Double(ui.green), pdf.greenComponent),
+            ("blue", Double(ui.blue), pdf.blueComponent)
+        ] {
+            try expect(
+                abs(lhs - rhs) < 0.01,
+                "Color.appPrimary must match the PDF brand green on its \(channel) channel"
             )
         }
     }

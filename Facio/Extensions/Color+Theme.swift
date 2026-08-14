@@ -16,9 +16,14 @@ extension Color {
         })
     }
 
-    /// Base sRGB du vert olive de marque (#6B8E3A approx.).
+    /// Base sRGB du vert olive de marque — #6B8E3A.
+    ///
+    /// Doit rester identique à `CompanyInfo.accentNSColor` (défaut) et à
+    /// `PDFLayout.greenPrimary` : sans ça l'interface et le PDF ne sont pas
+    /// peints du même vert, et l'aperçu de Réglages > Personnalisation ment.
+    /// Un cas de non-régression épingle cette égalité.
     private static var oliveBase: NSColor {
-        NSColor(srgbRed: 0.33, green: 0.54, blue: 0.19, alpha: 1.0)
+        NSColor(srgbRed: 0.42, green: 0.56, blue: 0.23, alpha: 1.0)
     }
 
     /// Vert principal (barre de titre, en-tete tableau) — éclairci en sombre
