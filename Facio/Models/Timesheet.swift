@@ -32,6 +32,14 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     var coefficientNet: Decimal = 0.756
     var seuilHebdo: Decimal = 35
 
+    /// Libellé de la période dont les taux ont été recopiés à la création, ou
+    /// `nil` si l'utilisateur les a depuis ajustés.
+    ///
+    /// La copie existait déjà — `creerPeriode` reprend en silence les taux de la
+    /// dernière période du même client. Rien ne le disait : qui a augmenté son
+    /// tarif facturait à l'ancien sans s'en apercevoir.
+    var tauxRepriseDe: String?
+
     // MARK: - Hashable
 
     static func == (lhs: TimesheetPeriod, rhs: TimesheetPeriod) -> Bool { lhs.id == rhs.id }
@@ -528,6 +536,7 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         case clientSiret, clientTva, clientApe
         case timeEntries
         case tauxNormal, tauxSupplementaire, coefficientNet, seuilHebdo
+        case tauxRepriseDe
     }
 
     required init(from decoder: Decoder) throws {
@@ -561,6 +570,9 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         tauxSupplementaire = try c.decodeOrDefault(Decimal.self, forKey: .tauxSupplementaire, default: 39.59)
         coefficientNet = try c.decodeOrDefault(Decimal.self, forKey: .coefficientNet, default: 0.756)
         seuilHebdo = try c.decodeOrDefault(Decimal.self, forKey: .seuilHebdo, default: 35)
+        // Absent des anciennes charges utiles : une période enregistrée avant ce
+        // champ n'affiche simplement aucune mention de reprise.
+        tauxRepriseDe = try? c.decodeIfPresent(String.self, forKey: .tauxRepriseDe)
         normalizeCalendar()
     }
 
@@ -591,5 +603,6 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
         try c.encode(tauxSupplementaire, forKey: .tauxSupplementaire)
         try c.encode(coefficientNet, forKey: .coefficientNet)
         try c.encode(seuilHebdo, forKey: .seuilHebdo)
+        try c.encodeIfPresent(tauxRepriseDe, forKey: .tauxRepriseDe)
     }
 }

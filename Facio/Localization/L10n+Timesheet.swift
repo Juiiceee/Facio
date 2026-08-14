@@ -53,13 +53,35 @@ extension L10n {
 
     // Semaine
     static func week(_ l: AppLanguage, number: Int) -> String { l == .fr ? "Semaine \(number)" : "Week \(number)" }
+    /// Le numéro que porte l'agenda du client, pas le rang interne à la période.
+    static func weekISO(_ l: AppLanguage, number: Int) -> String {
+        l == .fr ? "Semaine ISO \(number)" : "ISO week \(number)"
+    }
 
     // Parametres de calcul
     static func calculationParams(_ l: AppLanguage) -> String { l == .fr ? "Paramètres de calcul" : "Calculation parameters" }
     static func weeklyThreshold(_ l: AppLanguage) -> String { l == .fr ? "Seuil hebdo (h)" : "Weekly threshold (h)" }
     static func normalRate(_ l: AppLanguage) -> String { l == .fr ? "Taux normal" : "Normal rate" }
     static func overtimeRate(_ l: AppLanguage) -> String { l == .fr ? "Taux sup." : "Overtime rate" }
-    static func netCoeff(_ l: AppLanguage) -> String { l == .fr ? "Coeff. net" : "Net coeff." }
+    /// « Coeff. net 0,756 » était du jargon comptable brut, sans unité, sans
+    /// infobulle et sans aide — au dernier rang d'une page dont il pilotait
+    /// pourtant tous les chiffres.
+    static func netCoeff(_ l: AppLanguage) -> String { l == .fr ? "Part nette" : "Net share" }
+    static func netCoeffHint(_ l: AppLanguage) -> String {
+        l == .fr
+            ? "Part du brut qui vous reste une fois les cotisations déduites. 0,756 = 75,6 %."
+            : "Share of the gross amount left after contributions. 0.756 = 75.6%."
+    }
+    static func weeklyThresholdHint(_ l: AppLanguage) -> String {
+        l == .fr
+            ? "Au-delà de ce nombre d'heures par semaine, les heures passent au taux majoré."
+            : "Beyond this many hours a week, hours are billed at the higher rate."
+    }
+    /// Les taux sont recopiés de la période précédente du même client, en
+    /// silence : qui a changé son tarif facturera à l'ancien sans s'en apercevoir.
+    static func ratesCarriedOver(_ l: AppLanguage, from: String) -> String {
+        l == .fr ? "Taux repris de \(from)." : "Rates carried over from \(from)."
+    }
 
     // Liste periodes
     static func newPeriod(_ l: AppLanguage) -> String { l == .fr ? "Nouvelle période" : "New period" }
@@ -80,8 +102,10 @@ extension L10n {
         l == .fr ? "La nouvelle plage exclut \(days) jour(s) avec \(hours)h. Ces valeurs seront remises à zéro." :
         "The new range excludes \(days) day(s) with \(hours)h. Those values will be reset to zero."
     }
+    /// « Modifier et supprimer » ne disait pas ce qui serait supprimé — sur un
+    /// bouton destructif, c'est le seul mot qui compte.
     static func updatePeriodAndDeleteValues(_ l: AppLanguage) -> String {
-        l == .fr ? "Modifier et supprimer" : "Update and remove"
+        l == .fr ? "Remettre ces heures à zéro" : "Reset those hours to zero"
     }
     static func month(_ l: AppLanguage) -> String { l == .fr ? "Mois" : "Month" }
     static func year(_ l: AppLanguage) -> String { l == .fr ? "Année" : "Year" }
@@ -138,9 +162,6 @@ extension L10n {
     }
 
     // Compteur
-    static func timeTracker(_ l: AppLanguage) -> String { l == .fr ? "Compteur" : "Timer" }
-    static func startTimer(_ l: AppLanguage) -> String { l == .fr ? "Démarrer" : "Start" }
-    static func stopTimer(_ l: AppLanguage) -> String { l == .fr ? "Arrêter" : "Stop" }
     static func continueTimer(_ l: AppLanguage) -> String { l == .fr ? "Continuer" : "Continue" }
     static func timerRunning(_ l: AppLanguage) -> String { l == .fr ? "Compteur en cours" : "Timer running" }
     static func editStartTime(_ l: AppLanguage) -> String {
@@ -148,10 +169,6 @@ extension L10n {
     }
     static func readyToTrack(_ l: AppLanguage) -> String {
         l == .fr ? "Prêt à chronométrer cette période" : "Ready to track this period"
-    }
-    static func timerRunningElsewhere(_ l: AppLanguage, period: String) -> String {
-        l == .fr ? "Un compteur tourne déjà sur \(period). Arrêtez-le avant d'en démarrer un autre." :
-        "A timer is already running on \(period). Stop it before starting another one."
     }
     static func timerOutsidePeriod(_ l: AppLanguage) -> String {
         l == .fr ? "Le compteur live est disponible uniquement si aujourd'hui est dans cette période." :
@@ -163,15 +180,10 @@ extension L10n {
     static func tags(_ l: AppLanguage) -> String { l == .fr ? "Tags" : "Tags" }
     static func billable(_ l: AppLanguage) -> String { l == .fr ? "Facturable" : "Billable" }
     static func nonBillable(_ l: AppLanguage) -> String { l == .fr ? "Non facturable" : "Non-billable" }
-    static func manualMode(_ l: AppLanguage) -> String { l == .fr ? "Manuel" : "Manual" }
-    static func timerMode(_ l: AppLanguage) -> String { l == .fr ? "Timer" : "Timer" }
-    static func duration(_ l: AppLanguage) -> String { l == .fr ? "Durée" : "Duration" }
     static func durationExamples(_ l: AppLanguage) -> String {
         l == .fr ? "Exemples: 2h, 1h30m, 2:45, .5" : "Examples: 2h, 1h30m, 2:45, .5"
     }
     static func addTimeEntry(_ l: AppLanguage) -> String { l == .fr ? "Ajouter" : "Add" }
-    static func exportCSV(_ l: AppLanguage) -> String { l == .fr ? "Exporter CSV" : "Export CSV" }
-    static func invoiceTimeEntries(_ l: AppLanguage) -> String { l == .fr ? "Facturer les heures" : "Invoice time" }
     static func estimatedAmount(_ l: AppLanguage) -> String { l == .fr ? "Montant estimé" : "Estimated amount" }
     static func entryDeleted(_ l: AppLanguage) -> String { l == .fr ? "Entrée supprimée." : "Entry deleted." }
     /// « Rétablir », pas « Annuler ».
@@ -186,34 +198,55 @@ extension L10n {
         l == .fr ? "L'heure de fin doit être après l'heure de début." :
         "End time must be after start time."
     }
-    static func activeTimerExists(_ l: AppLanguage) -> String {
-        l == .fr ? "Un timer est déjà en cours. Arrêtez-le avant d'en démarrer un autre." :
-        "A timer is already running. Stop it before starting another one."
-    }
-    static func saved(_ l: AppLanguage) -> String { l == .fr ? "Enregistré" : "Saved" }
     static func notSaved(_ l: AppLanguage) -> String { l == .fr ? "Non enregistré" : "Not saved" }
-    static func startedEarlier(_ l: AppLanguage) -> String { l == .fr ? "Commencé avant" : "Started earlier" }
-    static func startedEarlierHint(_ l: AppLanguage) -> String {
-        l == .fr ? "Ajuste le timer en cours sans créer une nouvelle entrée." :
-        "Adjusts the running timer without creating a new entry."
-    }
     static func untitledTask(_ l: AppLanguage) -> String { l == .fr ? "Tâche sans titre" : "Untitled task" }
     static func entries(_ l: AppLanguage) -> String { l == .fr ? "Entrées" : "Entries" }
-    static func newTimeEntry(_ l: AppLanguage) -> String { l == .fr ? "Nouvelle entrée" : "New entry" }
     static func editTimeEntry(_ l: AppLanguage) -> String { l == .fr ? "Modifier l'entrée" : "Edit entry" }
-    static func noTimeEntries(_ l: AppLanguage) -> String { l == .fr ? "Aucune entrée" : "No entries" }
-    static func noTimeEntriesHint(_ l: AppLanguage) -> String {
-        l == .fr ? "Démarrez le compteur ou ajoutez une entrée." : "Start the timer or add an entry."
-    }
-    static func searchTimeEntries(_ l: AppLanguage) -> String {
-        l == .fr ? "Rechercher une tâche ou un projet" : "Search a task or project"
-    }
     static func hoursManagedByTimer(_ l: AppLanguage) -> String {
         l == .fr ? "Ces heures sont calculées depuis les entrées du compteur." :
         "These hours are calculated from timer entries."
     }
+    /// Légende de la grille : un jour piloté par le minuteur n'était que grisé,
+    /// donc indiscernable d'un champ désactivé par erreur.
+    static func timerDrivenLegend(_ l: AppLanguage) -> String {
+        l == .fr ? "piloté par le minuteur, en lecture seule" : "driven by the timer, read-only"
+    }
+    static func timerDrivenDay(_ l: AppLanguage) -> String {
+        l == .fr ? "Minuteur" : "Timer"
+    }
+    // MARK: - Feuille « Facturer »
+
+    /// Cinq points d'entrée produisaient cinq factures différentes de la même
+    /// période, sans qu'aucun ne montre ce qu'il allait produire.
+    static func billingSheetTitle(_ l: AppLanguage, period: String) -> String {
+        l == .fr ? "Facturer \(period)" : "Bill \(period)"
+    }
+    static func billingSource(_ l: AppLanguage) -> String { l == .fr ? "Source" : "Source" }
+    static func billingSourceGrid(_ l: AppLanguage) -> String { l == .fr ? "Grille horaire" : "Hour grid" }
+    static func billingSourceTimer(_ l: AppLanguage) -> String { l == .fr ? "Entrées du minuteur" : "Timer entries" }
+    static func billingDetailLevel(_ l: AppLanguage) -> String { l == .fr ? "Niveau de détail" : "Detail level" }
+    static func billingPreview(_ l: AppLanguage) -> String { l == .fr ? "Aperçu des lignes" : "Line preview" }
+    static func billingLineCount(_ l: AppLanguage, count: Int) -> String {
+        l == .fr ? "\(count) ligne\(count > 1 ? "s" : "")" : "\(count) line\(count > 1 ? "s" : "")"
+    }
+    static func billingGroupingDetailed(_ l: AppLanguage) -> String { l == .fr ? "Par entrée" : "Per entry" }
+    static func billingGroupingByProject(_ l: AppLanguage) -> String { l == .fr ? "Par projet" : "Per project" }
+    static func billingGroupingSingleLine(_ l: AppLanguage) -> String { l == .fr ? "Une seule ligne" : "Single line" }
+    static func billingLockNotice(_ l: AppLanguage) -> String {
+        l == .fr
+            ? "La période sera marquée « Facturée » et verrouillée. Les heures et les taux resteront consultables mais non modifiables."
+            : "The period will be marked “Invoiced” and locked. Hours and rates stay readable but can no longer be edited."
+    }
+    static func billingDraftNotice(_ l: AppLanguage) -> String {
+        l == .fr ? "Brouillon créé, éditable avant envoi." : "Draft created, editable before sending."
+    }
+    static func billingCreate(_ l: AppLanguage) -> String { l == .fr ? "Créer la facture" : "Create the invoice" }
+    static func billingNothingToBill(_ l: AppLanguage) -> String {
+        l == .fr ? "Aucune ligne à facturer avec cette source." : "Nothing to bill from this source."
+    }
+    static func billingAction(_ l: AppLanguage) -> String { l == .fr ? "Facturer…" : "Bill…" }
+
     static func today(_ l: AppLanguage) -> String { l == .fr ? "Aujourd'hui" : "Today" }
-    static func thisWeek(_ l: AppLanguage) -> String { l == .fr ? "Cette semaine" : "This week" }
     static func period(_ l: AppLanguage) -> String { l == .fr ? "Période" : "Period" }
     static func now(_ l: AppLanguage) -> String { l == .fr ? "maintenant" : "now" }
 }

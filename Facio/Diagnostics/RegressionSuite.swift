@@ -236,8 +236,69 @@ enum FacioRegressionSuite {
         RegressionCase(name: "app lock credential survives codable round trip", run: appLockCredentialSurvivesCodableRoundTrip),
         RegressionCase(name: "app lock lockout starts after three failures and backs off", run: appLockLockoutStartsAfterThreeFailuresAndBacksOff),
         RegressionCase(name: "app lock countdown stays readable across the minute", run: appLockCountdownStaysReadableAcrossTheMinute),
-        RegressionCase(name: "app lock auto-lock waits for the configured idle delay", run: appLockAutoLockWaitsForConfiguredIdleDelay)
+        RegressionCase(name: "app lock auto-lock waits for the configured idle delay", run: appLockAutoLockWaitsForConfiguredIdleDelay),
+        RegressionCase(name: "timesheet weeks are numbered in ISO 8601", run: timesheetWeeksAreNumberedInISO8601),
+        RegressionCase(name: "timesheet decodes old payloads without a rate carry-over marker", run: timesheetDecodesOldPayloadsWithoutRateCarryOver)
     ]
+
+    // MARK: - Temps
+
+    /// Le numéro affiché est celui de l'agenda du client (ISO 8601), pas le rang
+    /// interne à la période — mars 2026 affichait « Semaine 1 » là où tout le
+    /// reste du monde lit « semaine 10 ».
+    private static func timesheetWeeksAreNumberedInISO8601() throws {
+        let period = TimesheetPeriod(mois: 3, annee: 2026)
+        guard let first = period.semaines.first else {
+            throw RegressionFailure(message: "March 2026 must generate at least one week")
+        }
+
+        // La première semaine de mars 2026 commence le lundi 23 février 2026
+        // (le 1er mars est un dimanche) : ISO 9. La suivante, lundi 2 mars : ISO 10.
+        try expectEqual(first.isoWeekNumber, 9)
+        try expectEqual(first.numero, 1)
+        try expect(
+            first.isoWeekNumber != first.numero,
+            "the ISO number must be independent of the period-internal rank"
+        )
+
+        if period.semaines.count > 1 {
+            try expectEqual(period.semaines[1].isoWeekNumber, 10)
+        }
+
+        // Une semaine sans jour n'a pas de numéro ISO à inventer : la vue
+        // retombe alors sur le rang interne.
+        try expectEqual(TimesheetWeek().isoWeekNumber, nil)
+    }
+
+    /// Une période enregistrée avant le champ `tauxRepriseDe` se décode sans
+    /// mention de reprise, et n'en fabrique pas une.
+    private static func timesheetDecodesOldPayloadsWithoutRateCarryOver() throws {
+        let legacy = """
+        {
+            "id": "8B7D1F42-0F2E-4B58-9A31-8C2D5E6F7A80",
+            "nom": "Mars 2026",
+            "mois": 3,
+            "annee": 2026,
+            "semaines": [],
+            "createdAt": 760000000,
+            "tauxNormal": 26.39,
+            "tauxSupplementaire": 39.59,
+            "coefficientNet": 0.756,
+            "seuilHebdo": 35
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let period = try decoder.decode(TimesheetPeriod.self, from: Data(legacy.utf8))
+        try expectEqual(period.tauxRepriseDe, nil)
+        try expectEqual(period.tauxNormal, Decimal(string: "26.39"))
+
+        // Et le champ survit à un aller-retour quand il est renseigné.
+        period.tauxRepriseDe = "Février 2026"
+        let encoded = try JSONEncoder().encode(period)
+        let roundTripped = try decoder.decode(TimesheetPeriod.self, from: encoded)
+        try expectEqual(roundTripped.tauxRepriseDe, "Février 2026")
+    }
 
     // MARK: - Verrouillage par code
 

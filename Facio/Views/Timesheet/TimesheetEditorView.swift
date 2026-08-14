@@ -9,7 +9,7 @@ struct TimesheetEditorView: View {
     @Environment(\.facioContainerWidth) private var containerWidth
     @State private var hourInputMode: TimesheetHourInputMode = .decimal
     @State private var showClientPicker = false
-    @State private var showInvoiceDetailOptions = false
+    @State private var showBillingSheet = false
     @State private var showClientOverlapAlert = false
     @State private var editedStartDate = Date()
     @State private var editedEndDate = Date()
@@ -36,17 +36,22 @@ struct TimesheetEditorView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: FacioLayout.sectionSpacing) {
+                // LA GRILLE D'ABORD. Tout l'intérêt de l'écran est d'y taper des
+                // heures, et elle était le 7ᵉ bloc : on franchissait le hero, les
+                // dates, un panneau « Compteur » complet, le client, sept tuiles
+                // et un sélecteur de mode avant d'atteindre « Semaine 1 » — soit
+                // plusieurs écrans de défilement à la largeur minimale.
                 timesheetHeroBar
-                periodRangeSection
-                TimeTrackerPanel(timesheet: timesheet, onOpenInvoice: onOpenInvoice)
-                clientSection
-                resumeSection
                 hourInputModeControl
 
                 ForEach(Array(timesheet.semaines.enumerated()), id: \.element.id) { weekIndex, week in
                     weekSection(weekIndex: weekIndex, week: week)
                 }
 
+                // Ce qui se consulte, après ce qui se saisit.
+                resumeSection
+                clientSection
+                periodRangeSection
                 parametresSection
             }
             .padding(FacioLayout.screenPadding)
@@ -67,12 +72,16 @@ struct TimesheetEditorView: View {
                         Label(L10n.openInvoice(lang), systemImage: "doc.text.magnifyingglass")
                     }
                 } else {
+                    // UN seul bouton, qui ouvre un aperçu. Il y en avait trois
+                    // ici (un par granularité, en dialogue de confirmation), un
+                    // dans la liste et un dans le panneau du compteur — aux
+                    // résultats différents, tous sans aperçu.
                     Button {
-                        showInvoiceDetailOptions = true
+                        showBillingSheet = true
                     } label: {
-                        Label(L10n.generateInvoice(lang), systemImage: "doc.text")
+                        Label(L10n.billingAction(lang), systemImage: "doc.text")
                     }
-                    .disabled(!dataStore.canGenerateInvoice(for: timesheet))
+                    .disabled(!canBill)
                 }
             }
         }
@@ -91,23 +100,8 @@ struct TimesheetEditorView: View {
                 showClientPicker = false
             }
         }
-        .confirmationDialog(
-            L10n.invoiceDetailMode(lang),
-            isPresented: $showInvoiceDetailOptions,
-            titleVisibility: .visible
-        ) {
-            Button(TimesheetInvoiceDetailMode.summary.label(for: lang)) {
-                genererFacture(detailMode: .summary)
-            }
-            Button(TimesheetInvoiceDetailMode.daily.label(for: lang)) {
-                genererFacture(detailMode: .daily)
-            }
-            Button(TimesheetInvoiceDetailMode.dailyActivity.label(for: lang)) {
-                genererFacture(detailMode: .dailyActivity)
-            }
-            Button(L10n.cancel(lang), role: .cancel) {}
-        } message: {
-            Text(L10n.chooseInvoiceDetail(lang))
+        .sheet(isPresented: $showBillingSheet) {
+            TimesheetBillingSheet(timesheet: timesheet, onCreated: onOpenInvoice)
         }
         .alert(L10n.cannotSelectClient(lang), isPresented: $showClientOverlapAlert) {
             Button(L10n.understood(lang), role: .cancel) {}
@@ -441,9 +435,21 @@ struct TimesheetEditorView: View {
                         let estDansMois = timesheet.isBillableDay(jour)
                         let hasTimerEntries = timesheet.hasTimeEntries(on: jour.dateString)
                         VStack(spacing: FacioLayout.space4) {
-                            Text(jour.jourSemaine.shortLabel(for: lang))
-                                .font(FacioFont.captionSmall)
-                                .foregroundStyle(.secondary)
+                            HStack(spacing: FacioLayout.space4) {
+                                Text(jour.jourSemaine.shortLabel(for: lang))
+                                    .font(FacioFont.captionSmall)
+                                    .foregroundStyle(.secondary)
+                                // Le jour piloté par le minuteur porte son glyphe :
+                                // il était seulement grisé, donc impossible à
+                                // distinguer d'un champ désactivé par erreur — et
+                                // invisible pour VoiceOver comme pour un daltonien.
+                                if hasTimerEntries {
+                                    Image(systemName: "bolt.fill")
+                                        .font(FacioFont.captionSmall)
+                                        .foregroundStyle(Color.intentInfo)
+                                        .accessibilityLabel(L10n.timerDrivenDay(lang))
+                                }
+                            }
                             Text("\(jour.jourDuMois)")
                                 .font(FacioFont.monoCaption)
                                 .foregroundStyle(estDansMois ? .primary : .tertiary)
@@ -473,13 +479,32 @@ struct TimesheetEditorView: View {
                             .help(hasTimerEntries ? L10n.hoursManagedByTimer(lang) : L10n.hourInputHelp(lang, mode: hourInputMode))
                             .opacity(estDansMois ? 1.0 : 0.5)
                         }
+                        .padding(.vertical, FacioLayout.space4)
                         .frame(maxWidth: .infinity)
+                        // Fond distinct plutôt que grisé : c'est une source de
+                        // données différente, pas un contrôle indisponible.
+                        .background(
+                            RoundedRectangle(cornerRadius: FacioLayout.radiusField)
+                                .fill(hasTimerEntries ? Color.intentInfo.opacity(0.10) : Color.clear)
+                        )
                         .contentShape(Rectangle())
                         .onTapGesture {
                             hourFieldFocusNonce += 1
                             hourFieldFocusRequest = TimeFieldFocusRequest(id: jour.id, nonce: hourFieldFocusNonce)
                         }
                     }
+                }
+
+                // La note n'apparaît que si la semaine contient effectivement un
+                // jour piloté par le minuteur — sinon elle est du bruit permanent.
+                if week.jours.contains(where: { timesheet.hasTimeEntries(on: $0.dateString) }) {
+                    HStack(spacing: FacioLayout.space4) {
+                        Image(systemName: "bolt.fill")
+                        Text(L10n.timerDrivenLegend(lang))
+                    }
+                    .font(FacioFont.captionSmall)
+                    .foregroundStyle(Color.intentInfo)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
@@ -488,8 +513,11 @@ struct TimesheetEditorView: View {
     /// Bloc titre d'une semaine (numéro + plage), partagé par les variantes ViewThatFits.
     private func weekTitleBlock(_ week: TimesheetWeek) -> some View {
         VStack(alignment: .leading, spacing: FacioLayout.space2) {
-            Text(L10n.week(lang, number: week.numero))
-                .font(FacioFont.sectionTitle)
+            Text(
+                week.isoWeekNumber.map { L10n.weekISO(lang, number: $0) }
+                    ?? L10n.week(lang, number: week.numero)
+            )
+            .font(FacioFont.sectionTitle)
             Text(week.label(for: lang))
                 .font(FacioFont.caption)
                 .foregroundStyle(.secondary)
@@ -524,43 +552,99 @@ struct TimesheetEditorView: View {
 
     private var parametresSection: some View {
         SectionPanel(L10n.calculationParams(lang), systemImage: "slider.horizontal.3") {
-            LazyVGrid(columns: [
-                GridItem(.adaptive(minimum: 150, maximum: 250))
-            ], spacing: FacioLayout.space12) {
-                settingsField(L10n.weeklyThreshold(lang), placeholder: "35", value: Binding(
-                    get: { timesheet.seuilHebdo },
-                    set: { timesheet.seuilHebdo = $0; dataStore.timesheetUpdated(timesheet) }
-                ))
-                settingsField(L10n.normalRate(lang), placeholder: "26,39", value: Binding(
-                    get: { timesheet.tauxNormal },
-                    set: { timesheet.tauxNormal = $0; dataStore.timesheetUpdated(timesheet) }
-                ))
-                settingsField(L10n.overtimeRate(lang), placeholder: "39,59", value: Binding(
-                    get: { timesheet.tauxSupplementaire },
-                    set: { timesheet.tauxSupplementaire = $0; dataStore.timesheetUpdated(timesheet) }
-                ))
-                settingsField(L10n.netCoeff(lang), placeholder: "0,756", value: Binding(
-                    get: { timesheet.coefficientNet },
-                    set: { timesheet.coefficientNet = $0; dataStore.timesheetUpdated(timesheet) }
-                ))
+            VStack(alignment: .leading, spacing: FacioLayout.space12) {
+                // La reprise des taux se faisait en silence : augmenter son tarif
+                // puis créer la période suivante refacturait à l'ancien sans
+                // qu'aucun écran ne le dise.
+                if let repriseDe = timesheet.tauxRepriseDe {
+                    InlineWarning(text: L10n.ratesCarriedOver(lang, from: repriseDe), tone: .info)
+                }
+
+                LazyVGrid(columns: [
+                    GridItem(.adaptive(minimum: 150, maximum: 250))
+                ], spacing: FacioLayout.space12) {
+                    settingsField(
+                        L10n.weeklyThreshold(lang),
+                        placeholder: "35",
+                        hint: L10n.weeklyThresholdHint(lang),
+                        value: rateBinding(\.seuilHebdo)
+                    )
+                    settingsField(
+                        L10n.normalRate(lang),
+                        placeholder: "26,39",
+                        value: rateBinding(\.tauxNormal)
+                    )
+                    settingsField(
+                        L10n.overtimeRate(lang),
+                        placeholder: "39,59",
+                        value: rateBinding(\.tauxSupplementaire)
+                    )
+                    settingsField(
+                        L10n.netCoeff(lang),
+                        placeholder: "0,756",
+                        hint: L10n.netCoeffHint(lang),
+                        // Le coefficient reste stocké tel quel — c'est lui qui
+                        // multiplie le brut — mais il se LIT en pourcentage.
+                        caption: netSharePercentage,
+                        value: rateBinding(\.coefficientNet)
+                    )
+                }
             }
         }
     }
 
-    private func settingsField(_ label: String, placeholder: String, value: Binding<Decimal>) -> some View {
+    /// « 75,6 % » à partir du coefficient 0,756.
+    private var netSharePercentage: String {
+        (timesheet.coefficientNet * 100).formatted2Decimals(for: numberFormat) + " %"
+    }
+
+    /// Écrire un paramètre efface la mention de reprise : à partir du moment où
+    /// l'utilisateur l'a ajusté lui-même, la valeur ne vient plus d'ailleurs.
+    private func rateBinding(_ keyPath: ReferenceWritableKeyPath<TimesheetPeriod, Decimal>) -> Binding<Decimal> {
+        Binding(
+            get: { timesheet[keyPath: keyPath] },
+            set: { newValue in
+                guard timesheet[keyPath: keyPath] != newValue else { return }
+                timesheet[keyPath: keyPath] = newValue
+                timesheet.tauxRepriseDe = nil
+                dataStore.timesheetUpdated(timesheet)
+            }
+        )
+    }
+
+    private func settingsField(
+        _ label: String,
+        placeholder: String,
+        hint: String? = nil,
+        caption: String? = nil,
+        value: Binding<Decimal>
+    ) -> some View {
         VStack(alignment: .leading, spacing: FacioLayout.space4) {
             Text(label)
                 .font(FacioFont.fieldLabel)
                 .foregroundStyle(.secondary)
             DecimalField(placeholder: placeholder, value: value)
                 .density(.regular)
+                .help(hint ?? "")
+            if let caption {
+                Text(caption)
+                    .font(FacioFont.metaValue)
+                    .foregroundStyle(.secondary)
+            }
+            if let hint {
+                Text(hint)
+                    .font(FacioFont.captionSmall)
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
-    private func genererFacture(detailMode: TimesheetInvoiceDetailMode) {
-        if let invoice = dataStore.generateInvoice(from: timesheet, detailMode: detailMode) {
-            onOpenInvoice(invoice)
-        }
+    /// Facturable depuis l'une OU l'autre source — la grille pouvait être vide
+    /// alors que des entrées de minuteur attendaient, et le bouton restait mort.
+    private var canBill: Bool {
+        dataStore.canGenerateInvoice(for: timesheet)
+            || dataStore.canGenerateInvoiceFromTimeEntries(for: timesheet)
     }
 
     private func resetRangeDraft() {
