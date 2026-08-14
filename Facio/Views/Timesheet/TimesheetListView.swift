@@ -118,7 +118,7 @@ struct TimesheetListView: View {
             }
         }
         .id(timesheets.count)
-        .navigationTitle(L10n.sidebarTimeTracking(lang))
+        .navigationTitle(L10n.sidebarTime(lang))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

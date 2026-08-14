@@ -96,4 +96,8 @@ extension L10n {
     }
     // Champs de formulaire
     static func fieldRequired(_ l: AppLanguage) -> String { l == .fr ? "requis" : "required" }
+    /// Le libellé suit l'état : proposer « Masquer les montants » alors qu'ils
+    /// sont déjà masqués annonce l'inverse de ce qui va se produire.
+    static func privacyHide(_ l: AppLanguage) -> String { l == .fr ? "Masquer les montants" : "Hide amounts" }
+    static func privacyShow(_ l: AppLanguage) -> String { l == .fr ? "Afficher les montants" : "Show amounts" }
 }

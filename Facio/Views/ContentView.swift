@@ -4,12 +4,21 @@ struct ContentView: View {
     @Environment(DataStore.self) private var dataStore
     @Environment(PrivacyMode.self) private var privacy
     @Environment(AppLock.self) private var appLock
+
     @State private var selectedSection: SidebarSection? = .dashboard
     @State private var selectedDocumentId: UUID?
     @State private var selectedTimesheetId: UUID?
     @State private var selectedClientId: UUID?
     @State private var selectedSettingsTab = 0
     @State private var showCommandPalette = false
+
+    /// Segment en tête de la liste « Ventes ». Factures et devis partagent le
+    /// même éditeur et le même modèle : deux entrées de barre latérale pour un
+    /// seul `DocumentType` étaient un coût de navigation pur.
+    @State private var salesType: DocumentType = .facture
+    /// Entrée « Toute l'activité » en tête de la liste des périodes : c'est
+    /// l'agrégation qui vivait dans une seconde section de la barre latérale.
+    @State private var timeShowsAllActivity = false
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -23,41 +32,31 @@ struct ContentView: View {
         return dataStore.timesheets.first { $0.id == id }
     }
 
-    private var usesContentColumn: Bool {
-        switch selectedSection {
-        case .factures, .devis, .heures:
-            return true
-        case .clients, .planning, .dashboard, .parametres, .none:
-            return false
-        }
-    }
+    private var hasList: Bool { selectedSection?.hasList == true }
 
     var body: some View {
-        Group {
-            if usesContentColumn {
-                NavigationSplitView {
-                    SidebarView(selection: $selectedSection)
-                } content: {
-                    contentForSection
-                        .navigationSplitViewColumnWidth(
-                            min: FacioLayout.contentColumnMin,
-                            ideal: FacioLayout.contentColumnIdeal,
-                            max: FacioLayout.contentColumnMax
-                        )
-                } detail: {
-                    detailForSection
-                        .frame(minWidth: FacioLayout.detailMin)
-                        .facioResponsiveContainer()
-                }
-            } else {
-                NavigationSplitView {
-                    SidebarView(selection: $selectedSection)
-                } detail: {
-                    detailForSection
-                        .frame(minWidth: FacioLayout.detailMin)
-                        .facioResponsiveContainer()
-                }
-            }
+        // UN SEUL NavigationSplitView, quelle que soit la section.
+        //
+        // Le châssis instanciait deux structures différentes selon la section :
+        // passer de Ventes (3 colonnes) au Tableau de bord (2 colonnes)
+        // détruisait et recréait toute la fenêtre, donc les largeurs de colonnes
+        // redimensionnées et l'état de repli de la barre latérale étaient perdus,
+        // sans animation. C'était le défaut structurel le plus visible du produit.
+        //
+        // La colonne liste ne disparaît plus : elle se replie en rail.
+        NavigationSplitView {
+            SidebarView(selection: $selectedSection)
+        } content: {
+            contentColumn
+                .navigationSplitViewColumnWidth(
+                    min: hasList ? FacioLayout.contentColumnMin : FacioLayout.contentRailWidth,
+                    ideal: hasList ? FacioLayout.contentColumnIdeal : FacioLayout.contentRailWidth,
+                    max: hasList ? FacioLayout.contentColumnMax : FacioLayout.contentRailWidth
+                )
+        } detail: {
+            detailForSection
+                .frame(minWidth: FacioLayout.detailMin)
+                .facioResponsiveContainer()
         }
         .navigationSplitViewStyle(.balanced)
         .facioToastHost()
@@ -99,76 +98,74 @@ struct ContentView: View {
         }
         .onChange(of: selectedSection) { _, newSection in
             switch newSection {
-            case .factures:
-                if selectedDocument?.type != .facture {
-                    selectedDocumentId = nil
-                }
+            case .ventes:
                 selectedTimesheetId = nil
                 selectedClientId = nil
-            case .devis:
-                if selectedDocument?.type != .devis {
-                    selectedDocumentId = nil
-                }
-                selectedTimesheetId = nil
-                selectedClientId = nil
-            case .heures:
+            case .temps:
                 selectedDocumentId = nil
                 selectedClientId = nil
             case .clients:
                 selectedDocumentId = nil
                 selectedTimesheetId = nil
-            case .planning, .dashboard, .parametres, .none:
+            case .dashboard, .parametres, .none:
                 selectedDocumentId = nil
                 selectedTimesheetId = nil
                 selectedClientId = nil
             }
         }
+        .onChange(of: salesType) { _, newType in
+            // Le segment change de type : on ne garde pas un document de l'autre.
+            if selectedDocument?.type != newType { selectedDocumentId = nil }
+        }
     }
+
+    // MARK: - Barre d'outils
 
     @ViewBuilder
     private var toolbarActions: some View {
-        // Masqué sur « Heures & facturation » : sur cette page on fait un
-        // relevé d'heures (« Nouvelle période »), pas une facture — le menu
-        // « Nouveau » global y prêtait à confusion.
-        if selectedSection != .heures {
-            Menu {
-                Button {
-                    newDocument(.facture)
-                } label: {
-                    Label(L10n.quickCreateInvoice(lang), systemImage: SidebarSection.factures.icon)
-                }
-                Button {
-                    newDocument(.devis)
-                } label: {
-                    Label(L10n.quickCreateQuote(lang), systemImage: SidebarSection.devis.icon)
-                }
-                Divider()
-                Button {
-                    newClient()
-                } label: {
-                    Label(L10n.quickCreateClient(lang), systemImage: "person.crop.circle.badge.plus")
-                }
+        Menu {
+            Button {
+                newDocument(.facture)
             } label: {
-                Label(L10n.new(lang), systemImage: "plus")
+                Label(L10n.quickCreateInvoice(lang), systemImage: "doc.text")
             }
-            .help(L10n.new(lang))
+            Button {
+                newDocument(.devis)
+            } label: {
+                Label(L10n.quickCreateQuote(lang), systemImage: "doc.text.magnifyingglass")
+            }
+            Divider()
+            Button {
+                newClient()
+            } label: {
+                Label(L10n.quickCreateClient(lang), systemImage: "person.crop.circle.badge.plus")
+            }
+        } label: {
+            Label(L10n.new(lang), systemImage: "plus")
         }
+        .help(L10n.new(lang))
 
         Button {
             showCommandPalette = true
         } label: {
-            Label(L10n.commandPaletteTitle(lang), systemImage: "command")
+            Label(L10n.commandPaletteTitle(lang), systemImage: "magnifyingglass")
         }
         .keyboardShortcut("k", modifiers: .command)
         .help(L10n.commandPaletteTitle(lang))
 
+        // Le libellé suit l'état : il proposait « Masquer les montants » alors
+        // qu'ils étaient déjà masqués, donc l'infobulle et VoiceOver annonçaient
+        // l'inverse de ce qui allait se produire.
         Button {
             privacy.toggle()
         } label: {
-            Label(L10n.privacyToggle(lang), systemImage: privacy.hideAmounts ? "eye.slash" : "eye")
+            Label(
+                privacy.hideAmounts ? L10n.privacyShow(lang) : L10n.privacyHide(lang),
+                systemImage: privacy.hideAmounts ? "eye.slash" : "eye"
+            )
         }
         .keyboardShortcut("h", modifiers: [.command, .shift])
-        .help(L10n.privacyToggle(lang))
+        .help(privacy.hideAmounts ? L10n.privacyShow(lang) : L10n.privacyHide(lang))
 
         // Verrouillage manuel — visible seulement si un code est configuré.
         if appLock.isEnabled {
@@ -183,42 +180,81 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Content column (middle)
+    // MARK: - Colonne liste
 
     @ViewBuilder
-    private var contentForSection: some View {
+    private var contentColumn: some View {
         switch selectedSection {
-        case .factures:
-            DocumentListView(
-                documentType: .facture,
-                selectedDocumentId: $selectedDocumentId
-            ) { document in
-                selectedSection = document.type == .facture ? .factures : .devis
-                selectedDocumentId = document.id
-            }
-        case .devis:
-            DocumentListView(
-                documentType: .devis,
-                selectedDocumentId: $selectedDocumentId
-            ) { document in
-                selectedSection = document.type == .facture ? .factures : .devis
-                selectedDocumentId = document.id
-            }
-        case .heures:
-            TimesheetListView(selectedTimesheetId: $selectedTimesheetId) { invoice in
-                openInvoice(invoice)
-            }
-        case .clients, .planning, .dashboard, .parametres, .none:
-            EmptyView()
+        case .ventes:
+            salesList
+        case .temps:
+            timeList
+        case .clients, .dashboard, .parametres, .none:
+            // Rail : la colonne reste en place, réduite. C'est ce qui évite de
+            // reconstruire le châssis à chaque changement de section.
+            ContentRail(lang: lang) { selectedSection = .ventes }
         }
     }
 
-    // MARK: - Detail column (right)
+    private var salesList: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $salesType) {
+                Text(L10n.sidebarInvoices(lang)).tag(DocumentType.facture)
+                Text(L10n.sidebarQuotes(lang)).tag(DocumentType.devis)
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .padding(.horizontal, FacioLayout.space12)
+            .padding(.vertical, FacioLayout.space8)
+
+            Divider()
+
+            DocumentListView(
+                documentType: salesType,
+                selectedDocumentId: $selectedDocumentId
+            ) { document in
+                openDocument(document)
+            }
+        }
+    }
+
+    private var timeList: some View {
+        VStack(spacing: 0) {
+            Button {
+                timeShowsAllActivity = true
+                selectedTimesheetId = nil
+            } label: {
+                HStack(spacing: FacioLayout.space8) {
+                    Image(systemName: "chart.bar")
+                    Text(L10n.allActivity(lang))
+                    Spacer()
+                }
+                .font(FacioFont.rowTitle)
+                .foregroundStyle(timeShowsAllActivity ? Color.accentText : Color.textPrimary)
+                .padding(.horizontal, FacioLayout.space12)
+                .padding(.vertical, FacioLayout.space8)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .background(timeShowsAllActivity ? Color.surfaceSelected : Color.clear)
+
+            Divider()
+
+            TimesheetListView(selectedTimesheetId: $selectedTimesheetId) { invoice in
+                openInvoice(invoice)
+            }
+        }
+        .onChange(of: selectedTimesheetId) { _, newValue in
+            if newValue != nil { timeShowsAllActivity = false }
+        }
+    }
+
+    // MARK: - Colonne détail
 
     @ViewBuilder
     private var detailForSection: some View {
         switch selectedSection {
-        case .factures, .devis:
+        case .ventes:
             if let doc = selectedDocument {
                 DocumentEditorView(document: doc)
             } else {
@@ -228,15 +264,19 @@ struct ContentView: View {
                     message: L10n.selectDocumentHint(lang)
                 ) {
                     FacioButton(
-                        selectedSection == .devis ? L10n.quickCreateQuote(lang) : L10n.quickCreateInvoice(lang),
+                        salesType == .devis ? L10n.quickCreateQuote(lang) : L10n.quickCreateInvoice(lang),
                         systemImage: "plus"
                     ) {
-                        newDocument(selectedSection == .devis ? .devis : .facture)
+                        newDocument(salesType)
                     }
                 }
             }
-        case .heures:
-            if let ts = selectedTimesheet {
+        case .temps:
+            if timeShowsAllActivity {
+                TimeHubView { invoice in
+                    openInvoice(invoice)
+                }
+            } else if let ts = selectedTimesheet {
                 TimesheetEditorView(timesheet: ts) { invoice in
                     openInvoice(invoice)
                 }
@@ -249,45 +289,43 @@ struct ContentView: View {
             }
         case .clients:
             ClientListView(selectedClientId: $selectedClientId) { document in
-                selectedSection = document.type == .facture ? .factures : .devis
-                selectedDocumentId = document.id
-            }
-        case .planning:
-            TimeHubView { invoice in
-                openInvoice(invoice)
+                openDocument(document)
             }
         case .dashboard:
             DashboardView { document in
-                selectedSection = document.type == .facture ? .factures : .devis
-                selectedDocumentId = document.id
+                openDocument(document)
             } onSelectTimesheet: { timesheet in
-                selectedSection = .heures
+                selectedSection = .temps
+                timeShowsAllActivity = false
                 selectedTimesheetId = timesheet.id
             }
         case .parametres:
             SettingsInlineView(selectedTab: $selectedSettingsTab)
         case .none:
-            Text(L10n.selectSection(lang))
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            FacioEmptyState(
+                title: L10n.selectSection(lang),
+                systemImage: "square.grid.2x2"
+            )
         }
     }
 
-    private func openInvoice(_ invoice: Document) {
-        selectedSection = .factures
-        selectedDocumentId = invoice.id
+    // MARK: - Navigation
+
+    private func openDocument(_ document: Document) {
+        selectedSection = .ventes
+        salesType = document.type
+        selectedDocumentId = document.id
         selectedTimesheetId = nil
         selectedClientId = nil
     }
 
-    // MARK: - Toolbar
+    private func openInvoice(_ invoice: Document) {
+        openDocument(invoice)
+    }
 
     private func newDocument(_ type: DocumentType) {
         let document = dataStore.createDocument(type: type)
-        selectedSection = type == .facture ? .factures : .devis
-        selectedDocumentId = document.id
-        selectedTimesheetId = nil
-        selectedClientId = nil
+        openDocument(document)
     }
 
     private func newClient() {
@@ -296,5 +334,32 @@ struct ContentView: View {
         selectedClientId = client.id
         selectedDocumentId = nil
         selectedTimesheetId = nil
+    }
+}
+
+// MARK: - Rail
+
+/// La colonne liste, repliée.
+///
+/// Les sections sans liste (Tableau de bord, Clients, Paramètres) ne font plus
+/// disparaître la colonne : elle se réduit à un rail. Le châssis garde ainsi la
+/// même structure d'un bout à l'autre de l'application, et le chevron ramène à
+/// la dernière liste.
+private struct ContentRail: View {
+    let lang: AppLanguage
+    let onExpand: () -> Void
+
+    var body: some View {
+        VStack {
+            FacioIconButton(
+                systemImage: "chevron.right",
+                label: L10n.sidebarSales(lang),
+                action: onExpand
+            )
+            .padding(.top, FacioLayout.space8)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.surfaceCanvas)
     }
 }

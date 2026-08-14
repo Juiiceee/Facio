@@ -1,13 +1,11 @@
 import Foundation
 
 extension L10n {
-    static func sidebarPlanning(_ l: AppLanguage) -> String { l == .fr ? "Hub temps" : "Time Hub" }
     static func timeHubOverview(_ l: AppLanguage) -> String { l == .fr ? "Vue d'ensemble" : "Overview" }
     static func timeHubTasks(_ l: AppLanguage) -> String { l == .fr ? "Tâches" : "Tasks" }
     static func timeHubCalendar(_ l: AppLanguage) -> String { l == .fr ? "Calendrier" : "Calendar" }
     static func timeHubLog(_ l: AppLanguage) -> String { l == .fr ? "Journal" : "Log" }
     static func timeHubOpenPlanning(_ l: AppLanguage) -> String { l == .fr ? "Ouvrir Planning" : "Open Time Hub" }
-    static func timeHubOpenCalendar(_ l: AppLanguage) -> String { l == .fr ? "Ouvrir le calendrier du temps" : "Open time calendar" }
     static func timeHubStartTimer(_ l: AppLanguage) -> String { l == .fr ? "Démarrer le compteur" : "Start timer" }
     static func timeHubStopTimer(_ l: AppLanguage) -> String { l == .fr ? "Arrêter le compteur" : "Stop timer" }
     static func timeHubAddManualEntry(_ l: AppLanguage) -> String { l == .fr ? "Ajouter une entrée manuelle" : "Add manual time entry" }

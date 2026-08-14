@@ -118,6 +118,10 @@ enum FacioLayout {
     static let contentColumnIdeal: CGFloat = 320
     static let contentColumnMax: CGFloat = 400
 
+    /// Largeur de la colonne liste quand elle est repliée en rail. La colonne
+    /// ne disparaît jamais : c'est ce qui évite de reconstruire le châssis.
+    static let contentRailWidth: CGFloat = 44
+
     static let detailMin: CGFloat = 460
 
     static let inspectorMin: CGFloat = 260

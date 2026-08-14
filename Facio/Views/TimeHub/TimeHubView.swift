@@ -80,7 +80,7 @@ struct TimeHubView: View {
                 }
                 .padding(FacioLayout.screenPadding)
             }
-            .navigationTitle(L10n.sidebarPlanning(lang))
+            .navigationTitle(L10n.allActivity(lang))
             .sheet(isPresented: $showManualEntrySheet) {
                 TimeHubManualEntrySheet()
                     .environment(dataStore)
@@ -136,7 +136,7 @@ struct TimeHubView: View {
     /// Bloc titre + sous-titre de période, partagé entre les variantes du header.
     private func headerTitle(interval: DateInterval) -> some View {
         VStack(alignment: .leading, spacing: FacioLayout.space2) {
-            Label(L10n.sidebarPlanning(lang), systemImage: "calendar.badge.clock")
+            Label(L10n.allActivity(lang), systemImage: "chart.bar")
                 .font(FacioFont.screenTitle)
             Text(periodTitle(interval))
                 .font(FacioFont.screenSubtitle)

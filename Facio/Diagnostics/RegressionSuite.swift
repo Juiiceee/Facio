@@ -195,6 +195,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "attachment urls expose only existing files", run: attachmentURLsExposeOnlyExistingFiles),
         RegressionCase(name: "email attachment filenames use labels and dedupe", run: emailAttachmentFilenamesUseLabelsAndDedupe),
         RegressionCase(name: "pdf generation paginates long invoices", run: pdfGenerationPaginatesLongInvoices),
+        RegressionCase(name: "sidebar has five destinations", run: sidebarHasFiveDestinations),
         RegressionCase(name: "responsive width class maps breakpoints", run: responsiveWidthClassMapsBreakpoints),
         RegressionCase(name: "window minimum fits split view columns", run: windowMinimumFitsSplitViewColumns),
         RegressionCase(name: "sheet minimums fit inside minimum window", run: sheetMinimumsFitInsideMinimumWindow),
@@ -1076,6 +1077,36 @@ enum FacioRegressionSuite {
         try expect(
             FacioLayout.Density.comfortable.rowHeight > FacioLayout.Density.dense.rowHeight,
             "comfortable must actually be roomier than dense"
+        )
+    }
+
+    /// Cinq destinations, sans groupe. Deux d'entre elles seulement portent une
+    /// colonne liste — c'est ce qui décide de la largeur du rail, et donc le
+    /// seul endroit où le châssis peut encore diverger.
+    private static func sidebarHasFiveDestinations() throws {
+        try expectEqual(SidebarSection.allCases.count, 5)
+
+        let withList = SidebarSection.allCases.filter(\.hasList)
+        try expectEqual(Set(withList), Set([.ventes, .temps]))
+
+        for lang in [AppLanguage.fr, .en] {
+            let labels = SidebarSection.allCases.map { $0.label(for: lang) }
+            try expect(
+                labels.allSatisfy { !$0.trimmingCharacters(in: .whitespaces).isEmpty },
+                "every destination must be labelled in \(lang)"
+            )
+            try expectEqual(Set(labels).count, labels.count)
+        }
+
+        // Le rail ne doit pas casser l'invariant de largeur minimale de fenêtre.
+        try expect(
+            FacioLayout.sidebarMin + FacioLayout.contentRailWidth + FacioLayout.detailMin
+                <= FacioLayout.windowMinWidth,
+            "sidebar + rail + detail must fit inside the minimum window"
+        )
+        try expect(
+            FacioLayout.contentRailWidth < FacioLayout.contentColumnMin,
+            "the rail must be narrower than the expanded list column"
         )
     }
 
