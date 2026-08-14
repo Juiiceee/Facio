@@ -222,38 +222,38 @@ struct TimeHubView: View {
                 title: periodMode == .day ? L10n.today(lang) : L10n.trackedTime(lang),
                 value: formatDuration(stats.totalSeconds),
                 systemImage: "clock",
-                color: .intentInfo
+                intent: .info
             )
             MetricTile(
                 title: L10n.billableTime(lang),
                 value: formatDuration(stats.billableSeconds),
                 systemImage: "dollarsign.circle",
-                color: .intentSuccess
+                intent: .success
             )
             MetricTile(
                 title: L10n.estimatedAmount(lang),
                 value: privacy.format(stats.estimatedAmount, currency, lang: numberFormat),
                 systemImage: "banknote",
-                color: Color.appPrimary(from: dataStore.companyInfo)
+                intent: .accent(from: dataStore.companyInfo)
             )
             MetricTile(
                 title: L10n.uninvoicedTime(lang),
                 value: formatDuration(stats.uninvoicedSeconds),
                 subtitle: L10n.entriesCount(lang, count: stats.entriesCount),
                 systemImage: "tray.full",
-                color: .intentWarning
+                intent: .warning
             )
             MetricTile(
                 title: L10n.nonBillableTime(lang),
                 value: formatDuration(stats.nonBillableSeconds),
                 systemImage: "clock.badge.xmark",
-                color: .secondary
+                intent: .neutral
             )
             MetricTile(
                 title: L10n.activeTasks(lang),
                 value: "\(stats.activeTasksCount)",
                 systemImage: "play.circle",
-                color: .intentDanger
+                intent: .danger
             )
         }
     }

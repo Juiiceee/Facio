@@ -2,17 +2,46 @@ import SwiftUI
 
 // MARK: - Intention
 
-/// Une intention porte TROIS valeurs qui ne sont jamais interchangeables :
-/// l'aplat (`fill`), le fond teinté (`tint`), et le seul texte autorisé sur ce
-/// fond (`onTint`).
+/// Une intention porte QUATRE valeurs qui ne sont jamais interchangeables :
+/// l'aplat (`fill`), le fond teinté (`tint`), le seul texte autorisé sur ce
+/// fond (`onTint`), et la marque colorée qui ne porte pas de texte (`glyph`).
 ///
 /// Avant, une intention servait à la fois de remplissage ET de couleur de texte
 /// posée sur 9 à 16 % d'elle-même, en 10 pt — un contraste que personne n'avait
-/// mesuré. Les trois rôles sont désormais séparés et chiffrés.
+/// mesuré. Les rôles sont désormais séparés et chiffrés.
+///
+/// `glyph` répond à un constat d'usage : `fill` et `onTint` sont calés sur
+/// 4,5:1, le seuil du TEXTE, ce qui les force sombres et éteint tout ce qui,
+/// dans l'interface, est de la couleur pure — pastille de statut, icône, filet
+/// de tuile, flèche de tendance. Ces objets relèvent du seuil « objets
+/// graphiques » de WCAG, 3:1, et peuvent donc être bien plus lumineux. La
+/// séparation rend à l'app sa vivacité sans desserrer aucune règle de lisibilité.
 struct FacioIntent {
+    /// Aplat portant du texte clair. Calé sur 4,5:1 avec `textOnAccent`.
     let fill: Color
+    /// Fond teinté, très pâle en clair, très sombre en sombre.
     let tint: Color
+    /// Le seul texte autorisé sur `tint`. Calé sur 4,5:1.
     let onTint: Color
+    /// Marque colorée SANS texte : pastille, icône, filet, flèche.
+    /// Calée sur 3:1 contre les sept surfaces, dans les deux thèmes.
+    let glyph: Color
+}
+
+extension FacioIntent {
+    // Noms courts destinés aux vues : `intent: .success` plutôt que
+    // `intent: Color.intentSuccessTriple`. Les valeurs vivent dans `Color`,
+    // avec le reste de la palette.
+    static var info: FacioIntent { Color.intentInfoTriple }
+    static var success: FacioIntent { Color.intentSuccessTriple }
+    static var warning: FacioIntent { Color.intentWarningTriple }
+    static var danger: FacioIntent { Color.intentDangerTriple }
+    static var neutral: FacioIntent { Color.intentNeutralTriple }
+
+    /// Accent de marque, ou la couleur choisie par l'utilisateur.
+    static func accent(from company: CompanyInfo) -> FacioIntent {
+        Color.accentIntent(from: company)
+    }
 }
 
 extension Color {
@@ -96,6 +125,38 @@ extension Color {
     /// des deux qui contraste le mieux.
     static func onAccent(_ background: NSColor) -> Color {
         Color(nsColor: NSColor.bestForeground(on: background))
+    }
+
+    /// Ce token, résolu en `NSColor` dans un thème donné.
+    ///
+    /// Indispensable dès qu'une couleur doit être **calculée** à partir d'une
+    /// autre : un token est une paire clair/sombre, et raisonner sur une seule
+    /// branche donne un résultat faux dans l'autre.
+    func facioResolved(_ scheme: ColorScheme) -> NSColor {
+        var environment = EnvironmentValues()
+        environment.colorScheme = scheme
+        let resolved = resolve(in: environment)
+        return NSColor(
+            srgbRed: CGFloat(resolved.red),
+            green: CGFloat(resolved.green),
+            blue: CGFloat(resolved.blue),
+            alpha: CGFloat(resolved.opacity)
+        )
+    }
+
+    /// Texte à poser sur cet aplat, calculé **dans le thème courant**.
+    ///
+    /// La variante `onAccent(NSColor)` ne voit qu'une branche : appliquée à
+    /// l'accent de marque, elle choisissait le blanc de l'olive claire et le
+    /// posait aussi sur l'olive éclaircie du mode sombre — 1,88:1. En partant
+    /// de l'aplat réellement peint, l'incohérence ne peut plus exister.
+    static func onFill(_ fill: Color, _ scheme: ColorScheme) -> Color {
+        Color(nsColor: NSColor.bestForeground(on: fill.facioResolved(scheme)))
+    }
+
+    /// Aucun texte ne passe 4,5:1 sur cet aplat, dans ce thème.
+    static func needsTintFallback(_ fill: Color, _ scheme: ColorScheme) -> Bool {
+        NSColor.bestContrastRatio(on: fill.facioResolved(scheme)) < 4.5
     }
 
     /// Vrai quand aucun texte ne passe 4,5:1 sur cet aplat (chroma extrême).
@@ -200,36 +261,58 @@ extension Color {
 
     // MARK: - Intentions
 
+    // Les valeurs `glyph` claires sont la tonalité la plus lumineuse de chaque
+    // teinte tenant encore 3:1 sur les sept surfaces claires (environ 23 % de
+    // luminance, contre 11 à 17 % pour les aplats). En sombre, les aplats sont
+    // déjà clairs et dépassent tous 5,5:1 : ils font office de glyphe.
+
     static var intentSuccessTriple: FacioIntent {
         FacioIntent(
             fill: dynamic(srgb(0x2F7A3E), srgb(0x8FD09B)),
             tint: dynamic(srgb(0xE4F0E4), srgb(0x1C2E1F)),
-            onTint: dynamic(srgb(0x205C2C), srgb(0x8FD09B))
+            onTint: dynamic(srgb(0x205C2C), srgb(0x8FD09B)),
+            glyph: dynamic(srgb(0x3A954C), srgb(0x8FD09B))
         )
     }
     static var intentWarningTriple: FacioIntent {
         FacioIntent(
             fill: dynamic(srgb(0xA8600A), srgb(0xE8B770)),
             tint: dynamic(srgb(0xF8ECD9), srgb(0x332415)),
-            onTint: dynamic(srgb(0x7A4405), srgb(0xE8B770))
+            onTint: dynamic(srgb(0x7A4405), srgb(0xE8B770)),
+            glyph: dynamic(srgb(0xC36F0C), srgb(0xE8B770))
         )
     }
     static var intentDangerTriple: FacioIntent {
         FacioIntent(
             fill: dynamic(srgb(0xB3261E), srgb(0xF09A92)),
             tint: dynamic(srgb(0xFBE5E3), srgb(0x361A18)),
-            onTint: dynamic(srgb(0x8C1B15), srgb(0xF09A92))
+            onTint: dynamic(srgb(0x8C1B15), srgb(0xF09A92)),
+            glyph: dynamic(srgb(0xFA352A), srgb(0xF09A92))
         )
     }
     static var intentNeutralTriple: FacioIntent {
         FacioIntent(
             fill: dynamic(srgb(0x6B6860), srgb(0xBEBCB2)),
             tint: dynamic(srgb(0xEDECE6), srgb(0x2A2924)),
-            onTint: dynamic(srgb(0x4B493F), srgb(0xBEBCB2))
+            onTint: dynamic(srgb(0x4B493F), srgb(0xBEBCB2)),
+            glyph: dynamic(srgb(0x88847A), srgb(0xBEBCB2))
         )
     }
     static var intentInfoTriple: FacioIntent {
-        FacioIntent(fill: accent, tint: accentTint, onTint: accent)
+        FacioIntent(fill: accent, tint: accentTint, onTint: accent, glyph: accentGlyph)
+    }
+
+    /// Olive de marque en marque colorée sans texte (pastille, icône, filet).
+    static var accentGlyph: Color { dynamic(srgb(0x599234), srgb(0xA9C68C)) }
+
+    /// Intention portant l'accent de marque — ou la couleur choisie par
+    /// l'utilisateur. Une couleur personnalisée n'a ni teinte pâle ni glyphe
+    /// mesurés : on la sert telle quelle en marque et en texte sur `tint`, et
+    /// c'est `onAccent` qui protège la lisibilité des aplats.
+    static func accentIntent(from company: CompanyInfo) -> FacioIntent {
+        guard company.couleurAccentHex != nil else { return intentInfoTriple }
+        let custom = accent(from: company)
+        return FacioIntent(fill: custom, tint: accentTint, onTint: custom, glyph: custom)
     }
 
     // Noms historiques : l'aplat de chaque intention.

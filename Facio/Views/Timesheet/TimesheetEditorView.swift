@@ -337,43 +337,43 @@ struct TimesheetEditorView: View {
                     title: L10n.totalHours(lang),
                     value: "\(heuresMois.formatted2Decimals(for: numberFormat))h",
                     systemImage: "clock",
-                    color: Color.appPrimary(from: dataStore.companyInfo)
+                    intent: .accent(from: dataStore.companyInfo)
                 )
                 MetricTile(
                     title: L10n.normalHours(lang),
                     value: "\(heuresNorm.formatted2Decimals(for: numberFormat))h",
                     systemImage: "clock.badge.checkmark",
-                    color: .intentInfo
+                    intent: .info
                 )
                 MetricTile(
                     title: L10n.overtimeHours(lang),
                     value: "\(heuresSup.formatted2Decimals(for: numberFormat))h",
                     systemImage: "clock.badge.exclamationmark",
-                    color: heuresSup > 0 ? .intentWarning : .secondary
+                    intent: heuresSup > 0 ? .warning : .neutral
                 )
                 MetricTile(
                     title: L10n.normalCost(lang),
                     value: privacy.formatNumber(coutNorm, lang: numberFormat),
                     systemImage: "banknote",
-                    color: .secondary
+                    intent: .neutral
                 )
                 MetricTile(
                     title: L10n.overtimeCost(lang),
                     value: privacy.formatNumber(coutSup, lang: numberFormat),
                     systemImage: "banknote",
-                    color: .secondary
+                    intent: .neutral
                 )
                 MetricTile(
                     title: L10n.grossTotal(lang),
                     value: privacy.formatNumber(brut, lang: numberFormat),
                     systemImage: "sum",
-                    color: .intentSuccess
+                    intent: .success
                 )
                 MetricTile(
                     title: L10n.netTotal(lang),
                     value: privacy.formatNumber(net, lang: numberFormat),
                     systemImage: "checkmark.seal",
-                    color: .intentSuccess
+                    intent: .success
                 )
             }
         }

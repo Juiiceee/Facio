@@ -23,27 +23,33 @@ struct FacioFieldModifier: ViewModifier {
             content
                 .textFieldStyle(.plain)
                 .focused($isFocused)
-                .padding(.horizontal, density == .regular ? FacioLayout.space10 : FacioLayout.space8)
+                .foregroundStyle(Color.textPrimary)
+                .padding(.horizontal, density == .regular ? FacioLayout.space12 : FacioLayout.space8)
                 .padding(.vertical, density == .regular ? FacioLayout.space8 : FacioLayout.space4)
-                .background(Color.surfaceField)
+                .frame(minHeight: FacioLayout.density.controlHeight)
+                .background(Color.surfaceFieldToken)
                 .overlay(
-                    RoundedRectangle(cornerRadius: FacioLayout.radiusField)
+                    RoundedRectangle(cornerRadius: FacioLayout.radiusSmall)
                         .strokeBorder(borderColor, lineWidth: 1)
                 )
-                .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusField))
+                .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusSmall))
+                // Le seul indice de focus était un passage de bordure de 8 % à
+                // 14 % de noir : 6 % d'alpha sur 1 pt, invisible. L'anneau
+                // partagé le remplace.
+                .facioFocusRing(isFocused && error?.isEmpty != false, radius: FacioLayout.radiusSmall)
 
             if density == .regular, let error, !error.isEmpty {
                 Text(error)
-                    .font(FacioFont.captionSmall)
-                    .foregroundStyle(Color.intentDanger)
+                    .font(FacioFont.label)
+                    .foregroundStyle(FacioIntent.danger.onTint)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
     private var borderColor: Color {
-        if error?.isEmpty == false { return .intentDanger }
-        return isFocused ? .borderHover : .borderSubtle
+        if error?.isEmpty == false { return FacioIntent.danger.glyph }
+        return isFocused ? .borderStrong : .borderHairlineToken
     }
 }
 

@@ -56,7 +56,7 @@ struct FacioApp: App {
                 .environment(toastCenter)
                 .environment(privacyMode)
                 .environment(appLock)
-                .environment(\.facioAccent, Color.appPrimary(from: dataStore.companyInfo))
+                .environment(\.facioAccent, Color.accent(from: dataStore.companyInfo))
                 .tint(Color.appPrimary(from: dataStore.companyInfo))
                 .frame(minWidth: FacioLayout.windowMinWidth, minHeight: FacioLayout.windowMinHeight)
                 .alert(L10n.firstLaunchTitle(lang), isPresented: $showFirstLaunch) {
@@ -141,7 +141,7 @@ struct FacioApp: App {
                 .environment(toastCenter)
                 .environment(privacyMode)
                 .environment(appLock)
-                .environment(\.facioAccent, Color.appPrimary(from: dataStore.companyInfo))
+                .environment(\.facioAccent, Color.accent(from: dataStore.companyInfo))
                 .tint(Color.appPrimary(from: dataStore.companyInfo))
         }
     }

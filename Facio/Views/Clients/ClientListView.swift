@@ -444,19 +444,19 @@ struct ClientDetailView: View {
                 title: L10n.clientRevenue(lang),
                 value: privacy.format(totalInvoiced, dataStore.companyInfo.deviseComptable, lang: numberFormat),
                 systemImage: "doc.text",
-                color: .appRevenue
+                intent: .info
             )
             MetricTile(
                 title: L10n.clientPaid(lang),
                 value: privacy.format(totalPaid, dataStore.companyInfo.deviseComptable, lang: numberFormat),
                 systemImage: "checkmark.circle",
-                color: .intentSuccess
+                intent: .success
             )
             MetricTile(
                 title: L10n.recentWork(lang),
                 value: "\(relatedDocuments.count)",
                 systemImage: "clock.arrow.circlepath",
-                color: .intentWarning
+                intent: .warning
             )
         }
     }

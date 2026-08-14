@@ -203,6 +203,9 @@ enum FacioRegressionSuite {
         RegressionCase(name: "text tokens meet contrast on every surface", run: textTokensMeetContrastOnEverySurface),
         RegressionCase(name: "brand accent meets contrast both ways", run: brandAccentMeetsContrastBothWays),
         RegressionCase(name: "intent tint pairs meet contrast", run: intentTintPairsMeetContrast),
+        RegressionCase(name: "intent glyphs meet graphical contrast", run: intentGlyphsMeetGraphicalContrast),
+        RegressionCase(name: "intent glyphs are brighter than their fills", run: intentGlyphsAreBrighterThanFills),
+        RegressionCase(name: "button foregrounds are readable on their fills", run: buttonForegroundsAreReadableOnTheirFills),
         RegressionCase(name: "custom accent picks a readable foreground", run: customAccentPicksAReadableForeground),
         RegressionCase(name: "dark elevation planes are ordered", run: darkElevationPlanesAreOrdered),
         RegressionCase(name: "spacing scale stays on the four point grid", run: spacingScaleStaysOnTheFourPointGrid),
@@ -812,6 +815,95 @@ enum FacioRegressionSuite {
                     fill >= 4.5,
                     "\(name) fill used as text on a panel must reach 4.5:1 in \(scheme), got \(String(format: "%.2f", Double(fill)))"
                 )
+            }
+        }
+    }
+
+    /// Les glyphes tiennent 3:1 — le seuil WCAG des OBJETS graphiques, pas
+    /// celui du texte — sur les sept surfaces et dans les deux thèmes. C'est ce
+    /// seuil, plus permissif, qui autorise une couleur nettement plus lumineuse
+    /// que l'aplat, et rend à l'app la vivacité perdue en calant tout sur 4,5:1.
+    private static func intentGlyphsMeetGraphicalContrast() throws {
+        let surfaces: [(String, Color)] = [
+            ("canvas", .surfaceCanvas), ("raised", .surfaceRaised), ("sunken", .surfaceSunken),
+            ("field", .surfaceFieldToken), ("float", .surfaceFloat), ("hover", .surfaceHover),
+            ("selected", .surfaceSelected)
+        ]
+        let intents: [(String, () -> FacioIntent)] = [
+            ("success", { .success }), ("warning", { .warning }),
+            ("danger", { .danger }), ("neutral", { .neutral }), ("info", { .info })
+        ]
+
+        for scheme in [ColorScheme.light, .dark] {
+            for (iName, make) in intents {
+                let glyph = make().glyph
+                for (sName, surface) in surfaces {
+                    let r = ratio(glyph, on: surface, scheme)
+                    try expect(
+                        r >= 3,
+                        "\(iName) glyph on \(sName) in \(scheme) must reach 3:1, got \(String(format: "%.2f", Double(r)))"
+                    )
+                }
+                // Et sur son propre fond teinté : le badge pose l'icône dessus.
+                let onTint = ratio(glyph, on: make().tint, scheme)
+                try expect(
+                    onTint >= 3,
+                    "\(iName) glyph on its own tint in \(scheme) must reach 3:1, got \(String(format: "%.2f", Double(onTint)))"
+                )
+            }
+        }
+    }
+
+    /// Le glyphe doit être PLUS LUMINEUX que l'aplat en clair : c'est sa seule
+    /// raison d'exister. S'ils se rejoignent, le rôle ne sert plus à rien et la
+    /// vivacité repart aussitôt.
+    private static func intentGlyphsAreBrighterThanFills() throws {
+        let intents: [(String, () -> FacioIntent)] = [
+            ("success", { .success }), ("warning", { .warning }),
+            ("danger", { .danger }), ("neutral", { .neutral }), ("info", { .info })
+        ]
+        for (name, make) in intents {
+            let intent = make()
+            let glyph = resolved(intent.glyph, .light).relativeLuminance
+            let fill = resolved(intent.fill, .light).relativeLuminance
+            try expect(
+                glyph > fill * 1.2,
+                "\(name) glyph must be markedly brighter than its fill in light, got \(String(format: "%.3f", Double(glyph))) vs \(String(format: "%.3f", Double(fill)))"
+            )
+        }
+    }
+
+    /// Le texte de chaque rôle de bouton est lisible sur son propre aplat, dans
+    /// les deux thèmes. Le destructif forçait du blanc — or l'aplat « danger »
+    /// est CLAIR en sombre (#F09A92) : le bouton tombait à 2,16:1.
+    private static func buttonForegroundsAreReadableOnTheirFills() throws {
+        // On interroge la table du rôle — la MÊME que celle qu'applique le
+        // style. Recopier ici les couleurs attendues rendrait le cas
+        // auto-cohérent : il resterait vert si le bouton reforçait du blanc.
+        let roles: [(String, FacioButtonRole)] = [
+            ("primary", .primary), ("secondary", .secondary), ("destructive", .destructive)
+        ]
+        // Accent de marque, et un accent personnalisé de chaque extrême : le
+        // bouton doit rester lisible quelle que soit la couleur choisie.
+        let accents: [(String, Color)] = [
+            ("brand", .accent),
+            ("pale yellow", Color(nsColor: NSColor(srgbRed: 0.91, green: 0.76, blue: 0.13, alpha: 1))),
+            ("deep purple", Color(nsColor: NSColor(srgbRed: 0.54, green: 0.29, blue: 0.84, alpha: 1)))
+        ]
+
+        for scheme in [ColorScheme.light, .dark] {
+            for (aName, accent) in accents {
+                for (rName, role) in roles {
+                    let r = ratio(
+                        role.foreground(accent: accent, scheme: scheme),
+                        on: role.fill(accent: accent, scheme: scheme),
+                        scheme
+                    )
+                    try expect(
+                        r >= 4.5,
+                        "\(rName) button on \(aName) must reach 4.5:1 in \(scheme), got \(String(format: "%.2f", Double(r)))"
+                    )
+                }
             }
         }
     }

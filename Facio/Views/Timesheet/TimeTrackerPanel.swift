@@ -392,25 +392,25 @@ struct TimeTrackerPanel: View {
                 title: L10n.today(lang),
                 value: formatHours(totalDuration(for: periodEntries.filter { isToday($0) }, now: now)),
                 systemImage: "calendar",
-                color: .intentInfo
+                intent: .info
             )
             MetricTile(
                 title: L10n.thisWeek(lang),
                 value: formatHours(totalDuration(for: periodEntries.filter { isThisWeek($0) }, now: now)),
                 systemImage: "calendar.badge.clock",
-                color: .intentWarning
+                intent: .warning
             )
             MetricTile(
                 title: L10n.period(lang),
                 value: formatHours(totalDuration(for: periodEntries, now: now)),
                 systemImage: "clock",
-                color: .intentSuccess
+                intent: .success
             )
             MetricTile(
                 title: L10n.estimatedAmount(lang),
                 value: privacy.format(estimatedBillableAmount(now: now), dataStore.companyInfo.deviseParDefaut, lang: numberFormat),
                 systemImage: "banknote",
-                color: Color.appPrimary(from: dataStore.companyInfo)
+                intent: .accent(from: dataStore.companyInfo)
             )
         }
     }

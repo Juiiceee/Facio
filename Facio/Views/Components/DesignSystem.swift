@@ -179,14 +179,13 @@ enum InlineTone {
     case warning
     case danger
 
-    var color: Color {
-        switch self {
-        case .info: return .intentInfo
-        case .success: return .intentSuccess
-        case .warning: return .intentWarning
-        case .danger: return .intentDanger
-        }
-    }
+    /// Les quatre rôles de cette tonalité. Point d'entrée unique des composants :
+    /// un composant ne choisit plus une couleur, il choisit un rôle.
+    var intent: FacioIntent { Color.intent(for: self) }
+
+    /// Aplat. Conservé pour les appels qui posent la couleur sur un fond neutre ;
+    /// pour une marque sans texte, préférer `intent.glyph`.
+    var color: Color { intent.fill }
 
     var icon: String {
         switch self {
@@ -203,22 +202,18 @@ enum InlineTone {
 /// Chrome partagé des panneaux et tuiles : fond, bordure discrète, coins arrondis.
 /// Remplace les blocs `background + overlay + clipShape` dupliqués dans les vues.
 struct FacioCardChrome: ViewModifier {
-    var surface: Color = .surfacePanel
-    var radius: CGFloat = FacioLayout.radiusPanel
+    var surface: Color = .surfaceRaised
+    var radius: CGFloat = FacioLayout.radiusMedium
 
     func body(content: Content) -> some View {
-        content
-            .background(surface)
-            .overlay(
-                RoundedRectangle(cornerRadius: radius)
-                    .strokeBorder(Color.borderSubtle, lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: radius))
+        // Délègue au plan e1 : surface opaque, contour de raffinement et ombre
+        // en clair, luminance seule en sombre. Le chrome n'est plus rejoué ici.
+        content.facioElevation(.e1, radius: radius, surface: surface)
     }
 }
 
 extension View {
-    func facioCardChrome(surface: Color = .surfacePanel, radius: CGFloat = FacioLayout.radiusPanel) -> some View {
+    func facioCardChrome(surface: Color = .surfaceRaised, radius: CGFloat = FacioLayout.radiusMedium) -> some View {
         modifier(FacioCardChrome(surface: surface, radius: radius))
     }
 }
@@ -238,8 +233,8 @@ struct SectionPanel<Content: View>: View {
         VStack(alignment: .leading, spacing: FacioLayout.space16) {
             if let title {
                 Label(title, systemImage: systemImage ?? "square.grid.2x2")
-                    .font(FacioFont.sectionTitle)
-                    .foregroundStyle(.primary)
+                    .font(FacioFont.titleSection)
+                    .foregroundStyle(Color.textPrimary)
                     .labelStyle(.titleAndIcon)
             }
             content
@@ -255,39 +250,45 @@ struct MetricTile: View {
     let value: String
     var subtitle: String?
     let systemImage: String
-    let color: Color
-    /// Variante mise en avant (KPI principal) : valeur plus grande.
-    var emphasized: Bool = false
+    /// La tuile prend une intention, plus une couleur nue : le filet et l'icône
+    /// sont des marques (valeur vive), la pastille d'icône un fond teinté.
+    /// Auparavant une seule couleur servait aux trois, dont un fond à 10 % d'un
+    /// aplat sombre — un gris sale.
+    let intent: FacioIntent
     /// Tendance optionnelle vs période précédente.
     var trend: MetricTrend?
+    // `emphasized` a disparu : la refonte typographique a fusionné `heroValue`
+    // et `metricValue` sur le même pas de 28 pt, le drapeau ne changeait donc
+    // plus rien — et aucune vue ne l'utilisait.
 
     var body: some View {
         HStack(alignment: .top, spacing: FacioLayout.space12) {
-            RoundedRectangle(cornerRadius: FacioLayout.space2)
-                .fill(color)
+            RoundedRectangle(cornerRadius: FacioLayout.space4)
+                .fill(intent.glyph)
                 .frame(width: 3)
-                .padding(.vertical, FacioLayout.space2)
+                .padding(.vertical, FacioLayout.space4)
 
-            VStack(alignment: .leading, spacing: FacioLayout.space6) {
+            VStack(alignment: .leading, spacing: FacioLayout.space8) {
                 Text(title)
-                    .font(FacioFont.caption)
-                    .foregroundStyle(.secondary)
+                    .font(FacioFont.secondary)
+                    .foregroundStyle(Color.textSecondary)
                     .lineLimit(2)
                 Text(value)
-                    .font(emphasized ? FacioFont.heroValue : FacioFont.metricValue)
+                    .font(FacioFont.metric)
+                    .foregroundStyle(Color.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                 if let trend {
                     trend.label
                 } else if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(FacioFont.captionSmall)
-                        .foregroundStyle(.tertiary)
+                        .font(FacioFont.label)
+                        .foregroundStyle(Color.textTertiary)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
                     Text(" ")
-                        .font(FacioFont.captionSmall)
+                        .font(FacioFont.label)
                         .lineLimit(2)
                         .hidden()
                 }
@@ -298,14 +299,14 @@ struct MetricTile: View {
 
             Image(systemName: systemImage)
                 .font(.title3)
-                .foregroundStyle(color)
+                .foregroundStyle(intent.glyph)
                 .frame(width: 30, height: 30)
-                .background(color.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusTile))
+                .background(intent.tint)
+                .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusMedium))
         }
         .padding(FacioLayout.tilePadding)
         .frame(maxWidth: .infinity, minHeight: 128, maxHeight: 148, alignment: .topLeading)
-        .facioCardChrome(surface: .surfaceTile)
+        .facioCardChrome(surface: .surfaceSunken)
     }
 }
 
@@ -317,18 +318,20 @@ struct MetricTrend {
     enum Direction { case up, down, flat }
 
     @ViewBuilder var label: some View {
+        // Flèche + delta : une marque, pas un paragraphe. Elle prend donc la
+        // valeur vive et non l'aplat calé sur le seuil du texte.
         let (icon, color): (String, Color) = {
             switch direction {
-            case .up: return ("arrow.up.right", .intentSuccess)
-            case .down: return ("arrow.down.right", .intentDanger)
-            case .flat: return ("arrow.right", .secondary)
+            case .up: return ("arrow.up.right", Color.intentSuccessTriple.glyph)
+            case .down: return ("arrow.down.right", Color.intentDangerTriple.glyph)
+            case .flat: return ("arrow.right", Color.textSecondary)
             }
         }()
         HStack(spacing: FacioLayout.space4) {
             Image(systemName: icon)
             Text(text)
         }
-        .font(FacioFont.captionSmall)
+        .font(FacioFont.label)
         .foregroundStyle(color)
         .lineLimit(1)
     }
@@ -343,46 +346,37 @@ struct ActionTile: View {
     var tone: InlineTone = .info
     let action: () -> Void
 
-    @State private var isHovering = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     var body: some View {
         Button(action: action) {
             HStack(spacing: FacioLayout.space12) {
                 Image(systemName: systemImage)
                     .font(.title3)
-                    .foregroundStyle(tone.color)
+                    .foregroundStyle(tone.intent.glyph)
                     .frame(width: 26)
-                VStack(alignment: .leading, spacing: FacioLayout.space2) {
+                VStack(alignment: .leading, spacing: FacioLayout.space4) {
                     Text(title)
                         .font(FacioFont.rowTitle)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.textPrimary)
                         .lineLimit(1)
                     if let subtitle, !subtitle.isEmpty {
                         Text(subtitle)
-                            .font(FacioFont.caption)
-                            .foregroundStyle(.secondary)
+                            .font(FacioFont.secondary)
+                            .foregroundStyle(Color.textSecondary)
                             .lineLimit(2)
                     }
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.textTertiary)
             }
             .padding(FacioLayout.rowPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
         }
         .buttonStyle(.plain)
-        .background(isHovering ? Color.surfaceRowHover : Color.surfaceTile)
-        .overlay(
-            RoundedRectangle(cornerRadius: FacioLayout.radiusPanel)
-                .strokeBorder(isHovering ? Color.borderHover : Color.borderSubtle, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusPanel))
-        .animation(FacioMotion.respecting(FacioMotion.hover, reduceMotion: reduceMotion), value: isHovering)
-        .onHover { isHovering = $0 }
+        // Survol partagé : l'état, l'animation et les deux couleurs vivent
+        // désormais dans un seul modificateur au lieu d'être réécrits ici.
+        .facioHoverable(radius: FacioLayout.radiusMedium)
     }
 }
 
@@ -390,32 +384,23 @@ struct FacioListRow<Content: View>: View {
     var tone: Color = .primary
     let content: Content
 
-    @State private var isHovering = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    init(tone: Color = .primary, @ViewBuilder content: () -> Content) {
+    init(tone: Color = .textPrimary, @ViewBuilder content: () -> Content) {
         self.tone = tone
         self.content = content()
     }
 
     var body: some View {
-        HStack(spacing: FacioLayout.space10) {
-            RoundedRectangle(cornerRadius: FacioLayout.space2)
-                .fill(tone.opacity(0.75))
+        HStack(spacing: FacioLayout.space12) {
+            // Le filet perdait 25 % d'opacité sur une surface non définie ; il
+            // porte maintenant sa couleur pleine sur un plan opaque.
+            RoundedRectangle(cornerRadius: FacioLayout.space4)
+                .fill(tone)
                 .frame(width: 3)
             content
         }
         .padding(FacioLayout.rowPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(isHovering ? Color.surfaceRowHover : Color.surfaceRow)
-        .overlay(
-            RoundedRectangle(cornerRadius: FacioLayout.radiusRow)
-                .strokeBorder(isHovering ? Color.borderHover : Color.borderHairline, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusRow))
-        .contentShape(RoundedRectangle(cornerRadius: FacioLayout.radiusRow))
-        .animation(FacioMotion.respecting(FacioMotion.hover, reduceMotion: reduceMotion), value: isHovering)
-        .onHover { isHovering = $0 }
+        .facioHoverable(radius: FacioLayout.radiusMedium)
     }
 }
 
@@ -426,18 +411,22 @@ struct InlineWarning: View {
     var tone: InlineTone = .warning
 
     var body: some View {
+        // Le fond était l'aplat à 9 % d'opacité et le texte le MÊME aplat : un
+        // contraste que rien ne garantissait. Fond et texte viennent désormais
+        // de la paire mesurée `tint` / `onTint` ; seule l'icône, qui ne porte
+        // pas de texte, prend la valeur vive.
         HStack(alignment: .top, spacing: FacioLayout.space8) {
             Image(systemName: tone.icon)
-                .foregroundStyle(tone.color)
+                .foregroundStyle(tone.intent.glyph)
             Text(text)
-                .font(FacioFont.caption)
-                .foregroundStyle(tone.color)
+                .font(FacioFont.secondary)
+                .foregroundStyle(tone.intent.onTint)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
         .padding(FacioLayout.space8)
-        .background(tone.color.opacity(0.09))
-        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusField))
+        .background(tone.intent.tint)
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusSmall))
     }
 }
 
@@ -449,16 +438,16 @@ struct ChecklistRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: FacioLayout.space8) {
             Image(systemName: isComplete ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(isComplete ? Color.intentSuccess : .secondary)
+                .foregroundStyle(isComplete ? Color.intentSuccessTriple.glyph : Color.textTertiary)
                 .font(.subheadline)
-            VStack(alignment: .leading, spacing: FacioLayout.space2) {
+            VStack(alignment: .leading, spacing: FacioLayout.space4) {
                 Text(title)
-                    .font(FacioFont.caption)
-                    .foregroundStyle(.primary)
+                    .font(FacioFont.secondary)
+                    .foregroundStyle(Color.textPrimary)
                 if let detail, !detail.isEmpty {
                     Text(detail)
-                        .font(FacioFont.captionSmall)
-                        .foregroundStyle(.secondary)
+                        .font(FacioFont.label)
+                        .foregroundStyle(Color.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }

@@ -123,27 +123,27 @@ struct DashboardView: View {
                         value: privacy.format(caMoisEnCours.total, accountingCurrency, lang: numberFormat),
                         subtitle: missingConversionSubtitle(caMoisEnCours),
                         systemImage: "chart.line.uptrend.xyaxis",
-                        color: .appRevenue
+                        intent: .info
                     )
                     MetricTile(
                         title: L10n.revenueThisYear(lang),
                         value: privacy.format(caAnneeEnCours.total, accountingCurrency, lang: numberFormat),
                         subtitle: missingConversionSubtitle(caAnneeEnCours),
                         systemImage: "chart.bar.fill",
-                        color: .appRevenue
+                        intent: .info
                     )
                     MetricTile(
                         title: L10n.pending(lang),
                         value: privacy.format(montantEnAttente.total, accountingCurrency, lang: numberFormat),
                         subtitle: pendingSubtitle,
                         systemImage: "clock.fill",
-                        color: .appPending
+                        intent: .warning
                     )
                     MetricTile(
                         title: L10n.quotesInProgress(lang),
                         value: "\(devis.filter { $0.status == .envoyee }.count)",
                         systemImage: "doc.text",
-                        color: .appQuote
+                        intent: .info
                     )
                 }
 

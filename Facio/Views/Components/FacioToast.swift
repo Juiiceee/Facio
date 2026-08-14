@@ -51,16 +51,19 @@ private struct FacioToastHost: ViewModifier {
             if let toast = toastCenter.current {
                 HStack(spacing: FacioLayout.space8) {
                     Image(systemName: toast.icon ?? toast.tone.icon)
-                        .foregroundStyle(toast.tone.color)
+                        .foregroundStyle(toast.tone.intent.glyph)
                     Text(toast.message)
                         .font(FacioFont.rowTitle)
+                        .foregroundStyle(Color.textPrimary)
                 }
                 .padding(.horizontal, FacioLayout.space16)
-                .padding(.vertical, FacioLayout.space10)
-                .background(Color.surfacePanel, in: Capsule())
-                .overlay(Capsule().strokeBorder(toast.tone.color.opacity(0.35), lineWidth: 1))
-                .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
-                .padding(.bottom, FacioLayout.space20)
+                .padding(.vertical, FacioLayout.space12)
+                // Le toast flotte : c'est le plan e3. Il portait la seule ombre
+                // de l'app, écrite à la main avec un noir à 12 %.
+                .background(Color.surfaceFloat, in: Capsule())
+                .overlay(Capsule().strokeBorder(toast.tone.intent.glyph.opacity(0.35), lineWidth: 1))
+                .shadow(color: FacioElevation.e3.shadowColor, radius: FacioElevation.e3.shadowRadius, y: FacioElevation.e3.shadowY)
+                .padding(.bottom, FacioLayout.space24)
                 .allowsHitTesting(false)
                 .transition(FacioMotion.slideUp)
                 .transaction { transaction in
