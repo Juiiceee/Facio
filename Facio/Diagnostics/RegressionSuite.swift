@@ -198,6 +198,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "sheet minimums fit inside minimum window", run: sheetMinimumsFitInsideMinimumWindow),
         RegressionCase(name: "color tokens resolve differently in dark mode", run: colorTokensResolveDifferentlyInDarkMode),
         RegressionCase(name: "brand accent is identical in UI and PDF", run: brandAccentIsIdenticalInUIAndPDF),
+        RegressionCase(name: "document empty state copy agrees grammatically", run: documentEmptyStateCopyAgreesGrammatically),
         RegressionCase(name: "payment date stamps on paid and feeds revenue month", run: paymentDateStampsOnPaidAndFeedsRevenueMonth),
         RegressionCase(name: "partial status computes reste à payer", run: partialStatusComputesResteAPayer),
         RegressionCase(name: "partial payments bucket cash by payment date", run: partialPaymentsBucketCashByPaymentDate),
@@ -413,6 +414,27 @@ enum FacioRegressionSuite {
                 "\(name) should resolve to different colors in light and dark mode"
             )
         }
+    }
+
+    /// Les états vides des listes de documents s'accordent avec le type qu'ils
+    /// nomment. Le gabarit interpolé produisait « Aucun facture » et
+    /// « Click + to create a invoice. » — les premiers mots que lit un nouvel
+    /// utilisateur.
+    private static func documentEmptyStateCopyAgreesGrammatically() throws {
+        try expectEqual(L10n.noDocuments(.fr, type: .facture), "Aucune facture")
+        try expectEqual(L10n.noDocuments(.fr, type: .devis), "Aucun devis")
+        try expectEqual(L10n.clickToCreate(.fr, type: .facture), "Cliquez sur + pour créer une facture.")
+        try expectEqual(L10n.clickToCreate(.fr, type: .devis), "Cliquez sur + pour créer un devis.")
+
+        // L'anglais a le même piège avec l'article indéfini devant une voyelle.
+        try expect(
+            L10n.clickToCreate(.en, type: .facture).contains("an invoice"),
+            "English copy must read \"an invoice\", not \"a invoice\""
+        )
+        try expect(
+            L10n.clickToCreate(.en, type: .devis).contains("a quote"),
+            "English copy must read \"a quote\""
+        )
     }
 
     /// L'interface et le PDF doivent être peints du MÊME vert de marque par

@@ -176,13 +176,13 @@ struct DocumentListView: View {
             if documents.isEmpty {
                 FacioEmptyState(
                     title: searchText.isEmpty
-                        ? L10n.noDocuments(lang, type: documentType.label(for: lang).lowercased())
+                        ? L10n.noDocuments(lang, type: documentType)
                         : L10n.noSearchResults(lang),
                     systemImage: searchText.isEmpty
                         ? (documentType == .facture ? "doc.text" : "doc.text.magnifyingglass")
                         : "magnifyingglass",
                     message: searchText.isEmpty
-                        ? L10n.clickToCreate(lang, type: documentType.label(for: lang).lowercased())
+                        ? L10n.clickToCreate(lang, type: documentType)
                         : L10n.noSearchResultsHint(lang)
                 ) {
                     if searchText.isEmpty {
