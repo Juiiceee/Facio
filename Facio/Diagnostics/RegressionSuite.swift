@@ -238,8 +238,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "app lock countdown stays readable across the minute", run: appLockCountdownStaysReadableAcrossTheMinute),
         RegressionCase(name: "app lock auto-lock waits for the configured idle delay", run: appLockAutoLockWaitsForConfiguredIdleDelay),
         RegressionCase(name: "timesheet weeks are numbered in ISO 8601", run: timesheetWeeksAreNumberedInISO8601),
-        RegressionCase(name: "timesheet decodes old payloads without a rate carry-over marker", run: timesheetDecodesOldPayloadsWithoutRateCarryOver)
-
+        RegressionCase(name: "timesheet decodes old payloads without a rate carry-over marker", run: timesheetDecodesOldPayloadsWithoutRateCarryOver),
         RegressionCase(name: "passcode flow numbers its steps and can go back", run: passcodeFlowNumbersItsStepsAndCanGoBack),
         RegressionCase(name: "the two PDF exports of a document never share a filename", run: pdfExportsNeverShareAFilename)
     ]
