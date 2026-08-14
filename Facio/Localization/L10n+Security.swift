@@ -179,6 +179,11 @@ extension L10n {
     static func codeStepCurrent(_ l: AppLanguage) -> String { l == .fr ? "Code actuel" : "Current passcode" }
     static func codeStepNew(_ l: AppLanguage) -> String { l == .fr ? "Nouveau code" : "New passcode" }
     static func codeStepConfirm(_ l: AppLanguage) -> String { l == .fr ? "Confirmez le code" : "Confirm the passcode" }
+    /// « Étape 2 sur 3 » — la feuille enchaînait jusqu'à trois saisies sans
+    /// jamais dire combien il en restait.
+    static func codeStepProgress(_ l: AppLanguage, step: Int, total: Int) -> String {
+        l == .fr ? "Étape \(step) sur \(total)" : "Step \(step) of \(total)"
+    }
     static func codeLengthLabel(_ l: AppLanguage) -> String { l == .fr ? "Longueur" : "Length" }
     static func codeLengthDigits(_ l: AppLanguage, digits: Int) -> String {
         l == .fr ? "\(digits) chiffres" : "\(digits) digits"

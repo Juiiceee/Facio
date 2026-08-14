@@ -23,6 +23,56 @@ enum PasscodeSheetMode: Identifiable {
     }
 }
 
+/// Une étape de la feuille de code.
+enum PasscodeStep {
+    case current
+    case newCode
+    case confirmation
+}
+
+/// L'enchaînement des étapes, extrait de la vue pour être vérifiable.
+///
+/// La feuille enchaînait jusqu'à trois saisies de six chiffres sans dire
+/// combien il en restait, et sans permettre de revenir en arrière : se tromper
+/// de nouveau code obligeait à tout annuler et à ressaisir le code actuel.
+enum PasscodeFlow {
+    /// Suppression = vérifier le code ; création = nouveau + confirmation ;
+    /// modification = les trois.
+    static func totalSteps(for mode: PasscodeSheetMode) -> Int {
+        switch mode {
+        case .remove: return 1
+        case .create: return 2
+        case .change: return 3
+        }
+    }
+
+    /// L'étape par laquelle le mode commence.
+    static func firstStep(for mode: PasscodeSheetMode) -> PasscodeStep {
+        mode == .create ? .newCode : .current
+    }
+
+    /// Rang de l'étape, à partir de 1.
+    static func index(of step: PasscodeStep, in mode: PasscodeSheetMode) -> Int {
+        switch (mode, step) {
+        case (.change, .current): return 1
+        case (.change, .newCode): return 2
+        case (.change, .confirmation): return 3
+        case (.create, .newCode): return 1
+        case (.create, .confirmation): return 2
+        default: return 1
+        }
+    }
+
+    /// L'étape précédente, ou `nil` quand il n'y a nulle part où revenir.
+    static func previous(of step: PasscodeStep, in mode: PasscodeSheetMode) -> PasscodeStep? {
+        switch (mode, step) {
+        case (.change, .newCode): return .current
+        case (.create, .confirmation), (.change, .confirmation): return .newCode
+        default: return nil
+        }
+    }
+}
+
 /// Création, modification et suppression du code — un seul écran, piloté par
 /// une petite machine à états (code actuel → nouveau code → confirmation).
 /// Chaque étape se valide toute seule dès que le nombre de chiffres est atteint.
@@ -34,13 +84,7 @@ struct PasscodeSheet: View {
     @Environment(ToastCenter.self) private var toastCenter
     @Environment(\.dismiss) private var dismiss
 
-    private enum Step {
-        case current
-        case newCode
-        case confirmation
-    }
-
-    @State private var step: Step
+    @State private var step: PasscodeStep
     @State private var length: Int
     @State private var currentCode = ""
     @State private var newCode = ""
@@ -58,7 +102,7 @@ struct PasscodeSheet: View {
 
     init(mode: PasscodeSheetMode, currentLength: Int) {
         self.mode = mode
-        _step = State(initialValue: mode == .create ? .newCode : .current)
+        _step = State(initialValue: PasscodeFlow.firstStep(for: mode))
         _length = State(initialValue: mode == .create ? AppLockCode.defaultLength : currentLength)
     }
 
@@ -87,10 +131,17 @@ struct PasscodeSheet: View {
 
             status
 
-            HStack {
+            HStack(spacing: FacioLayout.space8) {
                 Button(L10n.cancel(lang)) { dismiss() }
                     .buttonStyle(.facio(.secondary))
                     .keyboardShortcut(.cancelAction)
+
+                if let previousStep {
+                    Button(L10n.back(lang)) { goBack(to: previousStep) }
+                        .buttonStyle(.facio(.tertiary))
+                        .disabled(isWorking || isRateLimited)
+                }
+
                 Spacer()
             }
         }
@@ -114,8 +165,21 @@ struct PasscodeSheet: View {
             Text(stepTitle)
                 .font(FacioFont.caption)
                 .foregroundStyle(.secondary)
+            // « Étape 2 sur 3 » : la feuille enchaînait jusqu'à trois saisies
+            // de six chiffres sans jamais dire combien il en restait, et une
+            // erreur pouvait renvoyer en arrière sans que ça se voie.
+            if totalSteps > 1 {
+                Text(L10n.codeStepProgress(lang, step: stepIndex, total: totalSteps))
+                    .font(FacioFont.label)
+                    .foregroundStyle(.tertiary)
+                    .accessibilityLabel(L10n.codeStepProgress(lang, step: stepIndex, total: totalSteps))
+            }
         }
     }
+
+    private var totalSteps: Int { PasscodeFlow.totalSteps(for: mode) }
+    private var stepIndex: Int { PasscodeFlow.index(of: step, in: mode) }
+    private var previousStep: PasscodeStep? { PasscodeFlow.previous(of: step, in: mode) }
 
     private var lengthPicker: some View {
         Picker(L10n.codeLengthLabel(lang), selection: $length) {
@@ -177,6 +241,18 @@ struct PasscodeSheet: View {
         case .newCode: return L10n.codeStepNew(lang)
         case .confirmation: return L10n.codeStepConfirm(lang)
         }
+    }
+
+    /// Revenir en arrière efface la saisie de l'étape quittée : la laisser en
+    /// place ferait revalider automatiquement dès le premier chiffre tapé.
+    private func goBack(to target: PasscodeStep) {
+        errorMessage = nil
+        switch step {
+        case .confirmation: confirmationCode = ""
+        case .newCode: newCode = ""
+        case .current: currentCode = ""
+        }
+        step = target
     }
 
     // MARK: - Machine à états
