@@ -143,4 +143,28 @@ extension L10n {
     static func duplicateNumberError(_ l: AppLanguage) -> String {
         l == .fr ? "Ce numéro est déjà utilisé par un autre document." : "This number is already used by another document."
     }
+    // MARK: - Conformité
+    //
+    // Le panneau n'affichait QUE les contrôles en échec, toujours avec la
+    // pastille vide : il était une liste de reproches, jamais une confirmation.
+    // Et quand tout était correct il disparaissait — au-dessus de 1120 pt, avec
+    // toute la colonne inspecteur — donc le seul retour pour avoir corrigé une
+    // erreur était un saut de mise en page.
+    static func issuerReady(_ l: AppLanguage) -> String {
+        l == .fr ? "Mentions de l'émetteur" : "Issuer's legal details"
+    }
+    static func missingIssuerHint(_ l: AppLanguage) -> String {
+        l == .fr
+            ? "Nom, adresse et SIRET sont obligatoires sur une facture française."
+            : "Name, address and SIRET are mandatory on a French invoice."
+    }
+    static func documentReadyToSend(_ l: AppLanguage) -> String {
+        l == .fr ? "Prêt à envoyer" : "Ready to send"
+    }
+    static func readinessProgress(_ l: AppLanguage, remaining: Int, total: Int) -> String {
+        l == .fr ? "\(remaining) à corriger sur \(total)" : "\(remaining) of \(total) to fix"
+    }
+    static func inspectorToggle(_ l: AppLanguage) -> String {
+        l == .fr ? "Conformité" : "Compliance"
+    }
 }

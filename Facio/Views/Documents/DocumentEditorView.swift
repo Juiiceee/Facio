@@ -8,6 +8,8 @@ struct DocumentEditorView: View {
     @State private var showClientPicker = false
     @State private var showPreview = false
     @State private var showAddSignature = false
+    /// Tiroir de conformité, sous le breakpoint de l'inspecteur latéral.
+    @State private var showInspectorDrawer = false
     @State private var showPDFGenerationAlert = false
     @State private var showPDFExportAlert = false
     @State private var attachmentCopyFailures = 0
@@ -76,17 +78,36 @@ struct DocumentEditorView: View {
                 // Re-pose le conteneur responsive : quand l'inspecteur latéral est
                 // visible, la largeur réelle de la colonne de contenu est plus
                 // étroite que la colonne détail mesurée par ContentView.
-                documentMainScroll(showInlineInspector: !usesSideInspector)
+                documentMainScroll()
                     .frame(maxWidth: .infinity)
                     .facioResponsiveContainer()
 
-                if usesSideInspector && hasReadinessIssues {
+                // Permanent : il n'apparaît plus « seulement s'il reste un
+                // problème ». Il était le seul repère de conformité de l'écran,
+                // et il changeait de place — ou disparaissait — selon la largeur
+                // de la fenêtre et l'état du document.
+                if usesSideInspector {
                     Divider()
                     documentInspector
                 }
             }
-            // Apparition/masquage de l'inspecteur au franchissement du breakpoint.
+            // Sous le breakpoint, l'inspecteur devient un tiroir qui RECOUVRE
+            // le contenu. Il était injecté en plein milieu du formulaire, entre
+            // « Détails du document » et « DESTINATAIRE » : la position des
+            // alertes dépendait donc de la taille de la fenêtre.
+            .overlay(alignment: .trailing) {
+                if !usesSideInspector && showInspectorDrawer {
+                    documentInspector
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if !usesSideInspector {
+                    inspectorToggle
+                }
+            }
             .animation(FacioMotion.respecting(FacioMotion.state, reduceMotion: reduceMotion), value: usesSideInspector)
+            .animation(FacioMotion.respecting(FacioMotion.state, reduceMotion: reduceMotion), value: showInspectorDrawer)
         }
         .navigationTitle(document.number.isEmpty ? L10n.newDocument(lang) : document.number)
         // L'enregistrement est différé de 500 ms ; si la vue disparaît entre
@@ -140,15 +161,11 @@ struct DocumentEditorView: View {
         }
     }
 
-    private func documentMainScroll(showInlineInspector: Bool) -> some View {
+    private func documentMainScroll() -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: FacioLayout.sectionSpacing) {
                 documentHeroBar
                 documentDetailsSection
-
-                if showInlineInspector {
-                    documentInspectorContent
-                }
 
                 clientSection
                 DocumentLineItemsSection(document: document, company: company, lang: lang) {
@@ -386,6 +403,28 @@ struct DocumentEditorView: View {
         }
     }
 
+    /// Ouvre le tiroir sous 1120 pt, avec le nombre de contrôles restants.
+    private var inspectorToggle: some View {
+        let remaining = readinessChecks.filter { !$0.isComplete }.count
+        return Button {
+            showInspectorDrawer.toggle()
+        } label: {
+            HStack(spacing: FacioLayout.space4) {
+                Image(systemName: remaining == 0 ? "checkmark.seal" : "exclamationmark.triangle")
+                Text(L10n.inspectorToggle(lang))
+                if remaining > 0 {
+                    Text("\(remaining)")
+                        .foregroundStyle(FacioIntent.warning.onTint)
+                        .padding(.horizontal, FacioLayout.space4)
+                        .background(FacioIntent.warning.tint)
+                        .clipShape(Capsule())
+                }
+            }
+        }
+        .buttonStyle(.facio(.secondary))
+        .padding(FacioLayout.space12)
+    }
+
     private var documentInspector: some View {
         InspectorPanel {
             documentInspectorContent
@@ -398,57 +437,59 @@ struct DocumentEditorView: View {
         }
     }
 
-    @ViewBuilder
+    /// Les six contrôles, satisfaits comme en échec.
+    ///
+    /// Le panneau n'affichait que les échecs, toujours avec la pastille vide —
+    /// `ChecklistRow` sait pourtant afficher un état complété, il ne l'a jamais
+    /// servi. Et la chaîne « Prêt à envoyer » existait dans le code sans être
+    /// rendue nulle part.
+    private var readinessChecks: [(title: String, detail: String, isComplete: Bool)] {
+        [
+            (L10n.clientReady(lang), L10n.missingClientHint(lang), clientIsReady),
+            (L10n.linesReady(lang), L10n.missingLinesHint(lang), linesAreReady),
+            (L10n.amountReady(lang), L10n.missingAmountHint(lang), amountIsReady),
+            (L10n.paymentReady(lang), L10n.missingPaymentHint(lang), paymentIsReady),
+            (L10n.conversionReady(lang), L10n.missingConversionHint(lang), conversionIsReady),
+            // Le contrôle qui manquait : la validité d'une facture dépend des
+            // mentions de l'ÉMETTEUR, que le panneau n'a jamais regardées — et
+            // dont l'absence ne se découvrait qu'au refus de l'export Factur-X.
+            (L10n.issuerReady(lang), L10n.missingIssuerHint(lang), issuerIsReady)
+        ]
+    }
+
     private var documentReadinessSection: some View {
-        if hasReadinessIssues {
-            SectionPanel(L10n.documentReadiness(lang), systemImage: "exclamationmark.triangle") {
-                VStack(alignment: .leading, spacing: FacioLayout.space10) {
-                    if !clientIsReady {
-                        ChecklistRow(
-                            title: L10n.clientReady(lang),
-                            detail: L10n.missingClientHint(lang),
-                            isComplete: false
-                        )
-                    }
+        let checks = readinessChecks
+        let remaining = checks.filter { !$0.isComplete }.count
 
-                    if !linesAreReady {
-                        ChecklistRow(
-                            title: L10n.linesReady(lang),
-                            detail: L10n.missingLinesHint(lang),
-                            isComplete: false
-                        )
-                    }
-
-                    if !amountIsReady {
-                        ChecklistRow(
-                            title: L10n.amountReady(lang),
-                            detail: L10n.missingAmountHint(lang),
-                            isComplete: false
-                        )
-                    }
-
-                    if !paymentIsReady {
-                        ChecklistRow(
-                            title: L10n.paymentReady(lang),
-                            detail: L10n.missingPaymentHint(lang),
-                            isComplete: false
-                        )
-                    }
-
-                    if !conversionIsReady {
-                        ChecklistRow(
-                            title: L10n.conversionReady(lang),
-                            detail: L10n.missingConversionHint(lang),
-                            isComplete: false
-                        )
-                    }
+        return SectionPanel(
+            remaining == 0 ? L10n.documentReadyToSend(lang) : L10n.documentReadiness(lang),
+            systemImage: remaining == 0 ? "checkmark.seal" : "exclamationmark.triangle"
+        ) {
+            VStack(alignment: .leading, spacing: FacioLayout.space12) {
+                if remaining > 0 {
+                    Text(L10n.readinessProgress(lang, remaining: remaining, total: checks.count))
+                        .font(FacioFont.label)
+                        .foregroundStyle(Color.textSecondary)
+                }
+                ForEach(checks, id: \.title) { check in
+                    ChecklistRow(
+                        title: check.title,
+                        detail: check.isComplete ? nil : check.detail,
+                        isComplete: check.isComplete
+                    )
                 }
             }
         }
     }
 
+    private var issuerIsReady: Bool {
+        let company = dataStore.companyInfo
+        return [company.nom, company.adresse, company.siret]
+            .allSatisfy { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
     private var hasReadinessIssues: Bool {
-        !clientIsReady || !linesAreReady || !amountIsReady || !paymentIsReady || !conversionIsReady
+        readinessChecks.contains { !$0.isComplete }
     }
 
     private var clientIsReady: Bool {
@@ -557,11 +598,6 @@ struct DocumentEditorView: View {
                 ), displayedComponents: .date)
                 .tint(.intentSuccess)
             }
-            // Journal des versements : statut partiel, ou facture soldée par
-            // versements successifs.
-            if document.status == .partiel || (document.status == .payee && !document.paiementsPartiels.isEmpty) {
-                partialPaymentsEditor
-            }
         }
     }
 
@@ -569,8 +605,6 @@ struct DocumentEditorView: View {
 
     private var partialPaymentsEditor: some View {
         VStack(alignment: .leading, spacing: FacioLayout.space8) {
-            subsectionHeader(L10n.partialPayments(lang))
-
             if document.paiementsPartiels.isEmpty {
                 Text(L10n.noPartialPayments(lang))
                     .font(FacioFont.caption)
@@ -900,8 +934,23 @@ struct DocumentEditorView: View {
 
     // MARK: - Totaux
 
+    /// Les totaux, et le journal des acomptes juste dessous.
+    ///
+    /// « Montant payé » et « Reste à payer » étaient nichés dans la sous-section
+    /// « Dates » du panneau « Détails du document » — donc AU-DESSUS des lignes,
+    /// et très loin du panneau de totaux dont ils sont l'arithmétique. L'encaissé
+    /// et le reste dû n'étaient jamais visibles à côté du Total TTC.
     private var totauxSection: some View {
-        TotalsView(document: document)
+        VStack(alignment: .trailing, spacing: FacioLayout.space12) {
+            TotalsView(document: document)
+
+            if document.status == .partiel || (document.status == .payee && !document.paiementsPartiels.isEmpty) {
+                SectionPanel(L10n.partialPayments(lang), systemImage: "circle.lefthalf.filled") {
+                    partialPaymentsEditor
+                }
+                .frame(maxWidth: FacioLayout.totalsMaxWidth)
+            }
+        }
     }
 
     // MARK: - Notes
