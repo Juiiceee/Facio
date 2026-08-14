@@ -69,8 +69,40 @@ final class ClientInfo: Identifiable, Codable, Hashable {
         }
     }
 
+    /// Vrai quand `document` appartient à ce client.
+    ///
+    /// Le lien stable fait autorité : s'il est posé, il tranche, y compris pour
+    /// dire NON (un document explicitement rattaché à un autre client n'est pas
+    /// à nous, même si les noms coïncident).
+    ///
+    /// Les documents créés avant ce lien n'en ont pas : on retombe alors sur la
+    /// comparaison de chaînes historique — faillible (renommer détache), mais
+    /// c'est le comportement qu'ils ont toujours eu, et le seul disponible.
+    func matches(_ document: Document) -> Bool {
+        if let linked = document.clientId {
+            return linked == id
+        }
+
+        let normalized: (String) -> String = { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        let mine = normalized(nom)
+        if !mine.isEmpty, mine == normalized(document.clientNom) { return true }
+
+        let identifiers = [
+            (siret, document.clientSiret),
+            (tva, document.clientTva),
+            (ape, document.clientApe)
+        ]
+        return identifiers.contains { lhs, rhs in
+            let left = normalized(lhs)
+            return !left.isEmpty && left == normalized(rhs)
+        }
+    }
+
     /// Applique les infos client sur un document
     func appliquer(sur document: Document) {
+        // Le lien stable, en plus de la copie figée : renommer la fiche ensuite
+        // ne doit plus détacher le document de son client.
+        document.clientId = id
         document.clientNom = nom
         document.clientAdresse = adresse
         document.clientCodePostal = codePostal

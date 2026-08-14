@@ -181,6 +181,9 @@ final class TimesheetPeriod: Identifiable, Codable, Hashable {
     }
 
     func applyClient(to document: Document) {
+        // La période porte déjà le lien stable : on le propage à la facture
+        // générée, sinon elle repartirait sur une comparaison de noms.
+        document.clientId = clientId
         document.clientNom = clientNom
         document.clientAdresse = clientAdresse
         document.clientCodePostal = clientCodePostal
