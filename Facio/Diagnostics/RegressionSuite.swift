@@ -195,6 +195,7 @@ enum FacioRegressionSuite {
         RegressionCase(name: "attachment urls expose only existing files", run: attachmentURLsExposeOnlyExistingFiles),
         RegressionCase(name: "email attachment filenames use labels and dedupe", run: emailAttachmentFilenamesUseLabelsAndDedupe),
         RegressionCase(name: "pdf generation paginates long invoices", run: pdfGenerationPaginatesLongInvoices),
+        RegressionCase(name: "pdf page carries its legal identity", run: pdfPageCarriesItsLegalIdentity),
         RegressionCase(name: "lockout rule is announced from the policy", run: lockoutRuleIsAnnouncedFromThePolicy),
         RegressionCase(name: "revenue series buckets payments by month", run: revenueSeriesBucketsPaymentsByMonth),
         RegressionCase(name: "vat collected prorates each payment", run: vatCollectedProratesEachPayment),
@@ -1140,6 +1141,41 @@ enum FacioRegressionSuite {
     /// L'anti-force-brute doit être ANNONÇABLE : la règle complète est lue
     /// depuis la politique, pas recopiée dans un libellé — sinon le texte et la
     /// sanction divergent, et l'utilisateur légitime est puni sans avertissement.
+    /// Le PDF est le seul artefact que voit le client. Trois de ses défauts
+    /// sont purement textuels et donc épinglables.
+    private static func pdfPageCarriesItsLegalIdentity() throws {
+        // Le filigrane existe pour un brouillon et une facture annulée : les
+        // deux s'exportaient EXACTEMENT comme une facture valide.
+        for lang in [AppLanguage.fr, .en] {
+            try expect(L10n.pdfWatermark(lang, status: .brouillon) != nil, "a draft must be watermarked in \(lang)")
+            try expect(L10n.pdfWatermark(lang, status: .annulee) != nil, "a cancelled invoice must be watermarked in \(lang)")
+            for status in [DocumentStatus.envoyee, .partiel, .payee] {
+                try expect(
+                    L10n.pdfWatermark(lang, status: status) == nil,
+                    "\(status) must not be watermarked — it is a valid invoice"
+                )
+            }
+
+            // Les mentions obligatoires sont citées : conditions, pénalités et
+            // indemnité forfaitaire n'étaient imprimées nulle part.
+            let terms = L10n.pdfLegalTerms(lang, dueDate: "11/04/2026", days: 30)
+            try expect(terms.contains("40"), "the recovery indemnity must be stated in \(lang)")
+            try expect(terms.contains("L441-10"), "the legal article must be cited in \(lang)")
+            try expect(terms.contains("11/04/2026"), "the due date must appear in \(lang)")
+        }
+
+        // Le titre est humain : le plus gros caractère de la page lisait
+        // « Facture_2026_03 », underscores compris.
+        let title = L10n.pdfTitleNumbered(.fr, type: "Facture", number: "2026-03")
+        try expect(!title.contains("_"), "the printed title must not carry underscores")
+        try expect(title.contains("2026-03"), "the printed title must carry the number")
+
+        // Les montants portent un symbole, pas un code ISO — la page affichait
+        // « 1 234,56 EUR » quand l'interface affichait « 1 234,56 € ».
+        try expectEqual(CurrencyType.eur.symbole, "€")
+        try expect(CurrencyType.eur.symbole != CurrencyType.eur.rawValue, "the symbol must differ from the ISO code")
+    }
+
     private static func lockoutRuleIsAnnouncedFromThePolicy() throws {
         try expect(!AppLockPolicy.lockoutSchedule.isEmpty, "the lockout schedule must not be empty")
         try expect(
