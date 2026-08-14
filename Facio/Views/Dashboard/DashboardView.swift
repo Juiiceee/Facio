@@ -137,8 +137,7 @@ struct DashboardView: View {
                     MetricTile(
                         title: L10n.pending(lang),
                         value: privacy.format(montantEnAttente.total, accountingCurrency, lang: numberFormat),
-                        subtitle: pendingSubtitle
-                            ?? L10n.basisOutstanding(lang, currency: accountingCurrency.rawValue),
+                        subtitle: pendingSubtitle,
                         systemImage: "clock.fill",
                         intent: .warning
                     )
@@ -246,11 +245,16 @@ struct DashboardView: View {
         }
     }
 
+    /// Compte, base comptable et devise. La base était invisible : cette tuile
+    /// est en FACTURÉ (soldes restants) alors que les deux tuiles de CA à côté
+    /// sont en encaissé — rien ne le disait, ni dans quelle devise.
     private var pendingSubtitle: String {
+        var parts = [L10n.pendingInvoices(lang, count: outstandingInvoices.count)]
         if montantEnAttente.missingConversionCount > 0 {
-            return "\(L10n.pendingInvoices(lang, count: outstandingInvoices.count)) - \(L10n.missingConversions(lang, count: montantEnAttente.missingConversionCount))"
+            parts.append(L10n.missingConversions(lang, count: montantEnAttente.missingConversionCount))
         }
-        return L10n.pendingInvoices(lang, count: outstandingInvoices.count)
+        parts.append(L10n.basisOutstanding(lang, currency: accountingCurrency.rawValue))
+        return parts.joined(separator: " · ")
     }
 
     private func missingConversionSubtitle(_ summary: AccountingRevenueSummary) -> String? {
