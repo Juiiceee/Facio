@@ -102,6 +102,16 @@ enum FacioLayout {
     // MARK: Sidebar des réglages
     static let settingsSidebarWidth: CGFloat = 230
     static let settingsSidebarCompactWidth: CGFloat = 64
+
+    // MARK: Verrouillage par code
+    /// Côté d'une case de saisie du code.
+    static let passcodeDotSize: CGFloat = 18
+    /// Côté d'une touche du pavé numérique.
+    static let passcodeKeySize: CGFloat = 54
+    /// Largeur du panneau centré de l'écran de verrouillage.
+    static let lockPanelWidth: CGFloat = 320
+    /// Pastille ronde portant le cadenas, en tête de l'écran de verrouillage.
+    static let lockBadgeSize: CGFloat = 56
 }
 
 // MARK: - Intent / tone

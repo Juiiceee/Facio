@@ -10,6 +10,7 @@ struct FacioApp: App {
     @State private var updateService: UpdateService
     @State private var toastCenter = ToastCenter()
     @State private var privacyMode = PrivacyMode()
+    @State private var appLock = AppLock()
     @State private var showFirstLaunch = false
 
     init() {
@@ -31,13 +32,30 @@ struct FacioApp: App {
     var body: some Scene {
         WindowGroup {
             let lang = dataStore.companyInfo.langueParDefaut
-            ContentView()
+            // Le verrou REMPLACE le contenu, il ne le recouvre pas.
+            //
+            // Un simple calque au-dessus de `ContentView` laissait passer deux
+            // choses : les `.sheet` de macOS, qui sont des fenêtres attachées
+            // dessinées au-dessus de la vue racine (aperçu PDF, justificatifs,
+            // palette… restaient lisibles après le verrouillage), et l'arbre
+            // d'accessibilité, que `.disabled()` ne vide pas — VoiceOver lisait
+            // encore montants et coordonnées bancaires derrière l'écran.
+            // Démonter la vue ferme ses feuilles et la sort de l'arbre, et
+            // aucune feuille ajoutée plus tard ne pourra rouvrir la brèche.
+            Group {
+                if appLock.isLocked {
+                    AppLockView()
+                } else {
+                    ContentView()
+                }
+            }
                 .environment(dataStore)
                 .environment(syncService)
                 .environment(authService)
                 .environment(networkMonitor)
                 .environment(toastCenter)
                 .environment(privacyMode)
+                .environment(appLock)
                 .environment(\.facioAccent, Color.appPrimary(from: dataStore.companyInfo))
                 .tint(Color.appPrimary(from: dataStore.companyInfo))
                 .frame(minWidth: FacioLayout.windowMinWidth, minHeight: FacioLayout.windowMinHeight)
@@ -65,6 +83,7 @@ struct FacioApp: App {
                 .onAppear {
                     authService.language = lang
                     syncService.language = lang
+                    appLock.start()
                     if !UserDefaults.standard.bool(forKey: "facio_has_launched") {
                         showFirstLaunch = true
                     }
@@ -94,14 +113,34 @@ struct FacioApp: App {
         }
         .windowStyle(.titleBar)
         .defaultSize(width: FacioLayout.windowIdealWidth, height: FacioLayout.windowIdealHeight)
+        .commands {
+            CommandGroup(after: .appVisibility) {
+                Button(L10n.lockNow(dataStore.companyInfo.langueParDefaut)) {
+                    appLock.lockNow()
+                }
+                .keyboardShortcut("l", modifiers: [.command, .control])
+                .disabled(!appLock.isEnabled || appLock.isLocked)
+            }
+        }
 
         Settings {
-            SettingsView()
+            // Cmd-, ouvre cette scène même quand la fenêtre principale est
+            // verrouillée : sans ce garde, les réglages (dont la suppression du
+            // code) resteraient joignables sans avoir saisi le code.
+            Group {
+                if appLock.isLocked {
+                    AppLockView()
+                        .frame(minWidth: FacioLayout.sheetMinWidth, minHeight: FacioLayout.sheetIdealHeight)
+                } else {
+                    SettingsView()
+                }
+            }
                 .environment(dataStore)
                 .environment(syncService)
                 .environment(authService)
                 .environment(toastCenter)
                 .environment(privacyMode)
+                .environment(appLock)
                 .environment(\.facioAccent, Color.appPrimary(from: dataStore.companyInfo))
                 .tint(Color.appPrimary(from: dataStore.companyInfo))
         }

@@ -89,6 +89,13 @@ struct DocumentEditorView: View {
             .animation(FacioMotion.respecting(FacioMotion.state, reduceMotion: reduceMotion), value: usesSideInspector)
         }
         .navigationTitle(document.number.isEmpty ? L10n.newDocument(lang) : document.number)
+        // L'enregistrement est différé de 500 ms ; si la vue disparaît entre
+        // deux (verrouillage de l'app, changement de section), la tâche est
+        // annulée et la dernière frappe ne serait jamais écrite sur disque.
+        .onDisappear {
+            saveTask?.cancel()
+            saveDocument()
+        }
         .toolbar {
             editorToolbar
         }

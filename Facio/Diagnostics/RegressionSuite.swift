@@ -208,8 +208,168 @@ enum FacioRegressionSuite {
         RegressionCase(name: "partial payments bucket cash by payment date", run: partialPaymentsBucketCashByPaymentDate),
         RegressionCase(name: "document decodes old payload without partial-payment fields", run: documentDecodesOldPayloadWithoutPartialPaymentFields),
         RegressionCase(name: "document filter status categories are mutually exclusive", run: documentFilterStatusCategoriesAreMutuallyExclusive),
-        RegressionCase(name: "privacy mode masks amounts", run: privacyModeMasksAmounts)
+        RegressionCase(name: "privacy mode masks amounts", run: privacyModeMasksAmounts),
+        RegressionCase(name: "app lock derivation matches published PBKDF2 vectors", run: appLockDerivationMatchesPublishedVectors),
+        RegressionCase(name: "app lock iteration count changes the derived hash", run: appLockIterationCountChangesTheDerivedHash),
+        RegressionCase(name: "app lock credential accepts only the exact code", run: appLockCredentialAcceptsOnlyTheExactCode),
+        RegressionCase(name: "app lock credentials never repeat a salt or a hash", run: appLockCredentialsNeverRepeatSaltOrHash),
+        RegressionCase(name: "app lock rejects codes outside the allowed digit shapes", run: appLockRejectsCodesOutsideAllowedDigitShapes),
+        RegressionCase(name: "app lock flags repeated and consecutive codes as weak", run: appLockFlagsRepeatedAndConsecutiveCodesAsWeak),
+        RegressionCase(name: "app lock credential survives codable round trip", run: appLockCredentialSurvivesCodableRoundTrip),
+        RegressionCase(name: "app lock lockout starts after three failures and backs off", run: appLockLockoutStartsAfterThreeFailuresAndBacksOff),
+        RegressionCase(name: "app lock countdown stays readable across the minute", run: appLockCountdownStaysReadableAcrossTheMinute),
+        RegressionCase(name: "app lock auto-lock waits for the configured idle delay", run: appLockAutoLockWaitsForConfiguredIdleDelay)
     ]
+
+    // MARK: - Verrouillage par code
+
+    /// Le code exact déverrouille, tout le reste échoue — y compris un code de
+    /// la bonne longueur qui ne diffère que d'un chiffre.
+    private static func appLockCredentialAcceptsOnlyTheExactCode() throws {
+        // Itérations réduites : on teste la logique, pas le coût de dérivation
+        // (vérifié séparément par `derivationIterations`).
+        let credential = try AppLockCode.makeCredential(code: "482915", iterations: 1_000)
+
+        try expect(AppLockCode.verify("482915", against: credential), "the exact code must unlock")
+        try expect(!AppLockCode.verify("482916", against: credential), "a one-digit difference must fail")
+        try expect(!AppLockCode.verify("4829", against: credential), "a shorter code must fail")
+        try expect(!AppLockCode.verify("", against: credential), "an empty code must fail")
+        try expectEqual(credential.length, 6)
+
+        try expect(
+            AppLockCode.derivationIterations >= 100_000,
+            "the production derivation cost must stay high enough to slow offline guessing"
+        )
+    }
+
+    /// Le coût de dérivation est TOUTE la défense contre un cassage hors-ligne :
+    /// il doit être prouvé, pas supposé. Sans ce cas, supprimer la boucle
+    /// d'itérations laisserait la suite entièrement verte pendant que
+    /// l'empreinte retomberait à un seul HMAC.
+    private static func appLockDerivationMatchesPublishedVectors() throws {
+        // Vecteurs PBKDF2-HMAC-SHA256 publiés (P = "password", S = "salt",
+        // dkLen = 32), identiques à ceux d'OpenSSL et de hashlib. Ils épinglent
+        // la construction elle-même, pas seulement sa cohérence avec elle-même.
+        let salt = Data("salt".utf8)
+        let vectors: [(iterations: Int, hex: String)] = [
+            (1, "120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b"),
+            (2, "ae4d0c95af6b46d32d0adff928f06dd02a303f8ef3c251dfd6e2d85a95474c43"),
+            (4_096, "c5e478d59288c841aa530db6845c4c8d962893a001ce4e11a4963873aa98134a"),
+        ]
+        for vector in vectors {
+            let derived = AppLockCode.derive(code: "password", salt: salt, iterations: vector.iterations)
+            try expectEqual(derived.map { String(format: "%02x", $0) }.joined(), vector.hex)
+        }
+    }
+
+    /// Le nombre d'itérations doit réellement changer la sortie : une empreinte
+    /// dont on retouche le compteur ne doit plus valider le bon code.
+    private static func appLockIterationCountChangesTheDerivedHash() throws {
+        let credential = try AppLockCode.makeCredential(code: "482915", iterations: 1_000)
+        let tampered = AppLockCredential(
+            salt: credential.salt,
+            hash: credential.hash,
+            iterations: credential.iterations + 1,
+            length: credential.length
+        )
+
+        try expect(AppLockCode.verify("482915", against: credential), "the untouched credential must verify")
+        try expect(
+            !AppLockCode.verify("482915", against: tampered),
+            "changing the iteration count must change the derived hash"
+        )
+    }
+
+    /// Sel aléatoire par empreinte : deux utilisateurs avec le même code ne
+    /// partagent ni sel ni empreinte (pas de table précalculée réutilisable).
+    private static func appLockCredentialsNeverRepeatSaltOrHash() throws {
+        let first = try AppLockCode.makeCredential(code: "1357", iterations: 1_000)
+        let second = try AppLockCode.makeCredential(code: "1357", iterations: 1_000)
+
+        try expect(first.salt != second.salt, "two credentials must not share a salt")
+        try expect(first.hash != second.hash, "the same code must not produce the same hash twice")
+        try expect(AppLockCode.verify("1357", against: first), "the code must still verify against its own salt")
+        try expect(AppLockCode.verify("1357", against: second), "the code must still verify against its own salt")
+    }
+
+    private static func appLockRejectsCodesOutsideAllowedDigitShapes() throws {
+        try expectThrows(try AppLockCode.makeCredential(code: "123", iterations: 1), "3 digits is too short")
+        try expectThrows(try AppLockCode.makeCredential(code: "12345", iterations: 1), "5 digits is not an allowed length")
+        try expectThrows(try AppLockCode.makeCredential(code: "12a4", iterations: 1), "letters are not digits")
+        try expectThrows(try AppLockCode.makeCredential(code: "", iterations: 1), "an empty code is not a code")
+        _ = try AppLockCode.makeCredential(code: "0842", iterations: 1)
+    }
+
+    private static func appLockFlagsRepeatedAndConsecutiveCodesAsWeak() throws {
+        try expect(AppLockCode.isWeak("0000"), "a repeated digit is weak")
+        try expect(AppLockCode.isWeak("1234"), "an ascending run is weak")
+        try expect(AppLockCode.isWeak("987654"), "a descending run is weak")
+        try expect(!AppLockCode.isWeak("482915"), "an unpatterned code is not weak")
+        try expect(!AppLockCode.isWeak("1235"), "a broken run is not weak")
+    }
+
+    /// L'empreinte transite par JSON pour aller dans le trousseau : elle doit
+    /// revenir identique, sinon le code cesse de fonctionner au redémarrage.
+    private static func appLockCredentialSurvivesCodableRoundTrip() throws {
+        let credential = try AppLockCode.makeCredential(code: "482915", iterations: 1_000)
+        let data = try JSONEncoder().encode(credential)
+        let restored = try JSONDecoder().decode(AppLockCredential.self, from: data)
+
+        try expectEqual(restored, credential)
+        try expect(AppLockCode.verify("482915", against: restored), "the code must verify after a round trip")
+    }
+
+    private static func appLockLockoutStartsAfterThreeFailuresAndBacksOff() throws {
+        try expect(AppLockPolicy.lockoutDuration(failedAttempts: 0) == nil, "no lockout before any failure")
+        try expect(AppLockPolicy.lockoutDuration(failedAttempts: 2) == nil, "2 failures must stay free of lockout")
+
+        // Barème annoncé dans les réglages : 10 s, 1 min, 5 min, puis 15 min.
+        try expectEqual(AppLockPolicy.lockoutDuration(failedAttempts: 3), 10)
+        try expectEqual(AppLockPolicy.lockoutDuration(failedAttempts: 4), 60)
+        try expectEqual(AppLockPolicy.lockoutDuration(failedAttempts: 5), 300)
+        try expectEqual(AppLockPolicy.lockoutDuration(failedAttempts: 6), 900)
+        // Plafonné : l'attente ne doit pas devenir une punition à vie.
+        try expectEqual(AppLockPolicy.lockoutDuration(failedAttempts: 50), 900)
+
+        // Le barème est strictement croissant, sinon un échec de plus
+        // « récompenserait » l'attaquant.
+        for (previous, next) in zip(AppLockPolicy.lockoutSchedule, AppLockPolicy.lockoutSchedule.dropFirst()) {
+            try expect(next > previous, "each lockout step must be longer than the previous one")
+        }
+
+        try expectEqual(AppLockPolicy.remainingAttempts(failedAttempts: 0), AppLockPolicy.attemptsBeforeLockout)
+        try expectEqual(AppLockPolicy.remainingAttempts(failedAttempts: 2), 1)
+        try expectEqual(AppLockPolicy.remainingAttempts(failedAttempts: 9), 0)
+    }
+
+    /// Le compte à rebours reste lisible des deux côtés de la minute et
+    /// n'annonce jamais « 0 » alors qu'il reste à patienter.
+    private static func appLockCountdownStaysReadableAcrossTheMinute() throws {
+        try expectEqual(DurationFormatter.countdown(10, lang: .fr), "10 s")
+        try expectEqual(DurationFormatter.countdown(10, lang: .en), "10s")
+        try expectEqual(DurationFormatter.countdown(0.4, lang: .fr), "1 s")
+        try expectEqual(DurationFormatter.countdown(59.2, lang: .fr), "1:00")
+        try expectEqual(DurationFormatter.countdown(272, lang: .fr), "4:32")
+        try expectEqual(DurationFormatter.countdown(900, lang: .en), "15:00")
+        try expectEqual(DurationFormatter.countdown(-5, lang: .fr), "0 s")
+    }
+
+    private static func appLockAutoLockWaitsForConfiguredIdleDelay() throws {
+        try expect(
+            !AppLockPolicy.shouldAutoLock(idle: 3_600, delay: .never),
+            "« jamais » must never re-lock on idle, however long"
+        )
+        try expect(
+            !AppLockPolicy.shouldAutoLock(idle: 299, delay: .fiveMinutes),
+            "5 min must not fire one second early"
+        )
+        try expect(
+            AppLockPolicy.shouldAutoLock(idle: 300, delay: .fiveMinutes),
+            "5 min must fire exactly at the delay"
+        )
+        try expectEqual(AutoLockDelay.oneHour.interval, 3_600)
+        try expect(AutoLockDelay.never.interval == nil, "« jamais » has no interval")
+    }
 
     /// Mode confidentialité : `format` renvoie le montant formaté quand visible,
     /// et le masque `••••` quand `hideAmounts` est actif.

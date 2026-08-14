@@ -17,6 +17,17 @@ enum DurationFormatter {
         clock(TimeInterval(seconds))
     }
 
+    /// Compte à rebours court : `45 s` sous la minute, `4:32` au-delà.
+    /// Arrondi au supérieur — afficher « 0 s » alors qu'il reste à patienter
+    /// donnerait l'impression que l'app est bloquée.
+    static func countdown(_ seconds: TimeInterval, lang: AppLanguage) -> String {
+        let total = max(0, Int(seconds.rounded(.up)))
+        if total < 60 {
+            return lang == .fr ? "\(total) s" : "\(total)s"
+        }
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+
     /// Durée lisible `Xh YYm` (ex. `6h 30m`, `45m`) à partir d'heures décimales.
     static func hoursMinutes(fromDecimalHours hours: Decimal, lang: AppLanguage) -> String {
         let totalMinutes = max(0, Int((NSDecimalNumber(decimal: hours).doubleValue * 60).rounded()))
