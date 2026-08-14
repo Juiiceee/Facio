@@ -92,8 +92,22 @@ extension L10n {
     // Liste documents
     static func convertToInvoice(_ l: AppLanguage) -> String { l == .fr ? "Convertir en Facture" : "Convert to Invoice" }
     static func searchByNumberOrClient(_ l: AppLanguage) -> String { l == .fr ? "Rechercher par numéro ou client" : "Search by number or client" }
-    static func noDocuments(_ l: AppLanguage, type: String) -> String { l == .fr ? "Aucun \(type)" : "No \(type)" }
-    static func clickToCreate(_ l: AppLanguage, type: String) -> String { l == .fr ? "Cliquez sur + pour créer un \(type)." : "Click + to create a \(type)." }
+    // Ces deux phrases s'accordent avec le nom qu'elles contiennent (« une
+    // facture » vs « un devis », « an invoice » vs « a quote ») : on écrit donc
+    // chaque phrase en entier au lieu d'interpoler le type dans un gabarit.
+    static func noDocuments(_ l: AppLanguage, type: DocumentType) -> String {
+        switch type {
+        case .facture: return l == .fr ? "Aucune facture" : "No invoices"
+        case .devis: return l == .fr ? "Aucun devis" : "No quotes"
+        }
+    }
+
+    static func clickToCreate(_ l: AppLanguage, type: DocumentType) -> String {
+        switch type {
+        case .facture: return l == .fr ? "Cliquez sur + pour créer une facture." : "Click + to create an invoice."
+        case .devis: return l == .fr ? "Cliquez sur + pour créer un devis." : "Click + to create a quote."
+        }
+    }
     static func noClient(_ l: AppLanguage) -> String { l == .fr ? "Sans client" : "No client" }
     static func overdue(_ l: AppLanguage) -> String { l == .fr ? "Retard" : "Overdue" }
     static func deleteDocumentConfirmTitle(_ l: AppLanguage) -> String {

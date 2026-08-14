@@ -174,26 +174,7 @@ struct DocumentListView: View {
         }
         .overlay {
             if documents.isEmpty {
-                FacioEmptyState(
-                    title: searchText.isEmpty
-                        ? L10n.noDocuments(lang, type: documentType.label(for: lang).lowercased())
-                        : L10n.noSearchResults(lang),
-                    systemImage: searchText.isEmpty
-                        ? (documentType == .facture ? "doc.text" : "doc.text.magnifyingglass")
-                        : "magnifyingglass",
-                    message: searchText.isEmpty
-                        ? L10n.clickToCreate(lang, type: documentType.label(for: lang).lowercased())
-                        : L10n.noSearchResultsHint(lang)
-                ) {
-                    if searchText.isEmpty {
-                        FacioButton(
-                            documentType == .devis ? L10n.quickCreateQuote(lang) : L10n.quickCreateInvoice(lang),
-                            systemImage: "plus"
-                        ) {
-                            creerDocument()
-                        }
-                    }
-                }
+                emptyState
             }
         }
         .alert(L10n.deleteDocumentConfirmTitle(lang), isPresented: Binding(
@@ -219,6 +200,45 @@ struct DocumentListView: View {
             Button(L10n.understood(lang), role: .cancel) {}
         } message: {
             Text(L10n.attachmentsCopyFailedMessage(lang, count: attachmentCopyFailures))
+        }
+    }
+
+    // MARK: - État vide
+
+    /// Trois vides différents, trois issues différentes : proposer « créez-en
+    /// un » à quelqu'un dont la liste est seulement filtrée est un mensonge.
+    @ViewBuilder
+    private var emptyState: some View {
+        switch FacioListEmptyReason(searchText: searchText, activeFilterCount: filter.activeCount) {
+        case .noSearchResults:
+            FacioEmptyState(
+                title: L10n.noSearchResults(lang),
+                systemImage: "magnifyingglass",
+                message: L10n.noSearchResultsHint(lang)
+            )
+        case .noFilterResults:
+            FacioEmptyState(
+                title: L10n.noSearchResults(lang),
+                systemImage: "line.3.horizontal.decrease",
+                message: L10n.noFilterResultsHint(lang)
+            ) {
+                FacioButton(L10n.resetFilters(lang), systemImage: "arrow.counterclockwise", role: .secondary) {
+                    filter = DocumentFilter()
+                }
+            }
+        case .noData:
+            FacioEmptyState(
+                title: L10n.noDocuments(lang, type: documentType),
+                systemImage: documentType == .facture ? "doc.text" : "doc.text.magnifyingglass",
+                message: L10n.clickToCreate(lang, type: documentType)
+            ) {
+                FacioButton(
+                    documentType == .devis ? L10n.quickCreateQuote(lang) : L10n.quickCreateInvoice(lang),
+                    systemImage: "plus"
+                ) {
+                    creerDocument()
+                }
+            }
         }
     }
 

@@ -217,12 +217,38 @@ struct ClientListView: View {
         }
         .overlay {
             if filteredClients.isEmpty {
-                FacioEmptyState(
-                    title: searchText.isEmpty ? L10n.noClientsYet(lang) : L10n.noSearchResults(lang),
-                    systemImage: searchText.isEmpty ? "person.2" : "magnifyingglass",
-                    message: searchText.isEmpty ? L10n.selectOrCreateClient(lang) : L10n.noSearchResultsHint(lang)
-                )
+                emptyState
             }
+        }
+    }
+
+    /// Trois vides différents, trois issues différentes : proposer de créer un
+    /// client à quelqu'un dont le carnet est seulement filtré est un mensonge.
+    @ViewBuilder
+    private var emptyState: some View {
+        switch FacioListEmptyReason(searchText: searchText, activeFilterCount: filter.activeCount) {
+        case .noSearchResults:
+            FacioEmptyState(
+                title: L10n.noSearchResults(lang),
+                systemImage: "magnifyingglass",
+                message: L10n.noSearchResultsHint(lang)
+            )
+        case .noFilterResults:
+            FacioEmptyState(
+                title: L10n.noSearchResults(lang),
+                systemImage: "line.3.horizontal.decrease",
+                message: L10n.noFilterResultsHint(lang)
+            ) {
+                FacioButton(L10n.resetFilters(lang), systemImage: "arrow.counterclockwise", role: .secondary) {
+                    filter = ClientFilter()
+                }
+            }
+        case .noData:
+            FacioEmptyState(
+                title: L10n.noClientsYet(lang),
+                systemImage: "person.2",
+                message: L10n.selectOrCreateClient(lang)
+            )
         }
     }
 

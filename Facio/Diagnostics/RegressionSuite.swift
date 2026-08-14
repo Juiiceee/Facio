@@ -197,6 +197,10 @@ enum FacioRegressionSuite {
         RegressionCase(name: "window minimum fits split view columns", run: windowMinimumFitsSplitViewColumns),
         RegressionCase(name: "sheet minimums fit inside minimum window", run: sheetMinimumsFitInsideMinimumWindow),
         RegressionCase(name: "color tokens resolve differently in dark mode", run: colorTokensResolveDifferentlyInDarkMode),
+        RegressionCase(name: "brand accent is identical in UI and PDF", run: brandAccentIsIdenticalInUIAndPDF),
+        RegressionCase(name: "document empty state copy agrees grammatically", run: documentEmptyStateCopyAgreesGrammatically),
+        RegressionCase(name: "list empty reason separates filters from search", run: listEmptyReasonSeparatesFiltersFromSearch),
+        RegressionCase(name: "month grid aligns days on weekdays", run: monthGridAlignsDaysOnWeekdays),
         RegressionCase(name: "payment date stamps on paid and feeds revenue month", run: paymentDateStampsOnPaidAndFeedsRevenueMonth),
         RegressionCase(name: "partial status computes reste à payer", run: partialStatusComputesResteAPayer),
         RegressionCase(name: "partial payments bucket cash by payment date", run: partialPaymentsBucketCashByPaymentDate),
@@ -410,6 +414,122 @@ enum FacioRegressionSuite {
             try expect(
                 components(token, lightEnv) != components(token, darkEnv),
                 "\(name) should resolve to different colors in light and dark mode"
+            )
+        }
+    }
+
+    /// La grille du mois du Hub temps posait les jours séquentiellement depuis
+    /// le 1er : les colonnes ne correspondaient à aucun jour de la semaine.
+    private static func monthGridAlignsDaysOnWeekdays() throws {
+        let cal = MonthGrid.calendar()
+        try expectEqual(cal.firstWeekday, 2)
+        try expectEqual(MonthGrid.weekdaySymbols().count, 7)
+
+        func firstOf(_ year: Int, _ month: Int) throws -> Date {
+            var components = DateComponents()
+            components.year = year
+            components.month = month
+            components.day = 1
+            guard let date = cal.date(from: components) else {
+                throw RegressionFailure(message: "could not build \(year)-\(month)-01")
+            }
+            return date
+        }
+
+        // Ancrages concrets : 01/03/2026 est un dimanche (6 cases avant lui),
+        // 01/06/2026 un lundi (aucune), 01/08/2026 un samedi (5).
+        let sunday = try firstOf(2026, 3)
+        let monday = try firstOf(2026, 6)
+        let saturday = try firstOf(2026, 8)
+        try expectEqual(MonthGrid.leadingBlanks(monthStart: sunday), 6)
+        try expectEqual(MonthGrid.leadingBlanks(monthStart: monday), 0)
+        try expectEqual(MonthGrid.leadingBlanks(monthStart: saturday), 5)
+
+        // Invariant : le décalage place toujours le 1er sur le bon jour, c'est-à-dire
+        // exactement à N jours du lundi ouvrant sa semaine.
+        for month in 1...12 {
+            let start = try firstOf(2026, month)
+            let blanks = MonthGrid.leadingBlanks(monthStart: start)
+            try expect(blanks >= 0 && blanks <= 6, "leading blanks must stay within a week, got \(blanks)")
+
+            guard let weekStart = cal.dateInterval(of: .weekOfYear, for: start)?.start,
+                  let offset = cal.dateComponents([.day], from: weekStart, to: start).day else {
+                throw RegressionFailure(message: "could not resolve the week containing 2026-\(month)-01")
+            }
+            try expectEqual(blanks, offset)
+        }
+    }
+
+    /// Une liste vide parce qu'elle est FILTRÉE ne doit pas être annoncée comme
+    /// une liste vide tout court : les deux écrans concernés ne testaient que la
+    /// recherche et proposaient donc « créez-en un » sur un carnet plein.
+    private static func listEmptyReasonSeparatesFiltersFromSearch() throws {
+        try expectEqual(FacioListEmptyReason(searchText: "", activeFilterCount: 0), .noData)
+        try expectEqual(FacioListEmptyReason(searchText: "", activeFilterCount: 2), .noFilterResults)
+        try expectEqual(FacioListEmptyReason(searchText: "acme", activeFilterCount: 0), .noSearchResults)
+
+        // Une recherche en cours prime : c'est le dernier geste de l'utilisateur.
+        try expectEqual(FacioListEmptyReason(searchText: "acme", activeFilterCount: 3), .noSearchResults)
+
+        // Une recherche réduite à des espaces n'explique rien.
+        try expectEqual(FacioListEmptyReason(searchText: "   ", activeFilterCount: 0), .noData)
+        try expectEqual(FacioListEmptyReason(searchText: "   ", activeFilterCount: 1), .noFilterResults)
+    }
+
+    /// Les états vides des listes de documents s'accordent avec le type qu'ils
+    /// nomment. Le gabarit interpolé produisait « Aucun facture » et
+    /// « Click + to create a invoice. » — les premiers mots que lit un nouvel
+    /// utilisateur.
+    private static func documentEmptyStateCopyAgreesGrammatically() throws {
+        try expectEqual(L10n.noDocuments(.fr, type: .facture), "Aucune facture")
+        try expectEqual(L10n.noDocuments(.fr, type: .devis), "Aucun devis")
+        try expectEqual(L10n.clickToCreate(.fr, type: .facture), "Cliquez sur + pour créer une facture.")
+        try expectEqual(L10n.clickToCreate(.fr, type: .devis), "Cliquez sur + pour créer un devis.")
+
+        // L'anglais a le même piège avec l'article indéfini devant une voyelle.
+        try expect(
+            L10n.clickToCreate(.en, type: .facture).contains("an invoice"),
+            "English copy must read \"an invoice\", not \"a invoice\""
+        )
+        try expect(
+            L10n.clickToCreate(.en, type: .devis).contains("a quote"),
+            "English copy must read \"a quote\""
+        )
+    }
+
+    /// L'interface et le PDF doivent être peints du MÊME vert de marque par
+    /// défaut. Ils ont divergé (#548A30 côté UI contre #6B8E3A côté PDF et
+    /// CompanyInfo), ce qui rendait faux l'aperçu de Réglages > Personnalisation.
+    private static func brandAccentIsIdenticalInUIAndPDF() throws {
+        guard let company = CompanyInfo().accentNSColor.usingColorSpace(.sRGB),
+              let pdf = PDFLayout.greenPrimary.usingColorSpace(.sRGB) else {
+            throw RegressionFailure(message: "brand greens must be convertible to sRGB")
+        }
+
+        // Le défaut du modèle et la constante du PDF sont la même couleur.
+        for (channel, lhs, rhs) in [
+            ("red", company.redComponent, pdf.redComponent),
+            ("green", company.greenComponent, pdf.greenComponent),
+            ("blue", company.blueComponent, pdf.blueComponent)
+        ] {
+            try expect(
+                abs(lhs - rhs) < 0.001,
+                "CompanyInfo default accent and PDFLayout.greenPrimary must share their \(channel) channel"
+            )
+        }
+
+        // Et l'accent réellement peint dans l'interface en clair est ce vert-là.
+        var lightEnv = EnvironmentValues()
+        lightEnv.colorScheme = .light
+        let ui = Color.appPrimary.resolve(in: lightEnv)
+        for (channel, lhs, rhs) in [
+            ("red", Double(ui.red), pdf.redComponent),
+            ("green", Double(ui.green), pdf.greenComponent),
+            ("blue", Double(ui.blue), pdf.blueComponent)
+        ] {
+            try expect(
+                abs(lhs - rhs) < 0.01,
+                "Color.appPrimary must match the PDF brand green on its \(channel) channel"
             )
         }
     }
