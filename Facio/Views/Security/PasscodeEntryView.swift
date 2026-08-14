@@ -20,7 +20,6 @@ struct PasscodeEntryView: View {
     var shakeToken: Int = 0
     let onComplete: (String) -> Void
 
-    @FocusState private var isFocused: Bool
     @Environment(\.facioAccent) private var accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -29,14 +28,17 @@ struct PasscodeEntryView: View {
             dots
             keypad
         }
-        .focusable(!isDisabled)
-        .focusEffectDisabled()
-        .focused($isFocused)
-        .onKeyPress(phases: .down) { press in handle(press) }
-        .onAppear { isFocused = true }
-        .onChange(of: isDisabled) { _, disabled in
-            if !disabled { isFocused = true }
-        }
+        .background(
+            // Capture clavier au niveau AppKit. `.focusable()` + `.onKeyPress`
+            // ne recevait rien : l'écran de verrouillage se superpose à un
+            // NavigationSplitView qui garde le premier répondant, et SwiftUI ne
+            // le lui reprend pas. On réclame donc le statut explicitement.
+            PasscodeKeyCatcher(
+                isActive: !isDisabled,
+                onDigit: append,
+                onBackspace: backspace
+            )
+        )
     }
 
     // MARK: - Cases
@@ -103,25 +105,8 @@ struct PasscodeEntryView: View {
 
     // MARK: - Saisie
 
-    private func handle(_ press: KeyPress) -> KeyPress.Result {
-        guard !isDisabled else { return .ignored }
-        switch press.key {
-        case .delete, .deleteForward:
-            backspace()
-            return .handled
-        case .space:
-            // Sinon l'espace « clique » la touche du pavé qui a le focus.
-            return .handled
-        default:
-            guard let character = press.characters.first, character.isNumber else { return .ignored }
-            append(character)
-            return .handled
-        }
-    }
-
     private func append(_ character: Character) {
-        guard !isDisabled, code.count < length else { return }
-        isFocused = true
+        guard !isDisabled, character.isNumber, code.count < length else { return }
         code.append(character)
         if code.count == length {
             onComplete(code)
@@ -130,8 +115,102 @@ struct PasscodeEntryView: View {
 
     private func backspace() {
         guard !isDisabled, !code.isEmpty else { return }
-        isFocused = true
         code.removeLast()
+    }
+}
+
+/// Vue AppKit invisible qui capte les frappes du clavier physique.
+///
+/// `updateNSView` rafraîchit les fermetures à chaque rendu SwiftUI : elles
+/// voient donc toujours l'état courant de la vue parente (longueur attendue,
+/// saisie déjà faite), contrairement à une fermeture capturée une fois pour
+/// toutes dans un moniteur d'événements.
+private struct PasscodeKeyCatcher: NSViewRepresentable {
+    let isActive: Bool
+    let onDigit: (Character) -> Void
+    let onBackspace: () -> Void
+
+    func makeNSView(context: Context) -> KeyCatcherView {
+        KeyCatcherView()
+    }
+
+    func updateNSView(_ view: KeyCatcherView, context: Context) {
+        view.onDigit = onDigit
+        view.onBackspace = onBackspace
+        view.isActive = isActive
+        view.claimFocus()
+    }
+}
+
+private final class KeyCatcherView: NSView {
+    var onDigit: ((Character) -> Void)?
+    var onBackspace: (() -> Void)?
+    var isActive = true
+
+    private var keyWindowObserver: NSObjectProtocol?
+
+    override var acceptsFirstResponder: Bool { isActive }
+
+    /// Tant que la saisie est ouverte, rien d'autre ne prend le clavier — c'est
+    /// précisément ce qu'on attend d'un écran de verrouillage, et ça empêche
+    /// SwiftUI de nous reprendre le premier répondant juste après nous l'avoir
+    /// donné (sans quoi la frappe cesse silencieusement).
+    override func resignFirstResponder() -> Bool { !isActive }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard let window else {
+            keyWindowObserver.map(NotificationCenter.default.removeObserver)
+            keyWindowObserver = nil
+            return
+        }
+        // Revenir d'une autre app rend la fenêtre clé sans nous rendre le
+        // premier répondant : on le reprend à ce moment-là.
+        keyWindowObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.claimFocus() }
+        }
+        claimFocus()
+    }
+
+    func claimFocus() {
+        guard isActive, let window, window.firstResponder !== self else { return }
+        // Différé : pendant `updateNSView`, la fenêtre n'a pas toujours fini
+        // d'installer sa hiérarchie de vues.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isActive, let window = self.window else { return }
+            window.makeFirstResponder(self)
+        }
+    }
+
+    override func keyDown(with event: NSEvent) {
+        // Les raccourcis (⌘, ⌃, ⌥) doivent poursuivre leur chemin.
+        let modifiers = event.modifierFlags.intersection([.command, .control, .option])
+        guard modifiers.isEmpty else {
+            super.keyDown(with: event)
+            return
+        }
+        // Saisie fermée (vérification en cours, attente) : on avale sans bip.
+        guard isActive else { return }
+
+        switch event.keyCode {
+        case 51, 117: // retour arrière, suppression avant
+            onBackspace?()
+        case 53: // échap — laissé à la vue parente (fermeture de feuille)
+            super.keyDown(with: event)
+        default:
+            // Une touche maintenue remplirait le code toute seule et brûlerait
+            // un essai sur un code que personne n'a voulu saisir.
+            guard !event.isARepeat, let characters = event.charactersIgnoringModifiers else { return }
+            for character in characters where character.isNumber {
+                onDigit?(character)
+            }
+            // Les autres touches sont avalées sans bip : sur un écran de
+            // verrouillage, taper une lettre est une erreur banale.
+        }
     }
 }
 
