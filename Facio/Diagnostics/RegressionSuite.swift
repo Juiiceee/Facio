@@ -239,6 +239,9 @@ enum FacioRegressionSuite {
         RegressionCase(name: "app lock auto-lock waits for the configured idle delay", run: appLockAutoLockWaitsForConfiguredIdleDelay),
         RegressionCase(name: "timesheet weeks are numbered in ISO 8601", run: timesheetWeeksAreNumberedInISO8601),
         RegressionCase(name: "timesheet decodes old payloads without a rate carry-over marker", run: timesheetDecodesOldPayloadsWithoutRateCarryOver)
+
+        RegressionCase(name: "passcode flow numbers its steps and can go back", run: passcodeFlowNumbersItsStepsAndCanGoBack),
+        RegressionCase(name: "the two PDF exports of a document never share a filename", run: pdfExportsNeverShareAFilename)
     ]
 
     // MARK: - Temps
@@ -301,6 +304,56 @@ enum FacioRegressionSuite {
     }
 
     // MARK: - Verrouillage par code
+
+    /// La feuille de code annonce son avancement et sait revenir en arrière.
+    ///
+    /// Elle enchaînait jusqu'à TROIS saisies de six chiffres sans jamais dire
+    /// combien il en restait, et sans retour possible : se tromper de nouveau
+    /// code obligeait à annuler la feuille entière et à ressaisir le code
+    /// actuel depuis le début.
+    private static func passcodeFlowNumbersItsStepsAndCanGoBack() throws {
+        // Chaque mode annonce le bon nombre d'étapes.
+        try expectEqual(PasscodeFlow.totalSteps(for: .remove), 1)
+        try expectEqual(PasscodeFlow.totalSteps(for: .create), 2)
+        try expectEqual(PasscodeFlow.totalSteps(for: .change), 3)
+
+        // La création saute la vérification du code actuel : il n'y en a pas.
+        try expectEqual(PasscodeFlow.firstStep(for: .create), .newCode)
+        try expectEqual(PasscodeFlow.firstStep(for: .change), .current)
+        try expectEqual(PasscodeFlow.firstStep(for: .remove), .current)
+
+        // Les rangs vont de 1 au total, sans trou ni doublon.
+        for mode in [PasscodeSheetMode.create, .change, .remove] {
+            var step: PasscodeStep? = PasscodeFlow.firstStep(for: mode)
+            var seen: [Int] = []
+            var walked: [PasscodeStep] = []
+            while let current = step {
+                seen.append(PasscodeFlow.index(of: current, in: mode))
+                walked.append(current)
+                step = nextStep(after: current, in: mode)
+            }
+            try expectEqual(seen, Array(1...PasscodeFlow.totalSteps(for: mode)))
+
+            // Et chaque étape sait d'où elle vient — sauf la première.
+            try expect(
+                PasscodeFlow.previous(of: walked[0], in: mode) == nil,
+                "the first step of \(mode.id) must have nowhere to go back to"
+            )
+            for (offset, current) in walked.enumerated() where offset > 0 {
+                try expectEqual(PasscodeFlow.previous(of: current, in: mode), walked[offset - 1])
+            }
+        }
+    }
+
+    /// L'étape suivante, telle que la parcourt `advance(with:)`.
+    private static func nextStep(after step: PasscodeStep, in mode: PasscodeSheetMode) -> PasscodeStep? {
+        switch (mode, step) {
+        case (.remove, _): return nil
+        case (_, .current): return .newCode
+        case (_, .newCode): return .confirmation
+        case (_, .confirmation): return nil
+        }
+    }
 
     /// Le code exact déverrouille, tout le reste échoue — y compris un code de
     /// la bonne longueur qui ne diffère que d'un chiffre.
@@ -3959,6 +4012,50 @@ enum FacioRegressionSuite {
     private static func decimal(_ string: String) -> Decimal {
         Decimal(string: string, locale: Locale(identifier: "en_US_POSIX"))!
     }
+
+    // MARK: - Nommage des exports
+
+    /// Le PDF simple et le Factur-X sont DEUX fichiers différents : ils ne
+    /// doivent jamais se présenter sous le même nom.
+    ///
+    /// Les deux exports proposaient `document.number` — exporter les deux dans
+    /// le même dossier offrait donc d'écraser le premier par le second, alors
+    /// que l'un porte une facture électronique structurée et l'autre non.
+    private static func pdfExportsNeverShareAFilename() throws {
+        let cases = [
+            ("Facture_2026_03", "Studio Norne SARL"),
+            ("Invoice_2026_11", "Coopérative Sillage"),
+            ("Facture_2026_01", ""),
+            ("Devis_2026_02", "   "),
+        ]
+
+        for (number, client) in cases {
+            let pdf = DocumentExportNaming.pdfFilename(number: number, clientName: client)
+            let facturX = DocumentExportNaming.facturXFilename(number: number, clientName: client)
+
+            try expect(pdf != facturX, "the two exports of \(number) must not share a filename")
+            try expect(pdf.hasPrefix(number), "\(pdf) must stay identifiable by its document number")
+            try expect(
+                facturX.hasSuffix(DocumentExportNaming.facturXSuffix),
+                "the structured export must announce itself: \(facturX)"
+            )
+            // Un nom vide ou blanc ne doit pas produire de séparateur orphelin.
+            try expect(!pdf.contains("__"), "\(pdf) must not carry an empty segment")
+            try expect(!pdf.hasSuffix("_"), "\(pdf) must not end on a separator")
+        }
+
+        // Le client entre dans le nom : un dossier d'exports ne contenait que
+        // des « Facture_2026_03.pdf » indistinguables d'un client à l'autre.
+        let a = DocumentExportNaming.pdfFilename(number: "Facture_2026_03", clientName: "Studio Norne")
+        let b = DocumentExportNaming.pdfFilename(number: "Facture_2026_03", clientName: "Atelier Vermeille")
+        try expect(a != b, "two clients must not produce the same filename for the same number")
+
+        // Les séparateurs de chemin ne survivent pas au passage en nom de fichier.
+        let hostile = DocumentExportNaming.slug("A/B:C  *E")
+        try expect(!hostile.contains("/") && !hostile.contains(":"), "path separators must not survive: \(hostile)")
+        try expect(!hostile.contains("--"), "runs of punctuation must collapse: \(hostile)")
+    }
+
 }
 
 private struct RegressionCase: Sendable {

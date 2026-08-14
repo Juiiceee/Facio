@@ -16,6 +16,11 @@ extension L10n {
     static func price(_ l: AppLanguage) -> String { l == .fr ? "PRIX" : "PRICE" }
     static func total(_ l: AppLanguage) -> String { "TOTAL" }
     static func vat(_ l: AppLanguage) -> String { l == .fr ? "TVA" : "VAT" }
+    /// L'app générait des PDF sans jamais offrir de les imprimer.
+    static func printDocument(_ l: AppLanguage) -> String { l == .fr ? "Imprimer" : "Print" }
+    static func printFailed(_ l: AppLanguage) -> String {
+        l == .fr ? "L'impression n'a pas pu démarrer." : "Printing could not start."
+    }
 
     // Totaux
     static func totalHT(_ l: AppLanguage) -> String { l == .fr ? "Total HT" : "Subtotal" }

@@ -308,6 +308,10 @@ struct DocumentEditorView: View {
                         Label(L10n.exportFacturX(lang), systemImage: "checkmark.seal")
                     }
                 }
+                Button { imprimer() } label: {
+                    Label(L10n.printDocument(lang), systemImage: "printer")
+                }
+                .keyboardShortcut("p", modifiers: .command)
                 Button { envoyerParEmail() } label: {
                     Label(L10n.sendByEmail(lang), systemImage: "paperplane")
                 }
@@ -997,6 +1001,26 @@ struct DocumentEditorView: View {
         showAttachmentCopyAlert = true
     }
 
+    /// Imprime le document tel qu'il sera exporté — même générateur, donc
+    /// aucun risque que la version imprimée diverge de la version envoyée.
+    private func imprimer() {
+        if document.trustedPaymentSnapshot == nil {
+            if document.freezePaymentSnapshot(from: company) {
+                saveDocument()
+            }
+        }
+
+        let pdfData = PDFGenerator(document: document, company: company).generate()
+        guard !pdfData.isEmpty else {
+            showPDFGenerationAlert = true
+            return
+        }
+
+        if ExportService.printPDF(data: pdfData, jobName: document.number) == .failed {
+            showPDFGenerationAlert = true
+        }
+    }
+
     private func exporterPDF() {
         if document.trustedPaymentSnapshot == nil {
             if document.freezePaymentSnapshot(from: company) {
@@ -1011,7 +1035,11 @@ struct DocumentEditorView: View {
         }
 
         Task {
-            let result = await ExportService.exportPDF(data: pdfData, defaultFilename: document.number, language: lang)
+            let result = await ExportService.exportPDF(
+                data: pdfData,
+                defaultFilename: DocumentExportNaming.pdfFilename(number: document.number, clientName: document.clientNom),
+                language: lang
+            )
             switch result {
             case .success:
                 toastCenter.show(L10n.toastPDFExported(lang), icon: "square.and.arrow.up")
@@ -1062,7 +1090,11 @@ struct DocumentEditorView: View {
             showFacturXAlert = true
         case let .success(data):
             Task {
-                let result = await ExportService.exportPDF(data: data, defaultFilename: document.number, language: lang)
+                let result = await ExportService.exportPDF(
+                    data: data,
+                    defaultFilename: DocumentExportNaming.facturXFilename(number: document.number, clientName: document.clientNom),
+                    language: lang
+                )
                 switch result {
                 case .success:
                     toastCenter.show(L10n.toastFacturXExported(lang), icon: "checkmark.seal")
