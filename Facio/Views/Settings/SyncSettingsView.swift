@@ -58,7 +58,7 @@ struct SyncSettingsView: View {
                             HStack(spacing: FacioLayout.space6) {
                                 Image(systemName: "envelope.badge")
                                     .foregroundStyle(Color.intentInfo)
-                                Text(L10n.otpSent(lang, email: authService.pendingEmail))
+                                (Text(L10n.otpSentPrefix(lang)) + Text(" ") + Text(authService.pendingEmail).bold())
                                     .font(.subheadline)
                             }
 

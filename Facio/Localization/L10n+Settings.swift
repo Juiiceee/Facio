@@ -133,7 +133,10 @@ extension L10n {
     static func account(_ l: AppLanguage) -> String { l == .fr ? "Compte" : "Account" }
     static func connected(_ l: AppLanguage, email: String) -> String { l == .fr ? "Connecté — \(email)" : "Connected — \(email)" }
     static func signOut(_ l: AppLanguage) -> String { l == .fr ? "Déconnexion" : "Sign out" }
-    static func otpSent(_ l: AppLanguage, email: String) -> String { l == .fr ? "Un code à 6 chiffres a été envoyé à **\(email)**" : "A 6-digit code was sent to **\(email)**" }
+    /// Phrase SANS l'e-mail : c'est la vue qui le concatène en gras.
+    /// `Text(String)` ne rend pas le Markdown — seuls les littéraux
+    /// `LocalizedStringKey` le font — donc des `**` ici s'afficheraient tels quels.
+    static func otpSentPrefix(_ l: AppLanguage) -> String { l == .fr ? "Un code à 6 chiffres a été envoyé à" : "A 6-digit code was sent to" }
     static func verificationCode(_ l: AppLanguage) -> String { l == .fr ? "Code de vérification" : "Verification code" }
     static func otpCodePlaceholder(_ l: AppLanguage) -> String { l == .fr ? "123456" : "123456" }
     static func verify(_ l: AppLanguage) -> String { l == .fr ? "Vérifier" : "Verify" }
