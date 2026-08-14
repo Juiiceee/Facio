@@ -42,6 +42,17 @@ extension L10n {
     }
     static func deleteDigit(_ l: AppLanguage) -> String { l == .fr ? "Effacer" : "Delete" }
 
+    // Trousseau illisible : on ignore s'il existe un code, donc on reste fermé.
+    static func lockStoreUnavailableTitle(_ l: AppLanguage) -> String {
+        l == .fr ? "Trousseau illisible" : "Keychain unreadable"
+    }
+    static func lockStoreUnavailableMessage(_ l: AppLanguage) -> String {
+        l == .fr ?
+        "Facio n'a pas pu lire le code d'accès sur ce Mac, et ne peut donc pas savoir s'il en existe un. Par précaution, l'app reste fermée. Vos factures, clients et heures sont intacts." :
+        "Facio could not read the passcode on this Mac, so it cannot tell whether one exists. It stays closed as a precaution. Your invoices, clients, and hours are intact."
+    }
+    static func retry(_ l: AppLanguage) -> String { l == .fr ? "Réessayer" : "Try again" }
+
     // MARK: Réglages — code
 
     static func appLockSection(_ l: AppLanguage) -> String { l == .fr ? "Code d'accès" : "Passcode" }

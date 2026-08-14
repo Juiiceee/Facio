@@ -32,13 +32,21 @@ struct FacioApp: App {
     var body: some Scene {
         WindowGroup {
             let lang = dataStore.companyInfo.langueParDefaut
-            ZStack {
-                ContentView()
-                    // Ceinture et bretelles : l'écran de verrouillage couvre déjà
-                    // tout, mais la barre d'outils vit hors de cette pile.
-                    .disabled(appLock.isLocked)
+            // Le verrou REMPLACE le contenu, il ne le recouvre pas.
+            //
+            // Un simple calque au-dessus de `ContentView` laissait passer deux
+            // choses : les `.sheet` de macOS, qui sont des fenêtres attachées
+            // dessinées au-dessus de la vue racine (aperçu PDF, justificatifs,
+            // palette… restaient lisibles après le verrouillage), et l'arbre
+            // d'accessibilité, que `.disabled()` ne vide pas — VoiceOver lisait
+            // encore montants et coordonnées bancaires derrière l'écran.
+            // Démonter la vue ferme ses feuilles et la sort de l'arbre, et
+            // aucune feuille ajoutée plus tard ne pourra rouvrir la brèche.
+            Group {
                 if appLock.isLocked {
                     AppLockView()
+                } else {
+                    ContentView()
                 }
             }
                 .environment(dataStore)

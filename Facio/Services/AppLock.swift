@@ -38,6 +38,9 @@ final class AppLock {
     private(set) var isVerifying = false
     /// Dernière erreur de trousseau, affichée dans les réglages.
     private(set) var storageError: String?
+    /// Le trousseau n'a pas pu être lu : on ne sait donc PAS s'il existe un
+    /// code. Distinct de « aucun code » — voir `init`.
+    private(set) var storeUnavailable = false
 
     var autoLockDelay: AutoLockDelay {
         didSet {
@@ -89,13 +92,39 @@ final class AppLock {
             lockedOutUntil = until
         }
 
+        loadCredential()
+    }
+
+    /// Lit l'empreinte du trousseau et en déduit l'état de départ.
+    ///
+    /// `load()` a trois issues et elles ne doivent pas être confondues :
+    /// une empreinte (code configuré), `nil` (aucun code), ou une erreur —
+    /// trousseau refusé, verrouillé, charge corrompue. Dans ce dernier cas on
+    /// ne sait pas s'il existe un code : traiter « inconnu » comme « aucun »
+    /// ouvrirait l'app en grand sur une erreur passagère, et inviterait
+    /// l'utilisateur à « créer un code » par-dessus celui qu'il possède encore.
+    /// Une barrière d'accès se ferme sur le doute.
+    private func loadCredential() {
         do {
             credential = try AppLockStore.load()
+            storeUnavailable = false
+            storageError = nil
         } catch {
             credential = nil
+            storeUnavailable = true
             storageError = error.localizedDescription
         }
-        isLocked = credential != nil
+        isLocked = credential != nil || storeUnavailable
+    }
+
+    /// Nouvelle tentative de lecture, offerte sur l'écran de verrouillage quand
+    /// le trousseau était indisponible (refus ponctuel, session pas encore
+    /// déverrouillée…). Déverrouille si le trousseau s'avère finalement vide.
+    func retryLoadingCredential() {
+        loadCredential()
+        if !storeUnavailable, credential == nil {
+            isLocked = false
+        }
     }
 
     // MARK: - Cycle de vie
@@ -181,6 +210,10 @@ final class AppLock {
     /// Retourne `false` sur code faux **ou** pendant une temporisation.
     @discardableResult
     func unlock(with code: String) async -> Bool {
+        // Trousseau illisible : il n'y a rien à comparer, donc aucun code ne
+        // peut ouvrir. Sans ce garde, `credential == nil` déverrouillerait sur
+        // n'importe quelle saisie.
+        guard !storeUnavailable else { return false }
         guard let credential else {
             isLocked = false
             return true

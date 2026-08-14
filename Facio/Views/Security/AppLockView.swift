@@ -27,27 +27,33 @@ struct AppLockView: View {
         VStack(spacing: FacioLayout.space24) {
             header
 
-            PasscodeEntryView(
-                length: digits,
-                lang: lang,
-                code: $code,
-                isDisabled: lock.isVerifying || isRateLimited,
-                shakeToken: shakeToken,
-                onComplete: { entered in
-                    Task { await submit(entered) }
-                }
-            )
+            // Trousseau illisible : il n'y a aucune empreinte à comparer, donc
+            // pas de saisie à proposer — seulement une relecture.
+            if lock.storeUnavailable {
+                storeUnavailablePanel
+            } else {
+                PasscodeEntryView(
+                    length: digits,
+                    lang: lang,
+                    code: $code,
+                    isDisabled: lock.isVerifying || isRateLimited,
+                    shakeToken: shakeToken,
+                    onComplete: { entered in
+                        Task { await submit(entered) }
+                    }
+                )
 
-            status
+                status
 
-            if lock.canUseBiometrics {
-                Button {
-                    Task { await unlockWithBiometrics() }
-                } label: {
-                    Label(L10n.unlockWithBiometrics(lang), systemImage: "touchid")
+                if lock.canUseBiometrics {
+                    Button {
+                        Task { await unlockWithBiometrics() }
+                    } label: {
+                        Label(L10n.unlockWithBiometrics(lang), systemImage: "touchid")
+                    }
+                    .buttonStyle(.facio(.secondary))
+                    .disabled(lock.isVerifying || isRateLimited)
                 }
-                .buttonStyle(.facio(.secondary))
-                .disabled(lock.isVerifying || isRateLimited)
             }
 
             recovery
@@ -66,6 +72,23 @@ struct AppLockView: View {
         }
     }
 
+    private var storeUnavailablePanel: some View {
+        VStack(spacing: FacioLayout.space16) {
+            InlineWarning(text: L10n.lockStoreUnavailableMessage(lang), tone: .danger)
+
+            if let storageError = lock.storageError {
+                Text(storageError)
+                    .font(FacioFont.captionSmall)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Button(L10n.retry(lang)) { lock.retryLoadingCredential() }
+                .buttonStyle(.facio(.primary))
+        }
+    }
+
     private var header: some View {
         VStack(spacing: FacioLayout.space12) {
             Image(systemName: "lock.fill")
@@ -75,14 +98,17 @@ struct AppLockView: View {
                 .background(accent.opacity(0.12))
                 .clipShape(Circle())
 
-            Text(L10n.appLockedTitle(lang))
+            Text(lock.storeUnavailable ? L10n.lockStoreUnavailableTitle(lang) : L10n.appLockedTitle(lang))
                 .font(FacioFont.screenTitle)
-
-            Text(L10n.appLockedSubtitle(lang, digits: digits))
-                .font(FacioFont.caption)
-                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+
+            if !lock.storeUnavailable {
+                Text(L10n.appLockedSubtitle(lang, digits: digits))
+                    .font(FacioFont.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

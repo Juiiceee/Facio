@@ -91,14 +91,10 @@ struct ContentView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                // La barre d'outils est hissée dans la fenêtre, hors de la pile
-                // que recouvre l'écran de verrouillage : on la retire nous-mêmes,
-                // sinon ses actions et raccourcis restent joignables verrouillé.
-                if appLock.isLocked {
-                    EmptyView()
-                } else {
-                    toolbarActions
-                }
+                // Plus de garde sur le verrouillage ici : `FacioApp` ne monte
+                // plus du tout cette vue quand l'app est verrouillée, donc ni
+                // ces actions ni leurs raccourcis n'existent à ce moment-là.
+                toolbarActions
             }
         }
         .onChange(of: selectedSection) { _, newSection in

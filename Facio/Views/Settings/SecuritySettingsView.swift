@@ -18,9 +18,9 @@ struct SecuritySettingsView: View {
                 VStack(alignment: .leading, spacing: FacioLayout.space16) {
                     HStack(spacing: FacioLayout.space8) {
                         Circle()
-                            .fill(lock.isEnabled ? Color.intentSuccess : Color.intentNeutral)
+                            .fill(statusColor)
                             .frame(width: FacioLayout.space8, height: FacioLayout.space8)
-                        Text(lock.isEnabled ? L10n.appLockOn(lang) : L10n.appLockOff(lang))
+                        Text(statusLabel)
                             .foregroundStyle(.secondary)
                         Spacer()
                     }
@@ -31,7 +31,13 @@ struct SecuritySettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     HStack(spacing: FacioLayout.space12) {
-                        if lock.isEnabled {
+                        if lock.storeUnavailable {
+                            // Trousseau illisible : un code existe peut-être
+                            // encore. Proposer « créer » ici inviterait à
+                            // l'écraser, on ne propose que de relire.
+                            Button(L10n.retry(lang)) { lock.retryLoadingCredential() }
+                                .buttonStyle(.facio(.secondary))
+                        } else if lock.isEnabled {
                             Button(L10n.changeCode(lang)) { sheetMode = .change }
                                 .buttonStyle(.facio(.primary))
                             Button(L10n.lockNow(lang)) { lock.lockNow() }
@@ -46,7 +52,9 @@ struct SecuritySettingsView: View {
                         Spacer()
                     }
 
-                    if let storageError = lock.storageError {
+                    if lock.storeUnavailable {
+                        InlineWarning(text: L10n.lockStoreUnavailableMessage(lang), tone: .danger)
+                    } else if let storageError = lock.storageError {
                         InlineWarning(text: "\(L10n.codeStorageFailed(lang)) \(storageError)", tone: .danger)
                     }
 
@@ -136,6 +144,16 @@ struct SecuritySettingsView: View {
         .sheet(item: $sheetMode) { mode in
             PasscodeSheet(mode: mode, currentLength: lock.credential?.length ?? AppLockCode.defaultLength)
         }
+    }
+
+    private var statusColor: Color {
+        if lock.storeUnavailable { return .intentDanger }
+        return lock.isEnabled ? .intentSuccess : .intentNeutral
+    }
+
+    private var statusLabel: String {
+        if lock.storeUnavailable { return L10n.lockStoreUnavailableTitle(lang) }
+        return lock.isEnabled ? L10n.appLockOn(lang) : L10n.appLockOff(lang)
     }
 
     /// Rang d'échec correspondant à la `index`-ième marche du barème ; la

@@ -95,7 +95,11 @@ enum AppLockCode {
     /// PBKDF2-HMAC-SHA256, longueur de sortie = 32 octets (= taille du bloc
     /// SHA-256), donc un seul bloc `T1` : le compteur big-endian INT(1) est
     /// concaténé au sel, puis les `c` itérations sont XORées entre elles.
-    private static func derive(code: String, salt: Data, iterations: Int) -> Data {
+    ///
+    /// Volontairement non `private` : c'est une primitive écrite à la main, pas
+    /// un appel système, donc la suite de régression l'épingle directement sur
+    /// des vecteurs de test publiés (`appLockDerivationMatchesPublishedVectors`).
+    static func derive(code: String, salt: Data, iterations: Int) -> Data {
         let key = SymmetricKey(data: Data(code.utf8))
 
         var seed = salt

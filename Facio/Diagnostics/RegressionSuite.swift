@@ -203,6 +203,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "document decodes old payload without partial-payment fields", run: documentDecodesOldPayloadWithoutPartialPaymentFields),
         RegressionCase(name: "document filter status categories are mutually exclusive", run: documentFilterStatusCategoriesAreMutuallyExclusive),
         RegressionCase(name: "privacy mode masks amounts", run: privacyModeMasksAmounts),
+        RegressionCase(name: "app lock derivation matches published PBKDF2 vectors", run: appLockDerivationMatchesPublishedVectors),
+        RegressionCase(name: "app lock iteration count changes the derived hash", run: appLockIterationCountChangesTheDerivedHash),
         RegressionCase(name: "app lock credential accepts only the exact code", run: appLockCredentialAcceptsOnlyTheExactCode),
         RegressionCase(name: "app lock credentials never repeat a salt or a hash", run: appLockCredentialsNeverRepeatSaltOrHash),
         RegressionCase(name: "app lock rejects codes outside the allowed digit shapes", run: appLockRejectsCodesOutsideAllowedDigitShapes),
@@ -231,6 +233,44 @@ enum FacioRegressionSuite {
         try expect(
             AppLockCode.derivationIterations >= 100_000,
             "the production derivation cost must stay high enough to slow offline guessing"
+        )
+    }
+
+    /// Le coût de dérivation est TOUTE la défense contre un cassage hors-ligne :
+    /// il doit être prouvé, pas supposé. Sans ce cas, supprimer la boucle
+    /// d'itérations laisserait la suite entièrement verte pendant que
+    /// l'empreinte retomberait à un seul HMAC.
+    private static func appLockDerivationMatchesPublishedVectors() throws {
+        // Vecteurs PBKDF2-HMAC-SHA256 publiés (P = "password", S = "salt",
+        // dkLen = 32), identiques à ceux d'OpenSSL et de hashlib. Ils épinglent
+        // la construction elle-même, pas seulement sa cohérence avec elle-même.
+        let salt = Data("salt".utf8)
+        let vectors: [(iterations: Int, hex: String)] = [
+            (1, "120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b"),
+            (2, "ae4d0c95af6b46d32d0adff928f06dd02a303f8ef3c251dfd6e2d85a95474c43"),
+            (4_096, "c5e478d59288c841aa530db6845c4c8d962893a001ce4e11a4963873aa98134a"),
+        ]
+        for vector in vectors {
+            let derived = AppLockCode.derive(code: "password", salt: salt, iterations: vector.iterations)
+            try expectEqual(derived.map { String(format: "%02x", $0) }.joined(), vector.hex)
+        }
+    }
+
+    /// Le nombre d'itérations doit réellement changer la sortie : une empreinte
+    /// dont on retouche le compteur ne doit plus valider le bon code.
+    private static func appLockIterationCountChangesTheDerivedHash() throws {
+        let credential = try AppLockCode.makeCredential(code: "482915", iterations: 1_000)
+        let tampered = AppLockCredential(
+            salt: credential.salt,
+            hash: credential.hash,
+            iterations: credential.iterations + 1,
+            length: credential.length
+        )
+
+        try expect(AppLockCode.verify("482915", against: credential), "the untouched credential must verify")
+        try expect(
+            !AppLockCode.verify("482915", against: tampered),
+            "changing the iteration count must change the derived hash"
         )
     }
 
