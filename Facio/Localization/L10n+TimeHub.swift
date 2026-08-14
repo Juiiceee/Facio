@@ -65,4 +65,11 @@ extension L10n {
     static func previousPeriod(_ l: AppLanguage) -> String { l == .fr ? "Période précédente" : "Previous period" }
     static func nextPeriod(_ l: AppLanguage) -> String { l == .fr ? "Période suivante" : "Next period" }
     static func createInvoice(_ l: AppLanguage) -> String { l == .fr ? "Créer une facture" : "Create invoice" }
+    // Minuteur de fenêtre
+    static func timerIdleInvitation(_ l: AppLanguage) -> String {
+        l == .fr ? "Démarrer un suivi du temps" : "Start tracking time"
+    }
+    static func timerRunningAccessibility(_ l: AppLanguage, subject: String) -> String {
+        l == .fr ? "Suivi en cours — \(subject). Ouvrir la saisie." : "Tracking — \(subject). Open the entry."
+    }
 }

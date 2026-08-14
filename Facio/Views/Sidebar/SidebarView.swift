@@ -61,6 +61,8 @@ enum SidebarSection: String, Hashable, Identifiable, CaseIterable {
 
 struct SidebarView: View {
     @Binding var selection: SidebarSection?
+    /// Rejoindre la saisie en cours depuis le minuteur de fenêtre.
+    var onOpenRunningEntry: () -> Void = {}
 
     @Environment(DataStore.self) private var dataStore
     @Environment(SyncService.self) private var syncService
@@ -88,6 +90,8 @@ struct SidebarView: View {
             }
             .listStyle(.sidebar)
 
+            Divider()
+            FacioTimerControl(onOpen: onOpenRunningEntry)
             Divider()
             syncRow
         }

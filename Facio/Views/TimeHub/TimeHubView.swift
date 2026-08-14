@@ -72,7 +72,6 @@ struct TimeHubView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: FacioLayout.sectionSpacing) {
                     header(interval: interval)
-                    SharedTimerBarView(selectedTimesheetId: $selectedTimesheetId)
                     undoBar
                     statsGrid(stats: stats)
                     sectionPicker

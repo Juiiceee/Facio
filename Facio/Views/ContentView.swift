@@ -45,7 +45,7 @@ struct ContentView: View {
         //
         // La colonne liste ne disparaît plus : elle se replie en rail.
         NavigationSplitView {
-            SidebarView(selection: $selectedSection)
+            SidebarView(selection: $selectedSection) { openRunningEntry() }
         } content: {
             contentColumn
                 .navigationSplitViewColumnWidth(
@@ -321,6 +321,14 @@ struct ContentView: View {
 
     private func openInvoice(_ invoice: Document) {
         openDocument(invoice)
+    }
+
+    /// Le minuteur est pilotable de partout : le clic ramène à la période qu'il
+    /// alimente, quelle que soit la section où on se trouvait.
+    private func openRunningEntry() {
+        selectedSection = .temps
+        timeShowsAllActivity = false
+        selectedTimesheetId = dataStore.runningTimeEntryContext?.timesheet.id
     }
 
     private func newDocument(_ type: DocumentType) {

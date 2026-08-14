@@ -3,7 +3,7 @@ import Foundation
 /// Formatage centralisé des durées et horloges de timer.
 ///
 /// Source de vérité unique : remplace les copies privées de `formatClock`
-/// disséminées dans les vues Time (SharedTimerBarView, TimeHubView,
+/// disséminées dans les vues Time (TimeHubView,
 /// TimeTrackerPanel) et garantit une représentation humaine cohérente.
 enum DurationFormatter {
     /// Horloge `HH:MM:SS` à partir de secondes.
