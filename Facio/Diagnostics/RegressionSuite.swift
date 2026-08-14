@@ -208,7 +208,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "app lock rejects codes outside the allowed digit shapes", run: appLockRejectsCodesOutsideAllowedDigitShapes),
         RegressionCase(name: "app lock flags repeated and consecutive codes as weak", run: appLockFlagsRepeatedAndConsecutiveCodesAsWeak),
         RegressionCase(name: "app lock credential survives codable round trip", run: appLockCredentialSurvivesCodableRoundTrip),
-        RegressionCase(name: "app lock lockout starts after five failures and backs off", run: appLockLockoutStartsAfterFiveFailuresAndBacksOff),
+        RegressionCase(name: "app lock lockout starts after three failures and backs off", run: appLockLockoutStartsAfterThreeFailuresAndBacksOff),
+        RegressionCase(name: "app lock countdown stays readable across the minute", run: appLockCountdownStaysReadableAcrossTheMinute),
         RegressionCase(name: "app lock auto-lock waits for the configured idle delay", run: appLockAutoLockWaitsForConfiguredIdleDelay)
     ]
 
@@ -272,18 +273,39 @@ enum FacioRegressionSuite {
         try expect(AppLockCode.verify("482915", against: restored), "the code must verify after a round trip")
     }
 
-    private static func appLockLockoutStartsAfterFiveFailuresAndBacksOff() throws {
+    private static func appLockLockoutStartsAfterThreeFailuresAndBacksOff() throws {
         try expect(AppLockPolicy.lockoutDuration(failedAttempts: 0) == nil, "no lockout before any failure")
-        try expect(AppLockPolicy.lockoutDuration(failedAttempts: 4) == nil, "4 failures must stay free of lockout")
-        try expectEqual(AppLockPolicy.lockoutDuration(failedAttempts: 5), AppLockPolicy.baseLockoutDuration)
-        try expectEqual(AppLockPolicy.lockoutDuration(failedAttempts: 6), AppLockPolicy.baseLockoutDuration * 2)
-        try expectEqual(AppLockPolicy.lockoutDuration(failedAttempts: 7), AppLockPolicy.baseLockoutDuration * 4)
+        try expect(AppLockPolicy.lockoutDuration(failedAttempts: 2) == nil, "2 failures must stay free of lockout")
+
+        // Barème annoncé dans les réglages : 10 s, 1 min, 5 min, puis 15 min.
+        try expectEqual(AppLockPolicy.lockoutDuration(failedAttempts: 3), 10)
+        try expectEqual(AppLockPolicy.lockoutDuration(failedAttempts: 4), 60)
+        try expectEqual(AppLockPolicy.lockoutDuration(failedAttempts: 5), 300)
+        try expectEqual(AppLockPolicy.lockoutDuration(failedAttempts: 6), 900)
         // Plafonné : l'attente ne doit pas devenir une punition à vie.
-        try expectEqual(AppLockPolicy.lockoutDuration(failedAttempts: 50), AppLockPolicy.maxLockoutDuration)
+        try expectEqual(AppLockPolicy.lockoutDuration(failedAttempts: 50), 900)
+
+        // Le barème est strictement croissant, sinon un échec de plus
+        // « récompenserait » l'attaquant.
+        for (previous, next) in zip(AppLockPolicy.lockoutSchedule, AppLockPolicy.lockoutSchedule.dropFirst()) {
+            try expect(next > previous, "each lockout step must be longer than the previous one")
+        }
 
         try expectEqual(AppLockPolicy.remainingAttempts(failedAttempts: 0), AppLockPolicy.attemptsBeforeLockout)
-        try expectEqual(AppLockPolicy.remainingAttempts(failedAttempts: 4), 1)
+        try expectEqual(AppLockPolicy.remainingAttempts(failedAttempts: 2), 1)
         try expectEqual(AppLockPolicy.remainingAttempts(failedAttempts: 9), 0)
+    }
+
+    /// Le compte à rebours reste lisible des deux côtés de la minute et
+    /// n'annonce jamais « 0 » alors qu'il reste à patienter.
+    private static func appLockCountdownStaysReadableAcrossTheMinute() throws {
+        try expectEqual(DurationFormatter.countdown(10, lang: .fr), "10 s")
+        try expectEqual(DurationFormatter.countdown(10, lang: .en), "10s")
+        try expectEqual(DurationFormatter.countdown(0.4, lang: .fr), "1 s")
+        try expectEqual(DurationFormatter.countdown(59.2, lang: .fr), "1:00")
+        try expectEqual(DurationFormatter.countdown(272, lang: .fr), "4:32")
+        try expectEqual(DurationFormatter.countdown(900, lang: .en), "15:00")
+        try expectEqual(DurationFormatter.countdown(-5, lang: .fr), "0 s")
     }
 
     private static func appLockAutoLockWaitsForConfiguredIdleDelay() throws {

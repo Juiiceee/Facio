@@ -156,22 +156,25 @@ enum AutoLockDelay: Int, CaseIterable, Identifiable, Sendable {
 /// Politique de verrouillage : anti-force-brute et inactivité.
 enum AppLockPolicy {
     /// Nombre d'essais ratés tolérés avant la première temporisation.
-    static let attemptsBeforeLockout = 5
-    /// Première temporisation, doublée à chaque essai raté suivant.
-    static let baseLockoutDuration: TimeInterval = 30
-    /// Plafond : au-delà, la temporisation n'augmente plus (on ne veut pas
-    /// enfermer l'utilisateur légitime pour une demi-journée).
-    static let maxLockoutDuration: TimeInterval = 300
+    /// Trois : une faute de frappe ne doit pas coûter une attente, une
+    /// tentative à l'aveugle si.
+    static let attemptsBeforeLockout = 3
+
+    /// Barème d'attente, appliqué au 3ᵉ échec puis allongé à chaque échec
+    /// suivant : 10 s, 1 min, 5 min, puis 15 min sans plus augmenter.
+    ///
+    /// Même forme que le verrouillage d'iOS (1 min → 5 min → 15 min) avec une
+    /// entrée en matière plus douce, et **sans** la marche à 1 h : Facio n'a pas
+    /// d'effacement de secours, enfermer l'utilisateur légitime une heure
+    /// coûterait plus qu'il ne protège.
+    static let lockoutSchedule: [TimeInterval] = [10, 60, 300, 900]
 
     /// Durée d'attente imposée après `failedAttempts` essais ratés,
     /// ou `nil` tant que le seuil n'est pas atteint.
     static func lockoutDuration(failedAttempts: Int) -> TimeInterval? {
-        let excess = failedAttempts - attemptsBeforeLockout
-        guard excess >= 0 else { return nil }
-        // Plafonne l'exposant avant le calcul : au-delà, `pow` explose pour rien.
-        let steps = min(excess, 8)
-        let duration = baseLockoutDuration * pow(2, Double(steps))
-        return min(duration, maxLockoutDuration)
+        let step = failedAttempts - attemptsBeforeLockout
+        guard step >= 0, let last = lockoutSchedule.indices.last else { return nil }
+        return lockoutSchedule[min(step, last)]
     }
 
     /// Essais restants avant la prochaine temporisation (0 = déjà temporisé).

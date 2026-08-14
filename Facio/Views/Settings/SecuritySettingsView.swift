@@ -86,6 +86,37 @@ struct SecuritySettingsView: View {
                     }
                 }
 
+                SectionPanel(L10n.bruteForceSection(lang), systemImage: "exclamationmark.shield") {
+                    VStack(alignment: .leading, spacing: FacioLayout.space16) {
+                        Text(L10n.bruteForceExplanation(lang, attempts: AppLockPolicy.attemptsBeforeLockout))
+                            .font(FacioFont.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        // Barème dérivé de la politique elle-même : impossible
+                        // d'afficher autre chose que ce qui est réellement appliqué.
+                        VStack(spacing: FacioLayout.space6) {
+                            ForEach(Array(AppLockPolicy.lockoutSchedule.enumerated()), id: \.offset) { index, delay in
+                                HStack {
+                                    Text(scheduleLabel(at: index))
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    Text(DurationFormatter.countdown(delay, lang: lang))
+                                        .monospacedDigit()
+                                }
+                                .font(FacioFont.caption)
+                            }
+                        }
+
+                        Divider()
+
+                        Text(bruteForceStatus)
+                            .font(FacioFont.caption)
+                            .foregroundStyle(lock.failedAttempts > 0 ? Color.intentWarning : .secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
                 SectionPanel(L10n.biometricsSection(lang), systemImage: "touchid") {
                     VStack(alignment: .leading, spacing: FacioLayout.space16) {
                         if AppLock.biometricsAvailable {
@@ -105,5 +136,27 @@ struct SecuritySettingsView: View {
         .sheet(item: $sheetMode) { mode in
             PasscodeSheet(mode: mode, currentLength: lock.credential?.length ?? AppLockCode.defaultLength)
         }
+    }
+
+    /// Rang d'échec correspondant à la `index`-ième marche du barème ; la
+    /// dernière marche vaut pour tous les échecs suivants.
+    private func scheduleLabel(at index: Int) -> String {
+        let number = AppLockPolicy.attemptsBeforeLockout + index
+        return index == AppLockPolicy.lockoutSchedule.count - 1
+            ? L10n.bruteForceFailureNumberAndBeyond(lang, number: number)
+            : L10n.bruteForceFailureNumber(lang, number: number)
+    }
+
+    private var bruteForceStatus: String {
+        let waiting = lock.remainingLockout()
+        if waiting > 0 {
+            return L10n.bruteForceStatusWaiting(lang, delay: DurationFormatter.countdown(waiting, lang: lang))
+        }
+        guard lock.failedAttempts > 0 else { return L10n.bruteForceStatusClear(lang) }
+        return L10n.bruteForceStatusFailures(
+            lang,
+            failures: lock.failedAttempts,
+            remaining: AppLockPolicy.remainingAttempts(failedAttempts: lock.failedAttempts)
+        )
     }
 }

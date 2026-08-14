@@ -31,8 +31,8 @@ extension L10n {
         }
         return count == 1 ? "1 attempt left before a timeout" : "\(count) attempts left before a timeout"
     }
-    static func lockedOutRetryIn(_ l: AppLanguage, seconds: Int) -> String {
-        l == .fr ? "Trop d'essais — réessayez dans \(seconds) s" : "Too many attempts — try again in \(seconds)s"
+    static func lockedOutRetryIn(_ l: AppLanguage, delay: String) -> String {
+        l == .fr ? "Trop d'essais — réessayez dans \(delay)" : "Too many attempts — try again in \(delay)"
     }
     static func forgotCode(_ l: AppLanguage) -> String { l == .fr ? "Code oublié ?" : "Forgot your passcode?" }
     static func forgotCodeExplanation(_ l: AppLanguage) -> String {
@@ -83,6 +83,39 @@ extension L10n {
         l == .fr ?
         "Le code est redemandé dès que vous basculez sur une autre app. Sûr, mais exigeant au quotidien." :
         "The passcode is required again as soon as you switch to another app. Safe, but demanding day to day."
+    }
+
+    // MARK: Réglages — essais répétés
+
+    static func bruteForceSection(_ l: AppLanguage) -> String {
+        l == .fr ? "Essais répétés" : "Repeated attempts"
+    }
+    static func bruteForceExplanation(_ l: AppLanguage, attempts: Int) -> String {
+        l == .fr ?
+        "Après \(attempts) codes erronés, Facio impose une attente qui s'allonge à chaque nouvel échec. Le compteur repart à zéro dès qu'un code correct est saisi, et l'attente en cours survit à un redémarrage de l'app." :
+        "After \(attempts) wrong passcodes, Facio enforces a wait that grows with every further failure. The counter resets as soon as a correct passcode is entered, and a pending wait survives an app restart."
+    }
+    static func bruteForceFailureNumber(_ l: AppLanguage, number: Int) -> String {
+        l == .fr ? "Échec n° \(number)" : "Failure #\(number)"
+    }
+    static func bruteForceFailureNumberAndBeyond(_ l: AppLanguage, number: Int) -> String {
+        l == .fr ? "Échec n° \(number) et suivants" : "Failure #\(number) and beyond"
+    }
+    static func bruteForceStatusClear(_ l: AppLanguage) -> String {
+        l == .fr ? "Aucun échec récent." : "No recent failure."
+    }
+    static func bruteForceStatusFailures(_ l: AppLanguage, failures: Int, remaining: Int) -> String {
+        if l == .fr {
+            let f = failures == 1 ? "1 échec" : "\(failures) échecs"
+            let r = remaining == 1 ? "1 essai" : "\(remaining) essais"
+            return "\(f) — encore \(r) avant la première attente."
+        }
+        let f = failures == 1 ? "1 failure" : "\(failures) failures"
+        let r = remaining == 1 ? "1 attempt" : "\(remaining) attempts"
+        return "\(f) — \(r) left before the first wait."
+    }
+    static func bruteForceStatusWaiting(_ l: AppLanguage, delay: String) -> String {
+        l == .fr ? "Attente en cours : \(delay)." : "Wait in progress: \(delay)."
     }
 
     // MARK: Réglages — Touch ID

@@ -48,8 +48,13 @@ struct PasscodeSheet: View {
     @State private var errorMessage: String?
     @State private var shakeToken = 0
     @State private var isWorking = false
+    /// Horloge locale, qui ne tourne que pendant une temporisation.
+    @State private var now = Date()
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
+    private var remainingLockout: TimeInterval { lock.remainingLockout(at: now) }
+    private var isRateLimited: Bool { remainingLockout > 0 }
 
     init(mode: PasscodeSheetMode, currentLength: Int) {
         self.mode = mode
@@ -73,7 +78,7 @@ struct PasscodeSheet: View {
                 length: expectedLength,
                 lang: lang,
                 code: entryBinding,
-                isDisabled: isWorking,
+                isDisabled: isWorking || isRateLimited,
                 shakeToken: shakeToken,
                 onComplete: { entered in
                     Task { await advance(with: entered) }
@@ -91,6 +96,13 @@ struct PasscodeSheet: View {
         }
         .padding(FacioLayout.screenPadding)
         .frame(width: FacioLayout.sheetMinWidth)
+        .task(id: lock.failedAttempts) {
+            while !Task.isCancelled, lock.remainingLockout(at: Date()) > 0 {
+                now = Date()
+                try? await Task.sleep(for: .seconds(1))
+            }
+            now = Date()
+        }
     }
 
     // MARK: - Sous-vues
@@ -124,7 +136,12 @@ struct PasscodeSheet: View {
 
     @ViewBuilder
     private var status: some View {
-        if isWorking {
+        if isRateLimited {
+            InlineWarning(
+                text: L10n.lockedOutRetryIn(lang, delay: DurationFormatter.countdown(remainingLockout, lang: lang)),
+                tone: .danger
+            )
+        } else if isWorking {
             HStack(spacing: FacioLayout.space8) {
                 ProgressView().scaleEffect(0.6)
                 Text(L10n.verifying(lang))
@@ -233,6 +250,9 @@ struct PasscodeSheet: View {
     private func fail(_ text: String, reset: () -> Void) {
         errorMessage = text
         shakeToken += 1
+        // Réveille l'horloge : un échec vient peut-être d'ouvrir une attente,
+        // que la bannière doit annoncer tout de suite.
+        now = Date()
         reset()
     }
 

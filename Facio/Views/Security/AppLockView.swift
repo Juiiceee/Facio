@@ -89,10 +89,11 @@ struct AppLockView: View {
     @ViewBuilder
     private var status: some View {
         if isRateLimited {
-            Text(L10n.lockedOutRetryIn(lang, seconds: Int(remainingLockout.rounded(.up))))
+            Text(L10n.lockedOutRetryIn(lang, delay: DurationFormatter.countdown(remainingLockout, lang: lang)))
                 .font(FacioFont.caption)
                 .foregroundStyle(Color.intentDanger)
                 .multilineTextAlignment(.center)
+                .monospacedDigit()
         } else if lock.isVerifying {
             HStack(spacing: FacioLayout.space8) {
                 ProgressView().scaleEffect(0.6)
@@ -106,7 +107,7 @@ struct AppLockView: View {
                     .font(FacioFont.caption)
                     .foregroundStyle(Color.intentDanger)
                 let left = AppLockPolicy.remainingAttempts(failedAttempts: lock.failedAttempts)
-                if left > 0, left <= 3 {
+                if left > 0 {
                     Text(L10n.attemptsRemaining(lang, count: left))
                         .font(FacioFont.captionSmall)
                         .foregroundStyle(.secondary)
