@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct DashboardView: View {
+    /// Mois ouvert depuis le graphique — la barre devient une porte.
+    @State private var selectedMonth: Date?
+
     var onSelectDocument: (Document) -> Void = { _ in }
     var onSelectTimesheet: (TimesheetPeriod) -> Void = { _ in }
 
@@ -161,6 +164,19 @@ struct DashboardView: View {
             }
             .padding(FacioLayout.screenPadding)
         }
+        .sheet(item: Binding(
+            get: { selectedMonth.map(MonthSelection.init(start:)) },
+            set: { selectedMonth = $0?.start }
+        )) { selection in
+            monthCollectionsSheet(selection.start)
+        }
+    }
+
+    /// `Date` n'est pas `Identifiable` : ce porteur permet de piloter la feuille
+    /// par la donnée plutôt que par un booléen doublé d'un état.
+    private struct MonthSelection: Identifiable {
+        let start: Date
+        var id: Date { start }
     }
 
     /// Les douze derniers mois d'encaissements.
@@ -173,7 +189,8 @@ struct DashboardView: View {
                 months: monthlySeries,
                 currency: accountingCurrency,
                 lang: lang,
-                numberFormat: numberFormat
+                numberFormat: numberFormat,
+                onSelectMonth: { selectedMonth = $0.start }
             )
         }
     }
@@ -232,6 +249,78 @@ struct DashboardView: View {
                 .frame(maxWidth: .infinity, minHeight: 160)
             }
         }
+    }
+
+    /// Les factures qui composent la barre cliquée.
+    private func monthCollectionsSheet(_ month: Date) -> some View {
+        let rows = RevenueSeriesService.collections(
+            for: dataStore.documents,
+            referenceCurrency: accountingCurrency,
+            in: month
+        )
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(L10n.monthInvoicesTitle(lang, month: month.formatted(.dateTime.month(.wide).year())))
+                    .font(FacioFont.sectionTitle)
+                Spacer()
+                Text(privacy.format(rows.reduce(Decimal(0)) { $0 + $1.amount }, accountingCurrency, lang: numberFormat))
+                    .font(FacioFont.amountHero)
+            }
+            .padding(FacioLayout.screenPadding)
+
+            Divider()
+
+            if rows.isEmpty {
+                FacioEmptyState(title: L10n.monthInvoicesEmpty(lang), systemImage: "tray")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    VStack(spacing: FacioLayout.space8) {
+                        ForEach(rows) { row in
+                            Button {
+                                selectedMonth = nil
+                                onSelectDocument(row.document)
+                            } label: {
+                                FacioListRow(tone: Color.statusColor(for: row.document.status)) {
+                                    VStack(alignment: .leading, spacing: FacioLayout.space2) {
+                                        Text(row.document.number)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                        Text(row.document.clientNom)
+                                            .font(FacioFont.caption)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                    Spacer(minLength: FacioLayout.space10)
+                                    // Le montant ENCAISSÉ ce mois-là, pas le
+                                    // total de la facture : un acompte de mars
+                                    // n'appartient pas à la barre d'avril.
+                                    Text(privacy.format(row.amount, accountingCurrency, lang: numberFormat))
+                                        .font(FacioFont.amount)
+                                        .lineLimit(1)
+                                        .frame(width: FacioLayout.rowAmountWidth, alignment: .trailing)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .help(L10n.openDocument(lang))
+                        }
+                    }
+                    .padding(FacioLayout.screenPadding)
+                }
+            }
+
+            Divider()
+
+            HStack {
+                Spacer()
+                FacioButton(L10n.close(lang), role: .secondary) { selectedMonth = nil }
+            }
+            .padding(FacioLayout.screenPadding)
+        }
+        .frame(
+            minWidth: FacioLayout.sheetMinWidth, idealWidth: FacioLayout.sheetIdealWidth,
+            minHeight: FacioLayout.sheetMinHeight, idealHeight: FacioLayout.sheetIdealHeight
+        )
     }
 
     private var recentSection: some View {

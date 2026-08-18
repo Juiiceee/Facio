@@ -56,6 +56,40 @@ enum RevenueSeriesService {
         }
     }
 
+    /// Ce qu'un mois de la série agrège : une facture et la part encaissée
+    /// CE mois-là, qui n'est pas forcément son total.
+    struct MonthlyCollection: Identifiable {
+        let document: Document
+        let amount: Decimal
+        var id: UUID { document.id }
+    }
+
+    /// Les encaissements d'un mois donné, du plus gros au plus petit.
+    ///
+    /// C'est la contrepartie de `monthlySeries` : la barre montrait un total
+    /// sans jamais dire de quoi il était fait.
+    static func collections(
+        for documents: [Document],
+        referenceCurrency: CurrencyType,
+        in month: Date,
+        calendar: Calendar = .current
+    ) -> [MonthlyCollection] {
+        guard let interval = calendar.dateInterval(of: .month, for: month) else { return [] }
+
+        var byDocument: [UUID: (document: Document, amount: Decimal)] = [:]
+        for document in documents where document.type == .facture {
+            for event in document.accountingCashEvents(referenceCurrency: referenceCurrency) {
+                guard let amount = event.amount, interval.contains(event.date) else { continue }
+                let previous = byDocument[document.id]?.amount ?? 0
+                byDocument[document.id] = (document, previous + amount)
+            }
+        }
+
+        return byDocument.values
+            .map { MonthlyCollection(document: $0.document, amount: $0.amount) }
+            .sorted { $0.amount > $1.amount }
+    }
+
     /// TVA encaissée sur le trimestre courant.
     ///
     /// Remplace « Devis en cours » — un compteur que le tableau de bord affichait

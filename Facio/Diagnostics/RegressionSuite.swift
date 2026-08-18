@@ -241,7 +241,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "timesheet decodes old payloads without a rate carry-over marker", run: timesheetDecodesOldPayloadsWithoutRateCarryOver),
         RegressionCase(name: "passcode flow numbers its steps and can go back", run: passcodeFlowNumbersItsStepsAndCanGoBack),
         RegressionCase(name: "the two PDF exports of a document never share a filename", run: pdfExportsNeverShareAFilename),
-        RegressionCase(name: "toolbar item identifiers are explicit and unique", run: toolbarIdentifiersAreExplicitAndUnique)
+        RegressionCase(name: "toolbar item identifiers are explicit and unique", run: toolbarIdentifiersAreExplicitAndUnique),
+        RegressionCase(name: "a chart bar lists exactly the payments of its own month", run: chartBarListsOnlyItsOwnMonth)
     ]
 
     // MARK: - Temps
@@ -4084,6 +4085,54 @@ enum FacioRegressionSuite {
                 identifier.hasPrefix("facio."),
                 "\(identifier) must be namespaced so it cannot collide with an AppKit item"
             )
+        }
+    }
+
+
+    // MARK: - Graphique du tableau de bord
+
+    /// Cliquer une barre doit lister les encaissements DE CE MOIS-LÀ, et la
+    /// somme des lignes doit valoir exactement la hauteur de la barre.
+    ///
+    /// Une facture peut être encaissée en plusieurs versements étalés sur
+    /// plusieurs mois : lister son TOTAL sous la barre de mars ferait mentir le
+    /// graphique dès le premier acompte.
+    private static func chartBarListsOnlyItsOwnMonth() throws {
+        let calendar = Calendar(identifier: .gregorian)
+        guard let march = calendar.date(from: DateComponents(year: 2026, month: 3, day: 10)),
+              let april = calendar.date(from: DateComponents(year: 2026, month: 4, day: 8)) else {
+            throw RegressionFailure(message: "could not build the test dates")
+        }
+
+        let document = Document(type: .facture, number: "Facture_2026_03", currency: .eur)
+        document.ajouterLigne(LineItem(designation: "x", quantite: 1, prixUnitaire: 1000, tauxTVA: 0))
+        document.status = .partiel
+        document.paiementsPartiels = [
+            PartialPayment(montant: 400, date: march),
+            PartialPayment(montant: 600, date: april),
+        ]
+
+        let marchRows = RevenueSeriesService.collections(
+            for: [document], referenceCurrency: .eur, in: march, calendar: calendar
+        )
+        try expectEqual(marchRows.count, 1)
+        // 400, pas 1000 : la barre de mars ne porte que le versement de mars.
+        try expectDecimal(marchRows[0].amount, equals: "400")
+
+        let aprilRows = RevenueSeriesService.collections(
+            for: [document], referenceCurrency: .eur, in: april, calendar: calendar
+        )
+        try expectDecimal(aprilRows[0].amount, equals: "600")
+
+        // Et la somme des lignes égale la hauteur de la barre du même mois.
+        let series = RevenueSeriesService.monthlySeries(
+            for: [document], referenceCurrency: .eur, endingAt: april, count: 3, calendar: calendar
+        )
+        for month in series {
+            let rows = RevenueSeriesService.collections(
+                for: [document], referenceCurrency: .eur, in: month.start, calendar: calendar
+            )
+            try expectDecimal(rows.reduce(Decimal(0)) { $0 + $1.amount }, equals: "\(month.collected)")
         }
     }
 

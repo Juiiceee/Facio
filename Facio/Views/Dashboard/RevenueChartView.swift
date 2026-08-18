@@ -15,11 +15,57 @@ struct RevenueChartView: View {
     let currency: CurrencyType
     let lang: AppLanguage
     let numberFormat: AppLanguage
+    /// Ouvre le mois cliqué. Le graphique ne se contente plus de montrer une
+    /// forme : chaque barre est une porte vers les factures qu'elle agrège.
+    var onSelectMonth: (RevenueMonth) -> Void = { _ in }
 
     @Environment(PrivacyMode.self) private var privacy
+    /// Mois survolé — pilote l'infobulle et le liseré de la barre visée.
+    @State private var hovered: RevenueMonth?
 
     private var maximum: Decimal {
         max(months.map(\.collected).max() ?? 0, 1)
+    }
+
+    /// Le mois survolé prime sur le mois courant : c'est lui que l'œil suit.
+    private func barStyle(for month: RevenueMonth) -> Color {
+        if hovered?.id == month.id { return FacioIntent.info.glyph }
+        return month.isCurrent ? FacioIntent.info.glyph : Color.accentTint
+    }
+
+    /// Le mois sous le pointeur, ou `nil` hors de la zone traçable.
+    private func month(at location: CGPoint, proxy: ChartProxy, geometry: GeometryProxy) -> RevenueMonth? {
+        guard let plotFrame = proxy.plotFrame else { return nil }
+        let origin = geometry[plotFrame].origin
+        let x = location.x - origin.x
+        guard let date: Date = proxy.value(atX: x) else { return nil }
+        // La barre couvre son mois : on cherche celui qui CONTIENT la date, au
+        // lieu du plus proche — sinon les bords retombent sur le mois voisin.
+        let calendar = Calendar.current
+        return months.first { candidate in
+            guard let interval = calendar.dateInterval(of: .month, for: candidate.start) else { return false }
+            return interval.contains(date)
+        }
+    }
+
+    private func tooltip(for month: RevenueMonth) -> some View {
+        VStack(alignment: .leading, spacing: FacioLayout.space2) {
+            Text(month.start.formatted(.dateTime.month(.wide).year()))
+                .font(FacioFont.label)
+                .foregroundStyle(Color.textSecondary)
+            Text(privacy.format(month.collected, currency, lang: numberFormat))
+                .font(FacioFont.amount)
+                .foregroundStyle(Color.textPrimary)
+            Text(L10n.chartOpenMonthHint(lang))
+                .font(FacioFont.label)
+                .foregroundStyle(Color.textTertiary)
+        }
+        .padding(FacioLayout.space8)
+        .background(Color.surfaceFloat)
+        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusMedium))
+        .facioElevation(.e2, radius: FacioLayout.radiusMedium)
+        .padding(FacioLayout.space8)
+        .allowsHitTesting(false)
     }
 
     var body: some View {
@@ -30,7 +76,7 @@ struct RevenueChartView: View {
             )
             // Le mois en cours porte l'aplat, les autres une teinte : la lecture
             // « où j'en suis » commence par lui.
-            .foregroundStyle(month.isCurrent ? FacioIntent.info.glyph : Color.accentTint)
+            .foregroundStyle(barStyle(for: month))
             .cornerRadius(FacioLayout.space4)
             .annotation(position: .top, alignment: .center) {
                 if month.isCurrent {
@@ -53,6 +99,34 @@ struct RevenueChartView: View {
                 AxisValueLabel(format: .dateTime.month(.narrow))
                     .font(FacioFont.label)
                     .foregroundStyle(Color.textTertiary)
+            }
+        }
+        // Survol et clic passent par une surface posée SUR la zone traçable :
+        // `chartOverlay` donne les coordonnées du graphique, donc la date sous
+        // le pointeur, sans avoir à deviner la géométrie des barres.
+        .chartOverlay { proxy in
+            GeometryReader { geometry in
+                Rectangle()
+                    .fill(.clear)
+                    .contentShape(Rectangle())
+                    .onContinuousHover { phase in
+                        switch phase {
+                        case let .active(location):
+                            hovered = month(at: location, proxy: proxy, geometry: geometry)
+                        case .ended:
+                            hovered = nil
+                        }
+                    }
+                    .onTapGesture { location in
+                        if let month = month(at: location, proxy: proxy, geometry: geometry) {
+                            onSelectMonth(month)
+                        }
+                    }
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            if let hovered {
+                tooltip(for: hovered)
             }
         }
         .frame(height: 160)

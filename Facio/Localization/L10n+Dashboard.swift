@@ -57,4 +57,15 @@ extension L10n {
     static func overdueByDays(_ l: AppLanguage, days: Int) -> String {
         l == .fr ? "en retard de \(days) j" : "\(days) days overdue"
     }
+    /// Infobulle du graphique : dire que la barre est cliquable, sinon
+    /// personne ne le devine.
+    static func chartOpenMonthHint(_ l: AppLanguage) -> String {
+        l == .fr ? "Cliquer pour voir les factures" : "Click to see the invoices"
+    }
+    static func monthInvoicesTitle(_ l: AppLanguage, month: String) -> String {
+        l == .fr ? "Encaissé en \(month)" : "Collected in \(month)"
+    }
+    static func monthInvoicesEmpty(_ l: AppLanguage) -> String {
+        l == .fr ? "Aucun encaissement ce mois-ci." : "No payment collected this month."
+    }
 }
