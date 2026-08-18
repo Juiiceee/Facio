@@ -1,5 +1,45 @@
 # Changelog
 
+## [2.7.0](https://github.com/Juiiceee/Facio/compare/Facio-v2.6.0...Facio-v2.7.0) (2026-08-18)
+
+
+### Nouvelles fonctionnalites
+
+* **dashboard:** hover a bar for its amount, click it for the invoices behind it ([5dcf653](https://github.com/Juiiceee/Facio/commit/5dcf6536e61097171e0410581e29ae45b39583ef))
+* **dashboard:** let the order of the blocks be a setting ([9177033](https://github.com/Juiiceee/Facio/commit/9177033bb9241a1158bd9ba9d310e9fc0430da13))
+* **design:** finish the component catalogue — button, field, panel, toast ([4a5fa1c](https://github.com/Juiiceee/Facio/commit/4a5fa1c431f98de4dc0eb24aa7d8f6eb020bb0bc))
+* **design:** give the dashboard a series and a basis (P3, direction 1a) ([2a3c8d0](https://github.com/Juiiceee/Facio/commit/2a3c8d011fc7a5892f8f68b98ab85f03cfc170f1))
+* **design:** line items — header everywhere, free VAT, written errors (P5) ([a0cc7aa](https://github.com/Juiiceee/Facio/commit/a0cc7aa744b9d73ed7ef1c9e96406562ac4fecb0))
+* **design:** make the document lifecycle drive the editor (P5) ([493db07](https://github.com/Juiiceee/Facio/commit/493db07fdb3c98e605c686df11af01d81eacc709))
+* **design:** make the PDF a real invoice (P14, direction 2a) ([ddd367b](https://github.com/Juiiceee/Facio/commit/ddd367bfea9c23eb648964fdc15bab4f050590d7))
+* **design:** one stable three-column shell, five destinations ([d67789b](https://github.com/Juiiceee/Facio/commit/d67789b0e4beb5f233261322188be94414968ea3))
+* **design:** permanent compliance inspector, deposits against the totals (P5) ([a8b611b](https://github.com/Juiiceee/Facio/commit/a8b611b2cc78ac097ff6ae2ee470a13622851556))
+* **design:** promote the timer to a window-level control ([d69b9ec](https://github.com/Juiiceee/Facio/commit/d69b9ec618460ff19cba6ba8681c144c2807012c))
+* **design:** put the component catalogue on the new token layer ([d87ac3d](https://github.com/Juiiceee/Facio/commit/d87ac3d107da9d2190b735f23fbc2cd0be2233dc))
+* **design:** rebuild the lock screen (P13) ([83a5ee7](https://github.com/Juiiceee/Facio/commit/83a5ee7a8e37ca855e50ba10006c90be4dcb15bb))
+* **design:** rebuild the token scale on the new foundations ([49e24b1](https://github.com/Juiiceee/Facio/commit/49e24b17c642b522b9dab7fab991518676e67128))
+* **design:** rebuild the token scale on the new foundations ([ebf1fb4](https://github.com/Juiiceee/Facio/commit/ebf1fb4eac2bb24fa6bf160f102ee599d5fc3aa2))
+* **design:** refonte de l'interface, écrans P1 à P14 ([118d3a3](https://github.com/Juiiceee/Facio/commit/118d3a3310b0f97ff0c227fbb29c8fde2cab3dc6))
+* **security:** lock Facio behind a passcode ([#104](https://github.com/Juiiceee/Facio/issues/104)) ([1a4c070](https://github.com/Juiiceee/Facio/commit/1a4c07064fc439248ed7a33ac2404c022faaa555))
+* **temps:** grid first, one capture system, one billing sheet with preview ([c4842e9](https://github.com/Juiiceee/Facio/commit/c4842e90682a4c3a77dab9b4be1600d5691caa1d))
+
+
+### Corrections de bugs
+
+* **clients:** link documents to clients by id, not by name ([#107](https://github.com/Juiiceee/Facio/issues/107)) ([a1853bf](https://github.com/Juiiceee/Facio/commit/a1853bf288b48d99664a2538fc240c2dc00b205e))
+* **dashboard:** put the chart tooltip above the bar it describes ([5fc5467](https://github.com/Juiiceee/Facio/commit/5fc5467df01bec7739aee5afda9a6180563cb1a4))
+* **dashboard:** show the accounting basis on the pending tile ([8deb582](https://github.com/Juiiceee/Facio/commit/8deb5820217e5b6f48c36d3179b1ae9740702c24))
+* **diagnostics:** restore the brace lost in the merge ([535ea54](https://github.com/Juiiceee/Facio/commit/535ea545137ebb7519051e42b0016bf40dec9853))
+* five defects found in the UX audit (copy, empty states, calendar, brand green) ([#106](https://github.com/Juiiceee/Facio/issues/106)) ([c36ada9](https://github.com/Juiiceee/Facio/commit/c36ada93393f3e34e29c0c8338316ac9335879ec))
+* **pdf:** print with ⌘P, and stop the two exports sharing one filename ([e12a18d](https://github.com/Juiiceee/Facio/commit/e12a18d89bd8eb568899266f7927f6e5e6103c26))
+* **security:** number the passcode steps and allow going back ([812d429](https://github.com/Juiiceee/Facio/commit/812d42995b96d8862748b4e9436cb72d1497c50c))
+* **shell:** collapse the list column instead of railing it, and unpin Clients ([22e9fff](https://github.com/Juiiceee/Facio/commit/22e9fffc5c3039955ae6615b61dda0faa32e10a2))
+* **shell:** give every toolbar item an explicit, unique identifier ([87fb0d2](https://github.com/Juiiceee/Facio/commit/87fb0d24e489ec102e872c273daf01f2f325dbfd))
+* **shell:** publish the measured width outside AppKit's layout pass ([292b74a](https://github.com/Juiiceee/Facio/commit/292b74ada9ffad20b37e05ef493d49670b111e3f))
+* **shell:** stop rebuilding the view tree inside AppKit's layout pass ([e2f427f](https://github.com/Juiiceee/Facio/commit/e2f427f2d070f42a1e251ab6430cdce966681e34))
+* **ui:** left-align pickers, unify the settings sidebar, open company details ([2771e1b](https://github.com/Juiiceee/Facio/commit/2771e1bce1be23af5b2a6572db6488b074ff649f))
+* **ui:** stop truncating amounts, align list rows, and unstack field hints ([192a8bc](https://github.com/Juiiceee/Facio/commit/192a8bcdf097a1f68e209388f7d257efe0ba07dd))
+
 ## [2.6.0](https://github.com/Juiiceee/Facio/compare/Facio-v2.5.0...Facio-v2.6.0) (2026-07-28)
 
 
