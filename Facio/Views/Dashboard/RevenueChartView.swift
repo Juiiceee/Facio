@@ -64,7 +64,7 @@ struct RevenueChartView: View {
         .background(Color.surfaceFloat)
         .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusMedium))
         .facioElevation(.e2, radius: FacioLayout.radiusMedium)
-        .padding(FacioLayout.space8)
+        .fixedSize()
         .allowsHitTesting(false)
     }
 
@@ -78,8 +78,20 @@ struct RevenueChartView: View {
             // « où j'en suis » commence par lui.
             .foregroundStyle(barStyle(for: month))
             .cornerRadius(FacioLayout.space4)
-            .annotation(position: .top, alignment: .center) {
-                if month.isCurrent {
+            // L'infobulle est une ANNOTATION de la barre, pas un calque au coin
+            // du graphique : Charts la place au-dessus de la barre visée, la
+            // centre, et `overflowResolution` la ramène dans le cadre quand la
+            // barre est en bord de série. Aucune géométrie à recalculer à la
+            // main, et l'information reste là où l'œil est déjà.
+            .annotation(
+                position: .top,
+                alignment: .center,
+                spacing: FacioLayout.space4,
+                overflowResolution: .init(x: .fit(to: .chart), y: .disabled)
+            ) {
+                if hovered?.id == month.id {
+                    tooltip(for: month)
+                } else if month.isCurrent {
                     Text(privacy.format(month.collected, currency, lang: numberFormat))
                         .font(FacioFont.label)
                         .foregroundStyle(Color.textPrimary)
@@ -122,11 +134,6 @@ struct RevenueChartView: View {
                             onSelectMonth(month)
                         }
                     }
-            }
-        }
-        .overlay(alignment: .topLeading) {
-            if let hovered {
-                tooltip(for: hovered)
             }
         }
         .frame(height: 160)
