@@ -164,7 +164,7 @@ struct DocumentListView: View {
         .navigationTitle(documentType == .devis ? L10n.sidebarQuotes(lang) : L10n.sidebarInvoices(lang))
         .searchable(text: $searchText, prompt: L10n.searchByNumberOrClient(lang))
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(id: FacioToolbarID.documentsNew, placement: .primaryAction) {
                 Button {
                     creerDocument()
                 } label: {

@@ -120,7 +120,7 @@ struct TimesheetListView: View {
         .id(timesheets.count)
         .navigationTitle(L10n.sidebarTime(lang))
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(id: FacioToolbarID.timesheetsNew, placement: .primaryAction) {
                 Button {
                     presentNewPeriod()
                 } label: {
