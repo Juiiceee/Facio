@@ -60,4 +60,8 @@ extension L10n {
     static func sidebarSyncOff(_ l: AppLanguage) -> String {
         l == .fr ? "Sauvegarde en ligne désactivée" : "Cloud backup off"
     }
+    /// Le bloc d'identité de la barre latérale mène à la fiche entreprise.
+    static func openCompanySettings(_ l: AppLanguage) -> String {
+        l == .fr ? "Ouvrir la fiche entreprise" : "Open company details"
+    }
 }

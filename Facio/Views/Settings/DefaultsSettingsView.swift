@@ -27,7 +27,7 @@ struct DefaultsSettingsView: View {
                             }
                         }
                         .labelsHidden()
-                        .frame(maxWidth: 200)
+                        .frame(maxWidth: 200, alignment: .leading)
                     }
                 }
             }
@@ -49,7 +49,7 @@ struct DefaultsSettingsView: View {
                             }
                         }
                         .labelsHidden()
-                        .frame(maxWidth: 200)
+                        .frame(maxWidth: 200, alignment: .leading)
                     }
 
                     LabeledField(L10n.accountingCurrencySetting(lang)) {
@@ -62,7 +62,7 @@ struct DefaultsSettingsView: View {
                             }
                         }
                         .labelsHidden()
-                        .frame(maxWidth: 200)
+                        .frame(maxWidth: 200, alignment: .leading)
                     }
 
                     if company.deviseParDefaut.requiresBlockchain {
@@ -78,7 +78,7 @@ struct DefaultsSettingsView: View {
                                 }
                             }
                             .labelsHidden()
-                            .frame(maxWidth: 200)
+                            .frame(maxWidth: 200, alignment: .leading)
                         }
                     }
                 }

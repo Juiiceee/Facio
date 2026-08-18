@@ -24,7 +24,7 @@ struct LanguageSettingsView: View {
                             }
                         }
                         .labelsHidden()
-                        .frame(maxWidth: 200)
+                        .frame(maxWidth: 200, alignment: .leading)
                     }
 
                     Text(L10n.defaultLanguageHint(lang))
@@ -45,7 +45,7 @@ struct LanguageSettingsView: View {
                             Text(L10n.englishDateFormatSample(lang)).tag(AppLanguage.en)
                         }
                         .labelsHidden()
-                        .frame(maxWidth: 300)
+                        .frame(maxWidth: 300, alignment: .leading)
                     }
                 }
             }
@@ -62,7 +62,7 @@ struct LanguageSettingsView: View {
                             Text(L10n.englishNumberFormatSample(lang)).tag(AppLanguage.en)
                         }
                         .labelsHidden()
-                        .frame(maxWidth: 300)
+                        .frame(maxWidth: 300, alignment: .leading)
                     }
                 }
             }

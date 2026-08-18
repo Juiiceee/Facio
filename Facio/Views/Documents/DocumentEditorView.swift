@@ -562,7 +562,7 @@ struct DocumentEditorView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 // Le statut a quitté le formulaire : il EST l'état du bandeau,
@@ -764,7 +764,12 @@ struct DocumentEditorView: View {
                         Text(mode.label(for: lang)).tag(mode)
                     }
                 }
-                .frame(maxWidth: 150)
+                // 150 pt devaient loger le libellé « Paiement » ET le menu :
+                // il restait ~60 pt au menu, d'où « Virem… » alors que la carte
+                // est loin d'être pleine.
+                .frame(minWidth: 260, alignment: .leading)
+
+                Spacer(minLength: 0)
             }
 
             if document.paymentMode == .crypto {

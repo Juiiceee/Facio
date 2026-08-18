@@ -131,9 +131,17 @@ private struct SettingsSidebarColumn: View {
                 }
             }
             .listStyle(.sidebar)
+            // Le style « sidebar » repeint son PROPRE matériau translucide
+            // par-dessus le fond de la colonne : le titre gardait le fond
+            // opaque, la liste laissait passer le bureau, et les deux ne se
+            // ressemblaient pas. On masque le fond du défilement pour qu'un
+            // seul plan, celui de la colonne, couvre toute la hauteur.
+            .scrollContentBackground(.hidden)
         }
         .frame(width: isCompact ? FacioLayout.settingsSidebarCompactWidth : FacioLayout.settingsSidebarWidth)
-        .background(Color(nsColor: .controlBackgroundColor))
+        // Jeton du système de design plutôt qu'une couleur AppKit nue : c'est
+        // la règle du dépôt, et `controlBackgroundColor` ne suit pas la palette.
+        .background(Color.surfaceRaised)
     }
 
     /// Libellé d'un onglet : icône seule + infobulle en compact.

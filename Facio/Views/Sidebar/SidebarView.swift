@@ -68,6 +68,9 @@ struct SidebarView: View {
     @Binding var selection: SidebarSection?
     /// Rejoindre la saisie en cours depuis le minuteur de fenêtre.
     var onOpenRunningEntry: () -> Void = {}
+    /// Le bloc d'identité mène à la fiche de l'entreprise : c'est le seul
+    /// endroit où l'on modifie ce qu'il affiche.
+    var onOpenCompanySettings: () -> Void = {}
 
     @Environment(DataStore.self) private var dataStore
     @Environment(SyncService.self) private var syncService
@@ -110,6 +113,15 @@ struct SidebarView: View {
     // MARK: Identité
 
     private var identityHeader: some View {
+        Button(action: onOpenCompanySettings) {
+            identityHeaderContent
+        }
+        .buttonStyle(.plain)
+        .help(L10n.openCompanySettings(lang))
+        .accessibilityLabel(L10n.openCompanySettings(lang))
+    }
+
+    private var identityHeaderContent: some View {
         HStack(spacing: FacioLayout.space8) {
             Text(initials)
                 .font(FacioFont.label)
@@ -131,7 +143,8 @@ struct SidebarView: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, FacioLayout.space4)
-        .help(companyName)
+        .contentShape(Rectangle())
+        .facioHoverable(radius: FacioLayout.radiusMedium)
     }
 
     private var initials: String {

@@ -48,7 +48,11 @@ struct ContentView: View {
         // une bande visible n'apportait rien, et lui réserver 44 pt privait la
         // colonne de détail d'une largeur dont « Clients » a besoin.
         NavigationSplitView {
-            SidebarView(selection: $selectedSection) { openRunningEntry() }
+            SidebarView(
+                selection: $selectedSection,
+                onOpenRunningEntry: { openRunningEntry() },
+                onOpenCompanySettings: { openCompanySettings() }
+            )
         } content: {
             contentColumn
                 .navigationSplitViewColumnWidth(
@@ -356,6 +360,12 @@ struct ContentView: View {
 
     /// Le minuteur est pilotable de partout : le clic ramène à la période qu'il
     /// alimente, quelle que soit la section où on se trouvait.
+    /// Réglages ▸ Entreprise, l'onglet qui édite ce qu'affiche le bloc d'identité.
+    private func openCompanySettings() {
+        selectedSection = .parametres
+        selectedSettingsTab = 0
+    }
+
     private func openRunningEntry() {
         selectedSection = .temps
         timeShowsAllActivity = false
