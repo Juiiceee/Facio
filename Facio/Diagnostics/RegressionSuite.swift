@@ -242,7 +242,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "passcode flow numbers its steps and can go back", run: passcodeFlowNumbersItsStepsAndCanGoBack),
         RegressionCase(name: "the two PDF exports of a document never share a filename", run: pdfExportsNeverShareAFilename),
         RegressionCase(name: "toolbar item identifiers are explicit and unique", run: toolbarIdentifiersAreExplicitAndUnique),
-        RegressionCase(name: "a chart bar lists exactly the payments of its own month", run: chartBarListsOnlyItsOwnMonth)
+        RegressionCase(name: "a chart bar lists exactly the payments of its own month", run: chartBarListsOnlyItsOwnMonth),
+        RegressionCase(name: "the dashboard layout survives an aged preference", run: dashboardLayoutSurvivesAnAgedPreference)
     ]
 
     // MARK: - Temps
@@ -4134,6 +4135,42 @@ enum FacioRegressionSuite {
             )
             try expectDecimal(rows.reduce(Decimal(0)) { $0 + $1.amount }, equals: "\(month.collected)")
         }
+    }
+
+
+    // MARK: - Disposition du tableau de bord
+
+    /// Une préférence enregistrée peut avoir vieilli : bloc disparu d'une
+    /// version à l'autre, bloc ajouté qu'elle ignore, doublon introduit par une
+    /// synchronisation. L'écran doit rester complet et jamais vide.
+    private static func dashboardLayoutSurvivesAnAgedPreference() throws {
+        // Ordre partiel + valeur inconnue + doublon : on garde l'ordre voulu
+        // pour ce qu'on reconnaît, on ignore le reste, et on complète.
+        let normalized = DashboardSection.normalizedOrder(from: ["recent", "zzz", "recent", "chart"])
+        try expectEqual(normalized.prefix(2).map(\.rawValue), ["recent", "chart"])
+        try expectEqual(Set(normalized), Set(DashboardSection.allCases))
+        try expectEqual(normalized.count, DashboardSection.allCases.count)
+
+        // Une préférence vide retombe sur l'ordre livré, pas sur rien.
+        try expectEqual(DashboardSection.normalizedOrder(from: []), DashboardSection.defaultOrder)
+
+        // Masquer TOUS les blocs laisserait un écran blanc sans issue.
+        let company = CompanyInfo()
+        company.dashboardHiddenSections = Set(DashboardSection.allCases)
+        try expectEqual(company.visibleDashboardSections, DashboardSection.defaultOrder)
+
+        // Masquer un seul bloc le retire, et respecte l'ordre choisi.
+        company.dashboardSectionOrder = [.recent, .kpis, .chart, .focus]
+        company.dashboardHiddenSections = [.chart]
+        try expectEqual(company.visibleDashboardSections.map(\.rawValue), ["recent", "kpis", "focus"])
+
+        // Et une charge utile antérieure à ce réglage se décode sans préférence.
+        let legacy = """
+        {"id":"7C6D1F42-0F2E-4B58-9A31-8C2D5E6F7A81","nom":"Facio"}
+        """
+        let decoded = try JSONDecoder().decode(CompanyInfo.self, from: Data(legacy.utf8))
+        try expectEqual(decoded.dashboardSectionOrder, DashboardSection.defaultOrder)
+        try expect(decoded.dashboardHiddenSections.isEmpty, "an old payload hides nothing")
     }
 
 }

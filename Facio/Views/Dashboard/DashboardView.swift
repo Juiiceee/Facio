@@ -118,6 +118,42 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: FacioLayout.sectionSpacing) {
                 dashboardHeader
 
+                // L'ORDRE VIENT DES RÉGLAGES. L'écran imposait le même à tout
+                // le monde ; ce qu'on ouvre le matin dépend du métier.
+                ForEach(dataStore.companyInfo.visibleDashboardSections) { section in
+                    dashboardSection(section)
+                }
+            }
+            .padding(FacioLayout.screenPadding)
+        }
+        .sheet(item: Binding(
+            get: { selectedMonth.map(MonthSelection.init(start:)) },
+            set: { selectedMonth = $0?.start }
+        )) { selection in
+            monthCollectionsSheet(selection.start)
+        }
+    }
+
+    /// `Date` n'est pas `Identifiable` : ce porteur permet de piloter la feuille
+    /// par la donnée plutôt que par un booléen doublé d'un état.
+    private struct MonthSelection: Identifiable {
+        let start: Date
+        var id: Date { start }
+    }
+
+    /// Un bloc du tableau de bord, choisi par la préférence.
+    @ViewBuilder
+    private func dashboardSection(_ section: DashboardSection) -> some View {
+        switch section {
+        case .kpis: kpiSection
+        case .chart: revenueSeriesSection
+        case .focus: focusSection
+        case .recent: recentSection
+        }
+    }
+
+    /// Les chiffres clés.
+    private var kpiSection: some View {
                 LazyVGrid(columns: [
                     GridItem(.adaptive(minimum: 180, maximum: 300))
                 ], spacing: FacioLayout.space16) {
@@ -156,27 +192,6 @@ struct DashboardView: View {
                         intent: .warning
                     )
                 }
-
-                revenueSeriesSection
-
-                focusSection
-                recentSection
-            }
-            .padding(FacioLayout.screenPadding)
-        }
-        .sheet(item: Binding(
-            get: { selectedMonth.map(MonthSelection.init(start:)) },
-            set: { selectedMonth = $0?.start }
-        )) { selection in
-            monthCollectionsSheet(selection.start)
-        }
-    }
-
-    /// `Date` n'est pas `Identifiable` : ce porteur permet de piloter la feuille
-    /// par la donnée plutôt que par un booléen doublé d'un état.
-    private struct MonthSelection: Identifiable {
-        let start: Date
-        var id: Date { start }
     }
 
     /// Les douze derniers mois d'encaissements.

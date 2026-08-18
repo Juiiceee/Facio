@@ -35,6 +35,20 @@ struct CustomisationSettingsView: View {
 
     var body: some View {
         VStack(spacing: FacioLayout.space20) {
+            // MARK: - Tableau de bord
+            SectionPanel(L10n.dashboardLayoutTitle(lang), systemImage: "square.grid.2x2") {
+                VStack(alignment: .leading, spacing: FacioLayout.space8) {
+                    Text(L10n.dashboardLayoutHint(lang))
+                        .font(FacioFont.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    ForEach(Array(company.dashboardSectionOrder.enumerated()), id: \.element) { index, section in
+                        dashboardRow(section, index: index)
+                    }
+                }
+            }
+
             // MARK: - Logo
             SectionPanel(L10n.logo(lang), systemImage: "photo") {
                 VStack(alignment: .leading, spacing: FacioLayout.space16) {
@@ -216,5 +230,59 @@ struct CustomisationSettingsView: View {
         else { return false }
 
         return true
+    }
+
+    /// Une ligne de réglage du tableau de bord : visibilité et rang.
+    ///
+    /// Monter/descendre plutôt qu'un glisser-déposer : le clavier y accède, et
+    /// VoiceOver aussi — un réordonnancement à la souris seule exclurait ceux
+    /// qui en ont le plus besoin.
+    private func dashboardRow(_ section: DashboardSection, index: Int) -> some View {
+        let order = company.dashboardSectionOrder
+        let isHidden = company.dashboardHiddenSections.contains(section)
+        let isLastVisible = company.visibleDashboardSections == [section]
+
+        return HStack(spacing: FacioLayout.space12) {
+            Toggle(isOn: Binding(
+                get: { !isHidden },
+                set: { shown in
+                    var hidden = company.dashboardHiddenSections
+                    if shown { hidden.remove(section) } else { hidden.insert(section) }
+                    company.dashboardHiddenSections = hidden
+                    dataStore.companyUpdated()
+                }
+            )) {
+                Label(section.label(for: lang), systemImage: section.systemImage)
+                    .foregroundStyle(isHidden ? Color.textTertiary : Color.textPrimary)
+            }
+            .toggleStyle(.switch)
+            // On ne masque pas le dernier bloc visible : l'écran deviendrait
+            // blanc, sans rien pour en sortir.
+            .disabled(!isHidden && isLastVisible)
+            .help(isLastVisible && !isHidden ? L10n.dashboardLayoutLastSection(lang) : section.label(for: lang))
+
+            Spacer(minLength: FacioLayout.space8)
+
+            FacioIconButton(systemImage: "chevron.up", label: L10n.moveUp(lang)) {
+                move(section, in: order, by: -1)
+            }
+            .disabled(index == 0)
+
+            FacioIconButton(systemImage: "chevron.down", label: L10n.moveDown(lang)) {
+                move(section, in: order, by: 1)
+            }
+            .disabled(index == order.count - 1)
+        }
+        .padding(.vertical, FacioLayout.space4)
+    }
+
+    private func move(_ section: DashboardSection, in order: [DashboardSection], by offset: Int) {
+        guard let from = order.firstIndex(of: section) else { return }
+        let to = from + offset
+        guard order.indices.contains(to) else { return }
+        var updated = order
+        updated.swapAt(from, to)
+        company.dashboardSectionOrder = updated
+        dataStore.companyUpdated()
     }
 }

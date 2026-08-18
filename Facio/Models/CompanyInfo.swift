@@ -192,6 +192,31 @@ final class CompanyInfo: Identifiable, Codable {
     var formatDateRawValue: String = "fr"
     var formatNombreRawValue: String = "fr"
 
+    // Tableau de bord
+    /// Ordre des blocs, et blocs masqués. Persistés en `String` pour rester
+    /// lisibles si l'énumération gagne un cas dans une version ultérieure.
+    var dashboardSectionOrderRawValues: [String] = DashboardSection.defaultOrder.map(\.rawValue)
+    var dashboardHiddenSectionRawValues: [String] = []
+
+    /// L'ordre effectif, toujours complet même si la préférence a vieilli.
+    var dashboardSectionOrder: [DashboardSection] {
+        get { DashboardSection.normalizedOrder(from: dashboardSectionOrderRawValues) }
+        set { dashboardSectionOrderRawValues = newValue.map(\.rawValue) }
+    }
+
+    var dashboardHiddenSections: Set<DashboardSection> {
+        get { Set(dashboardHiddenSectionRawValues.compactMap(DashboardSection.init(rawValue:))) }
+        set { dashboardHiddenSectionRawValues = newValue.map(\.rawValue).sorted() }
+    }
+
+    /// Les blocs à rendre, dans l'ordre. Jamais vide : masquer le dernier bloc
+    /// laisserait un écran blanc sans rien pour en sortir.
+    var visibleDashboardSections: [DashboardSection] {
+        let hidden = dashboardHiddenSections
+        let visible = dashboardSectionOrder.filter { !hidden.contains($0) }
+        return visible.isEmpty ? DashboardSection.defaultOrder : visible
+    }
+
     // Personnalisation visuelle
     var couleurAccentHex: String?
 
@@ -304,6 +329,7 @@ final class CompanyInfo: Identifiable, Codable {
         case tauxTVAParDefaut, delaiPaiementJours, deviseParDefautRawValue, deviseComptableRawValue, blockchainParDefautRawValue
         case updatedAt
         case langueParDefautRawValue, formatDateRawValue, formatNombreRawValue
+        case dashboardSectionOrderRawValues, dashboardHiddenSectionRawValues
         case couleurAccentHex
     }
 
@@ -343,6 +369,18 @@ final class CompanyInfo: Identifiable, Codable {
         langueParDefautRawValue = try container.decodeOrDefault(String.self, forKey: .langueParDefautRawValue, default: AppLanguage.fr.rawValue)
         formatDateRawValue = try container.decodeOrDefault(String.self, forKey: .formatDateRawValue, default: AppLanguage.fr.rawValue)
         formatNombreRawValue = try container.decodeOrDefault(String.self, forKey: .formatNombreRawValue, default: AppLanguage.fr.rawValue)
+        // Absents des charges utiles antérieures : on retombe sur l'ordre livré
+        // et sur « rien de masqué ».
+        dashboardSectionOrderRawValues = try container.decodeOrDefault(
+            [String].self,
+            forKey: .dashboardSectionOrderRawValues,
+            default: DashboardSection.defaultOrder.map(\.rawValue)
+        )
+        dashboardHiddenSectionRawValues = try container.decodeOrDefault(
+            [String].self,
+            forKey: .dashboardHiddenSectionRawValues,
+            default: []
+        )
         couleurAccentHex = try? container.decode(String.self, forKey: .couleurAccentHex)
     }
 
@@ -379,6 +417,8 @@ final class CompanyInfo: Identifiable, Codable {
         try container.encode(langueParDefautRawValue, forKey: .langueParDefautRawValue)
         try container.encode(formatDateRawValue, forKey: .formatDateRawValue)
         try container.encode(formatNombreRawValue, forKey: .formatNombreRawValue)
+        try container.encode(dashboardSectionOrderRawValues, forKey: .dashboardSectionOrderRawValues)
+        try container.encode(dashboardHiddenSectionRawValues, forKey: .dashboardHiddenSectionRawValues)
         try container.encodeIfPresent(couleurAccentHex, forKey: .couleurAccentHex)
     }
 }

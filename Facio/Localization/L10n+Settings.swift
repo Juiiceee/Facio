@@ -214,4 +214,22 @@ extension L10n {
     static func updateCheckFailed(_ l: AppLanguage) -> String {
         l == .fr ? "Impossible de vérifier les mises à jour" : "Could not check for updates"
     }
+    // MARK: - Tableau de bord
+
+    /// Le tableau de bord imposait le même ordre à tout le monde.
+    static func dashboardLayoutTitle(_ l: AppLanguage) -> String {
+        l == .fr ? "Tableau de bord" : "Dashboard"
+    }
+    static func dashboardLayoutHint(_ l: AppLanguage) -> String {
+        l == .fr
+            ? "Choisissez les blocs affichés et leur ordre."
+            : "Choose which blocks appear, and in what order."
+    }
+    static func dashboardLayoutLastSection(_ l: AppLanguage) -> String {
+        l == .fr
+            ? "Au moins un bloc doit rester affiché."
+            : "At least one block must stay visible."
+    }
+    static func moveUp(_ l: AppLanguage) -> String { l == .fr ? "Monter" : "Move up" }
+    static func moveDown(_ l: AppLanguage) -> String { l == .fr ? "Descendre" : "Move down" }
 }
