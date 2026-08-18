@@ -9,39 +9,94 @@ import SwiftUI
 /// l'un de ces tokens. Les couleurs de surface et de bordure vivent dans
 /// `Color+Theme` (`surfacePanel`, `borderSubtle`, …), la typo dans `FacioFont`.
 enum FacioLayout {
-    // MARK: Échelle d'espacement (grille 4 pt)
-    static let space2: CGFloat = 2
+    // MARK: Échelle d'espacement — 7 crans, TOUS multiples de 4
+    //
+    // L'ancienne échelle annonçait une grille de 4 pt et contenait 2, 6, 10, 14,
+    // 18 et 20 : c'était une grille de 2 pt à 10 crans, et 8/10/12 se partageaient
+    // le même travail. Les crans hors grille disparaissent, et l'ancien « entre
+    // sections 18 » fusionne avec l'ancien « écran 24 ».
+    /// Écart entre deux éléments d'une même ligne.
     static let space4: CGFloat = 4
-    static let space6: CGFloat = 6
+    /// Écart entre les éléments d'une ligne de liste.
     static let space8: CGFloat = 8
-    static let space10: CGFloat = 10
+    /// Écart à l'intérieur d'une tuile.
     static let space12: CGFloat = 12
+    /// Écart à l'intérieur d'un panneau.
     static let space16: CGFloat = 16
-    static let space20: CGFloat = 20
+    /// Marge d'écran, et écart entre deux sections.
     static let space24: CGFloat = 24
+    /// Écart entre deux blocs majeurs.
     static let space32: CGFloat = 32
+    /// Respiration d'un état vide.
+    static let space40: CGFloat = 40
 
     /// Marge intérieure d'un écran.
-    static let screenPadding: CGFloat = 24
+    static let screenPadding: CGFloat = space24
     /// Espacement vertical entre sections d'un écran.
-    static let sectionSpacing: CGFloat = 18
+    static let sectionSpacing: CGFloat = space24
     /// Padding intérieur d'un panneau / d'une carte.
-    static let panelPadding: CGFloat = 16
+    static let panelPadding: CGFloat = space16
     /// Padding intérieur d'une tuile.
-    static let tilePadding: CGFloat = 14
+    static let tilePadding: CGFloat = space12
     /// Padding intérieur d'une ligne de liste.
-    static let rowPadding: CGFloat = 10
+    static let rowPadding: CGFloat = space8
 
-    // MARK: Rayons nommés
-    static let radiusField: CGFloat = 6
-    static let radiusBadge: CGFloat = 6
-    static let radiusRow: CGFloat = 7
-    static let radiusTile: CGFloat = 7
-    static let radiusPanel: CGFloat = 8
+    // Crans hors grille, ramenés au multiple de 4 le plus proche (à égalité, on
+    // arrondit vers le haut). Conservés le temps de migrer les appels.
+    static let space2: CGFloat = space4
+    static let space6: CGFloat = space8
+    static let space10: CGFloat = space12
+    static let space20: CGFloat = space24
+
+    // MARK: Rayons — 3 valeurs
+    //
+    // Cinq noms pour trois valeurs séparées de 1 pt : le coût cognitif était réel,
+    // le bénéfice visuel nul. Et le badge existait en deux formes concurrentes
+    // (rectangle 6 pt contre capsule) sans règle — seule la capsule survit.
+    /// Champ, bouton.
+    static let radiusSmall: CGFloat = 5
+    /// Panneau, tuile, ligne.
+    static let radiusMedium: CGFloat = 8
+    /// Badge, pilule — une capsule, toujours.
+    static let radiusFull: CGFloat = 999
+
+    static let radiusField: CGFloat = radiusSmall
+    static let radiusRow: CGFloat = radiusMedium
+    static let radiusTile: CGFloat = radiusMedium
+    static let radiusPanel: CGFloat = radiusMedium
+    static let radiusBadge: CGFloat = radiusFull
 
     // Conservés pour compatibilité (alias des rayons nommés).
-    static let panelRadius: CGFloat = 8
-    static let rowRadius: CGFloat = 7
+    static let panelRadius: CGFloat = radiusMedium
+    static let rowRadius: CGFloat = radiusMedium
+
+    // MARK: Densité
+    //
+    // Seuls les champs avaient deux densités ; panneaux, lignes, tuiles, badges
+    // et boutons n'avaient qu'une taille, d'où les bricolages du tableau de
+    // lignes et de la grille d'heures, qui définissaient leurs propres largeurs
+    // HORS du design system.
+    //
+    // Le dense plafonne à 28 pt : c'est la cible de clic minimale que le design
+    // system s'impose déjà. La cellule d'heures à 24 pt devient donc illégale.
+    enum Density {
+        case comfortable
+        case dense
+
+        /// Hauteur d'une ligne de liste.
+        var rowHeight: CGFloat { self == .comfortable ? 36 : 28 }
+        /// Hauteur d'un champ et d'un bouton.
+        var controlHeight: CGFloat { self == .comfortable ? 30 : 28 }
+        /// Hauteur d'une capsule.
+        var badgeHeight: CGFloat { self == .comfortable ? 22 : 20 }
+        /// Padding intérieur d'un panneau.
+        var panelPadding: CGFloat { self == .comfortable ? space16 : space12 }
+        /// Padding intérieur d'une tuile.
+        var tilePadding: CGFloat { space12 }
+    }
+
+    /// Densité par défaut de l'application.
+    static let density: Density = .comfortable
 
     // MARK: Largeurs
     /// Largeur standard d'un champ « court » (montants, codes, pickers).

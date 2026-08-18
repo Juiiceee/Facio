@@ -200,6 +200,12 @@ enum FacioRegressionSuite {
         RegressionCase(name: "sheet minimums fit inside minimum window", run: sheetMinimumsFitInsideMinimumWindow),
         RegressionCase(name: "color tokens resolve differently in dark mode", run: colorTokensResolveDifferentlyInDarkMode),
         RegressionCase(name: "brand accent is identical in UI and PDF", run: brandAccentIsIdenticalInUIAndPDF),
+        RegressionCase(name: "text tokens meet contrast on every surface", run: textTokensMeetContrastOnEverySurface),
+        RegressionCase(name: "brand accent meets contrast both ways", run: brandAccentMeetsContrastBothWays),
+        RegressionCase(name: "intent tint pairs meet contrast", run: intentTintPairsMeetContrast),
+        RegressionCase(name: "custom accent picks a readable foreground", run: customAccentPicksAReadableForeground),
+        RegressionCase(name: "dark elevation planes are ordered", run: darkElevationPlanesAreOrdered),
+        RegressionCase(name: "spacing scale stays on the four point grid", run: spacingScaleStaysOnTheFourPointGrid),
         RegressionCase(name: "document empty state copy agrees grammatically", run: documentEmptyStateCopyAgreesGrammatically),
         RegressionCase(name: "list empty reason separates filters from search", run: listEmptyReasonSeparatesFiltersFromSearch),
         RegressionCase(name: "month grid aligns days on weekdays", run: monthGridAlignsDaysOnWeekdays),
@@ -694,6 +700,242 @@ enum FacioRegressionSuite {
                 "Color.appPrimary must match the PDF brand green on its \(channel) channel"
             )
         }
+    }
+
+    // MARK: - Fondations : contraste mesuré
+    //
+    // Le seul garde-fou sur les couleurs vérifiait que clair ≠ sombre, jamais la
+    // lisibilité. Les ratios ci-dessous sont ceux que le design annonce ; s'ils
+    // cessent d'être tenus, c'est ici que ça se voit.
+
+    /// Résout un token dans un thème donné, en NSColor sRGB.
+    private static func resolved(_ color: Color, _ scheme: ColorScheme) -> NSColor {
+        var env = EnvironmentValues()
+        env.colorScheme = scheme
+        let r = color.resolve(in: env)
+        return NSColor(
+            srgbRed: CGFloat(r.red),
+            green: CGFloat(r.green),
+            blue: CGFloat(r.blue),
+            alpha: CGFloat(r.opacity)
+        )
+    }
+
+    private static func ratio(_ fg: Color, on bg: Color, _ scheme: ColorScheme) -> CGFloat {
+        NSColor.contrastRatio(resolved(fg, scheme), resolved(bg, scheme))
+    }
+
+    /// Les trois paliers de texte tiennent 4,5:1 sur toutes les surfaces qui les
+    /// portent, dans les deux thèmes. Le tertiaire est le plus tendu (≈4,8:1) :
+    /// il reste du texte, pas de la décoration.
+    private static func textTokensMeetContrastOnEverySurface() throws {
+        // Les SEPT surfaces, pas seulement celles contre lesquelles la spec a
+        // été mesurée : le tertiaire sert surtout sur une ligne, donc aussi sur
+        // une ligne survolée et sur une ligne sélectionnée.
+        let surfaces: [(String, Color)] = [
+            ("canvas", .surfaceCanvas),
+            ("raised", .surfaceRaised),
+            ("sunken", .surfaceSunken),
+            ("field", .surfaceFieldToken),
+            ("float", .surfaceFloat),
+            ("hover", .surfaceHover),
+            ("selected", .surfaceSelected)
+        ]
+        let texts: [(String, Color)] = [
+            ("primary", .textPrimary),
+            ("secondary", .textSecondary),
+            ("tertiary", .textTertiary)
+        ]
+
+        for scheme in [ColorScheme.light, .dark] {
+            for (sName, surface) in surfaces {
+                for (tName, text) in texts {
+                    let r = ratio(text, on: surface, scheme)
+                    try expect(
+                        r >= 4.5,
+                        "\(tName) on \(sName) in \(scheme) must reach 4.5:1, got \(String(format: "%.2f", Double(r)))"
+                    )
+                }
+            }
+        }
+    }
+
+    /// L'accent de marque porte du texte ET se lit en texte — c'est ce qui
+    /// disqualifiait les deux olives précédents (4,15:1 et 3,84:1 sous du blanc).
+    private static func brandAccentMeetsContrastBothWays() throws {
+        for scheme in [ColorScheme.light, .dark] {
+            let onAccent = ratio(.textOnAccent, on: .accent, scheme)
+            try expect(
+                onAccent >= 4.5,
+                "text on the accent fill must reach 4.5:1 in \(scheme), got \(String(format: "%.2f", Double(onAccent)))"
+            )
+
+            let asText = ratio(.accent, on: .surfaceRaised, scheme)
+            try expect(
+                asText >= 4.5,
+                "the accent used as text on a panel must reach 4.5:1 in \(scheme), got \(String(format: "%.2f", Double(asText)))"
+            )
+        }
+
+        // Les deux valeurs historiques doivent rester exclues.
+        for legacy in [NSColor(srgbRed: 0.33, green: 0.54, blue: 0.19, alpha: 1),
+                       NSColor(srgbRed: 0.42, green: 0.56, blue: 0.23, alpha: 1)] {
+            try expect(
+                NSColor.contrastRatio(.white, legacy) < 4.5,
+                "the previous olives failed white-on-fill — the guard must still catch them"
+            )
+        }
+    }
+
+    /// Chaque intention porte trois rôles, et `onTint` est le SEUL texte
+    /// autorisé sur `tint`. C'est le couple qui n'était pas mesuré : une
+    /// intention servait de texte posé sur 9 à 16 % d'elle-même, en 10 pt.
+    private static func intentTintPairsMeetContrast() throws {
+        let intents: [(String, () -> FacioIntent)] = [
+            ("success", { Color.intentSuccessTriple }),
+            ("warning", { Color.intentWarningTriple }),
+            ("danger", { Color.intentDangerTriple }),
+            ("neutral", { Color.intentNeutralTriple })
+        ]
+
+        for scheme in [ColorScheme.light, .dark] {
+            for (name, make) in intents {
+                let intent = make()
+                let onTint = ratio(intent.onTint, on: intent.tint, scheme)
+                try expect(
+                    onTint >= 4.5,
+                    "\(name) on-tint over tint must reach 4.5:1 in \(scheme), got \(String(format: "%.2f", Double(onTint)))"
+                )
+
+                let fill = ratio(intent.fill, on: .surfaceRaised, scheme)
+                try expect(
+                    fill >= 4.5,
+                    "\(name) fill used as text on a panel must reach 4.5:1 in \(scheme), got \(String(format: "%.2f", Double(fill)))"
+                )
+            }
+        }
+    }
+
+    /// Le bouton primaire forçait du texte blanc : un accent clair rendait tous
+    /// les boutons principaux illisibles. Le texte sur accent est calculé.
+    private static func customAccentPicksAReadableForeground() throws {
+        let paleYellow = NSColor(srgbRed: 0.91, green: 0.76, blue: 0.13, alpha: 1)
+        let deepPurple = NSColor(srgbRed: 0.54, green: 0.29, blue: 0.84, alpha: 1)
+
+        try expect(
+            NSColor.bestForeground(on: paleYellow) == NSColor.facioInk,
+            "a pale accent must be served near-black text, not white"
+        )
+        try expect(
+            NSColor.bestForeground(on: deepPurple) == NSColor.white,
+            "a deep accent must be served white text"
+        )
+
+        // Quel que soit l'accent, le texte retenu est le meilleur des deux.
+        for accent in [paleYellow, deepPurple, Color.accentPrintNS] {
+            let chosen = NSColor.bestForeground(on: accent)
+            try expect(
+                abs(NSColor.contrastRatio(chosen, accent) - NSColor.bestContrastRatio(on: accent)) < 0.001,
+                "bestForeground must return the winning option"
+            )
+        }
+
+        // Le cas où AUCUN texte ne passe 4,5:1 n'est pas une couleur pâle (elle
+        // contraste énormément avec l'encre) mais une luminance moyenne : #7A7A7A
+        // plafonne à 4,29:1 en blanc comme en encre. Le repli sur tint doit alors
+        // être signalé plutôt que de produire un bouton illisible.
+        let extreme = NSColor(srgbRed: 0x7A / 255.0, green: 0x7A / 255.0, blue: 0x7A / 255.0, alpha: 1)
+        try expect(
+            Color.needsTintFallback(extreme),
+            "an extreme-chroma accent must be flagged for the tint fallback"
+        )
+        try expect(
+            !Color.needsTintFallback(Color.accentPrintNS),
+            "the brand accent must never need the fallback"
+        )
+    }
+
+    /// En sombre l'élévation est portée par la luminance du plan, pas par une
+    /// bordure : chaque pas doit donc être réellement visible.
+    private static func darkElevationPlanesAreOrdered() throws {
+        let canvas = resolved(.surfaceCanvas, .dark).relativeLuminance
+        let raised = resolved(.surfaceRaised, .dark).relativeLuminance
+        let sunken = resolved(.surfaceSunken, .dark).relativeLuminance
+        let hover = resolved(.surfaceHover, .dark).relativeLuminance
+
+        try expect(canvas < raised, "dark: the panel must sit above the canvas")
+        try expect(raised < sunken, "dark: the tile must sit above the panel")
+        try expect(sunken < hover, "dark: hover must sit above the tile")
+
+        // Le champ est creusé : plus sombre que son panneau en sombre, plus
+        // clair en clair.
+        try expect(
+            resolved(.surfaceFieldToken, .dark).relativeLuminance < raised,
+            "dark: the field must be sunken below its panel"
+        )
+        try expect(
+            resolved(.surfaceFieldToken, .light).relativeLuminance > resolved(.surfaceSunken, .light).relativeLuminance,
+            "light: the field must be lighter than the tile"
+        )
+
+        // La sélection ne doit pas pouvoir être confondue avec le survol.
+        for scheme in [ColorScheme.light, .dark] {
+            let selected = resolved(.surfaceSelected, scheme)
+            let hovered = resolved(.surfaceHover, scheme)
+            try expect(
+                NSColor.contrastRatio(selected, hovered) > 1.04,
+                "selection and hover must stay distinguishable in \(scheme)"
+            )
+        }
+    }
+
+    /// L'échelle annonçait une grille de 4 pt et contenait 2, 6, 10, 14, 18, 20.
+    private static func spacingScaleStaysOnTheFourPointGrid() throws {
+        let scale: [(String, CGFloat)] = [
+            ("space4", FacioLayout.space4),
+            ("space8", FacioLayout.space8),
+            ("space12", FacioLayout.space12),
+            ("space16", FacioLayout.space16),
+            ("space24", FacioLayout.space24),
+            ("space32", FacioLayout.space32),
+            ("space40", FacioLayout.space40),
+            ("screenPadding", FacioLayout.screenPadding),
+            ("sectionSpacing", FacioLayout.sectionSpacing),
+            ("panelPadding", FacioLayout.panelPadding),
+            ("tilePadding", FacioLayout.tilePadding),
+            ("rowPadding", FacioLayout.rowPadding),
+            // Les alias hors grille doivent avoir été ramenés sur un cran valide.
+            ("space2", FacioLayout.space2),
+            ("space6", FacioLayout.space6),
+            ("space10", FacioLayout.space10),
+            ("space20", FacioLayout.space20)
+        ]
+        for (name, value) in scale {
+            try expect(
+                value > 0 && value.truncatingRemainder(dividingBy: 4) == 0,
+                "\(name) = \(value) is off the 4 pt grid"
+            )
+        }
+
+        // Trois rayons, pas cinq noms pour trois valeurs séparées de 1 pt.
+        try expectEqual(FacioLayout.radiusSmall, 5)
+        try expectEqual(FacioLayout.radiusMedium, 8)
+        try expect(FacioLayout.radiusFull >= 999, "the badge radius must be a capsule")
+        try expectEqual(FacioLayout.radiusBadge, FacioLayout.radiusFull)
+
+        // Le dense plafonne à la cible de clic minimale que le système s'impose.
+        try expect(
+            FacioLayout.Density.dense.rowHeight >= FacioLayout.iconHitTarget,
+            "the dense row must not fall below the minimum hit target"
+        )
+        try expect(
+            FacioLayout.Density.dense.controlHeight >= FacioLayout.iconHitTarget,
+            "the dense control must not fall below the minimum hit target"
+        )
+        try expect(
+            FacioLayout.Density.comfortable.rowHeight > FacioLayout.Density.dense.rowHeight,
+            "comfortable must actually be roomier than dense"
+        )
     }
 
     private static func responsiveWidthClassMapsBreakpoints() throws {

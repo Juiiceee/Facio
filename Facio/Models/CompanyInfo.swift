@@ -198,9 +198,9 @@ final class CompanyInfo: Identifiable, Codable {
     /// Couleur d'accent resolue (defaut: vert olive #6B8E3A)
     var accentNSColor: NSColor {
         guard let hex = couleurAccentHex else {
-            return NSColor(red: 0.42, green: 0.56, blue: 0.23, alpha: 1.0)
+            return NSColor(srgbRed: 0x4A / 255.0, green: 0x7A / 255.0, blue: 0x2B / 255.0, alpha: 1.0)
         }
-        return NSColor.fromHex(hex) ?? NSColor(red: 0.42, green: 0.56, blue: 0.23, alpha: 1.0)
+        return NSColor.fromHex(hex) ?? NSColor(srgbRed: 0x4A / 255.0, green: 0x7A / 255.0, blue: 0x2B / 255.0, alpha: 1.0)
     }
 
     var langueParDefaut: AppLanguage {

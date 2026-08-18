@@ -3,77 +3,89 @@ import SwiftUI
 /// Échelle typographique gouvernée de Facio.
 ///
 /// Toute taille de texte passe par ces tokens — aucune `.font(.system(size:))`
-/// arbitraire dans les vues. Les styles sont adossés aux styles dynamiques
-/// d'Apple (Dynamic Type) quand c'est possible, et n'utilisent une taille fixe
-/// que pour les grands nombres (KPI, horloge de timer) où la mise à l'échelle
-/// casserait l'alignement.
+/// arbitraire dans les vues.
+///
+/// **Sept paliers réellement distincts, plancher à 11 pt.** L'échelle précédente
+/// annonçait 22 tokens pour quatre paliers réels : `caption` et `captionSmall`
+/// se résolvaient tous les deux autour de 10 pt, indiscernables à l'œil, et
+/// portaient à eux seuls plus de la moitié du texte de l'application. Le palier
+/// manquant — 12 pt, `secondary` — est celui qui portait tout ce travail.
+///
+/// Les tailles sont fixes et en points macOS, comme spécifié par le design :
+/// l'alignement des colonnes de montants et la densité des tableaux ne
+/// survivent pas à une mise à l'échelle dynamique. Le jeu numérique est séparé
+/// et en **chiffres tabulaires** — les montants d'une colonne doivent s'aligner.
 ///
 /// Liste blanche — seuls cas où un `.font()` natif reste autorisé dans les vues :
 /// 1. dimensionnement d'un glyphe SF Symbol (`Image(systemName:).font(...)`) ;
-/// 2. tailles décoratives uniques (logo de la page À propos, « F » de repli) ;
-/// 3. le style `.plain` du champ « héros » du numéro de document et la taille
-///    `.title3` des champs de description du timer (mises en avant volontaires) ;
-/// 4. libellés de boutons à chrome custom (.plain) sans token iso-sémantique.
+/// 2. tailles décoratives uniques (logo de la page À propos, « F » de repli).
 /// Tout autre `.font()` natif est une dette : le migrer vers un token.
 enum FacioFont {
-    // MARK: - Titres
+    // MARK: - Paliers de texte (7)
 
-    /// Grand titre d'écran (en-tête de page).
-    static let screenTitle: Font = .title.weight(.bold)
-    /// Sous-titre d'écran sous le titre.
-    static let screenSubtitle: Font = .subheadline
+    /// 22 / semibold / −0,02 em — titre d'écran.
+    static let titleScreen: Font = .system(size: 22, weight: .semibold)
+    /// 17 / semibold — bandeau de document, nom de client.
+    static let titleHero: Font = .system(size: 17, weight: .semibold)
+    /// 15 / semibold — titre de section.
+    static let titleSection: Font = .system(size: 15, weight: .semibold)
+    /// 13 / semibold — titre de panneau, en-tête de colonne.
+    static let titlePanel: Font = .system(size: 13, weight: .semibold)
+    /// 13 / regular — texte courant, valeur de champ.
+    static let body: Font = .system(size: 13, weight: .regular)
+    /// 12 / regular — métadonnée lisible. Palier neuf : il remplace les 10 pt.
+    static let secondary: Font = .system(size: 12, weight: .regular)
+    /// 11 / medium — libellé de champ, badge. **Plancher : rien en dessous.**
+    static let label: Font = .system(size: 11, weight: .medium)
 
-    /// Titre de section / de panneau (SectionPanel).
-    static let sectionTitle: Font = .headline
+    // MARK: - Jeu numérique (chiffres tabulaires)
 
-    /// Titre d'une sous-section à l'intérieur d'un panneau.
-    static let subsectionTitle: Font = .subheadline.weight(.semibold)
+    /// 28 / mono semibold — valeur d'une tuile KPI.
+    static let metric: Font = .system(size: 28, weight: .semibold, design: .monospaced).monospacedDigit()
+    /// 28 / mono regular — minuteur.
+    static let clock: Font = .system(size: 28, weight: .regular, design: .monospaced).monospacedDigit()
+    /// 13 / mono medium — montant, en ligne comme en colonne.
+    static let amount: Font = .system(size: 13, weight: .medium, design: .monospaced).monospacedDigit()
+    /// 17 / mono semibold — total mis en avant (bandeau de document).
+    static let amountHero: Font = .system(size: 17, weight: .semibold, design: .monospaced).monospacedDigit()
+    /// 11 / mono medium — métadonnée numérique discrète.
+    static let metaValue: Font = .system(size: 11, weight: .medium, design: .monospaced).monospacedDigit()
 
-    /// Titre « héros » d'un éditeur (numéro de document, période de timesheet).
-    static let heroTitle: Font = .title2.weight(.semibold)
-    /// Total TTC héros de l'éditeur de document.
-    static let heroTotal: Font = .title.monospacedDigit().weight(.bold)
+    /// 13 / medium — **un compte n'est pas un montant.** Il reste en typo de
+    /// texte et porte toujours son unité (« 3 devis », pas « 3 » aligné comme
+    /// une somme dans la même mono que la tuile voisine).
+    static let count: Font = .system(size: 13, weight: .medium)
 
-    // MARK: - Formulaires
+    /// Texte monospace générique (signatures, identifiants, IBAN).
+    static let mono: Font = .system(size: 13, weight: .regular, design: .monospaced)
+    /// Monospace discret (hash tronqué, SQL).
+    static let monoSmall: Font = .system(size: 11, weight: .regular, design: .monospaced)
 
-    /// Libellé d'un champ de formulaire (LabeledField).
-    static let fieldLabel: Font = .subheadline
+    // MARK: - Noms historiques
+    //
+    // Conservés parce qu'ils sont appelés dans toutes les vues ; ils pointent
+    // désormais vers le palier de la nouvelle échelle qui porte leur rôle.
+    // Les deux paliers à 10 pt disparaissent ici : `caption` monte à 12 pt et
+    // `captionSmall` au plancher de 11 pt.
 
-    // MARK: - Lignes & listes
+    static let screenTitle: Font = titleScreen
+    static let screenSubtitle: Font = secondary
+    static let sectionTitle: Font = titleSection
+    static let subsectionTitle: Font = titlePanel
+    static let heroTitle: Font = titleHero
+    static let heroTotal: Font = .system(size: 22, weight: .semibold, design: .monospaced).monospacedDigit()
 
-    /// Titre d'une ligne de liste.
-    static let rowTitle: Font = .subheadline.weight(.medium)
-    /// Sous-titre / métadonnée d'une ligne.
-    static let rowSubtitle: Font = .caption
-    /// Valeur numérique d'une ligne de liste.
-    static let rowValue: Font = .subheadline.monospacedDigit()
-    /// Métadonnée numérique discrète (compteurs, totaux secondaires).
-    static let metaValue: Font = .caption.monospacedDigit()
+    static let fieldLabel: Font = label
+    static let rowTitle: Font = .system(size: 13, weight: .medium)
+    static let rowSubtitle: Font = secondary
+    static let rowValue: Font = amount
 
-    // MARK: - Corps & légendes
+    static let caption: Font = secondary
+    static let captionSmall: Font = label
 
-    static let body: Font = .body
-    static let caption: Font = .caption
-    static let captionSmall: Font = .caption2
-
-    // MARK: - Valeurs numériques
-
-    /// Valeur d'une tuile métrique standard.
-    static let metricValue: Font = .title2.monospacedDigit().weight(.semibold)
-    /// Valeur d'une tuile métrique « hero » (KPI principal mis en avant).
-    static let heroValue: Font = .system(size: 30, weight: .semibold, design: .rounded).monospacedDigit()
-    /// Chiffre monétaire inline (totaux).
-    static let amount: Font = .body.monospacedDigit().weight(.medium)
-    /// Total accentué (TTC).
-    static let amountEmphasis: Font = .title3.monospacedDigit().weight(.semibold)
-
-    // MARK: - Monospace / timer
-
-    /// Horloge de timer en cours (HH:MM:SS).
-    static let clock: Font = .system(size: 30, weight: .semibold, design: .monospaced)
-    /// Horloge de timer compacte.
-    static let clockCompact: Font = .system(.title3, design: .monospaced).weight(.semibold)
-    /// Texte monospace générique (signatures, identifiants).
-    static let mono: Font = .system(.body, design: .monospaced)
-    static let monoCaption: Font = .system(.caption, design: .monospaced)
+    static let metricValue: Font = metric
+    static let heroValue: Font = metric
+    static let amountEmphasis: Font = amountHero
+    static let clockCompact: Font = amountHero
+    static let monoCaption: Font = monoSmall
 }
