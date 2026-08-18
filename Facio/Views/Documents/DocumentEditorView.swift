@@ -389,9 +389,14 @@ struct DocumentEditorView: View {
         return document.accountingTotal(referenceCurrency: company.deviseComptable) != nil
     }
 
+    /// Chaque action porte un identifiant explicite et unique : voir le
+    /// commentaire de la barre d'outils de `ContentView`. Ces éléments-ci
+    /// s'insèrent et se retirent à chaque fois qu'on entre et sort d'un
+    /// document, donc ce sont eux qui croisaient ceux des autres sections.
     @ToolbarContentBuilder
     private var editorToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItem(id: FacioToolbarID.editorActions, placement: .primaryAction) {
+            HStack(spacing: FacioLayout.space4) {
             Button {
                 dupliquer()
             } label: {
@@ -428,6 +433,7 @@ struct DocumentEditorView: View {
                 Label(L10n.sendByEmail(lang), systemImage: "paperplane")
             }
             .help(L10n.sendByEmail(lang))
+            }
         }
     }
 

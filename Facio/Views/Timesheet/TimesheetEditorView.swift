@@ -59,7 +59,7 @@ struct TimesheetEditorView: View {
             resetRangeDraft()
         }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(id: FacioToolbarID.timesheetInvoice, placement: .primaryAction) {
                 if let invoice = dataStore.existingBillableHoursInvoice(for: timesheet) {
                     Button {
                         onOpenInvoice(invoice)
