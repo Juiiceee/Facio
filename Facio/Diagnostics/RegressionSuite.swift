@@ -238,7 +238,8 @@ enum FacioRegressionSuite {
         RegressionCase(name: "app lock countdown stays readable across the minute", run: appLockCountdownStaysReadableAcrossTheMinute),
         RegressionCase(name: "app lock auto-lock waits for the configured idle delay", run: appLockAutoLockWaitsForConfiguredIdleDelay),
         RegressionCase(name: "passcode flow numbers its steps and can go back", run: passcodeFlowNumbersItsStepsAndCanGoBack),
-        RegressionCase(name: "the two PDF exports of a document never share a filename", run: pdfExportsNeverShareAFilename)
+        RegressionCase(name: "the two PDF exports of a document never share a filename", run: pdfExportsNeverShareAFilename),
+        RegressionCase(name: "toolbar item identifiers are explicit and unique", run: toolbarIdentifiersAreExplicitAndUnique)
     ]
 
     // MARK: - Verrouillage par code
@@ -3992,6 +3993,35 @@ enum FacioRegressionSuite {
         let hostile = DocumentExportNaming.slug("A/B:C  *E")
         try expect(!hostile.contains("/") && !hostile.contains(":"), "path separators must not survive: \(hostile)")
         try expect(!hostile.contains("--"), "runs of punctuation must collapse: \(hostile)")
+    // MARK: - Barre d'outils
+
+    /// Deux éléments de barre d'outils ne peuvent pas porter le même
+    /// identifiant.
+    ///
+    /// Sans identifiant explicite, SwiftUI en génère un et le pont NSToolbar les
+    /// réattribue d'une vue à l'autre : au changement de section, les éléments de
+    /// la vue quittée étaient encore enregistrés quand ceux de la nouvelle
+    /// s'inséraient, et `-[NSToolbar _insertNewItemWithItemIdentifier:atIndex:]`
+    /// levait une exception qui tuait l'application — le plantage
+    /// « Ventes → Clients », confirmé par trois rapports système identiques.
+    private static func toolbarIdentifiersAreExplicitAndUnique() throws {
+        let all = FacioToolbarID.all
+
+        try expectEqual(Set(all).count, all.count)
+        try expect(!all.isEmpty, "the toolbar identifier list must not be empty")
+
+        for identifier in all {
+            try expect(
+                !identifier.trimmingCharacters(in: .whitespaces).isEmpty,
+                "an empty identifier is the same as no identifier at all"
+            )
+            // Un préfixe commun garantit qu'aucun ne peut entrer en collision
+            // avec un identifiant d'AppKit (« NSToolbarFlexibleSpaceItem »…).
+            try expect(
+                identifier.hasPrefix("facio."),
+                "\(identifier) must be namespaced so it cannot collide with an AppKit item"
+            )
+        }
     }
 
 }
