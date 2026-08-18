@@ -310,8 +310,12 @@ struct DashboardView: View {
 
     private func recentDocumentList(title: String, empty: String, documents: [Document]) -> some View {
         VStack(alignment: .leading, spacing: FacioLayout.space10) {
+            // Le titre s'aligne sur le TEXTE des lignes, pas sur le bord du
+            // panneau : une ligne commence par son filet de 3 pt puis son
+            // gouttière, le titre était donc décalé de la colonne qu'il coiffe.
             Text(title)
                 .font(FacioFont.sectionTitle)
+                .padding(.leading, FacioLayout.rowPadding + FacioLayout.space12 + 3)
             if documents.isEmpty {
                 FacioEmptyState(title: empty, systemImage: "tray")
                     .frame(maxWidth: .infinity, minHeight: 120)
@@ -348,12 +352,20 @@ struct DashboardView: View {
 
             Spacer(minLength: FacioLayout.space10)
 
+            // Montant et statut à largeur FIXE. Avec un montant élastique
+            // (92→130 pt) et un badge dimensionné par son texte
+            // (« Payée » / « Envoyée » / « Partiel »), la largeur minimale de
+            // chaque ligne variait : les lignes débordaient de leur colonne
+            // d'une quantité différente, d'où les bords droits en escalier et
+            // les badges rognés en « ✈ En ». À largeur fixe, toutes les lignes
+            // s'alignent et le titre reste lisible.
             MoneyText(amount: doc.totalTTC, currency: doc.currency, lang: numberFormat)
                 .font(FacioFont.amount)
                 .lineLimit(1)
-                .minimumScaleFactor(0.72)
-                .frame(minWidth: 92, maxWidth: 130, alignment: .trailing)
+                .minimumScaleFactor(0.6)
+                .frame(width: FacioLayout.rowAmountWidth, alignment: .trailing)
             StatusBadge(status: doc.status, isOverdue: doc.isOverdue, paidViaInstallments: doc.isPaidViaInstallments)
+                .frame(width: FacioLayout.rowStatusWidth, alignment: .leading)
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundStyle(.tertiary)

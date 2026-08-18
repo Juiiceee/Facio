@@ -41,6 +41,12 @@ enum FacioLayout {
     /// Padding intérieur d'une ligne de liste.
     static let rowPadding: CGFloat = space8
 
+    /// Colonnes fixes de la partie droite d'une ligne de liste. Sans elles, la
+    /// largeur minimale d'une ligne dépend de son contenu (« Payée » est plus
+    /// court que « Envoyée »), et les lignes d'une même liste ne s'alignent pas.
+    static let rowAmountWidth: CGFloat = 116
+    static let rowStatusWidth: CGFloat = 96
+
     // Crans hors grille, ramenés au multiple de 4 le plus proche (à égalité, on
     // arrondit vers le haut). Conservés le temps de migrer les appels.
     static let space2: CGFloat = space4
@@ -387,15 +393,39 @@ struct MetricTile: View {
                 .padding(.vertical, FacioLayout.space4)
 
             VStack(alignment: .leading, spacing: FacioLayout.space8) {
-                Text(title)
-                    .font(FacioFont.secondary)
-                    .foregroundStyle(Color.textSecondary)
-                    .lineLimit(2)
+                // L'ICÔNE VIT SUR LA LIGNE DU TITRE, pas à côté de la tuile
+                // entière. Placée dans la rangée horizontale extérieure, elle
+                // amputait la largeur du montant sur toute la hauteur : la
+                // valeur ne disposait que de ~108 pt pour ~187 pt de texte, et
+                // « 22 895,00 € » s'affichait « 22 895… ». Ici elle ne prend sa
+                // largeur que sur la ligne du titre, et le montant dispose de
+                // toute la tuile.
+                HStack(alignment: .top, spacing: FacioLayout.space8) {
+                    Text(title)
+                        .font(FacioFont.secondary)
+                        .foregroundStyle(Color.textSecondary)
+                        .lineLimit(2)
+
+                    Spacer(minLength: 0)
+
+                    Image(systemName: systemImage)
+                        .font(.title3)
+                        .foregroundStyle(intent.glyph)
+                        .frame(width: 30, height: 30)
+                        .background(intent.tint)
+                        .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusMedium))
+                }
+
                 Text(value)
                     .font(FacioFont.metric)
                     .foregroundStyle(Color.textPrimary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+                    // Un montant ne s'abrège pas : mieux vaut deux points de
+                    // corps en moins qu'un chiffre remplacé par « … ».
+                    .minimumScaleFactor(0.5)
+                    .allowsTightening(true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
                 if let trend {
                     trend.label
                 } else if let subtitle, !subtitle.isEmpty {
@@ -403,6 +433,7 @@ struct MetricTile: View {
                         .font(FacioFont.label)
                         .foregroundStyle(Color.textTertiary)
                         .lineLimit(2)
+                        .minimumScaleFactor(0.85)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
                     Text(" ")
@@ -411,20 +442,13 @@ struct MetricTile: View {
                         .hidden()
                 }
             }
-            .layoutPriority(1)
-
-            Spacer(minLength: 0)
-
-            Image(systemName: systemImage)
-                .font(.title3)
-                .foregroundStyle(intent.glyph)
-                .frame(width: 30, height: 30)
-                .background(intent.tint)
-                .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusMedium))
         }
         .padding(FacioLayout.tilePadding)
         .frame(maxWidth: .infinity, minHeight: 128, maxHeight: 148, alignment: .topLeading)
         .facioCardChrome(surface: .surfaceSunken)
+        // Le montant complet reste lisible à la souris même si la tuile est
+        // étroite au point de devoir réduire le corps.
+        .help("\(title) : \(value)")
     }
 }
 

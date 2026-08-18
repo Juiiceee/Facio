@@ -619,24 +619,28 @@ struct TimesheetEditorView: View {
         caption: String? = nil,
         value: Binding<Decimal>
     ) -> some View {
+        // Libellé, aide et valeur dérivée tiennent tous sur la MÊME ligne :
+        // chaque champ de la grille garde ainsi exactement la même hauteur, et
+        // « Seuil hebdo » cesse de flotter 40 pt au-dessus de « Taux normal ».
         VStack(alignment: .leading, spacing: FacioLayout.space4) {
-            Text(label)
-                .font(FacioFont.fieldLabel)
-                .foregroundStyle(.secondary)
+            HStack(spacing: FacioLayout.space4) {
+                Text(label)
+                    .font(FacioFont.fieldLabel)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                if let hint {
+                    FacioInfoHint(hint, label: label)
+                }
+                Spacer(minLength: FacioLayout.space4)
+                if let caption {
+                    Text(caption)
+                        .font(FacioFont.metaValue)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
             DecimalField(placeholder: placeholder, value: value)
                 .density(.regular)
-                .help(hint ?? "")
-            if let caption {
-                Text(caption)
-                    .font(FacioFont.metaValue)
-                    .foregroundStyle(.secondary)
-            }
-            if let hint {
-                Text(hint)
-                    .font(FacioFont.captionSmall)
-                    .foregroundStyle(.tertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
         }
     }
 
