@@ -3993,6 +3993,8 @@ enum FacioRegressionSuite {
         let hostile = DocumentExportNaming.slug("A/B:C  *E")
         try expect(!hostile.contains("/") && !hostile.contains(":"), "path separators must not survive: \(hostile)")
         try expect(!hostile.contains("--"), "runs of punctuation must collapse: \(hostile)")
+    }
+
     // MARK: - Barre d'outils
 
     /// Deux éléments de barre d'outils ne peuvent pas porter le même
