@@ -110,8 +110,14 @@ struct ClientListView: View {
     var body: some View {
         clientList
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Identifiant EXPLICITE et unique dans toute l'app : sans lui, SwiftUI
+        // génère un identifiant que le pont NSToolbar réutilise d'une vue à
+        // l'autre. Au changement de section, les éléments de l'ancienne vue
+        // sont encore enregistrés quand ceux de la nouvelle s'insèrent, et
+        // `-[NSToolbar _insertNewItemWithItemIdentifier:atIndex:]` lève une
+        // exception — le plantage « Ventes → Clients ».
         .toolbar {
-            ToolbarItem {
+            ToolbarItem(id: FacioToolbarID.clientsNew, placement: .primaryAction) {
                 Button(action: createClient) {
                     Label(L10n.newClient(lang), systemImage: "plus")
                 }

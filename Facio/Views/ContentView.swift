@@ -91,12 +91,30 @@ struct ContentView: View {
                 minHeight: FacioLayout.sheetMinHeight, idealHeight: FacioLayout.sheetIdealHeight, maxHeight: 720
             )
         }
+        // Un élément NOMMÉ par action, plutôt qu'un groupe anonyme.
+        //
+        // Sans identifiant explicite, SwiftUI en génère un, et le pont NSToolbar
+        // les réattribue d'une vue à l'autre : au changement de section, les
+        // éléments de la vue quittée sont encore enregistrés quand ceux de la
+        // nouvelle s'insèrent, et `-[NSToolbar _insertNewItemWithItemIdentifier:
+        // atIndex:]` lève une exception qui tue l'app. C'est la cause réelle du
+        // plantage « Ventes → Clients », confirmée par trois rapports système.
+        //
+        // Pas de garde sur le verrouillage ici : `FacioApp` ne monte plus du tout
+        // cette vue quand l'app est verrouillée, donc ni ces actions ni leurs
+        // raccourcis n'existent à ce moment-là.
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                // Plus de garde sur le verrouillage ici : `FacioApp` ne monte
-                // plus du tout cette vue quand l'app est verrouillée, donc ni
-                // ces actions ni leurs raccourcis n'existent à ce moment-là.
-                toolbarActions
+            ToolbarItem(id: FacioToolbarID.shellNew, placement: .primaryAction) {
+                newMenu
+            }
+            ToolbarItem(id: FacioToolbarID.shellPalette, placement: .primaryAction) {
+                commandPaletteButton
+            }
+            ToolbarItem(id: FacioToolbarID.shellPrivacy, placement: .primaryAction) {
+                privacyButton
+            }
+            ToolbarItem(id: FacioToolbarID.shellLock, placement: .primaryAction) {
+                lockButton
             }
         }
         .onChange(of: selectedSection) { _, newSection in
@@ -124,8 +142,7 @@ struct ContentView: View {
 
     // MARK: - Barre d'outils
 
-    @ViewBuilder
-    private var toolbarActions: some View {
+    private var newMenu: some View {
         Menu {
             Button {
                 newDocument(.facture)
@@ -147,7 +164,9 @@ struct ContentView: View {
             Label(L10n.new(lang), systemImage: "plus")
         }
         .help(L10n.new(lang))
+    }
 
+    private var commandPaletteButton: some View {
         Button {
             showCommandPalette = true
         } label: {
@@ -155,10 +174,12 @@ struct ContentView: View {
         }
         .keyboardShortcut("k", modifiers: .command)
         .help(L10n.commandPaletteTitle(lang))
+    }
 
-        // Le libellé suit l'état : il proposait « Masquer les montants » alors
-        // qu'ils étaient déjà masqués, donc l'infobulle et VoiceOver annonçaient
-        // l'inverse de ce qui allait se produire.
+    /// Le libellé suit l'état : il proposait « Masquer les montants » alors
+    /// qu'ils étaient déjà masqués, donc l'infobulle et VoiceOver annonçaient
+    /// l'inverse de ce qui allait se produire.
+    private var privacyButton: some View {
         Button {
             privacy.toggle()
         } label: {
@@ -169,18 +190,23 @@ struct ContentView: View {
         }
         .keyboardShortcut("h", modifiers: [.command, .shift])
         .help(privacy.hideAmounts ? L10n.privacyShow(lang) : L10n.privacyHide(lang))
+    }
 
-        // Verrouillage manuel — visible seulement si un code est configuré.
-        if appLock.isEnabled {
-            Button {
-                appLock.lockNow()
-            } label: {
-                Label(L10n.lockNow(lang), systemImage: "lock")
-            }
-            // Le raccourci ⌃⌘L est porté par la commande du menu de l'app
-            // (FacioApp) — le dupliquer ici le rendrait ambigu.
-            .help(L10n.lockNow(lang))
+    /// Verrouillage manuel. L'élément existe TOUJOURS et se désactive au lieu de
+    /// disparaître : moins il y a d'insertions et de retraits dans la barre,
+    /// moins le pont NSToolbar a d'occasions de trébucher. (La cause prouvée est
+    /// la collision d'identifiants ; garder l'élément en place est une ceinture
+    /// en plus des bretelles.)
+    private var lockButton: some View {
+        Button {
+            appLock.lockNow()
+        } label: {
+            Label(L10n.lockNow(lang), systemImage: "lock")
         }
+        // Le raccourci ⌃⌘L est porté par la commande du menu de l'app
+        // (FacioApp) — le dupliquer ici le rendrait ambigu.
+        .help(L10n.lockNow(lang))
+        .disabled(!appLock.isEnabled)
     }
 
     // MARK: - Colonne liste
