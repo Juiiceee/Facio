@@ -15,6 +15,15 @@ struct FacioToastData: Identifiable, Equatable {
     let message: String
     let tone: InlineTone
     var icon: String?
+    /// Libellé de l'action portée par le toast (« Rétablir », « Révéler dans le
+    /// Finder »). Sans action, le toast reste purement informatif.
+    var actionTitle: String?
+    /// L'action elle-même. Exclue de l'égalité : deux closures ne se comparent pas.
+    var action: (() -> Void)?
+
+    static func == (lhs: FacioToastData, rhs: FacioToastData) -> Bool {
+        lhs.id == rhs.id
+    }
 }
 
 @MainActor
@@ -24,8 +33,25 @@ final class ToastCenter {
     private var dismissTask: Task<Void, Never>?
 
     /// Affiche un toast 3 s ; un nouveau toast remplace le précédent.
-    func show(_ message: String, tone: InlineTone = .success, icon: String? = nil) {
-        let toast = FacioToastData(message: message, tone: tone, icon: icon)
+    ///
+    /// Un toast peut porter UNE action. Sans elle, « Entrée supprimée » ne
+    /// laissait aucune issue : le geste pour défaire vivait dans une barre
+    /// séparée, posée en haut de page alors que le bouton qui l'avait déclenchée
+    /// pouvait se trouver deux mille pixels plus bas.
+    func show(
+        _ message: String,
+        tone: InlineTone = .success,
+        icon: String? = nil,
+        actionTitle: String? = nil,
+        action: (() -> Void)? = nil
+    ) {
+        let toast = FacioToastData(
+            message: message,
+            tone: tone,
+            icon: icon,
+            actionTitle: actionTitle,
+            action: action
+        )
         withAnimation(FacioMotion.emphasis) {
             current = toast
         }
@@ -40,6 +66,14 @@ final class ToastCenter {
             }
         }
     }
+
+    /// Retire le toast courant — appelé quand son action a été utilisée.
+    func dismiss() {
+        dismissTask?.cancel()
+        withAnimation(FacioMotion.emphasis) {
+            current = nil
+        }
+    }
 }
 
 private struct FacioToastHost: ViewModifier {
@@ -51,17 +85,30 @@ private struct FacioToastHost: ViewModifier {
             if let toast = toastCenter.current {
                 HStack(spacing: FacioLayout.space8) {
                     Image(systemName: toast.icon ?? toast.tone.icon)
-                        .foregroundStyle(toast.tone.color)
+                        .foregroundStyle(toast.tone.intent.glyph)
                     Text(toast.message)
                         .font(FacioFont.rowTitle)
+                        .foregroundStyle(Color.textPrimary)
+
+                    if let actionTitle = toast.actionTitle, let action = toast.action {
+                        Button(actionTitle) {
+                            action()
+                            toastCenter.dismiss()
+                        }
+                        .buttonStyle(.facio(.tertiary))
+                    }
                 }
                 .padding(.horizontal, FacioLayout.space16)
-                .padding(.vertical, FacioLayout.space10)
-                .background(Color.surfacePanel, in: Capsule())
-                .overlay(Capsule().strokeBorder(toast.tone.color.opacity(0.35), lineWidth: 1))
-                .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
-                .padding(.bottom, FacioLayout.space20)
-                .allowsHitTesting(false)
+                .padding(.vertical, FacioLayout.space12)
+                // Le toast flotte : c'est le plan e3. Il portait la seule ombre
+                // de l'app, écrite à la main avec un noir à 12 %.
+                .background(Color.surfaceFloat, in: Capsule())
+                .overlay(Capsule().strokeBorder(toast.tone.intent.glyph.opacity(0.35), lineWidth: 1))
+                .shadow(color: FacioElevation.e3.shadowColor, radius: FacioElevation.e3.shadowRadius, y: FacioElevation.e3.shadowY)
+                .padding(.bottom, FacioLayout.space24)
+                // Cliquable UNIQUEMENT quand il porte une action : un toast
+                // informatif ne doit pas intercepter les clics du contenu.
+                .allowsHitTesting(toast.action != nil)
                 .transition(FacioMotion.slideUp)
                 .transaction { transaction in
                     if reduceMotion { transaction.animation = nil }

@@ -2,117 +2,264 @@ import SwiftUI
 
 // MARK: - Navigation State
 
-enum SidebarSection: String, Hashable, Identifiable {
-    case factures
-    case devis
-    case clients
-    case heures
-    case planning
+/// Les cinq destinations de Facio.
+///
+/// Les groupes « Documents » et « Gestion » ont disparu : un client n'est pas
+/// plus de la « gestion » qu'une facture n'est un « document », et « Gestion »
+/// ne veut rien dire pour l'utilisateur. Le rythme devient régulier — identité,
+/// cinq items, filet, minuteur, sync.
+///
+/// **Ventes** réunit factures et devis : ils partagent le même éditeur, le même
+/// modèle et les mêmes statuts, donc ils deviennent un segment en tête de liste
+/// et non deux entrées. **Temps** réunit les périodes et l'agrégation, qui
+/// lisaient exactement la même donnée depuis deux sections différentes.
+enum SidebarSection: String, Hashable, Identifiable, CaseIterable {
     case dashboard
+    case ventes
+    case clients
+    case temps
     case parametres
 
     var id: String { rawValue }
 
-    var label: String {
-        label(for: .fr)
-    }
-
     func label(for lang: AppLanguage) -> String {
         switch self {
-        case .factures: return L10n.sidebarInvoices(lang)
-        case .devis: return L10n.sidebarQuotes(lang)
-        case .clients: return L10n.sidebarClients(lang)
-        case .heures: return L10n.sidebarTimeTracking(lang)
-        case .planning: return L10n.sidebarPlanning(lang)
         case .dashboard: return L10n.sidebarDashboard(lang)
+        case .ventes: return L10n.sidebarSales(lang)
+        case .clients: return L10n.sidebarClients(lang)
+        case .temps: return L10n.sidebarTime(lang)
         case .parametres: return L10n.sidebarSettings(lang)
+        }
+    }
+
+    func help(for lang: AppLanguage) -> String? {
+        switch self {
+        case .ventes: return L10n.sidebarSalesHelp(lang)
+        case .temps: return L10n.sidebarTimeHelp(lang)
+        default: return nil
         }
     }
 
     var icon: String {
         switch self {
-        case .factures: return "doc.text"
-        case .devis: return "doc.text.magnifyingglass"
+        case .dashboard: return "square.grid.2x2"
+        case .ventes: return "doc.text"
         case .clients: return "person.2"
-        case .heures: return "clock"
-        case .planning: return "calendar.badge.clock"
-        case .dashboard: return "chart.bar"
+        case .temps: return "clock"
         case .parametres: return "gearshape"
         }
     }
+
+    /// Les sections qui ont une colonne liste. Ailleurs, la colonne se replie à
+    /// zéro — elle ne disparaît pas de la structure, sinon le châssis se
+    /// reconstruit.
+    ///
+    /// Clients en fait partie : son carnet EST une liste, et le loger dans la
+    /// colonne prévue pour ça évite en prime que la largeur du détail balaye le
+    /// seuil responsive pendant l'animation de repli (voir `ClientListView`).
+    var hasList: Bool {
+        self == .ventes || self == .temps || self == .clients
+    }
 }
 
-// MARK: - Sidebar View
+// MARK: - Sidebar
 
 struct SidebarView: View {
     @Binding var selection: SidebarSection?
+    /// Rejoindre la saisie en cours depuis le minuteur de fenêtre.
+    var onOpenRunningEntry: () -> Void = {}
+    /// Le bloc d'identité mène à la fiche de l'entreprise : c'est le seul
+    /// endroit où l'on modifie ce qu'il affiche.
+    var onOpenCompanySettings: () -> Void = {}
+
     @Environment(DataStore.self) private var dataStore
+    @Environment(SyncService.self) private var syncService
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
     private var companyName: String {
         let trimmed = dataStore.companyInfo.nom.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "Facio" : trimmed
     }
 
     var body: some View {
-        List(selection: $selection) {
-            Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: FacioLayout.space8) {
-                        Image(systemName: "building.2")
-                            .foregroundStyle(Color.appPrimary(from: dataStore.companyInfo))
-                        Text(companyName)
-                            .font(FacioFont.sectionTitle)
-                            .lineLimit(1)
-                            .help(companyName)
-                    }
+        VStack(spacing: 0) {
+            List(selection: $selection) {
+                Section {
+                    identityHeader
+                }
 
-                    if let running = dataStore.runningTimeEntryContext {
-                        Label(running.timesheet.clientDisplayName.isEmpty ? L10n.timerRunning(lang) : running.timesheet.clientDisplayName, systemImage: "timer")
-                            .font(FacioFont.caption)
-                            .foregroundStyle(Color.intentSuccess)
-                            .lineLimit(1)
+                Section {
+                    ForEach(SidebarSection.allCases) { section in
+                        row(for: section)
+                            .tag(section)
                     }
                 }
-                .padding(.vertical, 6)
             }
+            .listStyle(.sidebar)
 
-            Section {
-                Label(SidebarSection.dashboard.label(for: lang), systemImage: SidebarSection.dashboard.icon)
-                    .tag(SidebarSection.dashboard)
-            }
-
-            Section(L10n.sidebarDocuments(lang)) {
-                Label(SidebarSection.factures.label(for: lang), systemImage: SidebarSection.factures.icon)
-                    .tag(SidebarSection.factures)
-
-                Label(SidebarSection.devis.label(for: lang), systemImage: SidebarSection.devis.icon)
-                    .tag(SidebarSection.devis)
-            }
-
-            Section(L10n.sidebarManagement(lang)) {
-                Label(SidebarSection.clients.label(for: lang), systemImage: SidebarSection.clients.icon)
-                    .tag(SidebarSection.clients)
-
-                Label(SidebarSection.heures.label(for: lang), systemImage: SidebarSection.heures.icon)
-                    .tag(SidebarSection.heures)
-                    .help(L10n.sidebarTimeTrackingHelp(lang))
-
-                Label(SidebarSection.planning.label(for: lang), systemImage: SidebarSection.planning.icon)
-                    .tag(SidebarSection.planning)
-                    .help(L10n.sidebarPlanningHelp(lang))
-            }
-
-            Section {
-                Label(SidebarSection.parametres.label(for: lang), systemImage: SidebarSection.parametres.icon)
-                    .tag(SidebarSection.parametres)
-            }
+            Divider()
+            FacioTimerControl(onOpen: onOpenRunningEntry)
+            Divider()
+            syncRow
         }
-        .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(
             min: FacioLayout.sidebarMin,
             ideal: FacioLayout.sidebarIdeal,
             max: FacioLayout.sidebarMax
         )
+    }
+
+    // MARK: Identité
+
+    private var identityHeader: some View {
+        Button(action: onOpenCompanySettings) {
+            identityHeaderContent
+        }
+        .buttonStyle(.plain)
+        .help(L10n.openCompanySettings(lang))
+        .accessibilityLabel(L10n.openCompanySettings(lang))
+    }
+
+    private var identityHeaderContent: some View {
+        HStack(spacing: FacioLayout.space8) {
+            Text(initials)
+                .font(FacioFont.label)
+                .foregroundStyle(Color.textOnAccent)
+                .frame(width: 26, height: 26)
+                .background(Color.accent)
+                .clipShape(Circle())
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(companyName)
+                    .font(FacioFont.titlePanel)
+                    .foregroundStyle(Color.textPrimary)
+                    .lineLimit(1)
+                Text(dataStore.companyInfo.deviseComptable.rawValue)
+                    .font(FacioFont.label)
+                    .foregroundStyle(Color.textTertiary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, FacioLayout.space4)
+        .contentShape(Rectangle())
+        .facioHoverable(radius: FacioLayout.radiusMedium)
+    }
+
+    private var initials: String {
+        let words = companyName
+            .split(separator: " ")
+            .prefix(2)
+            .compactMap { $0.first.map(String.init) }
+        return words.joined().uppercased()
+    }
+
+    // MARK: Items
+
+    @ViewBuilder
+    private func row(for section: SidebarSection) -> some View {
+        HStack(spacing: FacioLayout.space8) {
+            Label(section.label(for: lang), systemImage: section.icon)
+            Spacer(minLength: FacioLayout.space4)
+            if let badge = badge(for: section) {
+                SidebarBadge(count: badge.count, intent: badge.intent, label: badge.label)
+            }
+        }
+        .help(section.help(for: lang) ?? "")
+    }
+
+    /// Trois compteurs, pas plus — chacun rattaché à une action réelle.
+    /// Il fallait auparavant ouvrir le tableau de bord pour savoir s'il y avait
+    /// quelque chose à faire, alors que la barre latérale est visible en
+    /// permanence.
+    private func badge(for section: SidebarSection) -> (count: Int, intent: FacioIntent, label: String)? {
+        switch section {
+        case .ventes:
+            let count = dataStore.documents.filter { $0.type == .facture && $0.isOverdue }.count
+            guard count > 0 else { return nil }
+            return (count, .danger, L10n.sidebarOverdueBadge(lang, count: count))
+        case .temps:
+            let count = dataStore.timesheets.filter { $0.hasClient && !$0.hasGeneratedInvoice && $0.totalHeures > 0 }.count
+            guard count > 0 else { return nil }
+            return (count, .info, L10n.sidebarToBillBadge(lang, count: count))
+        case .parametres:
+            let count = missingLegalDetails
+            guard count > 0 else { return nil }
+            return (count, .warning, L10n.sidebarSettingsBadge(lang, count: count))
+        case .dashboard, .clients:
+            return nil
+        }
+    }
+
+    /// Mentions sans lesquelles une facture française n'est pas valide — et sans
+    /// lesquelles l'export Factur-X est refusé, aujourd'hui seulement au moment
+    /// de l'export, par une alerte.
+    private var missingLegalDetails: Int {
+        let company = dataStore.companyInfo
+        return [company.nom, company.adresse, company.siret]
+            .filter { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .count
+    }
+
+    // MARK: Sync
+
+    private var syncRow: some View {
+        HStack(spacing: FacioLayout.space8) {
+            Image(systemName: syncGlyph)
+                .font(FacioFont.label)
+                .foregroundStyle(syncTone)
+            Text(syncLabel)
+                .font(FacioFont.label)
+                .foregroundStyle(Color.textTertiary)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, FacioLayout.space12)
+        .padding(.vertical, FacioLayout.space8)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var syncGlyph: String {
+        guard SyncConfig.isEnabled else { return "icloud.slash" }
+        if syncService.isSyncing { return "arrow.triangle.2.circlepath" }
+        return syncService.lastSyncDate == nil ? "icloud" : "checkmark.icloud"
+    }
+
+    private var syncTone: Color {
+        guard SyncConfig.isEnabled else { return .textTertiary }
+        return syncService.lastSyncDate == nil ? Color.textTertiary : FacioIntent.success.glyph
+    }
+
+    /// Horodaté à la minute : « Synchronisé » sans heure ne permet pas de
+    /// distinguer « il y a trente secondes » de « ce matin ».
+    private var syncLabel: String {
+        guard SyncConfig.isEnabled else { return L10n.sidebarSyncOff(lang) }
+        if syncService.isSyncing { return L10n.sidebarSyncing(lang) }
+        guard let date = syncService.lastSyncDate else { return L10n.sidebarSyncNever(lang) }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return L10n.sidebarSyncedAt(lang, time: formatter.string(from: date))
+    }
+}
+
+// MARK: - Badge
+
+/// Compteur de la barre latérale. Capsule teintée : le chiffre porte le sens,
+/// la couleur n'est qu'un accélérateur de lecture.
+private struct SidebarBadge: View {
+    let count: Int
+    let intent: FacioIntent
+    let label: String
+
+    var body: some View {
+        Text("\(count)")
+            .font(FacioFont.label)
+            .foregroundStyle(intent.onTint)
+            .padding(.horizontal, FacioLayout.space8)
+            .frame(minHeight: FacioLayout.density.badgeHeight - FacioLayout.space4)
+            .background(intent.tint)
+            .clipShape(Capsule())
+            .accessibilityLabel(label)
     }
 }

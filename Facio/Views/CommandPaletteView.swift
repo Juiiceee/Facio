@@ -64,18 +64,10 @@ struct CommandPaletteView: View {
             PaletteAction(
                 id: "open-planning",
                 title: L10n.timeHubOpenPlanning(lang),
-                subtitle: L10n.sidebarPlanning(lang),
+                subtitle: L10n.sidebarTime(lang),
                 systemImage: "calendar.badge.clock"
             ) {
-                goTo(.planning)
-            },
-            PaletteAction(
-                id: "open-time-calendar",
-                title: L10n.timeHubOpenCalendar(lang),
-                subtitle: L10n.sidebarPlanning(lang),
-                systemImage: "calendar"
-            ) {
-                goTo(.planning)
+                goTo(.temps)
             },
             PaletteAction(
                 id: "settings-payment",
@@ -128,10 +120,10 @@ struct CommandPaletteView: View {
                 PaletteAction(
                     id: "start-timer",
                     title: L10n.timeHubStartTimer(lang),
-                    subtitle: L10n.sidebarPlanning(lang),
+                    subtitle: L10n.sidebarTime(lang),
                     systemImage: "play.fill"
                 ) {
-                    goTo(.planning)
+                    goTo(.temps)
                 }
             )
         }
@@ -217,7 +209,7 @@ struct CommandPaletteView: View {
                 subtitle: document.clientNom.isEmpty ? document.type.label(for: lang) : document.clientNom,
                 systemImage: document.type == .facture ? "doc.text" : "doc.text.magnifyingglass"
             ) {
-                selectedSection = document.type == .facture ? .factures : .devis
+                selectedSection = .ventes
                 selectedDocumentId = document.id
                 selectedTimesheetId = nil
                 selectedClientId = nil
@@ -406,7 +398,7 @@ struct CommandPaletteView: View {
     }
 
     private func openInvoice(_ invoice: Document) {
-        selectedSection = .factures
+        selectedSection = .ventes
         selectedDocumentId = invoice.id
         selectedTimesheetId = nil
         selectedClientId = nil
@@ -415,7 +407,7 @@ struct CommandPaletteView: View {
 
     private func createDocument(type: DocumentType) {
         let document = dataStore.createDocument(type: type)
-        selectedSection = type == .facture ? .factures : .devis
+        selectedSection = .ventes
         selectedDocumentId = document.id
         selectedTimesheetId = nil
         selectedClientId = nil
@@ -434,7 +426,11 @@ struct CommandPaletteView: View {
     private func exportPDF(_ document: Document) {
         let pdfData = PDFGenerator(document: document, company: dataStore.companyInfo).generate()
         Task {
-            _ = await ExportService.exportPDF(data: pdfData, defaultFilename: document.number, language: lang)
+            _ = await ExportService.exportPDF(
+                data: pdfData,
+                defaultFilename: DocumentExportNaming.pdfFilename(number: document.number, clientName: document.clientNom),
+                language: lang
+            )
         }
         dismiss()
     }

@@ -4,12 +4,21 @@ struct ContentView: View {
     @Environment(DataStore.self) private var dataStore
     @Environment(PrivacyMode.self) private var privacy
     @Environment(AppLock.self) private var appLock
+
     @State private var selectedSection: SidebarSection? = .dashboard
     @State private var selectedDocumentId: UUID?
     @State private var selectedTimesheetId: UUID?
     @State private var selectedClientId: UUID?
     @State private var selectedSettingsTab = 0
     @State private var showCommandPalette = false
+
+    /// Segment en tête de la liste « Ventes ». Factures et devis partagent le
+    /// même éditeur et le même modèle : deux entrées de barre latérale pour un
+    /// seul `DocumentType` étaient un coût de navigation pur.
+    @State private var salesType: DocumentType = .facture
+    /// Entrée « Toute l'activité » en tête de la liste des périodes : c'est
+    /// l'agrégation qui vivait dans une seconde section de la barre latérale.
+    @State private var timeShowsAllActivity = false
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
 
@@ -23,41 +32,38 @@ struct ContentView: View {
         return dataStore.timesheets.first { $0.id == id }
     }
 
-    private var usesContentColumn: Bool {
-        switch selectedSection {
-        case .factures, .devis, .heures:
-            return true
-        case .clients, .planning, .dashboard, .parametres, .none:
-            return false
-        }
-    }
+    private var hasList: Bool { selectedSection?.hasList == true }
 
     var body: some View {
-        Group {
-            if usesContentColumn {
-                NavigationSplitView {
-                    SidebarView(selection: $selectedSection)
-                } content: {
-                    contentForSection
-                        .navigationSplitViewColumnWidth(
-                            min: FacioLayout.contentColumnMin,
-                            ideal: FacioLayout.contentColumnIdeal,
-                            max: FacioLayout.contentColumnMax
-                        )
-                } detail: {
-                    detailForSection
-                        .frame(minWidth: FacioLayout.detailMin)
-                        .facioResponsiveContainer()
-                }
-            } else {
-                NavigationSplitView {
-                    SidebarView(selection: $selectedSection)
-                } detail: {
-                    detailForSection
-                        .frame(minWidth: FacioLayout.detailMin)
-                        .facioResponsiveContainer()
-                }
-            }
+        // UN SEUL NavigationSplitView, quelle que soit la section.
+        //
+        // Le châssis instanciait deux structures différentes selon la section :
+        // passer de Ventes (3 colonnes) au Tableau de bord (2 colonnes)
+        // détruisait et recréait toute la fenêtre, donc les largeurs de colonnes
+        // redimensionnées et l'état de repli de la barre latérale étaient perdus,
+        // sans animation. C'était le défaut structurel le plus visible du produit.
+        //
+        // La colonne liste ne disparaît pas de la STRUCTURE : elle se replie à
+        // zéro. C'est ce qui suffit à ne plus reconstruire le châssis — garder
+        // une bande visible n'apportait rien, et lui réserver 44 pt privait la
+        // colonne de détail d'une largeur dont « Clients » a besoin.
+        NavigationSplitView {
+            SidebarView(
+                selection: $selectedSection,
+                onOpenRunningEntry: { openRunningEntry() },
+                onOpenCompanySettings: { openCompanySettings() }
+            )
+        } content: {
+            contentColumn
+                .navigationSplitViewColumnWidth(
+                    min: hasList ? FacioLayout.contentColumnMin : 0,
+                    ideal: hasList ? FacioLayout.contentColumnIdeal : 0,
+                    max: hasList ? FacioLayout.contentColumnMax : 0
+                )
+        } detail: {
+            detailForSection
+                .frame(minWidth: FacioLayout.detailMin)
+                .facioResponsiveContainer()
         }
         .navigationSplitViewStyle(.balanced)
         .facioToastHost()
@@ -89,136 +95,201 @@ struct ContentView: View {
                 minHeight: FacioLayout.sheetMinHeight, idealHeight: FacioLayout.sheetIdealHeight, maxHeight: 720
             )
         }
+        // Un élément NOMMÉ par action, plutôt qu'un groupe anonyme.
+        //
+        // Sans identifiant explicite, SwiftUI en génère un, et le pont NSToolbar
+        // les réattribue d'une vue à l'autre : au changement de section, les
+        // éléments de la vue quittée sont encore enregistrés quand ceux de la
+        // nouvelle s'insèrent, et `-[NSToolbar _insertNewItemWithItemIdentifier:
+        // atIndex:]` lève une exception qui tue l'app. C'est la cause réelle du
+        // plantage « Ventes → Clients », confirmée par trois rapports système.
+        //
+        // Pas de garde sur le verrouillage ici : `FacioApp` ne monte plus du tout
+        // cette vue quand l'app est verrouillée, donc ni ces actions ni leurs
+        // raccourcis n'existent à ce moment-là.
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                // Plus de garde sur le verrouillage ici : `FacioApp` ne monte
-                // plus du tout cette vue quand l'app est verrouillée, donc ni
-                // ces actions ni leurs raccourcis n'existent à ce moment-là.
-                toolbarActions
+            ToolbarItem(id: FacioToolbarID.shellNew, placement: .primaryAction) {
+                newMenu
+            }
+            ToolbarItem(id: FacioToolbarID.shellPalette, placement: .primaryAction) {
+                commandPaletteButton
+            }
+            ToolbarItem(id: FacioToolbarID.shellPrivacy, placement: .primaryAction) {
+                privacyButton
+            }
+            ToolbarItem(id: FacioToolbarID.shellLock, placement: .primaryAction) {
+                lockButton
             }
         }
         .onChange(of: selectedSection) { _, newSection in
             switch newSection {
-            case .factures:
-                if selectedDocument?.type != .facture {
-                    selectedDocumentId = nil
-                }
+            case .ventes:
                 selectedTimesheetId = nil
                 selectedClientId = nil
-            case .devis:
-                if selectedDocument?.type != .devis {
-                    selectedDocumentId = nil
-                }
-                selectedTimesheetId = nil
-                selectedClientId = nil
-            case .heures:
+            case .temps:
                 selectedDocumentId = nil
                 selectedClientId = nil
             case .clients:
                 selectedDocumentId = nil
                 selectedTimesheetId = nil
-            case .planning, .dashboard, .parametres, .none:
+            case .dashboard, .parametres, .none:
                 selectedDocumentId = nil
                 selectedTimesheetId = nil
                 selectedClientId = nil
             }
         }
+        .onChange(of: salesType) { _, newType in
+            // Le segment change de type : on ne garde pas un document de l'autre.
+            if selectedDocument?.type != newType { selectedDocumentId = nil }
+        }
     }
 
-    @ViewBuilder
-    private var toolbarActions: some View {
-        // Masqué sur « Heures & facturation » : sur cette page on fait un
-        // relevé d'heures (« Nouvelle période »), pas une facture — le menu
-        // « Nouveau » global y prêtait à confusion.
-        if selectedSection != .heures {
-            Menu {
-                Button {
-                    newDocument(.facture)
-                } label: {
-                    Label(L10n.quickCreateInvoice(lang), systemImage: SidebarSection.factures.icon)
-                }
-                Button {
-                    newDocument(.devis)
-                } label: {
-                    Label(L10n.quickCreateQuote(lang), systemImage: SidebarSection.devis.icon)
-                }
-                Divider()
-                Button {
-                    newClient()
-                } label: {
-                    Label(L10n.quickCreateClient(lang), systemImage: "person.crop.circle.badge.plus")
-                }
-            } label: {
-                Label(L10n.new(lang), systemImage: "plus")
-            }
-            .help(L10n.new(lang))
-        }
+    // MARK: - Barre d'outils
 
+    private var newMenu: some View {
+        Menu {
+            Button {
+                newDocument(.facture)
+            } label: {
+                Label(L10n.quickCreateInvoice(lang), systemImage: "doc.text")
+            }
+            Button {
+                newDocument(.devis)
+            } label: {
+                Label(L10n.quickCreateQuote(lang), systemImage: "doc.text.magnifyingglass")
+            }
+            Divider()
+            Button {
+                newClient()
+            } label: {
+                Label(L10n.quickCreateClient(lang), systemImage: "person.crop.circle.badge.plus")
+            }
+        } label: {
+            Label(L10n.new(lang), systemImage: "plus")
+        }
+        .help(L10n.new(lang))
+    }
+
+    private var commandPaletteButton: some View {
         Button {
             showCommandPalette = true
         } label: {
-            Label(L10n.commandPaletteTitle(lang), systemImage: "command")
+            Label(L10n.commandPaletteTitle(lang), systemImage: "magnifyingglass")
         }
         .keyboardShortcut("k", modifiers: .command)
         .help(L10n.commandPaletteTitle(lang))
+    }
 
+    /// Le libellé suit l'état : il proposait « Masquer les montants » alors
+    /// qu'ils étaient déjà masqués, donc l'infobulle et VoiceOver annonçaient
+    /// l'inverse de ce qui allait se produire.
+    private var privacyButton: some View {
         Button {
             privacy.toggle()
         } label: {
-            Label(L10n.privacyToggle(lang), systemImage: privacy.hideAmounts ? "eye.slash" : "eye")
+            Label(
+                privacy.hideAmounts ? L10n.privacyShow(lang) : L10n.privacyHide(lang),
+                systemImage: privacy.hideAmounts ? "eye.slash" : "eye"
+            )
         }
         .keyboardShortcut("h", modifiers: [.command, .shift])
-        .help(L10n.privacyToggle(lang))
+        .help(privacy.hideAmounts ? L10n.privacyShow(lang) : L10n.privacyHide(lang))
+    }
 
-        // Verrouillage manuel — visible seulement si un code est configuré.
-        if appLock.isEnabled {
-            Button {
-                appLock.lockNow()
-            } label: {
-                Label(L10n.lockNow(lang), systemImage: "lock")
-            }
-            // Le raccourci ⌃⌘L est porté par la commande du menu de l'app
-            // (FacioApp) — le dupliquer ici le rendrait ambigu.
-            .help(L10n.lockNow(lang))
+    /// Verrouillage manuel. L'élément existe TOUJOURS et se désactive au lieu de
+    /// disparaître : moins il y a d'insertions et de retraits dans la barre,
+    /// moins le pont NSToolbar a d'occasions de trébucher. (La cause prouvée est
+    /// la collision d'identifiants ; garder l'élément en place est une ceinture
+    /// en plus des bretelles.)
+    private var lockButton: some View {
+        Button {
+            appLock.lockNow()
+        } label: {
+            Label(L10n.lockNow(lang), systemImage: "lock")
+        }
+        // Le raccourci ⌃⌘L est porté par la commande du menu de l'app
+        // (FacioApp) — le dupliquer ici le rendrait ambigu.
+        .help(L10n.lockNow(lang))
+        .disabled(!appLock.isEnabled)
+    }
+
+    // MARK: - Colonne liste
+
+    @ViewBuilder
+    private var contentColumn: some View {
+        switch selectedSection {
+        case .ventes:
+            salesList
+        case .temps:
+            timeList
+        case .clients:
+            ClientListView(selectedClientId: $selectedClientId)
+        case .dashboard, .parametres, .none:
+            // Rien à lister : la colonne existe toujours — c'est elle qui évite
+            // la reconstruction du châssis — mais elle ne prend aucune place.
+            Color.clear.frame(width: 0)
         }
     }
 
-    // MARK: - Content column (middle)
+    private var salesList: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $salesType) {
+                Text(L10n.sidebarInvoices(lang)).tag(DocumentType.facture)
+                Text(L10n.sidebarQuotes(lang)).tag(DocumentType.devis)
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .padding(.horizontal, FacioLayout.space12)
+            .padding(.vertical, FacioLayout.space8)
 
-    @ViewBuilder
-    private var contentForSection: some View {
-        switch selectedSection {
-        case .factures:
+            Divider()
+
             DocumentListView(
-                documentType: .facture,
+                documentType: salesType,
                 selectedDocumentId: $selectedDocumentId
             ) { document in
-                selectedSection = document.type == .facture ? .factures : .devis
-                selectedDocumentId = document.id
+                openDocument(document)
             }
-        case .devis:
-            DocumentListView(
-                documentType: .devis,
-                selectedDocumentId: $selectedDocumentId
-            ) { document in
-                selectedSection = document.type == .facture ? .factures : .devis
-                selectedDocumentId = document.id
+        }
+    }
+
+    private var timeList: some View {
+        VStack(spacing: 0) {
+            Button {
+                timeShowsAllActivity = true
+                selectedTimesheetId = nil
+            } label: {
+                HStack(spacing: FacioLayout.space8) {
+                    Image(systemName: "chart.bar")
+                    Text(L10n.allActivity(lang))
+                    Spacer()
+                }
+                .font(FacioFont.rowTitle)
+                .foregroundStyle(timeShowsAllActivity ? Color.accentText : Color.textPrimary)
+                .padding(.horizontal, FacioLayout.space12)
+                .padding(.vertical, FacioLayout.space8)
+                .contentShape(Rectangle())
             }
-        case .heures:
+            .buttonStyle(.plain)
+            .background(timeShowsAllActivity ? Color.surfaceSelected : Color.clear)
+
+            Divider()
+
             TimesheetListView(selectedTimesheetId: $selectedTimesheetId) { invoice in
                 openInvoice(invoice)
             }
-        case .clients, .planning, .dashboard, .parametres, .none:
-            EmptyView()
+        }
+        .onChange(of: selectedTimesheetId) { _, newValue in
+            if newValue != nil { timeShowsAllActivity = false }
         }
     }
 
-    // MARK: - Detail column (right)
+    // MARK: - Colonne détail
 
     @ViewBuilder
     private var detailForSection: some View {
         switch selectedSection {
-        case .factures, .devis:
+        case .ventes:
             if let doc = selectedDocument {
                 DocumentEditorView(document: doc)
             } else {
@@ -228,15 +299,19 @@ struct ContentView: View {
                     message: L10n.selectDocumentHint(lang)
                 ) {
                     FacioButton(
-                        selectedSection == .devis ? L10n.quickCreateQuote(lang) : L10n.quickCreateInvoice(lang),
+                        salesType == .devis ? L10n.quickCreateQuote(lang) : L10n.quickCreateInvoice(lang),
                         systemImage: "plus"
                     ) {
-                        newDocument(selectedSection == .devis ? .devis : .facture)
+                        newDocument(salesType)
                     }
                 }
             }
-        case .heures:
-            if let ts = selectedTimesheet {
+        case .temps:
+            if timeShowsAllActivity {
+                TimeHubView { invoice in
+                    openInvoice(invoice)
+                }
+            } else if let ts = selectedTimesheet {
                 TimesheetEditorView(timesheet: ts) { invoice in
                     openInvoice(invoice)
                 }
@@ -248,46 +323,58 @@ struct ContentView: View {
                 )
             }
         case .clients:
-            ClientListView(selectedClientId: $selectedClientId) { document in
-                selectedSection = document.type == .facture ? .factures : .devis
-                selectedDocumentId = document.id
-            }
-        case .planning:
-            TimeHubView { invoice in
-                openInvoice(invoice)
+            ClientDetailPane(selectedClientId: $selectedClientId) { document in
+                openDocument(document)
             }
         case .dashboard:
             DashboardView { document in
-                selectedSection = document.type == .facture ? .factures : .devis
-                selectedDocumentId = document.id
+                openDocument(document)
             } onSelectTimesheet: { timesheet in
-                selectedSection = .heures
+                selectedSection = .temps
+                timeShowsAllActivity = false
                 selectedTimesheetId = timesheet.id
             }
         case .parametres:
             SettingsInlineView(selectedTab: $selectedSettingsTab)
         case .none:
-            Text(L10n.selectSection(lang))
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            FacioEmptyState(
+                title: L10n.selectSection(lang),
+                systemImage: "square.grid.2x2"
+            )
         }
     }
 
-    private func openInvoice(_ invoice: Document) {
-        selectedSection = .factures
-        selectedDocumentId = invoice.id
+    // MARK: - Navigation
+
+    private func openDocument(_ document: Document) {
+        selectedSection = .ventes
+        salesType = document.type
+        selectedDocumentId = document.id
         selectedTimesheetId = nil
         selectedClientId = nil
     }
 
-    // MARK: - Toolbar
+    private func openInvoice(_ invoice: Document) {
+        openDocument(invoice)
+    }
+
+    /// Le minuteur est pilotable de partout : le clic ramène à la période qu'il
+    /// alimente, quelle que soit la section où on se trouvait.
+    /// Réglages ▸ Entreprise, l'onglet qui édite ce qu'affiche le bloc d'identité.
+    private func openCompanySettings() {
+        selectedSection = .parametres
+        selectedSettingsTab = 0
+    }
+
+    private func openRunningEntry() {
+        selectedSection = .temps
+        timeShowsAllActivity = false
+        selectedTimesheetId = dataStore.runningTimeEntryContext?.timesheet.id
+    }
 
     private func newDocument(_ type: DocumentType) {
         let document = dataStore.createDocument(type: type)
-        selectedSection = type == .facture ? .factures : .devis
-        selectedDocumentId = document.id
-        selectedTimesheetId = nil
-        selectedClientId = nil
+        openDocument(document)
     }
 
     private func newClient() {
@@ -298,3 +385,4 @@ struct ContentView: View {
         selectedTimesheetId = nil
     }
 }
+

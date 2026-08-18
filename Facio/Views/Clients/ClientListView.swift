@@ -1,11 +1,23 @@
 import SwiftUI
 
+/// La LISTE des clients — le contenu de la colonne du milieu.
+///
+/// Cette vue portait auparavant la liste ET le détail, dans un split fait main,
+/// et choisissait entre deux arbres de vues distincts selon une largeur qu'elle
+/// mesurait elle-même (`facioWidthClass`). Comme la colonne du milieu s'anime
+/// quand on change de section, la largeur du détail balayait le seuil
+/// `breakpointCompact` (640 pt) EN COURS D'ANIMATION : SwiftUI reconstruisait
+/// alors l'arbre pendant qu'AppKit était à l'intérieur de sa passe de layout,
+/// ce qui levait une exception fatale (`_NSViewLayout` sous
+/// `NSAnimationManager`). Le même plantage était atteignable en redimensionnant
+/// simplement la fenêtre à travers 640 pt.
+///
+/// Clients occupe désormais les trois vraies colonnes du châssis, comme Ventes
+/// et Temps : plus de split maison, plus de mesure, plus de bascule d'identité.
 struct ClientListView: View {
     @Binding var selectedClientId: UUID?
-    var onSelectDocument: (Document) -> Void = { _ in }
 
     @Environment(DataStore.self) private var dataStore
-    @Environment(\.facioWidthClass) private var widthClass
     @State private var searchText = ""
     @State private var clientPendingDeletion: ClientInfo?
     @State private var sortKey = "name"
@@ -96,16 +108,16 @@ struct ClientListView: View {
     }
 
     var body: some View {
-        Group {
-            if widthClass == .compact {
-                compactLayout
-            } else {
-                splitLayout
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        clientList
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Identifiant EXPLICITE et unique dans toute l'app : sans lui, SwiftUI
+        // génère un identifiant que le pont NSToolbar réutilise d'une vue à
+        // l'autre. Au changement de section, les éléments de l'ancienne vue
+        // sont encore enregistrés quand ceux de la nouvelle s'insèrent, et
+        // `-[NSToolbar _insertNewItemWithItemIdentifier:atIndex:]` lève une
+        // exception — le plantage « Ventes → Clients ».
         .toolbar {
-            ToolbarItem {
+            ToolbarItem(id: FacioToolbarID.clientsNew, placement: .primaryAction) {
                 Button(action: createClient) {
                     Label(L10n.newClient(lang), systemImage: "plus")
                 }
@@ -138,46 +150,6 @@ struct ClientListView: View {
         }
     }
 
-    // MARK: - Layouts
-
-    /// Split 2 colonnes maison pour les largeurs regular/wide.
-    private var splitLayout: some View {
-        HStack(spacing: 0) {
-            clientList
-                .frame(minWidth: 260, idealWidth: 340, maxWidth: 480, maxHeight: .infinity)
-
-            Divider()
-
-            detailPane
-                .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-    /// Navigation empilée en largeur compacte : le détail pleine largeur
-    /// (précédé d'un bouton retour) quand un client est sélectionné, sinon la liste.
-    @ViewBuilder
-    private var compactLayout: some View {
-        if let client = selectedClient {
-            VStack(alignment: .leading, spacing: 0) {
-                Button {
-                    selectedClientId = nil
-                } label: {
-                    Label(L10n.back(lang), systemImage: "chevron.left")
-                }
-                .buttonStyle(.borderless)
-                .padding(.horizontal, FacioLayout.screenPadding)
-                .padding(.vertical, FacioLayout.space8)
-
-                Divider()
-
-                detailView(for: client)
-            }
-        } else {
-            clientList
-        }
-    }
-
-    /// Liste des clients, partagée entre les variantes split et empilée.
     private var clientList: some View {
         List(filteredClients, selection: $selectedClientId) { client in
             ClientRow(client: client)
@@ -244,30 +216,6 @@ struct ClientListView: View {
         }
     }
 
-    /// Colonne détail du split : détail du client sélectionné ou état vide.
-    @ViewBuilder
-    private var detailPane: some View {
-        if let client = selectedClient {
-            detailView(for: client)
-        } else {
-            FacioEmptyState(
-                title: L10n.noClientSelected(lang),
-                systemImage: "person.crop.circle",
-                message: L10n.selectOrCreateClient(lang)
-            )
-        }
-    }
-
-    /// Détail d'un client, partagé entre les variantes split et empilée.
-    private func detailView(for client: ClientInfo) -> some View {
-        ClientDetailView(
-            client: client,
-            onSelectDocument: onSelectDocument,
-            onCreateDocument: createDocument
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
     private func createClient() {
         let client = dataStore.createClient(name: L10n.newClient(lang))
         selectedClientId = client.id
@@ -278,6 +226,47 @@ struct ClientListView: View {
             selectedClientId = nil
         }
         dataStore.deleteClient(client)
+    }
+
+}
+
+// MARK: - Detail
+
+/// Le DÉTAIL d'un client — le contenu de la colonne de droite.
+///
+/// Extrait de `ClientListView` : la liste et le détail vivent maintenant dans
+/// deux colonnes du châssis au lieu d'un `HStack` fait main à l'intérieur d'une
+/// seule.
+struct ClientDetailPane: View {
+    @Binding var selectedClientId: UUID?
+    var onSelectDocument: (Document) -> Void = { _ in }
+
+    @Environment(DataStore.self) private var dataStore
+
+    private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
+
+    private var selectedClient: ClientInfo? {
+        guard let selectedClientId else { return nil }
+        return dataStore.clients.first { $0.id == selectedClientId }
+    }
+
+    var body: some View {
+        Group {
+            if let client = selectedClient {
+                ClientDetailView(
+                    client: client,
+                    onSelectDocument: onSelectDocument,
+                    onCreateDocument: createDocument
+                )
+            } else {
+                FacioEmptyState(
+                    title: L10n.noClientSelected(lang),
+                    systemImage: "person.crop.circle",
+                    message: L10n.selectOrCreateClient(lang)
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func createDocument(type: DocumentType, client: ClientInfo) {
@@ -444,19 +433,19 @@ struct ClientDetailView: View {
                 title: L10n.clientRevenue(lang),
                 value: privacy.format(totalInvoiced, dataStore.companyInfo.deviseComptable, lang: numberFormat),
                 systemImage: "doc.text",
-                color: .appRevenue
+                intent: .info
             )
             MetricTile(
                 title: L10n.clientPaid(lang),
                 value: privacy.format(totalPaid, dataStore.companyInfo.deviseComptable, lang: numberFormat),
                 systemImage: "checkmark.circle",
-                color: .intentSuccess
+                intent: .success
             )
             MetricTile(
                 title: L10n.recentWork(lang),
                 value: "\(relatedDocuments.count)",
                 systemImage: "clock.arrow.circlepath",
-                color: .intentWarning
+                intent: .warning
             )
         }
     }

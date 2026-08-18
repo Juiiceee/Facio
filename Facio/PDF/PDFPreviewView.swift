@@ -93,7 +93,11 @@ struct PDFPreviewSheet: View {
         }
 
         Task {
-            let result = await ExportService.exportPDF(data: pdfData, defaultFilename: document.number, language: lang)
+            let result = await ExportService.exportPDF(
+                data: pdfData,
+                defaultFilename: DocumentExportNaming.pdfFilename(number: document.number, clientName: document.clientNom),
+                language: lang
+            )
             if result == .failed {
                 showPDFExportAlert = true
             }

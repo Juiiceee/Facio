@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct DashboardView: View {
+    /// Mois ouvert depuis le graphique — la barre devient une porte.
+    @State private var selectedMonth: Date?
+
     var onSelectDocument: (Document) -> Void = { _ in }
     var onSelectTimesheet: (TimesheetPeriod) -> Void = { _ in }
 
@@ -115,43 +118,110 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: FacioLayout.sectionSpacing) {
                 dashboardHeader
 
+                // L'ORDRE VIENT DES RÉGLAGES. L'écran imposait le même à tout
+                // le monde ; ce qu'on ouvre le matin dépend du métier.
+                ForEach(dataStore.companyInfo.visibleDashboardSections) { section in
+                    dashboardSection(section)
+                }
+            }
+            .padding(FacioLayout.screenPadding)
+        }
+        .sheet(item: Binding(
+            get: { selectedMonth.map(MonthSelection.init(start:)) },
+            set: { selectedMonth = $0?.start }
+        )) { selection in
+            monthCollectionsSheet(selection.start)
+        }
+    }
+
+    /// `Date` n'est pas `Identifiable` : ce porteur permet de piloter la feuille
+    /// par la donnée plutôt que par un booléen doublé d'un état.
+    private struct MonthSelection: Identifiable {
+        let start: Date
+        var id: Date { start }
+    }
+
+    /// Un bloc du tableau de bord, choisi par la préférence.
+    @ViewBuilder
+    private func dashboardSection(_ section: DashboardSection) -> some View {
+        switch section {
+        case .kpis: kpiSection
+        case .chart: revenueSeriesSection
+        case .focus: focusSection
+        case .recent: recentSection
+        }
+    }
+
+    /// Les chiffres clés.
+    private var kpiSection: some View {
                 LazyVGrid(columns: [
                     GridItem(.adaptive(minimum: 180, maximum: 300))
                 ], spacing: FacioLayout.space16) {
                     MetricTile(
                         title: L10n.revenueThisMonth(lang),
                         value: privacy.format(caMoisEnCours.total, accountingCurrency, lang: numberFormat),
-                        subtitle: missingConversionSubtitle(caMoisEnCours),
+                        subtitle: missingConversionSubtitle(caMoisEnCours)
+                            ?? L10n.basisCollected(lang, currency: accountingCurrency.rawValue),
                         systemImage: "chart.line.uptrend.xyaxis",
-                        color: .appRevenue
+                        intent: .info
                     )
                     MetricTile(
                         title: L10n.revenueThisYear(lang),
                         value: privacy.format(caAnneeEnCours.total, accountingCurrency, lang: numberFormat),
-                        subtitle: missingConversionSubtitle(caAnneeEnCours),
+                        subtitle: missingConversionSubtitle(caAnneeEnCours)
+                            ?? L10n.basisCollected(lang, currency: accountingCurrency.rawValue),
                         systemImage: "chart.bar.fill",
-                        color: .appRevenue
+                        intent: .info
                     )
                     MetricTile(
                         title: L10n.pending(lang),
                         value: privacy.format(montantEnAttente.total, accountingCurrency, lang: numberFormat),
                         subtitle: pendingSubtitle,
                         systemImage: "clock.fill",
-                        color: .appPending
+                        intent: .warning
                     )
+                    // « Devis en cours » comptait exactement le même filtre que
+                    // le groupe « Devis à relancer » juste dessous : le même
+                    // ensemble, montré deux fois sous deux noms. La TVA
+                    // collectée, elle, a une échéance.
                     MetricTile(
-                        title: L10n.quotesInProgress(lang),
-                        value: "\(devis.filter { $0.status == .envoyee }.count)",
-                        systemImage: "doc.text",
-                        color: .appQuote
+                        title: L10n.vatCollected(lang, quarter: RevenueSeriesService.quarterNumber(of: Date())),
+                        value: privacy.format(vatCollectedThisQuarter, accountingCurrency, lang: numberFormat),
+                        subtitle: L10n.basisCollected(lang, currency: accountingCurrency.rawValue),
+                        systemImage: "percent",
+                        intent: .warning
                     )
                 }
+    }
 
-                focusSection
-                recentSection
-            }
-            .padding(FacioLayout.screenPadding)
+    /// Les douze derniers mois d'encaissements.
+    private var revenueSeriesSection: some View {
+        SectionPanel(
+            L10n.revenueSeriesTitle(lang, count: 12),
+            systemImage: "chart.bar"
+        ) {
+            RevenueChartView(
+                months: monthlySeries,
+                currency: accountingCurrency,
+                lang: lang,
+                numberFormat: numberFormat,
+                onSelectMonth: { selectedMonth = $0.start }
+            )
         }
+    }
+
+    private var monthlySeries: [RevenueMonth] {
+        RevenueSeriesService.monthlySeries(
+            for: facturesEncaissees,
+            referenceCurrency: accountingCurrency
+        )
+    }
+
+    private var vatCollectedThisQuarter: Decimal {
+        RevenueSeriesService.vatCollectedThisQuarter(
+            for: facturesEncaissees,
+            referenceCurrency: accountingCurrency
+        )
     }
 
     private var dashboardHeader: some View {
@@ -196,6 +266,78 @@ struct DashboardView: View {
         }
     }
 
+    /// Les factures qui composent la barre cliquée.
+    private func monthCollectionsSheet(_ month: Date) -> some View {
+        let rows = RevenueSeriesService.collections(
+            for: dataStore.documents,
+            referenceCurrency: accountingCurrency,
+            in: month
+        )
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(L10n.monthInvoicesTitle(lang, month: month.formatted(.dateTime.month(.wide).year())))
+                    .font(FacioFont.sectionTitle)
+                Spacer()
+                Text(privacy.format(rows.reduce(Decimal(0)) { $0 + $1.amount }, accountingCurrency, lang: numberFormat))
+                    .font(FacioFont.amountHero)
+            }
+            .padding(FacioLayout.screenPadding)
+
+            Divider()
+
+            if rows.isEmpty {
+                FacioEmptyState(title: L10n.monthInvoicesEmpty(lang), systemImage: "tray")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    VStack(spacing: FacioLayout.space8) {
+                        ForEach(rows) { row in
+                            Button {
+                                selectedMonth = nil
+                                onSelectDocument(row.document)
+                            } label: {
+                                FacioListRow(tone: Color.statusColor(for: row.document.status)) {
+                                    VStack(alignment: .leading, spacing: FacioLayout.space2) {
+                                        Text(row.document.number)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                        Text(row.document.clientNom)
+                                            .font(FacioFont.caption)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                    Spacer(minLength: FacioLayout.space10)
+                                    // Le montant ENCAISSÉ ce mois-là, pas le
+                                    // total de la facture : un acompte de mars
+                                    // n'appartient pas à la barre d'avril.
+                                    Text(privacy.format(row.amount, accountingCurrency, lang: numberFormat))
+                                        .font(FacioFont.amount)
+                                        .lineLimit(1)
+                                        .frame(width: FacioLayout.rowAmountWidth, alignment: .trailing)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .help(L10n.openDocument(lang))
+                        }
+                    }
+                    .padding(FacioLayout.screenPadding)
+                }
+            }
+
+            Divider()
+
+            HStack {
+                Spacer()
+                FacioButton(L10n.close(lang), role: .secondary) { selectedMonth = nil }
+            }
+            .padding(FacioLayout.screenPadding)
+        }
+        .frame(
+            minWidth: FacioLayout.sheetMinWidth, idealWidth: FacioLayout.sheetIdealWidth,
+            minHeight: FacioLayout.sheetMinHeight, idealHeight: FacioLayout.sheetIdealHeight
+        )
+    }
+
     private var recentSection: some View {
         SectionPanel(L10n.recentWork(lang), systemImage: "clock.arrow.circlepath") {
             LazyVGrid(columns: [
@@ -207,11 +349,16 @@ struct DashboardView: View {
         }
     }
 
+    /// Compte, base comptable et devise. La base était invisible : cette tuile
+    /// est en FACTURÉ (soldes restants) alors que les deux tuiles de CA à côté
+    /// sont en encaissé — rien ne le disait, ni dans quelle devise.
     private var pendingSubtitle: String {
+        var parts = [L10n.pendingInvoices(lang, count: outstandingInvoices.count)]
         if montantEnAttente.missingConversionCount > 0 {
-            return "\(L10n.pendingInvoices(lang, count: outstandingInvoices.count)) - \(L10n.missingConversions(lang, count: montantEnAttente.missingConversionCount))"
+            parts.append(L10n.missingConversions(lang, count: montantEnAttente.missingConversionCount))
         }
-        return L10n.pendingInvoices(lang, count: outstandingInvoices.count)
+        parts.append(L10n.basisOutstanding(lang, currency: accountingCurrency.rawValue))
+        return parts.joined(separator: " · ")
     }
 
     private func missingConversionSubtitle(_ summary: AccountingRevenueSummary) -> String? {
@@ -267,8 +414,12 @@ struct DashboardView: View {
 
     private func recentDocumentList(title: String, empty: String, documents: [Document]) -> some View {
         VStack(alignment: .leading, spacing: FacioLayout.space10) {
+            // Le titre s'aligne sur le TEXTE des lignes, pas sur le bord du
+            // panneau : une ligne commence par son filet de 3 pt puis son
+            // gouttière, le titre était donc décalé de la colonne qu'il coiffe.
             Text(title)
                 .font(FacioFont.sectionTitle)
+                .padding(.leading, FacioLayout.rowPadding + FacioLayout.space12 + 3)
             if documents.isEmpty {
                 FacioEmptyState(title: empty, systemImage: "tray")
                     .frame(maxWidth: .infinity, minHeight: 120)
@@ -305,12 +456,20 @@ struct DashboardView: View {
 
             Spacer(minLength: FacioLayout.space10)
 
+            // Montant et statut à largeur FIXE. Avec un montant élastique
+            // (92→130 pt) et un badge dimensionné par son texte
+            // (« Payée » / « Envoyée » / « Partiel »), la largeur minimale de
+            // chaque ligne variait : les lignes débordaient de leur colonne
+            // d'une quantité différente, d'où les bords droits en escalier et
+            // les badges rognés en « ✈ En ». À largeur fixe, toutes les lignes
+            // s'alignent et le titre reste lisible.
             MoneyText(amount: doc.totalTTC, currency: doc.currency, lang: numberFormat)
                 .font(FacioFont.amount)
                 .lineLimit(1)
-                .minimumScaleFactor(0.72)
-                .frame(minWidth: 92, maxWidth: 130, alignment: .trailing)
+                .minimumScaleFactor(0.6)
+                .frame(width: FacioLayout.rowAmountWidth, alignment: .trailing)
             StatusBadge(status: doc.status, isOverdue: doc.isOverdue, paidViaInstallments: doc.isPaidViaInstallments)
+                .frame(width: FacioLayout.rowStatusWidth, alignment: .leading)
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundStyle(.tertiary)

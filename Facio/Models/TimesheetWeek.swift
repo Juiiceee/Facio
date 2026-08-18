@@ -68,6 +68,21 @@ struct TimesheetWeek: Identifiable, Codable, Hashable {
         jours.first?.date
     }
 
+    /// Le numéro de semaine ISO 8601 — celui que dit l'agenda du freelance.
+    ///
+    /// `numero` est un rang **interne à la période** (1, 2, 3…) et sert de clé de
+    /// reprise dans `normalizeCalendar` : on ne peut pas lui changer son sens.
+    /// Mars 2026 affichait donc « Semaine 1 » là où tout le reste du monde lit
+    /// « semaine 10 ». Le numéro ISO est dérivé de la date, jamais persisté.
+    var isoWeekNumber: Int? {
+        guard let start = jours.first?.date else { return nil }
+        return TimesheetWeek.isoCalendar.component(.weekOfYear, from: start)
+    }
+
+    /// Calendrier ISO 8601 : semaine commençant le lundi, semaine 1 = celle qui
+    /// contient le premier jeudi de l'année.
+    static let isoCalendar = Calendar(identifier: .iso8601)
+
     /// Label : "26 fev - 02 mar"
     var label: String {
         guard let first = jours.first, let last = jours.last else { return L10n.week(.fr, number: numero) }

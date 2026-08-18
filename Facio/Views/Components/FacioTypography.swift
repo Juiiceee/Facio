@@ -38,10 +38,20 @@ enum FacioFont {
     /// 11 / medium — libellé de champ, badge. **Plancher : rien en dessous.**
     static let label: Font = .system(size: 11, weight: .medium)
 
+    /// 12 / medium — libellé de bouton.
+    static let buttonLabel: Font = .system(size: 12, weight: .medium)
+    /// 12 / semibold — libellé du bouton primaire, le seul mis en avant.
+    static let buttonLabelEmphasis: Font = .system(size: 12, weight: .semibold)
+
     // MARK: - Jeu numérique (chiffres tabulaires)
 
     /// 28 / mono semibold — valeur d'une tuile KPI.
-    static let metric: Font = .system(size: 28, weight: .semibold, design: .monospaced).monospacedDigit()
+    /// Chiffres tabulaires sur une police PROPORTIONNELLE, et non une police
+    /// entièrement monospacée : `monospacedDigit()` suffit à aligner les
+    /// colonnes de chiffres, alors que `design: .monospaced` élargit aussi
+    /// l'espace, la virgule et le symbole de devise. « 22 895,00 € » y prenait
+    /// ~187 pt là où la tuile n'en offre que ~108, d'où la troncature.
+    static let metric: Font = .system(size: 28, weight: .semibold).monospacedDigit()
     /// 28 / mono regular — minuteur.
     static let clock: Font = .system(size: 28, weight: .regular, design: .monospaced).monospacedDigit()
     /// 13 / mono medium — montant, en ligne comme en colonne.

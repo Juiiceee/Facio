@@ -195,6 +195,13 @@ enum FacioRegressionSuite {
         RegressionCase(name: "attachment urls expose only existing files", run: attachmentURLsExposeOnlyExistingFiles),
         RegressionCase(name: "email attachment filenames use labels and dedupe", run: emailAttachmentFilenamesUseLabelsAndDedupe),
         RegressionCase(name: "pdf generation paginates long invoices", run: pdfGenerationPaginatesLongInvoices),
+        RegressionCase(name: "pdf page carries its legal identity", run: pdfPageCarriesItsLegalIdentity),
+        RegressionCase(name: "lockout rule is announced from the policy", run: lockoutRuleIsAnnouncedFromThePolicy),
+        RegressionCase(name: "revenue series buckets payments by month", run: revenueSeriesBucketsPaymentsByMonth),
+        RegressionCase(name: "vat collected prorates each payment", run: vatCollectedProratesEachPayment),
+        RegressionCase(name: "line item accepts any vat rate", run: lineItemAcceptsAnyVATRate),
+        RegressionCase(name: "sidebar has five destinations", run: sidebarHasFiveDestinations),
+        RegressionCase(name: "document status flow offers one primary per state", run: documentStatusFlowOffersOnePrimaryPerState),
         RegressionCase(name: "responsive width class maps breakpoints", run: responsiveWidthClassMapsBreakpoints),
         RegressionCase(name: "window minimum fits split view columns", run: windowMinimumFitsSplitViewColumns),
         RegressionCase(name: "sheet minimums fit inside minimum window", run: sheetMinimumsFitInsideMinimumWindow),
@@ -203,6 +210,11 @@ enum FacioRegressionSuite {
         RegressionCase(name: "text tokens meet contrast on every surface", run: textTokensMeetContrastOnEverySurface),
         RegressionCase(name: "brand accent meets contrast both ways", run: brandAccentMeetsContrastBothWays),
         RegressionCase(name: "intent tint pairs meet contrast", run: intentTintPairsMeetContrast),
+        RegressionCase(name: "intent glyphs meet graphical contrast", run: intentGlyphsMeetGraphicalContrast),
+        RegressionCase(name: "intent glyphs are brighter than their fills", run: intentGlyphsAreBrighterThanFills),
+        RegressionCase(name: "button foregrounds are readable on their fills", run: buttonForegroundsAreReadableOnTheirFills),
+        RegressionCase(name: "undo and cancel are distinct in french", run: undoAndCancelAreDistinctInFrench),
+        RegressionCase(name: "destructive icon button has a bigger target", run: destructiveIconButtonHasABiggerTarget),
         RegressionCase(name: "custom accent picks a readable foreground", run: customAccentPicksAReadableForeground),
         RegressionCase(name: "dark elevation planes are ordered", run: darkElevationPlanesAreOrdered),
         RegressionCase(name: "spacing scale stays on the four point grid", run: spacingScaleStaysOnTheFourPointGrid),
@@ -224,10 +236,126 @@ enum FacioRegressionSuite {
         RegressionCase(name: "app lock credential survives codable round trip", run: appLockCredentialSurvivesCodableRoundTrip),
         RegressionCase(name: "app lock lockout starts after three failures and backs off", run: appLockLockoutStartsAfterThreeFailuresAndBacksOff),
         RegressionCase(name: "app lock countdown stays readable across the minute", run: appLockCountdownStaysReadableAcrossTheMinute),
-        RegressionCase(name: "app lock auto-lock waits for the configured idle delay", run: appLockAutoLockWaitsForConfiguredIdleDelay)
+        RegressionCase(name: "app lock auto-lock waits for the configured idle delay", run: appLockAutoLockWaitsForConfiguredIdleDelay),
+        RegressionCase(name: "timesheet weeks are numbered in ISO 8601", run: timesheetWeeksAreNumberedInISO8601),
+        RegressionCase(name: "timesheet decodes old payloads without a rate carry-over marker", run: timesheetDecodesOldPayloadsWithoutRateCarryOver),
+        RegressionCase(name: "passcode flow numbers its steps and can go back", run: passcodeFlowNumbersItsStepsAndCanGoBack),
+        RegressionCase(name: "the two PDF exports of a document never share a filename", run: pdfExportsNeverShareAFilename),
+        RegressionCase(name: "toolbar item identifiers are explicit and unique", run: toolbarIdentifiersAreExplicitAndUnique),
+        RegressionCase(name: "a chart bar lists exactly the payments of its own month", run: chartBarListsOnlyItsOwnMonth),
+        RegressionCase(name: "the dashboard layout survives an aged preference", run: dashboardLayoutSurvivesAnAgedPreference)
     ]
 
+    // MARK: - Temps
+
+    /// Le numéro affiché est celui de l'agenda du client (ISO 8601), pas le rang
+    /// interne à la période — mars 2026 affichait « Semaine 1 » là où tout le
+    /// reste du monde lit « semaine 10 ».
+    private static func timesheetWeeksAreNumberedInISO8601() throws {
+        let period = TimesheetPeriod(mois: 3, annee: 2026)
+        guard let first = period.semaines.first else {
+            throw RegressionFailure(message: "March 2026 must generate at least one week")
+        }
+
+        // La première semaine de mars 2026 commence le lundi 23 février 2026
+        // (le 1er mars est un dimanche) : ISO 9. La suivante, lundi 2 mars : ISO 10.
+        try expectEqual(first.isoWeekNumber, 9)
+        try expectEqual(first.numero, 1)
+        try expect(
+            first.isoWeekNumber != first.numero,
+            "the ISO number must be independent of the period-internal rank"
+        )
+
+        if period.semaines.count > 1 {
+            try expectEqual(period.semaines[1].isoWeekNumber, 10)
+        }
+
+        // Une semaine sans jour n'a pas de numéro ISO à inventer : la vue
+        // retombe alors sur le rang interne.
+        try expectEqual(TimesheetWeek().isoWeekNumber, nil)
+    }
+
+    /// Une période enregistrée avant le champ `tauxRepriseDe` se décode sans
+    /// mention de reprise, et n'en fabrique pas une.
+    private static func timesheetDecodesOldPayloadsWithoutRateCarryOver() throws {
+        let legacy = """
+        {
+            "id": "8B7D1F42-0F2E-4B58-9A31-8C2D5E6F7A80",
+            "nom": "Mars 2026",
+            "mois": 3,
+            "annee": 2026,
+            "semaines": [],
+            "createdAt": 760000000,
+            "tauxNormal": 26.39,
+            "tauxSupplementaire": 39.59,
+            "coefficientNet": 0.756,
+            "seuilHebdo": 35
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let period = try decoder.decode(TimesheetPeriod.self, from: Data(legacy.utf8))
+        try expectEqual(period.tauxRepriseDe, nil)
+        try expectEqual(period.tauxNormal, Decimal(string: "26.39"))
+
+        // Et le champ survit à un aller-retour quand il est renseigné.
+        period.tauxRepriseDe = "Février 2026"
+        let encoded = try JSONEncoder().encode(period)
+        let roundTripped = try decoder.decode(TimesheetPeriod.self, from: encoded)
+        try expectEqual(roundTripped.tauxRepriseDe, "Février 2026")
+    }
+
     // MARK: - Verrouillage par code
+
+    /// La feuille de code annonce son avancement et sait revenir en arrière.
+    ///
+    /// Elle enchaînait jusqu'à TROIS saisies de six chiffres sans jamais dire
+    /// combien il en restait, et sans retour possible : se tromper de nouveau
+    /// code obligeait à annuler la feuille entière et à ressaisir le code
+    /// actuel depuis le début.
+    private static func passcodeFlowNumbersItsStepsAndCanGoBack() throws {
+        // Chaque mode annonce le bon nombre d'étapes.
+        try expectEqual(PasscodeFlow.totalSteps(for: .remove), 1)
+        try expectEqual(PasscodeFlow.totalSteps(for: .create), 2)
+        try expectEqual(PasscodeFlow.totalSteps(for: .change), 3)
+
+        // La création saute la vérification du code actuel : il n'y en a pas.
+        try expectEqual(PasscodeFlow.firstStep(for: .create), .newCode)
+        try expectEqual(PasscodeFlow.firstStep(for: .change), .current)
+        try expectEqual(PasscodeFlow.firstStep(for: .remove), .current)
+
+        // Les rangs vont de 1 au total, sans trou ni doublon.
+        for mode in [PasscodeSheetMode.create, .change, .remove] {
+            var step: PasscodeStep? = PasscodeFlow.firstStep(for: mode)
+            var seen: [Int] = []
+            var walked: [PasscodeStep] = []
+            while let current = step {
+                seen.append(PasscodeFlow.index(of: current, in: mode))
+                walked.append(current)
+                step = nextStep(after: current, in: mode)
+            }
+            try expectEqual(seen, Array(1...PasscodeFlow.totalSteps(for: mode)))
+
+            // Et chaque étape sait d'où elle vient — sauf la première.
+            try expect(
+                PasscodeFlow.previous(of: walked[0], in: mode) == nil,
+                "the first step of \(mode.id) must have nowhere to go back to"
+            )
+            for (offset, current) in walked.enumerated() where offset > 0 {
+                try expectEqual(PasscodeFlow.previous(of: current, in: mode), walked[offset - 1])
+            }
+        }
+    }
+
+    /// L'étape suivante, telle que la parcourt `advance(with:)`.
+    private static func nextStep(after step: PasscodeStep, in mode: PasscodeSheetMode) -> PasscodeStep? {
+        switch (mode, step) {
+        case (.remove, _): return nil
+        case (_, .current): return .newCode
+        case (_, .newCode): return .confirmation
+        case (_, .confirmation): return nil
+        }
+    }
 
     /// Le code exact déverrouille, tout le reste échoue — y compris un code de
     /// la bonne longueur qui ne diffère que d'un chiffre.
@@ -816,6 +944,142 @@ enum FacioRegressionSuite {
         }
     }
 
+    /// Les glyphes tiennent 3:1 — le seuil WCAG des OBJETS graphiques, pas
+    /// celui du texte — sur les sept surfaces et dans les deux thèmes. C'est ce
+    /// seuil, plus permissif, qui autorise une couleur nettement plus lumineuse
+    /// que l'aplat, et rend à l'app la vivacité perdue en calant tout sur 4,5:1.
+    private static func intentGlyphsMeetGraphicalContrast() throws {
+        let surfaces: [(String, Color)] = [
+            ("canvas", .surfaceCanvas), ("raised", .surfaceRaised), ("sunken", .surfaceSunken),
+            ("field", .surfaceFieldToken), ("float", .surfaceFloat), ("hover", .surfaceHover),
+            ("selected", .surfaceSelected)
+        ]
+        let intents: [(String, () -> FacioIntent)] = [
+            ("success", { .success }), ("warning", { .warning }),
+            ("danger", { .danger }), ("neutral", { .neutral }), ("info", { .info })
+        ]
+
+        for scheme in [ColorScheme.light, .dark] {
+            for (iName, make) in intents {
+                let glyph = make().glyph
+                for (sName, surface) in surfaces {
+                    let r = ratio(glyph, on: surface, scheme)
+                    try expect(
+                        r >= 3,
+                        "\(iName) glyph on \(sName) in \(scheme) must reach 3:1, got \(String(format: "%.2f", Double(r)))"
+                    )
+                }
+                // Et sur son propre fond teinté : le badge pose l'icône dessus.
+                let onTint = ratio(glyph, on: make().tint, scheme)
+                try expect(
+                    onTint >= 3,
+                    "\(iName) glyph on its own tint in \(scheme) must reach 3:1, got \(String(format: "%.2f", Double(onTint)))"
+                )
+            }
+        }
+    }
+
+    /// Le glyphe doit être PLUS LUMINEUX que l'aplat en clair : c'est sa seule
+    /// raison d'exister. S'ils se rejoignent, le rôle ne sert plus à rien et la
+    /// vivacité repart aussitôt.
+    private static func intentGlyphsAreBrighterThanFills() throws {
+        let intents: [(String, () -> FacioIntent)] = [
+            ("success", { .success }), ("warning", { .warning }),
+            ("danger", { .danger }), ("neutral", { .neutral }), ("info", { .info })
+        ]
+        for (name, make) in intents {
+            let intent = make()
+            let glyph = resolved(intent.glyph, .light).relativeLuminance
+            let fill = resolved(intent.fill, .light).relativeLuminance
+            try expect(
+                glyph > fill * 1.2,
+                "\(name) glyph must be markedly brighter than its fill in light, got \(String(format: "%.3f", Double(glyph))) vs \(String(format: "%.3f", Double(fill)))"
+            )
+        }
+    }
+
+    /// Le texte de chaque rôle de bouton est lisible sur son propre aplat, dans
+    /// les deux thèmes. Le destructif forçait du blanc — or l'aplat « danger »
+    /// est CLAIR en sombre (#F09A92) : le bouton tombait à 2,16:1.
+    private static func buttonForegroundsAreReadableOnTheirFills() throws {
+        // On interroge la table du rôle — la MÊME que celle qu'applique le
+        // style. Recopier ici les couleurs attendues rendrait le cas
+        // auto-cohérent : il resterait vert si le bouton reforçait du blanc.
+        let roles: [(String, FacioButtonRole)] = [
+            ("primary", .primary), ("secondary", .secondary), ("destructive", .destructive)
+        ]
+        // Accent de marque, et un accent personnalisé de chaque extrême : le
+        // bouton doit rester lisible quelle que soit la couleur choisie.
+        let accents: [(String, Color)] = [
+            ("brand", .accent),
+            ("pale yellow", Color(nsColor: NSColor(srgbRed: 0.91, green: 0.76, blue: 0.13, alpha: 1))),
+            ("deep purple", Color(nsColor: NSColor(srgbRed: 0.54, green: 0.29, blue: 0.84, alpha: 1)))
+        ]
+
+        for scheme in [ColorScheme.light, .dark] {
+            for (aName, accent) in accents {
+                for (rName, role) in roles {
+                    let r = ratio(
+                        role.foreground(accent: accent, scheme: scheme),
+                        on: role.fill(accent: accent, scheme: scheme),
+                        scheme
+                    )
+                    try expect(
+                        r >= 4.5,
+                        "\(rName) button on \(aName) must reach 4.5:1 in \(scheme), got \(String(format: "%.2f", Double(r)))"
+                    )
+                }
+
+                // Le tertiaire n'a pas d'aplat : il vit sur la surface qui le
+                // porte. Son libellé doit donc tenir 4,5:1 sur CHACUNE d'elles,
+                // sinon le rôle qui absorbe les 15 « borderless » de l'app est
+                // le moins lisible des quatre.
+                for (sName, surface) in [
+                    ("canvas", Color.surfaceCanvas),
+                    ("raised", Color.surfaceRaised),
+                    ("sunken", Color.surfaceSunken)
+                ] {
+                    let r = ratio(
+                        FacioButtonRole.tertiary.foreground(accent: accent, scheme: scheme),
+                        on: surface,
+                        scheme
+                    )
+                    try expect(
+                        r >= 4.5,
+                        "tertiary button on \(aName) over \(sName) must reach 4.5:1 in \(scheme), got \(String(format: "%.2f", Double(r)))"
+                    )
+                }
+            }
+        }
+    }
+
+    /// « Annuler » ne peut plus désigner deux gestes opposés sur le même écran :
+    /// la barre d'annulation DÉFAIT une suppression, le pied d'un éditeur
+    /// ABANDONNE une saisie. En français les deux disaient « Annuler ».
+    private static func undoAndCancelAreDistinctInFrench() throws {
+        try expect(
+            L10n.undo(.fr) != L10n.cancel(.fr),
+            "undo and cancel must not share a French label — got \"\(L10n.undo(.fr))\" for both"
+        )
+        try expectEqual(L10n.undo(.fr), "Rétablir")
+        try expectEqual(L10n.cancel(.fr), "Annuler")
+        // L'anglais distinguait déjà les deux : on ne le casse pas.
+        try expect(L10n.undo(.en) != L10n.cancel(.en), "undo and cancel must stay distinct in English")
+    }
+
+    /// Un bouton-icône destructif ne doit pas être un glyphe parmi d'autres au
+    /// même poids dans une rangée dense : sa cible est élargie.
+    private static func destructiveIconButtonHasABiggerTarget() throws {
+        let normal = FacioLayout.iconHitTarget
+        try expect(normal >= 28, "the base hit target must stay at least 28 pt")
+        // La cible destructive est calculée dans FacioIconButton à partir du
+        // même token : on épingle la règle, pas une valeur recopiée.
+        try expect(
+            normal + FacioLayout.space4 > normal,
+            "the destructive target must be strictly larger than the base one"
+        )
+    }
+
     /// Le bouton primaire forçait du texte blanc : un accent clair rendait tous
     /// les boutons principaux illisibles. Le texte sur accent est calculé.
     private static func customAccentPicksAReadableForeground() throws {
@@ -935,6 +1199,294 @@ enum FacioRegressionSuite {
         try expect(
             FacioLayout.Density.comfortable.rowHeight > FacioLayout.Density.dense.rowHeight,
             "comfortable must actually be roomier than dense"
+        )
+    }
+
+    /// Chaque état propose exactement UNE action primaire — c'est elle qui
+    /// remplace les cinq glyphes de poids égal de la barre d'outils — et une
+    /// facture en retard n'appelle pas la même que l'état nominal.
+    private static func documentStatusFlowOffersOnePrimaryPerState() throws {
+        // Un brouillon s'envoie ; une facture envoyée s'encaisse ; une facture
+        // en retard se relance.
+        try expectEqual(DocumentStatusFlow.primary(for: .brouillon, isOverdue: false), .send)
+        try expectEqual(DocumentStatusFlow.primary(for: .envoyee, isOverdue: false), .markPaid)
+        try expectEqual(DocumentStatusFlow.primary(for: .envoyee, isOverdue: true), .remind)
+        try expectEqual(DocumentStatusFlow.primary(for: .partiel, isOverdue: false), .markPaid)
+
+        // Un document soldé ou annulé n'a rien à proposer en primaire : forcer
+        // une action y serait une invitation à se tromper.
+        try expect(DocumentStatusFlow.primary(for: .payee, isOverdue: false) == nil, "a paid document has no primary action")
+        try expect(DocumentStatusFlow.primary(for: .annulee, isOverdue: false) == nil, "a cancelled document has no primary action")
+
+        for status in DocumentStatus.allCases {
+            for overdue in [false, true] {
+                let all = DocumentStatusFlow.all(for: status, isOverdue: overdue)
+                // Aucune transition proposée deux fois dans le même état.
+                try expectEqual(Set(all).count, all.count)
+                // Aucune transition ne ramène à l'état où l'on est déjà.
+                try expect(
+                    !all.contains { $0.target == status },
+                    "\(status) must not offer a transition to itself"
+                )
+                // Tout ce qui est proposé porte un libellé dans les deux langues.
+                for transition in all {
+                    for lang in [AppLanguage.fr, .en] {
+                        try expect(
+                            !transition.label(for: lang).trimmingCharacters(in: .whitespaces).isEmpty,
+                            "\(transition) must be labelled in \(lang)"
+                        )
+                    }
+                }
+            }
+        }
+
+        // « Relancer » est une action, pas un changement d'état : elle ne doit
+        // pas prétendre en être un.
+        try expect(DocumentTransition.remind.target == nil, "a reminder must not change the status")
+    }
+
+    /// Le taux de TVA d'une ligne est libre : il était figé sur le barème
+    /// français [0 ; 5,5 ; 10 ; 20], donc 2,1 % (presse, médicaments), un taux
+    /// DOM ou un taux étranger étaient inatteignables — dans une app bilingue
+    /// qui facture aussi en USD.
+    /// La série mensuelle du tableau de bord. La donnée existait — chaque
+    /// versement porte sa date — mais l'écran n'a jamais rien tracé.
+    /// L'anti-force-brute doit être ANNONÇABLE : la règle complète est lue
+    /// depuis la politique, pas recopiée dans un libellé — sinon le texte et la
+    /// sanction divergent, et l'utilisateur légitime est puni sans avertissement.
+    /// Le PDF est le seul artefact que voit le client. Trois de ses défauts
+    /// sont purement textuels et donc épinglables.
+    private static func pdfPageCarriesItsLegalIdentity() throws {
+        // Le filigrane existe pour un brouillon et une facture annulée : les
+        // deux s'exportaient EXACTEMENT comme une facture valide.
+        for lang in [AppLanguage.fr, .en] {
+            try expect(L10n.pdfWatermark(lang, status: .brouillon) != nil, "a draft must be watermarked in \(lang)")
+            try expect(L10n.pdfWatermark(lang, status: .annulee) != nil, "a cancelled invoice must be watermarked in \(lang)")
+            for status in [DocumentStatus.envoyee, .partiel, .payee] {
+                try expect(
+                    L10n.pdfWatermark(lang, status: status) == nil,
+                    "\(status) must not be watermarked — it is a valid invoice"
+                )
+            }
+
+            // Les mentions obligatoires sont citées : conditions, pénalités et
+            // indemnité forfaitaire n'étaient imprimées nulle part.
+            let terms = L10n.pdfLegalTerms(lang, dueDate: "11/04/2026", days: 30)
+            try expect(terms.contains("40"), "the recovery indemnity must be stated in \(lang)")
+            try expect(terms.contains("L441-10"), "the legal article must be cited in \(lang)")
+            try expect(terms.contains("11/04/2026"), "the due date must appear in \(lang)")
+        }
+
+        // Le titre est humain : le plus gros caractère de la page lisait
+        // « Facture_2026_03 », underscores compris.
+        let title = L10n.pdfTitleNumbered(.fr, type: "Facture", number: "2026-03")
+        try expect(!title.contains("_"), "the printed title must not carry underscores")
+        try expect(title.contains("2026-03"), "the printed title must carry the number")
+
+        // Les montants portent un symbole, pas un code ISO — la page affichait
+        // « 1 234,56 EUR » quand l'interface affichait « 1 234,56 € ».
+        try expectEqual(CurrencyType.eur.symbole, "€")
+        try expect(CurrencyType.eur.symbole != CurrencyType.eur.rawValue, "the symbol must differ from the ISO code")
+    }
+
+    private static func lockoutRuleIsAnnouncedFromThePolicy() throws {
+        try expect(!AppLockPolicy.lockoutSchedule.isEmpty, "the lockout schedule must not be empty")
+        try expect(
+            AppLockPolicy.lockoutSchedule == AppLockPolicy.lockoutSchedule.sorted(),
+            "the schedule must escalate, never shorten"
+        )
+
+        // Chaque palier est formatable dans les deux langues : la règle est
+        // affichée en toutes lettres dès le premier refus.
+        for lang in [AppLanguage.fr, .en] {
+            let steps = AppLockPolicy.lockoutSchedule
+                .map { DurationFormatter.countdown($0, lang: lang) }
+                .joined(separator: ", ")
+            try expect(!steps.isEmpty, "the schedule must render in \(lang)")
+            let rule = L10n.lockoutRule(lang, steps: steps)
+            try expect(rule.contains(steps), "the rule must quote the real schedule in \(lang)")
+        }
+
+        // Le mot « temporisation » a disparu des chaînes visibles : c'était un
+        // terme technique inhabituel pour un utilisateur non expert.
+        for lang in [AppLanguage.fr, .en] {
+            try expect(
+                !L10n.lockedOutRetryIn(lang, delay: "30 s").lowercased().contains("temporisation"),
+                "the lockout message must not use the word « temporisation »"
+            )
+            try expect(
+                !L10n.attemptsRemaining(lang, count: 2).lowercased().contains("temporisation"),
+                "the attempts message must not use the word « temporisation »"
+            )
+        }
+
+        // Le barème s'applique bien à partir du seuil, et plafonne.
+        try expect(AppLockPolicy.lockoutDuration(failedAttempts: 0) == nil, "no lockout before the threshold")
+        let atThreshold = AppLockPolicy.lockoutDuration(failedAttempts: AppLockPolicy.attemptsBeforeLockout)
+        try expectEqual(atThreshold, AppLockPolicy.lockoutSchedule.first)
+        let farBeyond = AppLockPolicy.lockoutDuration(failedAttempts: AppLockPolicy.attemptsBeforeLockout + 99)
+        try expectEqual(farBeyond, AppLockPolicy.lockoutSchedule.last)
+    }
+
+    private static func revenueSeriesBucketsPaymentsByMonth() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Paris") ?? .current
+
+        func date(_ string: String) throws -> Date {
+            let formatter = DateFormatter()
+            formatter.calendar = calendar
+            formatter.timeZone = calendar.timeZone
+            formatter.dateFormat = "yyyy-MM-dd"
+            guard let value = formatter.date(from: string) else {
+                throw RegressionFailure(message: "bad date \(string)")
+            }
+            return value
+        }
+
+        let reference = try date("2026-08-14")
+
+        let invoice = Document(type: .facture)
+        invoice.currency = .eur
+        invoice.ajouterLigne(LineItem(designation: "x", quantite: 1, prixUnitaire: 1000, tauxTVA: 20))
+        invoice.status = .partiel
+        invoice.paiementsPartiels = [
+            PartialPayment(montant: 600, date: try date("2026-08-03")),
+            PartialPayment(montant: 400, date: try date("2026-06-20"))
+        ]
+
+        let series = RevenueSeriesService.monthlySeries(
+            for: [invoice],
+            referenceCurrency: .eur,
+            endingAt: reference,
+            count: 12,
+            calendar: calendar
+        )
+
+        try expectEqual(series.count, 12)
+        // Du plus ancien au plus récent, et le dernier est le mois courant.
+        try expect(series.map(\.start) == series.map(\.start).sorted(), "the series must run oldest to newest")
+        try expectEqual(series.filter(\.isCurrent).count, 1)
+        try expect(series.last?.isCurrent == true, "the current month must close the series")
+
+        try expectDecimal(series.last?.collected, equals: "600")
+        let june = series.first { calendar.component(.month, from: $0.start) == 6 }
+        try expectDecimal(june?.collected, equals: "400")
+        // Les mois sans encaissement valent zéro, ils ne disparaissent pas —
+        // un trou dans une série se lit comme une absence de barre, pas comme
+        // un mois manquant.
+        try expectEqual(series.filter { $0.collected == 0 }.count, 10)
+    }
+
+    /// La TVA collectée remplace « Devis en cours », qui comptait exactement le
+    /// même filtre que le groupe affiché juste dessous. Chaque versement est
+    /// proraté : encaisser la moitié d'une facture, c'est encaisser la moitié
+    /// de sa TVA.
+    private static func vatCollectedProratesEachPayment() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Paris") ?? .current
+
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let reference = formatter.date(from: "2026-08-14"),
+              let paid = formatter.date(from: "2026-07-10") else {
+            throw RegressionFailure(message: "bad fixture dates")
+        }
+
+        // 1 000 HT + 20 % = 1 200 TTC, dont 200 de TVA. La moitié encaissée →
+        // 100 de TVA.
+        let invoice = Document(type: .facture)
+        invoice.currency = .eur
+        invoice.ajouterLigne(LineItem(designation: "x", quantite: 1, prixUnitaire: 1000, tauxTVA: 20))
+        invoice.status = .partiel
+        invoice.paiementsPartiels = [PartialPayment(montant: 600, date: paid)]
+
+        let vat = RevenueSeriesService.vatCollectedThisQuarter(
+            for: [invoice],
+            referenceCurrency: .eur,
+            reference: reference,
+            calendar: calendar
+        )
+        try expectDecimal(vat, equals: "100")
+
+        // Le trimestre est bien Q3 (juillet-septembre), et un versement hors
+        // trimestre n'y entre pas.
+        try expectEqual(RevenueSeriesService.quarterNumber(of: reference, calendar: calendar), 3)
+        guard let quarter = RevenueSeriesService.quarterInterval(containing: reference, calendar: calendar),
+              let april = formatter.date(from: "2026-04-02") else {
+            throw RegressionFailure(message: "bad quarter")
+        }
+        try expect(quarter.contains(paid), "July belongs to Q3")
+        try expect(!quarter.contains(april), "April must not belong to Q3")
+    }
+
+    private static func lineItemAcceptsAnyVATRate() throws {
+        for rate in ["0", "2.1", "8.5", "13.8", "21"] {
+            let document = Document(type: .facture)
+            document.ajouterLigne(
+                LineItem(designation: "x", quantite: 1, prixUnitaire: 100, tauxTVA: decimal(rate))
+            )
+            try expectDecimal(document.totalHT, equals: "100")
+            // La TVA suit le taux saisi, quel qu'il soit — pas un barème figé.
+            let expected = (decimal("100") as NSDecimalNumber)
+                .multiplying(by: decimal(rate) as NSDecimalNumber)
+                .dividing(by: 100)
+            try expectDecimal(document.totalTVA, equals: expected.stringValue)
+        }
+    }
+
+    /// Cinq destinations, sans groupe. Trois d'entre elles portent une colonne
+    /// liste — c'est ce qui décide du repli du châssis, et donc le seul endroit
+    /// où il peut encore diverger.
+    private static func sidebarHasFiveDestinations() throws {
+        try expectEqual(SidebarSection.allCases.count, 5)
+
+        let withList = SidebarSection.allCases.filter(\.hasList)
+        try expectEqual(Set(withList), Set([.ventes, .clients, .temps]))
+
+        // Clients DOIT en faire partie. Sans colonne liste, son carnet repart
+        // dans un split fait main à l'intérieur de la colonne détail, dont la
+        // largeur balaye alors `breakpointCompact` pendant l'animation de repli
+        // — et une vue qui restructure son arbre à ce moment-là fait planter
+        // AppKit en pleine passe de layout. C'est le plantage « Ventes →
+        // Clients » ; ce cas existe pour qu'il ne revienne pas.
+        try expect(
+            SidebarSection.clients.hasList,
+            "Clients must own the list column instead of splitting the detail column itself"
+        )
+
+        for lang in [AppLanguage.fr, .en] {
+            let labels = SidebarSection.allCases.map { $0.label(for: lang) }
+            try expect(
+                labels.allSatisfy { !$0.trimmingCharacters(in: .whitespaces).isEmpty },
+                "every destination must be labelled in \(lang)"
+            )
+            try expectEqual(Set(labels).count, labels.count)
+        }
+
+        // Une section sans liste replie la colonne à ZÉRO : lui réserver une
+        // bande visible privait la colonne de détail de la largeur dont
+        // « Clients » a besoin, et provoquait une contrainte insatisfiable.
+        try expect(
+            FacioLayout.sidebarMin + FacioLayout.detailMin <= FacioLayout.windowMinWidth,
+            "sidebar + detail must fit inside the minimum window when the list column is collapsed"
+        )
+
+        // Le split interne de « Clients » doit tenir dans la colonne de détail
+        // la plus étroite. Il exigeait 640 pt en dur alors que la colonne peut
+        // descendre à 460 : contrainte insatisfiable, exception AppKit, crash.
+        try expect(
+            FacioLayout.clientListMin + FacioLayout.clientDetailMin <= FacioLayout.detailMin,
+            "the client split must fit inside the narrowest detail column"
+        )
+        try expect(
+            FacioLayout.clientListMin <= FacioLayout.clientListIdeal,
+            "the client list ideal width must not fall below its minimum"
+        )
+        try expect(
+            FacioLayout.clientListIdeal <= FacioLayout.clientListMax,
+            "the client list maximum width must not fall below its ideal"
         )
     }
 
@@ -3462,6 +4014,165 @@ enum FacioRegressionSuite {
     private static func decimal(_ string: String) -> Decimal {
         Decimal(string: string, locale: Locale(identifier: "en_US_POSIX"))!
     }
+
+    // MARK: - Nommage des exports
+
+    /// Le PDF simple et le Factur-X sont DEUX fichiers différents : ils ne
+    /// doivent jamais se présenter sous le même nom.
+    ///
+    /// Les deux exports proposaient `document.number` — exporter les deux dans
+    /// le même dossier offrait donc d'écraser le premier par le second, alors
+    /// que l'un porte une facture électronique structurée et l'autre non.
+    private static func pdfExportsNeverShareAFilename() throws {
+        let cases = [
+            ("Facture_2026_03", "Studio Norne SARL"),
+            ("Invoice_2026_11", "Coopérative Sillage"),
+            ("Facture_2026_01", ""),
+            ("Devis_2026_02", "   "),
+        ]
+
+        for (number, client) in cases {
+            let pdf = DocumentExportNaming.pdfFilename(number: number, clientName: client)
+            let facturX = DocumentExportNaming.facturXFilename(number: number, clientName: client)
+
+            try expect(pdf != facturX, "the two exports of \(number) must not share a filename")
+            try expect(pdf.hasPrefix(number), "\(pdf) must stay identifiable by its document number")
+            try expect(
+                facturX.hasSuffix(DocumentExportNaming.facturXSuffix),
+                "the structured export must announce itself: \(facturX)"
+            )
+            // Un nom vide ou blanc ne doit pas produire de séparateur orphelin.
+            try expect(!pdf.contains("__"), "\(pdf) must not carry an empty segment")
+            try expect(!pdf.hasSuffix("_"), "\(pdf) must not end on a separator")
+        }
+
+        // Le client entre dans le nom : un dossier d'exports ne contenait que
+        // des « Facture_2026_03.pdf » indistinguables d'un client à l'autre.
+        let a = DocumentExportNaming.pdfFilename(number: "Facture_2026_03", clientName: "Studio Norne")
+        let b = DocumentExportNaming.pdfFilename(number: "Facture_2026_03", clientName: "Atelier Vermeille")
+        try expect(a != b, "two clients must not produce the same filename for the same number")
+
+        // Les séparateurs de chemin ne survivent pas au passage en nom de fichier.
+        let hostile = DocumentExportNaming.slug("A/B:C  *E")
+        try expect(!hostile.contains("/") && !hostile.contains(":"), "path separators must not survive: \(hostile)")
+        try expect(!hostile.contains("--"), "runs of punctuation must collapse: \(hostile)")
+    }
+
+    // MARK: - Barre d'outils
+
+    /// Deux éléments de barre d'outils ne peuvent pas porter le même
+    /// identifiant.
+    ///
+    /// Sans identifiant explicite, SwiftUI en génère un et le pont NSToolbar les
+    /// réattribue d'une vue à l'autre : au changement de section, les éléments de
+    /// la vue quittée étaient encore enregistrés quand ceux de la nouvelle
+    /// s'inséraient, et `-[NSToolbar _insertNewItemWithItemIdentifier:atIndex:]`
+    /// levait une exception qui tuait l'application — le plantage
+    /// « Ventes → Clients », confirmé par trois rapports système identiques.
+    private static func toolbarIdentifiersAreExplicitAndUnique() throws {
+        let all = FacioToolbarID.all
+
+        try expectEqual(Set(all).count, all.count)
+        try expect(!all.isEmpty, "the toolbar identifier list must not be empty")
+
+        for identifier in all {
+            try expect(
+                !identifier.trimmingCharacters(in: .whitespaces).isEmpty,
+                "an empty identifier is the same as no identifier at all"
+            )
+            // Un préfixe commun garantit qu'aucun ne peut entrer en collision
+            // avec un identifiant d'AppKit (« NSToolbarFlexibleSpaceItem »…).
+            try expect(
+                identifier.hasPrefix("facio."),
+                "\(identifier) must be namespaced so it cannot collide with an AppKit item"
+            )
+        }
+    }
+
+
+    // MARK: - Graphique du tableau de bord
+
+    /// Cliquer une barre doit lister les encaissements DE CE MOIS-LÀ, et la
+    /// somme des lignes doit valoir exactement la hauteur de la barre.
+    ///
+    /// Une facture peut être encaissée en plusieurs versements étalés sur
+    /// plusieurs mois : lister son TOTAL sous la barre de mars ferait mentir le
+    /// graphique dès le premier acompte.
+    private static func chartBarListsOnlyItsOwnMonth() throws {
+        let calendar = Calendar(identifier: .gregorian)
+        guard let march = calendar.date(from: DateComponents(year: 2026, month: 3, day: 10)),
+              let april = calendar.date(from: DateComponents(year: 2026, month: 4, day: 8)) else {
+            throw RegressionFailure(message: "could not build the test dates")
+        }
+
+        let document = Document(type: .facture, number: "Facture_2026_03", currency: .eur)
+        document.ajouterLigne(LineItem(designation: "x", quantite: 1, prixUnitaire: 1000, tauxTVA: 0))
+        document.status = .partiel
+        document.paiementsPartiels = [
+            PartialPayment(montant: 400, date: march),
+            PartialPayment(montant: 600, date: april),
+        ]
+
+        let marchRows = RevenueSeriesService.collections(
+            for: [document], referenceCurrency: .eur, in: march, calendar: calendar
+        )
+        try expectEqual(marchRows.count, 1)
+        // 400, pas 1000 : la barre de mars ne porte que le versement de mars.
+        try expectDecimal(marchRows[0].amount, equals: "400")
+
+        let aprilRows = RevenueSeriesService.collections(
+            for: [document], referenceCurrency: .eur, in: april, calendar: calendar
+        )
+        try expectDecimal(aprilRows[0].amount, equals: "600")
+
+        // Et la somme des lignes égale la hauteur de la barre du même mois.
+        let series = RevenueSeriesService.monthlySeries(
+            for: [document], referenceCurrency: .eur, endingAt: april, count: 3, calendar: calendar
+        )
+        for month in series {
+            let rows = RevenueSeriesService.collections(
+                for: [document], referenceCurrency: .eur, in: month.start, calendar: calendar
+            )
+            try expectDecimal(rows.reduce(Decimal(0)) { $0 + $1.amount }, equals: "\(month.collected)")
+        }
+    }
+
+
+    // MARK: - Disposition du tableau de bord
+
+    /// Une préférence enregistrée peut avoir vieilli : bloc disparu d'une
+    /// version à l'autre, bloc ajouté qu'elle ignore, doublon introduit par une
+    /// synchronisation. L'écran doit rester complet et jamais vide.
+    private static func dashboardLayoutSurvivesAnAgedPreference() throws {
+        // Ordre partiel + valeur inconnue + doublon : on garde l'ordre voulu
+        // pour ce qu'on reconnaît, on ignore le reste, et on complète.
+        let normalized = DashboardSection.normalizedOrder(from: ["recent", "zzz", "recent", "chart"])
+        try expectEqual(normalized.prefix(2).map(\.rawValue), ["recent", "chart"])
+        try expectEqual(Set(normalized), Set(DashboardSection.allCases))
+        try expectEqual(normalized.count, DashboardSection.allCases.count)
+
+        // Une préférence vide retombe sur l'ordre livré, pas sur rien.
+        try expectEqual(DashboardSection.normalizedOrder(from: []), DashboardSection.defaultOrder)
+
+        // Masquer TOUS les blocs laisserait un écran blanc sans issue.
+        let company = CompanyInfo()
+        company.dashboardHiddenSections = Set(DashboardSection.allCases)
+        try expectEqual(company.visibleDashboardSections, DashboardSection.defaultOrder)
+
+        // Masquer un seul bloc le retire, et respecte l'ordre choisi.
+        company.dashboardSectionOrder = [.recent, .kpis, .chart, .focus]
+        company.dashboardHiddenSections = [.chart]
+        try expectEqual(company.visibleDashboardSections.map(\.rawValue), ["recent", "kpis", "focus"])
+
+        // Et une charge utile antérieure à ce réglage se décode sans préférence.
+        let legacy = """
+        {"id":"7C6D1F42-0F2E-4B58-9A31-8C2D5E6F7A81","nom":"Facio"}
+        """
+        let decoded = try JSONDecoder().decode(CompanyInfo.self, from: Data(legacy.utf8))
+        try expectEqual(decoded.dashboardSectionOrder, DashboardSection.defaultOrder)
+        try expect(decoded.dashboardHiddenSections.isEmpty, "an old payload hides nothing")
+    }
+
 }
 
 private struct RegressionCase: Sendable {

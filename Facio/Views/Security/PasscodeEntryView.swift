@@ -18,6 +18,10 @@ struct PasscodeEntryView: View {
     var isDisabled: Bool = false
     /// Incrémenté par le parent pour déclencher la secousse d'erreur.
     var shakeToken: Int = 0
+    /// Le pavé est une OPTION. Sur Mac, la frappe clavier est le geste réel de
+    /// tout le monde, et le pavé occupait 234 pt au centre de l'écran — 186 pt
+    /// de large centrés dans une colonne de 320, soit 67 pt morts de chaque côté.
+    var showsKeypad: Bool = true
     let onComplete: (String) -> Void
 
     @Environment(\.facioAccent) private var accent
@@ -26,7 +30,7 @@ struct PasscodeEntryView: View {
     var body: some View {
         VStack(spacing: FacioLayout.space24) {
             dots
-            keypad
+            if showsKeypad { keypad }
         }
         .background(
             // Capture clavier au niveau AppKit. `.focusable()` + `.onKeyPress`

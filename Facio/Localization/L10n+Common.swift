@@ -84,4 +84,5 @@ extension L10n {
         l == .fr ? "Facio \(version) est disponible. Téléchargez la dernière version sur GitHub."
         : "Facio \(version) is available. Download the latest version from GitHub."
     }
+    static func moreActions(_ l: AppLanguage) -> String { l == .fr ? "Autres actions" : "More actions" }
 }

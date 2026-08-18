@@ -122,4 +122,68 @@ extension L10n {
     static func selectDocumentHint(_ l: AppLanguage) -> String { l == .fr ? "Sélectionnez un document dans la liste ou créez-en un nouveau avec +" : "Select a document from the list or create a new one with +" }
     static func noPeriodSelected(_ l: AppLanguage) -> String { l == .fr ? "Aucune période sélectionnée" : "No period selected" }
     static func selectPeriodHint(_ l: AppLanguage) -> String { l == .fr ? "Sélectionnez une période ou créez-en une avec +" : "Select a period or create one with +" }
+    // MARK: - Cycle de vie
+    //
+    // Chaque transition est un bouton nommé, plus une valeur dans un menu
+    // déroulant : le statut pilote le CA, le retard et les encaissements, il ne
+    // peut pas rester une cellule de formulaire au même poids que « Langue ».
+    static func actionSend(_ l: AppLanguage) -> String { l == .fr ? "Envoyer" : "Send" }
+    static func actionMarkPaid(_ l: AppLanguage) -> String { l == .fr ? "Marquer payée" : "Mark as paid" }
+    static func actionRecordDeposit(_ l: AppLanguage) -> String { l == .fr ? "Enregistrer un acompte" : "Record a part-payment" }
+    static func actionRemind(_ l: AppLanguage) -> String { l == .fr ? "Relancer" : "Send a reminder" }
+    static func actionCancelDocument(_ l: AppLanguage) -> String { l == .fr ? "Annuler le document" : "Cancel document" }
+    static func actionReopen(_ l: AppLanguage) -> String { l == .fr ? "Rouvrir" : "Reopen" }
+
+    static func statusChangedToast(_ l: AppLanguage, status: String) -> String {
+        l == .fr ? "Statut : \(status)" : "Status: \(status)"
+    }
+
+    /// La numérotation continue est une obligation légale en France, et le
+    /// numéro était éditable à deux endroits du même écran sans aucun contrôle.
+    static func duplicateNumberError(_ l: AppLanguage) -> String {
+        l == .fr ? "Ce numéro est déjà utilisé par un autre document." : "This number is already used by another document."
+    }
+    // MARK: - Conformité
+    //
+    // Le panneau n'affichait QUE les contrôles en échec, toujours avec la
+    // pastille vide : il était une liste de reproches, jamais une confirmation.
+    // Et quand tout était correct il disparaissait — au-dessus de 1120 pt, avec
+    // toute la colonne inspecteur — donc le seul retour pour avoir corrigé une
+    // erreur était un saut de mise en page.
+    static func issuerReady(_ l: AppLanguage) -> String {
+        l == .fr ? "Mentions de l'émetteur" : "Issuer's legal details"
+    }
+    static func missingIssuerHint(_ l: AppLanguage) -> String {
+        l == .fr
+            ? "Nom, adresse et SIRET sont obligatoires sur une facture française."
+            : "Name, address and SIRET are mandatory on a French invoice."
+    }
+    static func documentReadyToSend(_ l: AppLanguage) -> String {
+        l == .fr ? "Prêt à envoyer" : "Ready to send"
+    }
+    static func readinessProgress(_ l: AppLanguage, remaining: Int, total: Int) -> String {
+        l == .fr ? "\(remaining) à corriger sur \(total)" : "\(remaining) of \(total) to fix"
+    }
+    static func inspectorToggle(_ l: AppLanguage) -> String {
+        l == .fr ? "Conformité" : "Compliance"
+    }
+    // MARK: - Lignes
+    //
+    // Une ligne incomplète était signalée par un fond orange et RIEN d'autre :
+    // ni icône, ni infobulle, ni texte. Invisible pour un daltonien, pour
+    // VoiceOver, et sur une capture d'écran. La chaîne existait pourtant.
+    static func lineIncomplete(_ l: AppLanguage) -> String {
+        l == .fr ? "Ligne à compléter" : "Line needs completing"
+    }
+    static func lineMissingDesignation(_ l: AppLanguage) -> String {
+        l == .fr ? "désignation manquante" : "missing description"
+    }
+    static func lineMissingQuantity(_ l: AppLanguage) -> String {
+        l == .fr ? "quantité à zéro" : "zero quantity"
+    }
+    static func lineMissingPrice(_ l: AppLanguage) -> String {
+        l == .fr ? "prix négatif" : "negative price"
+    }
+    static func moveLineUp(_ l: AppLanguage) -> String { l == .fr ? "Monter la ligne" : "Move line up" }
+    static func moveLineDown(_ l: AppLanguage) -> String { l == .fr ? "Descendre la ligne" : "Move line down" }
 }

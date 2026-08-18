@@ -76,7 +76,7 @@ struct SecuritySettingsView: View {
                                 }
                             }
                             .labelsHidden()
-                            .frame(maxWidth: FacioLayout.fieldWidth)
+                            .frame(maxWidth: FacioLayout.fieldWidth, alignment: .leading)
                         }
 
                         Text(L10n.autoLockHint(lang))

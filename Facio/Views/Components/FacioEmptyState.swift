@@ -26,24 +26,24 @@ struct FacioEmptyState<Action: View>: View {
         VStack(spacing: FacioLayout.space12) {
             Image(systemName: systemImage)
                 .font(.system(size: 38, weight: .regular))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Color.textTertiary)
 
             VStack(spacing: FacioLayout.space4) {
                 Text(title)
-                    .font(FacioFont.sectionTitle)
-                    .foregroundStyle(.primary)
+                    .font(FacioFont.titleSection)
+                    .foregroundStyle(Color.textPrimary)
                     .multilineTextAlignment(.center)
                 if let message, !message.isEmpty {
                     Text(message)
-                        .font(FacioFont.caption)
-                        .foregroundStyle(.secondary)
+                        .font(FacioFont.secondary)
+                        .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
             action
-                .padding(.top, FacioLayout.space2)
+                .padding(.top, FacioLayout.space4)
         }
         .frame(maxWidth: 360)
         .padding(FacioLayout.space24)

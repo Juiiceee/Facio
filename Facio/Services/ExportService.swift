@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import PDFKit
 
 struct ExportService {
     enum ExportResult: Equatable {
@@ -36,6 +37,39 @@ struct ExportService {
         } catch {
             return .failed
         }
+    }
+
+    /// Envoie le PDF à l'imprimante, via le dialogue d'impression système.
+    ///
+    /// L'app générait des PDF depuis toujours sans jamais offrir de les
+    /// imprimer : il fallait exporter, ouvrir le fichier dans Aperçu, puis
+    /// imprimer depuis là — trois étapes pour un geste que ⌘P rend natif
+    /// partout ailleurs sur macOS.
+    @MainActor
+    @discardableResult
+    static func printPDF(data: Data, jobName: String) -> ExportResult {
+        guard let pdf = PDFDocument(data: data) else { return .failed }
+
+        let info = NSPrintInfo.shared.copy() as? NSPrintInfo ?? NSPrintInfo.shared
+        info.jobDisposition = .spool
+        // Le PDF est déjà paginé en A4 avec ses marges : le laisser tel quel,
+        // sinon l'impression re-marge un document déjà margé.
+        info.horizontalPagination = .fit
+        info.verticalPagination = .fit
+        info.isHorizontallyCentered = true
+        info.isVerticallyCentered = true
+        info.leftMargin = 0
+        info.rightMargin = 0
+        info.topMargin = 0
+        info.bottomMargin = 0
+
+        guard let operation = pdf.printOperation(for: info, scalingMode: .pageScaleDownToFit, autoRotate: false) else {
+            return .failed
+        }
+        operation.jobTitle = jobName
+        operation.showsPrintPanel = true
+        operation.showsProgressPanel = true
+        return operation.run() ? .success : .cancelled
     }
 
     @MainActor

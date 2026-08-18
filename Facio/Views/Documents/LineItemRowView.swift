@@ -10,13 +10,15 @@ struct LineItemRowView: View {
     var onDuplicate: () -> Void
     var onInsertBelow: () -> Void
     var onUpdate: () -> Void
+    /// Déplacer la ligne. Le modèle porte un champ `ordre` et les lignes sont
+    /// triées dessus, mais rien ne permettait de réordonner : il fallait
+    /// supprimer et retaper.
+    var onMove: (Int) -> Void = { _ in }
 
     @Environment(DataStore.self) private var dataStore
 
     private var lang: AppLanguage { dataStore.companyInfo.langueParDefaut }
     private var numberFormat: AppLanguage { dataStore.companyInfo.formatNombre }
-
-    private static let tvaRates: [Decimal] = [0, 5.5, 10, 20]
 
     /// Acces securise a la ligne — retourne nil si supprimee
     private var ligne: LineItem? {
@@ -39,10 +41,23 @@ struct LineItemRowView: View {
                     regularRow(for: currentLigne)
                 }
             }
-            .padding(.vertical, FacioLayout.space2)
+            .padding(.vertical, FacioLayout.space4)
             .padding(.horizontal, FacioLayout.space4)
-            .background(rowNeedsAttention(currentLigne) ? Color.intentWarning.opacity(0.08) : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusField))
+            .background(incompleteReason(currentLigne) == nil ? Color.clear : FacioIntent.warning.tint)
+            .clipShape(RoundedRectangle(cornerRadius: FacioLayout.radiusSmall))
+            .overlay(alignment: .bottomLeading) {
+                // La cause ÉCRITE. Le fond orange était le seul signal, donc
+                // rien pour un daltonien, rien pour VoiceOver, rien sur une
+                // capture d'écran — et la chaîne existait déjà, non rendue.
+                if let reason = incompleteReason(currentLigne) {
+                    Label(reason, systemImage: "exclamationmark.circle.fill")
+                        .font(FacioFont.label)
+                        .foregroundStyle(FacioIntent.warning.onTint)
+                        .padding(.horizontal, FacioLayout.space4)
+                        .offset(y: FacioLayout.space12)
+                }
+            }
+            .padding(.bottom, incompleteReason(currentLigne) == nil ? 0 : FacioLayout.space16)
         }
     }
 
@@ -136,19 +151,22 @@ struct LineItemRowView: View {
         .format(numberFormat)
     }
 
-    /// TVA
+    /// TVA — saisie libre.
+    ///
+    /// Le taux était figé à 0 / 5,5 / 10 / 20 : impossible de saisir 2,1 %
+    /// (presse, médicaments), un taux DOM ou un taux étranger, alors que l'app
+    /// est bilingue et facture en USD.
     private var vatPicker: some View {
-        Picker(L10n.vatLabel(lang), selection: Binding(
-            get: { document.lignes.first(where: { $0.id == ligneId })?.tauxTVA ?? 0 },
-            set: { newVal in
-                if let i = safeIndex() { document.lignes[i].tauxTVA = newVal; onUpdate() }
-            }
-        )) {
-            ForEach(Self.tvaRates, id: \.self) { rate in
-                Text(L10n.vatRateLabel(numberFormat, rate: rate)).tag(rate)
-            }
-        }
-        .labelsHidden()
+        DecimalField(
+            placeholder: L10n.vatLabel(lang),
+            value: Binding(
+                get: { document.lignes.first(where: { $0.id == ligneId })?.tauxTVA ?? 0 },
+                set: { newVal in
+                    if let i = safeIndex() { document.lignes[i].tauxTVA = newVal; onUpdate() }
+                }
+            ),
+            format: numberFormat
+        )
     }
 
     /// Total HT (lecture seule)
@@ -180,6 +198,19 @@ struct LineItemRowView: View {
 
             Divider()
 
+            Button {
+                onMove(-1)
+            } label: {
+                Label(L10n.moveLineUp(lang), systemImage: "arrow.up")
+            }
+            Button {
+                onMove(1)
+            } label: {
+                Label(L10n.moveLineDown(lang), systemImage: "arrow.down")
+            }
+
+            Divider()
+
             Button(role: .destructive) {
                 onDelete()
             } label: {
@@ -194,10 +225,16 @@ struct LineItemRowView: View {
         .help(L10n.businessActions(lang))
     }
 
-    private func rowNeedsAttention(_ line: LineItem) -> Bool {
-        line.designation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || line.quantite <= 0
-            || line.prixUnitaire < 0
+    /// Pourquoi cette ligne est incomplète — la cause, pas seulement le fait.
+    private func incompleteReason(_ line: LineItem) -> String? {
+        var causes: [String] = []
+        if line.designation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            causes.append(L10n.lineMissingDesignation(lang))
+        }
+        if line.quantite <= 0 { causes.append(L10n.lineMissingQuantity(lang)) }
+        if line.prixUnitaire < 0 { causes.append(L10n.lineMissingPrice(lang)) }
+        guard !causes.isEmpty else { return nil }
+        return "\(L10n.lineIncomplete(lang)) — \(causes.joined(separator: ", "))"
     }
 }
 

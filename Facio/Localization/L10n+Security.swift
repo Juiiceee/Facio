@@ -27,12 +27,47 @@ extension L10n {
     static func wrongCode(_ l: AppLanguage) -> String { l == .fr ? "Code incorrect" : "Wrong passcode" }
     static func attemptsRemaining(_ l: AppLanguage, count: Int) -> String {
         if l == .fr {
-            return count == 1 ? "Encore 1 essai avant temporisation" : "Encore \(count) essais avant temporisation"
+            return count == 1 ? "Encore 1 essai avant blocage" : "Encore \(count) essais avant blocage"
         }
-        return count == 1 ? "1 attempt left before a timeout" : "\(count) attempts left before a timeout"
+        return count == 1 ? "1 attempt left before lockout" : "\(count) attempts left before lockout"
     }
     static func lockedOutRetryIn(_ l: AppLanguage, delay: String) -> String {
-        l == .fr ? "Trop d'essais — réessayez dans \(delay)" : "Too many attempts — try again in \(delay)"
+        l == .fr ? "Saisie bloquée — réessayez dans \(delay)" : "Entry locked — try again in \(delay)"
+    }
+
+    /// La règle COMPLÈTE, annoncée dès le premier refus : l'utilisateur
+    /// légitime qui hésite était puni sans jamais avoir été prévenu, et le
+    /// compteur d'essais restants disparaissait après le premier blocage alors
+    /// que la sanction suivante, elle, doublait.
+    static func lockoutRule(_ l: AppLanguage, steps: String) -> String {
+        l == .fr
+            ? "Après \(AppLockPolicy.attemptsBeforeLockout) essais, la saisie se bloque \(steps)."
+            : "After \(AppLockPolicy.attemptsBeforeLockout) attempts, entry locks for \(steps)."
+    }
+
+    // MARK: - Écran de verrouillage
+    static func lockedSubtitle(_ l: AppLanguage) -> String {
+        l == .fr ? "Facio est verrouillé" : "Facio is locked"
+    }
+    /// Sur Mac, la frappe clavier est le geste réel de tout le monde : rien ne
+    /// l'indiquait, et taper une lettre était avalé en silence.
+    static func typeOnKeyboard(_ l: AppLanguage) -> String {
+        l == .fr ? "tapez au clavier" : "type on your keyboard"
+    }
+    static func codeProgress(_ l: AppLanguage, entered: Int, total: Int) -> String {
+        l == .fr ? "\(entered) chiffre\(entered > 1 ? "s" : "") sur \(total)" : "\(entered) of \(total) digits"
+    }
+    static func showKeypad(_ l: AppLanguage) -> String {
+        l == .fr ? "Afficher le pavé numérique" : "Show the keypad"
+    }
+    static func hideKeypad(_ l: AppLanguage) -> String {
+        l == .fr ? "Masquer le pavé numérique" : "Hide the keypad"
+    }
+    static func orEnterCode(_ l: AppLanguage) -> String {
+        l == .fr ? "ou saisissez votre code" : "or enter your passcode"
+    }
+    static func biometricsUnavailableShort(_ l: AppLanguage) -> String {
+        l == .fr ? "Touch ID indisponible" : "Touch ID unavailable"
     }
     static func forgotCode(_ l: AppLanguage) -> String { l == .fr ? "Code oublié ?" : "Forgot your passcode?" }
     static func forgotCodeExplanation(_ l: AppLanguage) -> String {
@@ -144,6 +179,11 @@ extension L10n {
     static func codeStepCurrent(_ l: AppLanguage) -> String { l == .fr ? "Code actuel" : "Current passcode" }
     static func codeStepNew(_ l: AppLanguage) -> String { l == .fr ? "Nouveau code" : "New passcode" }
     static func codeStepConfirm(_ l: AppLanguage) -> String { l == .fr ? "Confirmez le code" : "Confirm the passcode" }
+    /// « Étape 2 sur 3 » — la feuille enchaînait jusqu'à trois saisies sans
+    /// jamais dire combien il en restait.
+    static func codeStepProgress(_ l: AppLanguage, step: Int, total: Int) -> String {
+        l == .fr ? "Étape \(step) sur \(total)" : "Step \(step) of \(total)"
+    }
     static func codeLengthLabel(_ l: AppLanguage) -> String { l == .fr ? "Longueur" : "Length" }
     static func codeLengthDigits(_ l: AppLanguage, digits: Int) -> String {
         l == .fr ? "\(digits) chiffres" : "\(digits) digits"
@@ -180,4 +220,9 @@ extension L10n {
     static func toastCodeCreated(_ l: AppLanguage) -> String { l == .fr ? "Code d'accès activé" : "Passcode enabled" }
     static func toastCodeChanged(_ l: AppLanguage) -> String { l == .fr ? "Code d'accès modifié" : "Passcode changed" }
     static func toastCodeRemoved(_ l: AppLanguage) -> String { l == .fr ? "Code d'accès supprimé" : "Passcode removed" }
+    static func settingsLockedMessage(_ l: AppLanguage) -> String {
+        l == .fr
+            ? "Saisissez votre code dans la fenêtre principale de Facio pour retrouver les réglages."
+            : "Enter your passcode in the main Facio window to reach settings again."
+    }
 }

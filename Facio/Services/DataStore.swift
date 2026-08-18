@@ -1245,6 +1245,22 @@ final class DataStore: Sendable {
             && entry.duration() > 0
     }
 
+    /// Les lignes que produirait une facturation depuis les entrées du minuteur.
+    ///
+    /// Existe pour que la feuille « Facturer » puisse MONTRER son résultat avant
+    /// de le produire : les cinq points d'entrée de génération facturaient à
+    /// l'aveugle, et deux d'entre eux ne donnaient pas la même facture.
+    func timeEntryInvoicePreview(
+        for timesheet: TimesheetPeriod,
+        grouping: TimeEntryInvoiceGrouping
+    ) -> [LineItem] {
+        timeEntryInvoiceLineItems(
+            for: importableTimeEntries(for: timesheet),
+            timesheet: timesheet,
+            grouping: grouping
+        ).map(\.line)
+    }
+
     private func timeEntryInvoiceLineItems(
         for entries: [TimeEntry],
         timesheet: TimesheetPeriod,

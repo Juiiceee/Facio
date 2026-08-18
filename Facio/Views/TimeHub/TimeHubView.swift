@@ -72,7 +72,6 @@ struct TimeHubView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: FacioLayout.sectionSpacing) {
                     header(interval: interval)
-                    SharedTimerBarView(selectedTimesheetId: $selectedTimesheetId)
                     undoBar
                     statsGrid(stats: stats)
                     sectionPicker
@@ -80,7 +79,7 @@ struct TimeHubView: View {
                 }
                 .padding(FacioLayout.screenPadding)
             }
-            .navigationTitle(L10n.sidebarPlanning(lang))
+            .navigationTitle(L10n.allActivity(lang))
             .sheet(isPresented: $showManualEntrySheet) {
                 TimeHubManualEntrySheet()
                     .environment(dataStore)
@@ -136,7 +135,7 @@ struct TimeHubView: View {
     /// Bloc titre + sous-titre de période, partagé entre les variantes du header.
     private func headerTitle(interval: DateInterval) -> some View {
         VStack(alignment: .leading, spacing: FacioLayout.space2) {
-            Label(L10n.sidebarPlanning(lang), systemImage: "calendar.badge.clock")
+            Label(L10n.allActivity(lang), systemImage: "chart.bar")
                 .font(FacioFont.screenTitle)
             Text(periodTitle(interval))
                 .font(FacioFont.screenSubtitle)
@@ -222,38 +221,38 @@ struct TimeHubView: View {
                 title: periodMode == .day ? L10n.today(lang) : L10n.trackedTime(lang),
                 value: formatDuration(stats.totalSeconds),
                 systemImage: "clock",
-                color: .intentInfo
+                intent: .info
             )
             MetricTile(
                 title: L10n.billableTime(lang),
                 value: formatDuration(stats.billableSeconds),
                 systemImage: "dollarsign.circle",
-                color: .intentSuccess
+                intent: .success
             )
             MetricTile(
                 title: L10n.estimatedAmount(lang),
                 value: privacy.format(stats.estimatedAmount, currency, lang: numberFormat),
                 systemImage: "banknote",
-                color: Color.appPrimary(from: dataStore.companyInfo)
+                intent: .accent(from: dataStore.companyInfo)
             )
             MetricTile(
                 title: L10n.uninvoicedTime(lang),
                 value: formatDuration(stats.uninvoicedSeconds),
                 subtitle: L10n.entriesCount(lang, count: stats.entriesCount),
                 systemImage: "tray.full",
-                color: .intentWarning
+                intent: .warning
             )
             MetricTile(
                 title: L10n.nonBillableTime(lang),
                 value: formatDuration(stats.nonBillableSeconds),
                 systemImage: "clock.badge.xmark",
-                color: .secondary
+                intent: .neutral
             )
             MetricTile(
                 title: L10n.activeTasks(lang),
                 value: "\(stats.activeTasksCount)",
                 systemImage: "play.circle",
-                color: .intentDanger
+                intent: .danger
             )
         }
     }
@@ -480,8 +479,8 @@ struct TimeHubView: View {
                 Spacer()
                 FacioIconButton(
                     systemImage: "play.fill",
-                    tone: .intentSuccess,
-                    help: L10n.startThisTask(lang),
+                    label: L10n.startThisTask(lang),
+                    tone: FacioIntent.success.glyph,
                     isEnabled: dataStore.runningTimeEntryContext == nil
                 ) {
                     startTask(group)
@@ -894,25 +893,25 @@ private struct TimeHubEntryRow: View {
             HStack(spacing: FacioLayout.space4) {
                 FacioIconButton(
                     systemImage: "play.fill",
-                    help: L10n.continueTimer(lang),
+                    label: L10n.continueTimer(lang),
                     isEnabled: !context.entry.isRunning,
                     action: onContinue
                 )
                 FacioIconButton(
                     systemImage: "pencil",
-                    help: L10n.editTimeEntry(lang),
+                    label: L10n.editTimeEntry(lang),
                     action: onEdit
                 )
                 FacioIconButton(
                     systemImage: "doc.badge.plus",
-                    help: L10n.createInvoice(lang),
+                    label: L10n.createInvoice(lang),
                     isEnabled: context.entry.isBillable && !context.entry.isInvoiced && !context.entry.isRunning,
                     action: onInvoice
                 )
                 FacioIconButton(
                     systemImage: "trash",
-                    tone: .intentDanger,
-                    help: L10n.delete(lang),
+                    label: L10n.delete(lang),
+                    role: .destructive,
                     isEnabled: !context.entry.isInvoiced,
                     action: onDelete
                 )

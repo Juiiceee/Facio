@@ -84,8 +84,8 @@ private struct SignatureRowView: View {
             }
             FacioIconButton(
                 systemImage: "trash",
-                tone: .intentDanger,
-                help: L10n.delete(lang)
+                label: L10n.delete(lang),
+                role: .destructive
             ) {
                 onDelete()
             }

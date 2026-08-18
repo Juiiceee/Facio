@@ -1,13 +1,11 @@
 import Foundation
 
 extension L10n {
-    static func sidebarPlanning(_ l: AppLanguage) -> String { l == .fr ? "Hub temps" : "Time Hub" }
     static func timeHubOverview(_ l: AppLanguage) -> String { l == .fr ? "Vue d'ensemble" : "Overview" }
     static func timeHubTasks(_ l: AppLanguage) -> String { l == .fr ? "Tâches" : "Tasks" }
     static func timeHubCalendar(_ l: AppLanguage) -> String { l == .fr ? "Calendrier" : "Calendar" }
     static func timeHubLog(_ l: AppLanguage) -> String { l == .fr ? "Journal" : "Log" }
     static func timeHubOpenPlanning(_ l: AppLanguage) -> String { l == .fr ? "Ouvrir Planning" : "Open Time Hub" }
-    static func timeHubOpenCalendar(_ l: AppLanguage) -> String { l == .fr ? "Ouvrir le calendrier du temps" : "Open time calendar" }
     static func timeHubStartTimer(_ l: AppLanguage) -> String { l == .fr ? "Démarrer le compteur" : "Start timer" }
     static func timeHubStopTimer(_ l: AppLanguage) -> String { l == .fr ? "Arrêter le compteur" : "Stop timer" }
     static func timeHubAddManualEntry(_ l: AppLanguage) -> String { l == .fr ? "Ajouter une entrée manuelle" : "Add manual time entry" }
@@ -67,4 +65,11 @@ extension L10n {
     static func previousPeriod(_ l: AppLanguage) -> String { l == .fr ? "Période précédente" : "Previous period" }
     static func nextPeriod(_ l: AppLanguage) -> String { l == .fr ? "Période suivante" : "Next period" }
     static func createInvoice(_ l: AppLanguage) -> String { l == .fr ? "Créer une facture" : "Create invoice" }
+    // Minuteur de fenêtre
+    static func timerIdleInvitation(_ l: AppLanguage) -> String {
+        l == .fr ? "Démarrer un suivi du temps" : "Start tracking time"
+    }
+    static func timerRunningAccessibility(_ l: AppLanguage, subject: String) -> String {
+        l == .fr ? "Suivi en cours — \(subject). Ouvrir la saisie." : "Tracking — \(subject). Open the entry."
+    }
 }

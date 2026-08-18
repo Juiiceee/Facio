@@ -118,9 +118,9 @@ struct TimesheetListView: View {
             }
         }
         .id(timesheets.count)
-        .navigationTitle(L10n.sidebarTimeTracking(lang))
+        .navigationTitle(L10n.sidebarTime(lang))
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(id: FacioToolbarID.timesheetsNew, placement: .primaryAction) {
                 Button {
                     presentNewPeriod()
                 } label: {
@@ -313,12 +313,14 @@ struct TimesheetListView: View {
             ts = TimesheetPeriod(startDate: selectedStartDate, endDate: selectedEndDate, client: client)
         }
 
-        // Copier les taux depuis la derniere periode du meme client.
+        // Copier les taux depuis la derniere periode du meme client, EN LE DISANT :
+        // la reprise est utile, son silence ne l'était pas.
         if let last = timesheets.first(where: { $0.clientId == client.id }) {
             ts.tauxNormal = last.tauxNormal
             ts.tauxSupplementaire = last.tauxSupplementaire
             ts.coefficientNet = last.coefficientNet
             ts.seuilHebdo = last.seuilHebdo
+            ts.tauxRepriseDe = last.periodLabel(for: dataStore.companyInfo.langueParDefaut)
         }
 
         dataStore.addTimesheet(ts)

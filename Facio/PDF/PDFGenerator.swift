@@ -9,6 +9,17 @@ import ImageIO
 struct PDFGenerator {
     let document: Document
     let company: CompanyInfo
+    /// Numéro de la page en cours de dessin. Les pages n'en portaient aucun :
+    /// une page 2 séparée de sa page 1 était non identifiable.
+    private let pageCounter = PageCounter()
+
+    /// Boîte de comptage : `PDFGenerator` est une struct dessinée depuis des
+    /// méthodes non mutantes.
+    private final class PageCounter {
+        var value = 0
+        /// 0 pendant la passe de comptage.
+        var total = 0
+    }
 
     private let pH = PDFLayout.pageHeight
     private let pW = PDFLayout.pageWidth
@@ -30,6 +41,17 @@ struct PDFGenerator {
     // MARK: - Generation principale
 
     func generate() -> Data {
+        // DEUX passes : le nombre total de pages n'est connu qu'une fois le
+        // document dessiné. Sans lui, un « page 1 sur 2 » est impossible — et
+        // une page séparée de sa première page était non identifiable.
+        pageCounter.total = 0
+        _ = render()
+        pageCounter.total = max(pageCounter.value, 1)
+        return render()
+    }
+
+    private func render() -> Data {
+        pageCounter.value = 0
         let pdfData = NSMutableData()
         var mediaBox = PDFLayout.pageRect
 
@@ -38,6 +60,10 @@ struct PDFGenerator {
         else { return Data() }
 
         var y = beginPage(context)
+
+        // 0. Émetteur — qui facture. Le destinataire devait descendre au pied de
+        // page en 9 pt gris pour le savoir.
+        y = drawIssuerBlock(context, y: y)
 
         // 1. Titre + Logo
         y = drawTitleAndLogo(context, y: y)
@@ -70,6 +96,15 @@ struct PDFGenerator {
             y += 15
         }
 
+        // 6 bis. Mentions légales — conditions de règlement, pénalités,
+        // indemnité de recouvrement. La page n'en imprimait aucune, alors
+        // qu'elles conditionnent la validité de la facture.
+        if document.type == .facture {
+            y = ensurePageSpace(context, y: y, needed: 60)
+            y = drawLegalMentions(context, y: y)
+            y += 12
+        }
+
         // 7. Pied de page entreprise + paiement
         let solanaPayQR: CGImage? = {
             guard let address = document.solanaPayWalletAddress(from: company.wallets) else { return nil }
@@ -96,6 +131,8 @@ struct PDFGenerator {
     private func beginPage(_ context: CGContext) -> CGFloat {
         let pageInfo: [String: Any] = [kCGPDFContextMediaBox as String: PDFLayout.pageRect]
         context.beginPDFPage(pageInfo as CFDictionary)
+        pageCounter.value += 1
+        drawStatusWatermark(context)
         return PDFLayout.marginTop
     }
 
@@ -364,12 +401,88 @@ struct PDFGenerator {
         let typeLabel = document.type.label(for: lang).uppercased()
         drawTextCenter(typeLabel, y: cy, font: PDFLayout.fontLabel, color: PDFLayout.textGray, context: context)
 
-        // Titre centre — utilise le numero du document directement
-        let title = document.number
-        drawTextCenter(title, y: cy + 13, font: PDFLayout.fontTitle, color: PDFLayout.textBlack, context: context)
+        // Titre HUMAIN. Le plus gros caractère de la page lisait auparavant
+        // « Facture_2026_03 » — un nom de fichier, underscores compris.
+        drawTextCenter(humanTitle, y: cy + 13, font: PDFLayout.fontTitle, color: PDFLayout.textBlack, context: context)
 
         cy += 55
         return cy
+    }
+
+    /// « Facture n° 2026-03 » plutôt que le numéro brut : le titre était
+    /// l'identifiant technique du document, préfixe et underscores compris.
+    private var humanTitle: String {
+        let raw = document.number.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { return document.type.label(for: lang) }
+
+        // On retire le préfixe de type s'il est là, puis on rend les séparateurs
+        // lisibles : « Facture_2026_03 » → « 2026-03 ».
+        var body = raw
+        for prefix in [document.type.prefix(for: .fr), document.type.prefix(for: .en)] {
+            for separator in ["_", "-", " "] where body.lowercased().hasPrefix((prefix + separator).lowercased()) {
+                body = String(body.dropFirst(prefix.count + separator.count))
+            }
+        }
+        body = body.replacingOccurrences(of: "_", with: "-")
+        return L10n.pdfTitleNumbered(lang, type: document.type.label(for: lang), number: body)
+    }
+
+    /// Le bloc ÉMETTEUR, en tête de page.
+    ///
+    /// Il n'y en avait aucun : le destinataire devait descendre jusqu'au pied de
+    /// page, en 9 pt gris, pour savoir qui le facturait. La page se lisait comme
+    /// un ticket de caisse, et l'adresse comme le numéro de TVA de l'émetteur
+    /// n'étaient imprimés nulle part — deux mentions obligatoires.
+    private func drawIssuerBlock(_ context: CGContext, y: CGFloat) -> CGFloat {
+        var cy = y
+        let name = company.nom.trimmingCharacters(in: .whitespacesAndNewlines)
+        drawText(name.isEmpty ? "—" : name.uppercased(), x: mL, y: cy,
+                 font: PDFLayout.fontSmallBold, color: PDFLayout.textBlack, context: context,
+                 maxWidth: pW - mL - mR - 90)
+        cy += 12
+
+        var lines: [String] = []
+        let address = company.adresse.trimmingCharacters(in: .whitespacesAndNewlines)
+        let place = addressLine(city: company.ville, postalCode: company.codePostal)
+        let addressLineText = [address, place].filter { !$0.isEmpty }.joined(separator: " · ")
+        if !addressLineText.isEmpty { lines.append(addressLineText) }
+
+        let identifiers = [
+            company.siret.isEmpty ? nil : "\(L10n.siret(lang)) \(company.siret)",
+            company.tvaIntracom.isEmpty ? nil : "\(L10n.vatNumber(lang)) \(company.tvaIntracom)"
+        ].compactMap { $0 }
+        if !identifiers.isEmpty { lines.append(identifiers.joined(separator: " · ")) }
+
+        let contact = [company.telephone, company.email]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
+        if !contact.isEmpty { lines.append(contact) }
+
+        for line in lines {
+            drawText(line, x: mL, y: cy, font: PDFLayout.fontSmall, color: PDFLayout.textGray,
+                     context: context, maxWidth: pW - mL - mR - 90)
+            cy += 11
+        }
+        return cy + 6
+    }
+
+    /// Filigrane d'état. Gris à 10 %, jamais en couleur : il survit au laser sans
+    /// noircir la page, et un brouillon exporté ne peut plus passer pour une
+    /// facture valide.
+    private func drawStatusWatermark(_ context: CGContext) {
+        guard let text = L10n.pdfWatermark(lang, status: document.status) else { return }
+        context.saveGState()
+        context.translateBy(x: pW / 2, y: pH / 2)
+        context.rotate(by: -8 * .pi / 180)
+        let font = NSFont.systemFont(ofSize: 40, weight: .bold)
+        let color = NSColor(white: 0.07, alpha: 0.10)
+        let attributed = NSAttributedString(string: text, attributes: [.font: font, .foregroundColor: color])
+        let line = CTLineCreateWithAttributedString(attributed)
+        let bounds = CTLineGetBoundsWithOptions(line, [])
+        context.textPosition = CGPoint(x: -bounds.width / 2, y: -bounds.height / 2)
+        CTLineDraw(line, context)
+        context.restoreGState()
     }
 
     /// Dessine le logo abstrait : 6 cercles/ellipses superposes
@@ -554,7 +667,9 @@ struct PDFGenerator {
         let valueRight = pW - mR
         let labelRight = valueRight - 120
 
-        let cur = document.currency.rawValue
+        // Le symbole, pas le code ISO : la page affichait « 1 234,56 EUR »
+        // quand l'interface affichait « 1 234,56 € ».
+        let cur = document.currency.symbole
 
         // Totaux arrondis par ligne (source unique partagée avec le XML Factur-X) :
         // le total affiché égale toujours la somme des montants de ligne affichés.
@@ -569,6 +684,20 @@ struct PDFGenerator {
         // Ligne de separation
         strokeLine(context, x1: labelRight - 30, y1: cy - 2, x2: valueRight, y2: cy - 2,
                    color: themePrimary.withAlphaComponent(0.2), width: 0.3)
+
+        // Une ligne par taux, avec sa base : « Total TVA » agrégeait tout, donc
+        // avec des taux mixtes le client ne pouvait pas rapprocher la taxe.
+        for group in totals.groups where group.calculated != 0 || totals.groups.count > 1 {
+            let rateText = L10n.vatRateLabel(lang, rate: group.rate)
+            drawTextRight(
+                L10n.pdfVatLineLabel(lang, rate: rateText, basis: "\(formatSpaced(group.basis)) \(cur)"),
+                rightX: labelRight, y: cy,
+                font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context
+            )
+            drawTextRight("\(formatSpaced(group.calculated)) \(cur)", rightX: valueRight, y: cy,
+                          font: PDFLayout.fontSmall, color: PDFLayout.textGray, context: context)
+            cy += 13
+        }
 
         drawTextRight(L10n.totalVAT(lang), rightX: labelRight, y: cy,
                       font: PDFLayout.fontBody, color: PDFLayout.textBlack, context: context)
@@ -774,6 +903,17 @@ struct PDFGenerator {
         }
     }
 
+    /// « page 1 sur 2 », ancré en bas de page. Les documents multi-pages
+    /// n'avaient ni numéro, ni en-tête de continuation, ni marqueur de suite :
+    /// une page séparée de sa première était non identifiable, et rien
+    /// n'empêchait de les remettre dans le désordre.
+    private func drawPageNumber(_ context: CGContext) {
+        guard pageCounter.total > 1 else { return }
+        let text = L10n.pdfPageOf(lang, page: pageCounter.value, total: pageCounter.total)
+        drawTextRight(text, rightX: pW - mR, y: pH - PDFLayout.marginBottom + 8,
+                      font: PDFLayout.fontLabel, color: PDFLayout.textGray, context: context)
+    }
+
     private var snapshotWalletAddress: String? {
         guard let snapshot = paymentSnapshot, snapshot.paymentMode == .crypto else { return nil }
         let address = snapshot.walletAddress.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -805,6 +945,7 @@ struct PDFGenerator {
 
     private func drawFooterBlock(_ context: CGContext, y: CGFloat, showPayment: Bool = true, solanaPayQR: CGImage? = nil) -> CGFloat {
         var cy = y + 10
+        defer { drawPageNumber(context) }
 
         // Bordure verte epaisse a gauche du bloc
         let blockTop = cy
@@ -927,6 +1068,29 @@ struct PDFGenerator {
         }
 
         return endY
+    }
+
+    /// Conditions de règlement et mentions légales obligatoires.
+    private func drawLegalMentions(_ context: CGContext, y: CGFloat) -> CGFloat {
+        var cy = y
+        drawText(L10n.pdfLegalHeading(lang), x: mL, y: cy,
+                 font: PDFLayout.fontSection, color: PDFLayout.greenDark, context: context)
+        cy += 13
+        strokeLine(context, x1: mL, y1: cy - 3, x2: pW - mR, y2: cy - 3,
+                   color: themePrimary.withAlphaComponent(0.4), width: 0.5)
+        cy += 4
+
+        let days = Calendar.current.dateComponents(
+            [.day],
+            from: Calendar.current.startOfDay(for: document.dateCreation),
+            to: Calendar.current.startOfDay(for: document.dateEcheance)
+        ).day ?? 0
+
+        let text = L10n.pdfLegalTerms(lang, dueDate: formatDate(document.dateEcheance), days: max(days, 0))
+        cy = drawWrappedText(text, x: mL, y: cy,
+                             font: PDFLayout.fontLabel, color: PDFLayout.textGray,
+                             context: context, maxWidth: pW - mL - mR, lineHeight: 11)
+        return cy
     }
 
     // MARK: - Logo Solana (centre du QR)
